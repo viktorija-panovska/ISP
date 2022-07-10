@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public class Noise
+public class NoiseGenerator
 {
     public static float[,] GenerateNoiseMap(int mapWidth, int mapHeight, int seed, float scale, int octaves, float persistance, float lacunarity)
     {
@@ -34,8 +34,6 @@ public class Noise
                     // we also multiply by scale to not get an extremely zoomed in picture
                     float xCoordinate = (float)x / mapWidth * scale + offsets[i].x;
                     float yCoordinate = (float)y / mapHeight * scale + offsets[i].y;
-
-                    float distance = 1 - (1 - (xCoordinate*xCoordinate)) * (1 - (yCoordinate*yCoordinate));
 
                     // increase the noise by the perlin value of each octave
                     // the higher the frequency, the further apart the sample points will be, so the elevation will change more rapidly
