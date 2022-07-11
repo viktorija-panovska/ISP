@@ -4,6 +4,8 @@ public class NoiseGenerator
 {
     public static float[,] GenerateNoiseMap(int mapWidth, int mapHeight, int seed, float scale, int octaves, float persistance, float lacunarity)
     {
+        float[,] falloffMap = GenerateFalloffMap(mapWidth, mapHeight);
+
         float[,] noiseMap = new float[mapWidth, mapHeight];
 
         // to get different random maps every time, we need to sample from different random coordinates
@@ -47,10 +49,27 @@ public class NoiseGenerator
                     frequency *= lacunarity;
                 }
 
-                noiseMap[x, y] = elevation / amplitudeSum;
+                noiseMap[x, y] = (elevation / amplitudeSum) - falloffMap[x, y];
             }
         }
 
         return noiseMap;
+    }
+
+
+    public static float[,] GenerateFalloffMap(int mapWidth, int mapHeight)
+    {
+        float[,] falloffMap = new float[mapWidth, mapHeight];
+
+        for (int x = 0; x < mapWidth; ++x)
+        {
+            for (int y = 0; y < mapHeight; ++y)
+            {
+                float distance = Mathf.Sqrt(Mathf.Pow(0.5f*(((mapWidth - 1) / 2) - x), 2) + Mathf.Pow(((mapHeight - 1) - y), 2));
+                falloffMap[x, y] = distance / mapWidth;
+            }
+        }
+
+        return falloffMap;
     }
 }

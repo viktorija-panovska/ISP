@@ -133,7 +133,6 @@ public class MapGenerator : MonoBehaviour
         {
             for (int x = 0; x < width; x++)
             {
-
                 meshData.AddVertex(vertexIndex, new Vector3(topLeftX + x, heightCurve.Evaluate(heightMap[x, y]) * heightMultiplier, topLeftZ - y));
                 meshData.AddUV(vertexIndex, new Vector2(x / (float)width, y / (float)height));
 
