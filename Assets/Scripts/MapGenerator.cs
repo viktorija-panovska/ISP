@@ -2,11 +2,10 @@ using UnityEngine;
 
 
 [System.Serializable]
-public struct TerrainType
+public struct Terrain
 {
-    public string name;
-    public float height;
-    public Color color;
+    public float Height;
+    public Color Color;
 }
 
 
@@ -42,23 +41,24 @@ public class MeshData
 }
 
 
+
+[RequireComponent(typeof(MeshFilter), typeof(MeshRenderer), typeof(MeshCollider))]
 public class MapGenerator : MonoBehaviour
 {
-    private readonly int mapWidth = 200;                // map width in pixels
-    private readonly int mapHeight = 200;               // map height in pixels
-    private readonly float scale = 10f;                 // number of grid points along every direction (zoom, the larger the number the less zoomed in)
-    private readonly int octaves = 3;                   // number of levels of detail
-    private readonly float persistence = 0.5f;          // how much each octave contributes to the overall shape (adjusts the amplitude) - in range 0..1
-    private readonly float lacunarity = 2;              // how much detail is added or removed at each octave (adjusts frequency) - must be > 1
-    
-    public TerrainType[] regions;
+    // the maximum number of vertices a Unity mesh can have is 255 x 255
+    public const int MapWidth = 241;           // map width in pixels
+    public const int MapHeight = 241;          // map height in pixels
+    public const float Scale = 10f;            // number of grid points along every direction (zoom, the larger the number the less zoomed in)
+    public const int Octaves = 3;              // number of levels of detail
+    public const float Persistence = 0.5f;     // how much each octave contributes to the overall shape (adjusts the amplitude) - in range 0..1
+    public const float Lacunarity = 2;         // how much detail is added or removed at each octave (adjusts frequency) - must be > 1
 
-    public MeshFilter meshFilter;
-    public MeshRenderer meshRenderer;
+    public const float HeightMultiplier = 100f;
+    public int TileSize = 10;
 
-    float heightMultiplier = 50f;
-    public AnimationCurve heightCurve;
-
+    // Initialized in the editor
+    public Terrain[] Regions;
+    public AnimationCurve HeightCurve;
 
 
     private void Start()
@@ -69,7 +69,6 @@ public class MapGenerator : MonoBehaviour
     }
 
 
-
     private int GenerateSeed()
     {
         System.Random ranGen = new System.Random();
@@ -78,22 +77,22 @@ public class MapGenerator : MonoBehaviour
 
     private float[,] GenerateHeightMap(int seed)
     {
-        return NoiseGenerator.GenerateNoiseMap(mapWidth, mapHeight, seed, scale, octaves, persistence, lacunarity);
+        return NoiseGenerator.GenerateNoiseMap(MapWidth, MapHeight, seed, Scale, Octaves, Persistence, Lacunarity);
     }
 
     private Color[] GenerateColorMap(float[,] heightMap)
     {
         // generate the color map by picking from terrain types
-        Color[] colorMap = new Color[mapHeight * mapWidth];
-        for (int x = 0; x < mapWidth; ++x)
+        Color[] colorMap = new Color[MapWidth * MapHeight];
+        for (int y = 0; y < MapHeight; ++y)
         {
-            for (int y = 0; y < mapHeight; ++y)
+            for (int x = 0; x < MapWidth; ++x)
             {
-                for (int i = 0; i < regions.Length; ++i)
+                for (int i = 0; i < Regions.Length; ++i)
                 {
-                    if (heightMap[x, y] <= regions[i].height)
+                    if (heightMap[y, x] <= Regions[i].Height)
                     {
-                        colorMap[y * mapWidth + x] = regions[i].color;
+                        colorMap[x * MapHeight + y] = Regions[i].Color;
                         break;
                     }
                 }
@@ -107,7 +106,7 @@ public class MapGenerator : MonoBehaviour
     {
         Color[] colorMap = GenerateColorMap(heightMap);
 
-        Texture2D texture = new Texture2D(mapWidth, mapHeight);
+        Texture2D texture = new Texture2D(MapWidth, MapHeight);
         texture.filterMode = FilterMode.Point;
         texture.wrapMode = TextureWrapMode.Clamp;
         texture.SetPixels(colorMap);
@@ -117,30 +116,30 @@ public class MapGenerator : MonoBehaviour
     }
 
 
-
     private MeshData GenerateMeshData(float[,] heightMap)
     {
-        int width = heightMap.GetLength(0);
-        int height = heightMap.GetLength(1);
-        float topLeftX = (width - 1) / -2f;
-        float topLeftZ = (height - 1) / 2f;
+        float topLeftX = (MapWidth - 1) / -2f;
+        float topLeftZ = (MapHeight - 1) / 2f;
 
-        MeshData meshData = new MeshData(width, height);
+        int vertexWidth = (MapWidth - 1) / TileSize + 1;     // number of vertices per row
+        int vertexHeight = (MapHeight - 1) / TileSize + 1;   // number of vertices per column
+
+        MeshData meshData = new MeshData(vertexWidth, vertexHeight);
         int vertexIndex = 0;
         int triangleIndex = 0;
 
-        for (int y = 0; y < height; y++)
+        for (int y = 0; y < MapHeight; y += TileSize)
         {
-            for (int x = 0; x < width; x++)
+            for (int x = 0; x < MapWidth; x += TileSize)
             {
-                meshData.AddVertex(vertexIndex, new Vector3(topLeftX + x, heightCurve.Evaluate(heightMap[x, y]) * heightMultiplier, topLeftZ - y));
-                meshData.AddUV(vertexIndex, new Vector2(x / (float)width, y / (float)height));
+                meshData.AddVertex(vertexIndex, new Vector3(topLeftX + x, HeightCurve.Evaluate(heightMap[x, y]) * HeightMultiplier, topLeftZ - y));
+                meshData.AddUV(vertexIndex, new Vector2(x / (float)MapWidth, y / (float)MapHeight));
 
-                if (x < width - 1 && y < height - 1)
+                if (x < MapWidth - 1 && y < MapHeight - 1)
                 {
-                    meshData.AddTriangle(triangleIndex, vertexIndex, vertexIndex + width + 1, vertexIndex + width);
+                    meshData.AddTriangle(triangleIndex, vertexIndex, vertexIndex + vertexWidth + 1, vertexIndex + vertexWidth);
                     triangleIndex += 3;
-                    meshData.AddTriangle(triangleIndex, vertexIndex + width + 1, vertexIndex, vertexIndex + 1);
+                    meshData.AddTriangle(triangleIndex, vertexIndex + vertexWidth + 1, vertexIndex, vertexIndex + 1);
                     triangleIndex += 3;
                 }
 
@@ -154,13 +153,18 @@ public class MapGenerator : MonoBehaviour
 
     private void DrawMesh(MeshData meshData, Texture2D texture)
     {
-        Mesh mesh = new Mesh();
-        mesh.vertices = meshData.vertices;
-        mesh.triangles = meshData.triangles;
-        mesh.uv = meshData.uvs;
+        Mesh mesh = new Mesh()
+        {
+            name = "MapMesh",
+            vertices = meshData.vertices,
+            triangles = meshData.triangles,
+            uv = meshData.uvs
+        };
+
         mesh.RecalculateNormals();
 
-        meshFilter.sharedMesh = mesh;
-        meshRenderer.sharedMaterial.mainTexture = texture;
+        GetComponent<MeshFilter>().mesh = mesh;
+        GetComponent<MeshCollider>().sharedMesh = mesh;
+        GetComponent<MeshRenderer>().sharedMaterial.mainTexture = texture;
     }
 }

@@ -2,11 +2,12 @@ using UnityEngine;
 
 public class NoiseGenerator
 {
-    public static float[,] GenerateNoiseMap(int mapWidth, int mapHeight, int seed, float scale, int octaves, float persistance, float lacunarity)
+    public static float[,] GenerateNoiseMap(int mapWidth, int mapHeight, int seed, float scale, 
+                                            int octaves, float persistance, float lacunarity)
     {
         float[,] falloffMap = GenerateFalloffMap(mapWidth, mapHeight);
 
-        float[,] noiseMap = new float[mapWidth, mapHeight];
+        float[,] noiseMap = new float[mapHeight, mapWidth];
 
         // to get different random maps every time, we need to sample from different random coordinates
         // we sample at differnet random coordinates for each octave
@@ -21,9 +22,9 @@ public class NoiseGenerator
         }
 
 
-        for (int x = 0; x < mapWidth; ++x) 
+        for (int y = 0; y < mapHeight; ++y) 
         {
-            for (int y = 0; y < mapHeight; ++y)
+            for (int x = 0; x < mapWidth; ++x)
             {
                 float amplitude = 1;
                 float frequency = 1;
@@ -49,7 +50,7 @@ public class NoiseGenerator
                     frequency *= lacunarity;
                 }
 
-                noiseMap[x, y] = (elevation / amplitudeSum) - falloffMap[x, y];
+                noiseMap[y, x] = (elevation / amplitudeSum) - falloffMap[y, x];
             }
         }
 
@@ -57,16 +58,17 @@ public class NoiseGenerator
     }
 
 
+    // Makes the map look like a peninsula
     public static float[,] GenerateFalloffMap(int mapWidth, int mapHeight)
     {
-        float[,] falloffMap = new float[mapWidth, mapHeight];
+        float[,] falloffMap = new float[mapHeight, mapWidth];
 
-        for (int x = 0; x < mapWidth; ++x)
+        for (int y = 0; y < mapHeight; ++y)
         {
-            for (int y = 0; y < mapHeight; ++y)
+            for (int x = 0; x < mapWidth; ++x)
             {
                 float distance = Mathf.Sqrt(Mathf.Pow(0.5f*(((mapWidth - 1) / 2) - x), 2) + Mathf.Pow(((mapHeight - 1) - y), 2));
-                falloffMap[x, y] = distance / mapWidth;
+                falloffMap[y, x] = distance / mapWidth;
             }
         }
 
