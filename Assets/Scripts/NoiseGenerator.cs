@@ -51,6 +51,17 @@ public class NoiseGenerator
                 }
 
                 noiseMap[y, x] = (elevation / amplitudeSum) - falloffMap[y, x];
+
+                if (noiseMap[y, x] > 0.9)
+                    noiseMap[y, x] = 1f;
+                else if (noiseMap[y, x] > 0.7)
+                    noiseMap[y, x] = 0.9f;
+                else if (noiseMap[y, x] > 0.55)
+                    noiseMap[y, x] = 0.7f;
+                else if (noiseMap[y, x] > 0.45)
+                    noiseMap[y, x] = 0.55f;
+
+
             }
         }
 
@@ -67,7 +78,7 @@ public class NoiseGenerator
         {
             for (int x = 0; x < mapWidth; ++x)
             {
-                float distance = Mathf.Sqrt(Mathf.Pow(0.5f*(((mapWidth - 1) / 2) - x), 2) + Mathf.Pow(((mapHeight - 1) - y), 2));
+                float distance = Mathf.Sqrt(Mathf.Pow(((mapWidth - 1) - x) / 10, 2) + Mathf.Pow(((mapHeight - 1) - y) / 1.5f, 2));
                 falloffMap[y, x] = distance / mapWidth;
             }
         }
