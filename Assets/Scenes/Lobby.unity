@@ -857,7 +857,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1131460109766225204, guid: 9ab47bf9f24067f49b75cf1c4adb389a, type: 3}
       propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_Mode
-      value: 1
+      value: 2
       objectReference: {fileID: 0}
     - target: {fileID: 1131460109766225204, guid: 9ab47bf9f24067f49b75cf1c4adb389a, type: 3}
       propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_Target
@@ -876,8 +876,12 @@ PrefabInstance:
       value: LobbyUI, Assembly-CSharp
       objectReference: {fileID: 0}
     - target: {fileID: 1131460109766225204, guid: 9ab47bf9f24067f49b75cf1c4adb389a, type: 3}
+      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_Arguments.m_ObjectArgument
+      value: 
+      objectReference: {fileID: 1146034390}
+    - target: {fileID: 1131460109766225204, guid: 9ab47bf9f24067f49b75cf1c4adb389a, type: 3}
       propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_Arguments.m_ObjectArgumentAssemblyTypeName
-      value: UnityEngine.Object, UnityEngine
+      value: LobbyCard, Assembly-CSharp
       objectReference: {fileID: 0}
     - target: {fileID: 1603420583149128775, guid: 9ab47bf9f24067f49b75cf1c4adb389a, type: 3}
       propertyPath: m_TargetGraphic
@@ -1742,7 +1746,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1131460109766225204, guid: 9ab47bf9f24067f49b75cf1c4adb389a, type: 3}
       propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_Mode
-      value: 1
+      value: 2
       objectReference: {fileID: 0}
     - target: {fileID: 1131460109766225204, guid: 9ab47bf9f24067f49b75cf1c4adb389a, type: 3}
       propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_Target
@@ -1761,8 +1765,12 @@ PrefabInstance:
       value: LobbyUI, Assembly-CSharp
       objectReference: {fileID: 0}
     - target: {fileID: 1131460109766225204, guid: 9ab47bf9f24067f49b75cf1c4adb389a, type: 3}
+      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_Arguments.m_ObjectArgument
+      value: 
+      objectReference: {fileID: 1845096165}
+    - target: {fileID: 1131460109766225204, guid: 9ab47bf9f24067f49b75cf1c4adb389a, type: 3}
       propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_Arguments.m_ObjectArgumentAssemblyTypeName
-      value: UnityEngine.Object, UnityEngine
+      value: LobbyCard, Assembly-CSharp
       objectReference: {fileID: 0}
     - target: {fileID: 1603420583149128775, guid: 9ab47bf9f24067f49b75cf1c4adb389a, type: 3}
       propertyPath: m_TargetGraphic

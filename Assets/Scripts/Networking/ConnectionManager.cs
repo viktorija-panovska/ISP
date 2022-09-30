@@ -88,6 +88,7 @@ public class ConnectionManager : MonoBehaviour
 
     public void RequestDisconnect()
     {
+        Debug.Log("Request Disconnect");
         if (NetworkManager.Singleton.IsServer && NetworkManager.Singleton.SceneManager != null)
             NetworkManager.Singleton.SceneManager.OnSceneEvent -= OnSceneEvent;
 

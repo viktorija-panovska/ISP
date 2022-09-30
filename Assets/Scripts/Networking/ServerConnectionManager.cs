@@ -66,6 +66,7 @@ public class ServerConnectionManager : MonoBehaviour
 
     public void SetServerPassword(string password) => serverPassword = password;
 
+     
     public string GetServerPassword() => serverPassword;
 
     public void OnClientSceneChanged(ulong clientId, int sceneIndex)
@@ -94,7 +95,7 @@ public class ServerConnectionManager : MonoBehaviour
         clientSceneMap.Remove(clientId);
 
         if (clientId == NetworkManager.Singleton.LocalClientId)
-        {
+        { 
             NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnect;
             ClearAllClientData();
         }

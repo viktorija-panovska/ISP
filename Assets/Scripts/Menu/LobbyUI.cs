@@ -90,6 +90,7 @@ public class LobbyUI : NetworkBehaviour
 
     private void OnClientDisconnected(ulong clientId)
     {
+        Debug.Log("Lobby");
         for (int i = 0; i < lobbyPlayers.Count; ++i)
         {
             if (lobbyPlayers[i].ClientId == clientId)
@@ -112,6 +113,7 @@ public class LobbyUI : NetworkBehaviour
         for (int i = lobbyPlayers.Count; i < lobbyCards.Length; ++i)
             HideCard(lobbyCards[i]);
     }
+
     private void OpenCard(LobbyCard card, LobbyPlayerState lobbyPlayerState)
     {
         card.playerDisplayName.text = lobbyPlayerState.PlayerName.ToString();
@@ -201,11 +203,18 @@ public class LobbyUI : NetworkBehaviour
         return true;
     }
 
-    public void KickPlayer()
+    public void KickPlayer(LobbyCard card)
     {
         if (!NetworkManager.Singleton.IsHost)
             return;
 
-        ServerConnectionManager.Instance.KickClient(lobbyPlayers[^1].ClientId);
+        for (int i = 0; i < lobbyCards.Length; ++i)
+        {
+            if (lobbyCards[i] == card)
+            {
+                ServerConnectionManager.Instance.KickClient(lobbyPlayers[i].ClientId);
+                return;
+            }
+        }        
     }
 }

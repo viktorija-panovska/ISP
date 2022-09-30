@@ -2,34 +2,35 @@ using UnityEngine;
 
 public class CameraController : MonoBehaviour
 {
-    private const float panSpeed = 20f;
-    private readonly Vector2 panLimit = new Vector2(200, 200);
+    public Camera mainCamera;
 
-    private const float scrollSpeed = 100f;
-    private const float minY = 100f;
-    private const float maxX = 400f;
- 
+    private const float panSpeed = 150f;
+    private const float zoomSpeed = 100f;
 
     void Update()
     {
-        Vector3 position = transform.position;
+        MoveCamera();
+    }
+
+    private void MoveCamera()
+    {
+        Vector3 newPosition = transform.position;
+        float newZoom = mainCamera.orthographicSize;
 
         if (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow))
-            position.z -= panSpeed * Time.deltaTime;
+            newPosition += (transform.forward * panSpeed);
         if (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow))
-            position.z += panSpeed * Time.deltaTime;
-        if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow))
-            position.x += panSpeed * Time.deltaTime;
+            newPosition += (transform.forward * -panSpeed);
         if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow))
-            position.x -= panSpeed * Time.deltaTime;
+            newPosition += (transform.right * panSpeed);
+        if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow))
+            newPosition += (transform.right * -panSpeed);
 
-        float scroll = Input.GetAxis("Mouse ScrollWheel");
-        position.y -= scroll * scrollSpeed * 100f * Time.deltaTime;
+        newZoom -= Input.GetAxis("Mouse ScrollWheel") * zoomSpeed * 100f;
+        newZoom = Mathf.Clamp(newZoom, 150f, 300f);
 
-        position.x = Mathf.Clamp(position.x, -panLimit.x, panLimit.x);
-        position.y = Mathf.Clamp(position.y, minY, maxX);
-        position.z = Mathf.Clamp(position.z, -panLimit.y, panLimit.y);
-
-        transform.position = position;
+        // for smooth camera movement
+        transform.position = Vector3.Lerp(transform.position, newPosition, Time.deltaTime);
+        mainCamera.orthographicSize = Mathf.Lerp(mainCamera.orthographicSize, newZoom, Time.deltaTime);
     }
 }
