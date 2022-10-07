@@ -6,6 +6,8 @@ public class CameraController : MonoBehaviour
 
     private const float panSpeed = 150f;
     private const float zoomSpeed = 100f;
+    private const float minZoom = 300f;
+    private const float maxZoom = 20f;
 
     void Update()
     {
@@ -27,7 +29,7 @@ public class CameraController : MonoBehaviour
             newPosition += (transform.right * -panSpeed);
 
         newZoom -= Input.GetAxis("Mouse ScrollWheel") * zoomSpeed * 100f;
-        newZoom = Mathf.Clamp(newZoom, 150f, 300f);
+        newZoom = Mathf.Clamp(newZoom, maxZoom, minZoom);
 
         // for smooth camera movement
         transform.position = Vector3.Lerp(transform.position, newPosition, Time.deltaTime);
