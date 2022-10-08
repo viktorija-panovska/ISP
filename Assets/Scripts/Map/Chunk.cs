@@ -1,16 +1,30 @@
 using UnityEngine;
 
 
-[System.Serializable]
-public struct VoxelType
+
+public enum BlockType
 {
-    public string BlockName;
-    public bool IsSolid;
-    public int TextureID;
+    Air,
+    Water,
+    Grass,
+    Field
 }
 
 
-public struct Voxel
+public struct BlockProperties
+{
+    public bool IsSolid;
+    public int TextureId;
+
+    public BlockProperties(bool isSolid, int textureId)
+    {
+        IsSolid = isSolid;
+        TextureId = textureId;
+    }
+}
+
+
+public struct Block
 {
     public const int Vertices = 8;
     public const int Faces = 6;
@@ -61,82 +75,84 @@ public struct Voxel
 }
 
 
+
+
 public class Chunk
 {
-    public (int x, int z) ChunkWorldLocation;
-
-    private GameObject chunkObject;
-    public Vector3 ChunkPosition { get => chunkObject.transform.position; }
-
-    public static readonly int Width = 5;
-    public static readonly int Height = 15;
-
-    private byte[,,] voxelIDs = new byte[Width, Height, Width];
-
-    private int vertexIndex = 0;
-    private int triangleIndex = 0;
-
     private WorldMap worldMap;
+    private GameObject chunkObject;
+
+    public Vector3 PositionInGameWorld { get => chunkObject.transform.position; }
+    public (int x, int z) PositionInWorldMap;
+
+    public const int Width = 5;
+    public const int Height = 15;
+
+    private BlockType[,,] blockTypes = new BlockType[Width, Height, Width];
+
 
 
     public Chunk(WorldMap worldMap, (int, int) chunkLoc)
     {
-        ChunkWorldLocation = chunkLoc;
-
+        this.worldMap = worldMap;
         chunkObject = new GameObject();
         chunkObject.AddComponent<MeshFilter>();
         chunkObject.AddComponent<MeshRenderer>();
         chunkObject.AddComponent<MeshCollider>();
-        
-        this.worldMap = worldMap;
         chunkObject.GetComponent<MeshRenderer>().material = worldMap.WorldMaterial;
         chunkObject.transform.SetParent(worldMap.transform);
-        chunkObject.transform.position = new Vector3(ChunkWorldLocation.x * Width, 0f, ChunkWorldLocation.z * Width);
-        chunkObject.name = "Chunk " + ChunkWorldLocation.x + " " + ChunkWorldLocation.z;
+
+        PositionInWorldMap = chunkLoc;
+        chunkObject.transform.position = new Vector3(PositionInWorldMap.x * Width, 0f, PositionInWorldMap.z * Width);
+        chunkObject.name = "Chunk " + PositionInWorldMap.x + " " + PositionInWorldMap.z;
 
         FillChunkMap();
-        DrawMesh(GenerateMeshData());
+        DrawMesh(GenerateChunkData());
     }
+
 
     private void FillChunkMap()
     {
         for (int y = 0; y < Height; ++y)
             for (int x = 0; x < Width; ++x)
                 for (int z = 0; z < Width; ++z)
-                    voxelIDs[x, y, z] = worldMap.GetVoxel(new Vector3(x, y, z) + ChunkPosition);
-
+                    blockTypes[x, y, z] = worldMap.GetBlockType(new Vector3(x, y, z) + PositionInGameWorld);
     }
 
-    private ChunkData GenerateMeshData()
+
+    private ChunkData GenerateChunkData()
     {
         ChunkData chunkData = new ChunkData(Width, Height);
+        int vertexIndex = 0;
+        int triangleIndex = 0;
 
         for (int y = 0; y < Height; ++y)
             for (int x = 0; x < Width; ++x)
                 for (int z = 0; z < Width; ++z)
-                    AddBlockToChunk(chunkData, new Vector3(x, y, z));
+                    AddBlockToChunk(chunkData, new Vector3(x, y, z), ref vertexIndex, ref triangleIndex);
 
         return chunkData;
     }
 
 
-    private void AddBlockToChunk(ChunkData chunkData, Vector3 voxelPosition)
+    private void AddBlockToChunk(ChunkData chunkData, Vector3 blockPosition, ref int vertexIndex, ref int triangleIndex)
     {
-        // get coordinates for texture
-        int textureID = worldMap.VoxelTypes[voxelIDs[(int)voxelPosition.x, (int)voxelPosition.y, (int)voxelPosition.z]].TextureID;
-        float y = (textureID / WorldMap.TextureAtlasBlocks) * WorldMap.NormalizedTextureBlockSize;
+        // get coordinates for texture from texture atlas
+        BlockType blockType = blockTypes[(int)blockPosition.x, (int)blockPosition.y, (int)blockPosition.z];
+        int textureID = WorldMap.BlockTypes[(int)blockType].TextureId;
+        float y = textureID / WorldMap.TextureAtlasBlocks * WorldMap.NormalizedTextureBlockSize;
         float x = (textureID - (y * WorldMap.TextureAtlasBlocks)) * WorldMap.NormalizedTextureBlockSize;
         Vector2 textureCoords = new Vector2(x, y);
 
-        for (int face = 0; face < Voxel.Faces; ++face)
+        for (int face = 0; face < Block.Faces; ++face)
         {
             // if the face we're drawing has a neighboring face, it shouldn't be drawn
-            if (!IsVoxelSolid(voxelPosition + Voxel.NeighborVoxelFace[face]))
+            if (!IsBlockSolid(blockPosition + Block.NeighborVoxelFace[face]))
             {
-                for (int i = 0; i < Voxel.VerticesPerFace; ++i)
+                for (int i = 0; i < Block.VerticesPerFace; ++i)
                 {
-                    chunkData.AddVertex(vertexIndex + i, voxelPosition + Voxel.VertexOffsets[Voxel.FaceVertices[face, i]]);
-                    chunkData.AddUV(vertexIndex + i, textureCoords + Voxel.UvOffsets[i]);
+                    chunkData.AddVertex(vertexIndex + i, blockPosition + Block.VertexOffsets[Block.FaceVertices[face, i]]);
+                    chunkData.AddUV(vertexIndex + i, textureCoords + Block.UvOffsets[i]);
                 }
 
                 chunkData.AddTriangles(triangleIndex, vertexIndex, vertexIndex + 2, vertexIndex + 1, vertexIndex + 2, vertexIndex, vertexIndex + 3);
@@ -148,23 +164,23 @@ public class Chunk
     }
 
 
-    private bool IsVoxelInChunk(Vector3 pos)
+    private bool IsBlockInChunk(Vector3 blockPos)
     {
-        if (pos.x < 0 || pos.x > Width - 1 ||
-            pos.y < 0 || pos.y > Height - 1 ||
-            pos.z < 0 || pos.z > Width - 1)
+        if (blockPos.x < 0 || blockPos.x > Width - 1 ||
+            blockPos.y < 0 || blockPos.y > Height - 1 ||
+            blockPos.z < 0 || blockPos.z > Width - 1)
             return false;
 
         return true;
     }
 
 
-    private bool IsVoxelSolid(Vector3 pos)
+    private bool IsBlockSolid(Vector3 pos)
     {
-        if (!IsVoxelInChunk(pos))
-            return worldMap.VoxelTypes[worldMap.GetVoxel(pos + ChunkPosition)].IsSolid;
+        if (!IsBlockInChunk(pos))
+            return WorldMap.BlockTypes[(int)worldMap.GetBlockType(pos + PositionInGameWorld)].IsSolid;
 
-        return worldMap.VoxelTypes[voxelIDs[(int)pos.x, (int)pos.y, (int)pos.z]].IsSolid;
+        return WorldMap.BlockTypes[(int)blockTypes[(int)pos.x, (int)pos.y, (int)pos.z]].IsSolid;
     }
 
 

@@ -10,7 +10,7 @@ public class MeshData
     {
         vertices = new Vector3[width * height];
         uvs = new Vector2[width * height];
-        triangles = new int[(width - 1) * (height - 1) * (Voxel.Faces * 6)];
+        triangles = new int[(width - 1) * (height - 1) * (Block.Faces * 6)];
     }
 
     public void AddVertex(int index, Vector3 vertex)

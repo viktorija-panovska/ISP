@@ -8,9 +8,9 @@ public class ChunkData
 
     public ChunkData(int width, int height)
     {
-        vertices = new Vector3[width * height * (Voxel.Faces * Voxel.VerticesPerFace)];
+        vertices = new Vector3[width * height * (Block.Faces * Block.VerticesPerFace)];
         uvs = new Vector2[vertices.Length];
-        triangles = new int[width * height * (Voxel.Faces * 6)];
+        triangles = new int[width * height * (Block.Faces * 6)];
     }
 
     public void AddVertex(int index, Vector3 vertex)
