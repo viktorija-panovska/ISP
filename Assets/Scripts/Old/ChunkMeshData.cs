@@ -1,16 +1,16 @@
 using UnityEngine;
 
-public class ChunkData
+public class ChunkMeshData
 {
     public Vector3[] vertices;
     public int[] triangles;
     public Vector2[] uvs;
 
-    public ChunkData(int width, int height)
+    public ChunkMeshData(int width, int height)
     {
-        vertices = new Vector3[width * height * (Block.Faces * Block.VerticesPerFace)];
-        uvs = new Vector2[vertices.Length];
-        triangles = new int[width * height * (Block.Faces * 6)];
+        vertices = new Vector3[width * height];
+        uvs = new Vector2[width * height];
+        triangles = new int[(width - 1) * (height - 1) * (BlockData.Faces * 6)];
     }
 
     public void AddVertex(int index, Vector3 vertex)
@@ -34,3 +34,4 @@ public class ChunkData
         uvs[index] = uv;
     }
 }
+

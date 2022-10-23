@@ -1,9 +1,60 @@
 using UnityEngine;
 
-public class NoiseGenerator
+public static class NoiseGenerator
 {
+    public static Vector2[] GenerateNoiseOffsets(int mapSeed, int octaves)
+    {
+        // to get different random maps every time, we need to sample from different random coordinates
+        // we sample at differnet random coordinates for each octave
+        System.Random ranGen = new System.Random(mapSeed);
+        Vector2[] offsets = new Vector2[octaves];
+
+        for (int i = 0; i < octaves; ++i)
+        {
+            float offsetX = ranGen.Next(-1000, 1000);
+            float offsetY = ranGen.Next(-1000, 1000);
+            offsets[i] = new Vector2(offsetX, offsetY);
+        }
+
+        return offsets;
+    }
+
+
+    public static float GetPerlinAtPosition(Vector3 position, float scale, Vector2[] offsets,
+                                            int octaves, float persistence, float lacunarity)
+    {
+        float amplitude = 1;
+        float frequency = 1;
+        float elevation = 0;
+        float amplitudeSum = 0;
+
+        for (int i = 0; i < octaves; ++i)
+        {
+            // we cannot use the pixel coordinates(x, y) because the perlin noise always generates the same value at whole numbers
+            // we also multiply by scale to not get an extremely zoomed in picture
+            float x = position.x / Chunk.Width * scale + offsets[i].x;
+            float y = position.y / Chunk.Width * scale + offsets[i].y;
+
+            // increase the noise by the perlin value of each octave
+            // the higher the frequency, the further apart the sample points will be, so the elevation will change more rapidly
+            elevation += Mathf.PerlinNoise(x * frequency, y * frequency) * amplitude;
+            amplitudeSum += amplitude;
+
+            // decreases each octave
+            amplitude *= persistence;
+
+            //increases each octave
+            frequency *= lacunarity;
+        }
+
+        return (elevation / amplitudeSum);
+    }
+
+
+
+
     public static float[,] GenerateNoiseMap(int mapWidth, int mapHeight, int seed, float scale, 
-                                            int octaves, float persistance, float lacunarity)
+                                            int octaves, float persistence, float lacunarity)
     {
         float[,] falloffMap = GenerateFalloffMap(mapWidth, mapHeight);
 
@@ -44,24 +95,13 @@ public class NoiseGenerator
                     amplitudeSum += amplitude;
 
                     // decreases each octave
-                    amplitude *= persistance;
+                    amplitude *= persistence;
 
                     //increases each octave
                     frequency *= lacunarity;
                 }
 
                 noiseMap[y, x] = (elevation / amplitudeSum) - falloffMap[y, x];
-
-                if (noiseMap[y, x] > 0.9)
-                    noiseMap[y, x] = 1f;
-                else if (noiseMap[y, x] > 0.7)
-                    noiseMap[y, x] = 0.9f;
-                else if (noiseMap[y, x] > 0.55)
-                    noiseMap[y, x] = 0.7f;
-                else if (noiseMap[y, x] > 0.45)
-                    noiseMap[y, x] = 0.55f;
-
-
             }
         }
 

@@ -120,7 +120,7 @@ public class MapGenerator : MonoBehaviour
         return colorMap;
     }
 
-    private MeshData GenerateMeshData(float[,] heightMap)
+    private ChunkMeshData GenerateMeshData(float[,] heightMap)
     {
         float topLeftX = (mapWidth - 1) / -2f;
         float topLeftZ = (mapHeight - 1) / 2f;
@@ -128,7 +128,7 @@ public class MapGenerator : MonoBehaviour
         int vertexWidth = (mapWidth - 1) / tileSize + 1;     // number of vertices per row
         int vertexHeight = (mapHeight - 1) / tileSize + 1;   // number of vertices per column
 
-        MeshData meshData = new MeshData(vertexWidth, vertexHeight);
+        ChunkMeshData meshData = new ChunkMeshData(vertexWidth, vertexHeight);
         int vertexIndex = 0;
         int triangleIndex = 0;
 
@@ -154,7 +154,7 @@ public class MapGenerator : MonoBehaviour
         return meshData;
     }
 
-    private void DrawMesh(MeshData meshData, Texture2D texture)
+    private void DrawMesh(ChunkMeshData meshData, Texture2D texture)
     {
         Mesh mesh = new Mesh()
         {
