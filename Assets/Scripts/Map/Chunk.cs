@@ -1,6 +1,8 @@
 using UnityEngine;
 
 
+# region  Block
+
 public enum BlockType
 {
     None,
@@ -87,6 +89,7 @@ public struct BlockData
     };
 }
 
+# endregion
 
 
 
@@ -126,14 +129,13 @@ public class MeshData
 }
 
 
-
 public class Chunk
 {
     private readonly WorldMap worldMap;
-    public readonly GameObject gameObject;
+    private readonly GameObject gameObject;
 
-    public Vector3 PositionInGameWorld { get => gameObject.transform.position; }
-    public (int x, int z) PositionInWorldMap;
+    public Vector3 Coordinates { get => gameObject.transform.position; }
+    public (int x, int z) LocationInMap { get; private set; }
 
     public const int Width = 5;
     public const int Height = 15;
@@ -142,7 +144,7 @@ public class Chunk
 
 
 
-    public Chunk(WorldMap worldMap, (int, int) chunkLoc)
+    public Chunk(WorldMap worldMap, (int x, int z) locationInMap)
     {
         this.worldMap = worldMap;
         gameObject = new GameObject();
@@ -152,12 +154,12 @@ public class Chunk
         gameObject.GetComponent<MeshRenderer>().material = worldMap.WorldMaterial;
         gameObject.transform.SetParent(worldMap.gameObject.transform);
 
-        PositionInWorldMap = chunkLoc;
-        gameObject.transform.position = new Vector3(PositionInWorldMap.x * Width, 0f, PositionInWorldMap.z * Width);
-        gameObject.name = "Chunk " + PositionInWorldMap.x + " " + PositionInWorldMap.z;
+        LocationInMap = locationInMap;
+        gameObject.transform.position = new Vector3(LocationInMap.x * Width, 0f, LocationInMap.z * Width);
+        gameObject.name = "Chunk " + LocationInMap.x + " " + LocationInMap.z;
 
         GenerateBlockMap();
-        UpdateChunkMesh();
+        UpdateMesh();
     }
 
 
@@ -172,12 +174,12 @@ public class Chunk
         return blockMap[x, y, z];
     }
 
-    public (int x, int y, int z) GetIndicesFromPosition(Vector3 position) => (
-        Mathf.FloorToInt(position.x) - Mathf.FloorToInt(PositionInGameWorld.x),
+    public (int x, int y, int z) GetBlockIndexFromCoordinates(Vector3 position) => (
+        Mathf.FloorToInt(position.x) - Mathf.FloorToInt(Coordinates.x),
         Mathf.FloorToInt(position.y),
-        Mathf.FloorToInt(position.z) - Mathf.FloorToInt(PositionInGameWorld.z));
+        Mathf.FloorToInt(position.z) - Mathf.FloorToInt(Coordinates.z));
 
-    private Vector2 GetTextureCoords(int textureId)
+    private Vector2 GetTextureCoordinates(int textureId)
     {
         float y = (textureId / WorldMap.TextureAtlasBlocks);
         float x = (textureId - (y * WorldMap.TextureAtlasBlocks)) * WorldMap.NormalizedTextureBlockSize;
@@ -194,15 +196,15 @@ public class Chunk
         for (int y = 0; y < Height; ++y)
             for (int x = 0; x < Width; ++x)
                 for (int z = 0; z < Width; ++z)
-                    blockMap[x, y, z] = worldMap.GenerateBlock(new Vector3(x, y, z) + PositionInGameWorld);
+                    blockMap[x, y, z] = worldMap.GenerateBlock(new Vector3(x, y, z) + Coordinates);
     }
 
-    private void UpdateChunkMesh()
+    private void UpdateMesh()
     {
-        DrawMesh(GenerateChunkMeshData());
+        DrawMesh(GenerateMeshData());
     }
 
-    private MeshData GenerateChunkMeshData()
+    private MeshData GenerateMeshData()
     {
         MeshData chunkData = new MeshData(Width, Height);
         int vertexIndex = 0;
@@ -212,17 +214,17 @@ public class Chunk
             for (int x = 0; x < Width; ++x)
                 for (int z = 0; z < Width; ++z)
                     if (WorldMap.BlockTypes[(int)blockMap[x, y, z]].IsSolid)
-                        AddBlockToChunk(chunkData, new Vector3(x, y, z), ref vertexIndex, ref triangleIndex);
+                        AddBlockToMesh(chunkData, new Vector3(x, y, z), ref vertexIndex, ref triangleIndex);
 
         return chunkData;
     }
 
-    private void AddBlockToChunk(MeshData chunkData, Vector3 blockPosition, ref int vertexIndex, ref int triangleIndex)
+    private void AddBlockToMesh(MeshData chunkData, Vector3 blockPosition, ref int vertexIndex, ref int triangleIndex)
     {
         // get coordinates for texture from texture atlas
         BlockType blockType = blockMap[(int)blockPosition.x, (int)blockPosition.y, (int)blockPosition.z];
-        Vector2 topTextureCoords = GetTextureCoords(WorldMap.BlockTypes[(int)blockType].TopTextureId);
-        Vector2 sideTextureCoords = GetTextureCoords(WorldMap.BlockTypes[(int)blockType].SideTextureId);
+        Vector2 topTextureCoords = GetTextureCoordinates(WorldMap.BlockTypes[(int)blockType].TopTextureId);
+        Vector2 sideTextureCoords = GetTextureCoordinates(WorldMap.BlockTypes[(int)blockType].SideTextureId);
 
         for (int face = 0; face < BlockData.Faces; ++face)
         {
@@ -278,7 +280,7 @@ public class Chunk
     private bool IsBlockSolid(Vector3 blockPosition)
     {
         if (!IsBlockInChunk(blockPosition))
-            return WorldMap.BlockTypes[(int)worldMap.GetBlockTypeAtPosition(blockPosition + PositionInGameWorld)].IsSolid;
+            return WorldMap.BlockTypes[(int)worldMap.GetBlockTypeAtPosition(blockPosition + Coordinates)].IsSolid;
 
         return WorldMap.BlockTypes[(int)blockMap[(int)blockPosition.x, (int)blockPosition.y, (int)blockPosition.z]].IsSolid;
     }
@@ -287,7 +289,7 @@ public class Chunk
 
     public void ModifyBlock(Vector3 blockPosition, bool remove)
     {
-        (int x, int y, int z) = GetIndicesFromPosition(new Vector3(blockPosition.x, blockPosition.y - 0.5f, blockPosition.z));
+        (int x, int y, int z) = GetBlockIndexFromCoordinates(new Vector3(blockPosition.x, blockPosition.y - 0.5f, blockPosition.z));
 
         bool update = false;
         if (remove && blockMap[x, y + 1, z] == BlockType.Air && y != 0)  // we can only remove the top block and we cannot remove the bottom row
@@ -304,7 +306,7 @@ public class Chunk
 
         if (update)
         {
-            UpdateChunkMesh();
+            UpdateMesh();
             UpdateSurroundingChunks(blockPosition);
         }
     }
@@ -318,7 +320,7 @@ public class Chunk
                 Vector3 neighborPos = blockPosition + BlockData.NeighborBlockFace[face];
 
                 if (!IsBlockInChunk(neighborPos) && worldMap.IsChunkInWorld(neighborPos))
-                    worldMap.GetChunkAtPosition(neighborPos).UpdateChunkMesh();                 
+                    worldMap.GetChunkAtCoordinates(neighborPos).UpdateMesh();                 
             }
         }
     }

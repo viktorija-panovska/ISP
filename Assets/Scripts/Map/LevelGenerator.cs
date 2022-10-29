@@ -22,6 +22,8 @@ public struct WorldLocation
 
 public class LevelGenerator : MonoBehaviour
 {
+    public static LevelGenerator Instance;
+
     // World Map
     public WorldMap WorldMap;
     public int MapSeed;
@@ -34,7 +36,8 @@ public class LevelGenerator : MonoBehaviour
 
     private void Start()
     {
-        WorldMap = new WorldMap(this, MapSeed, MapMaterial);
+        Instance = this;
+        WorldMap = new WorldMap(MapSeed, MapMaterial);
 
         SpawnUnit();
     }
@@ -52,10 +55,25 @@ public class LevelGenerator : MonoBehaviour
             if (chunk.GetBlockAtIndex(x, y, z) != BlockType.Air || y == 0)
                 break;
 
-        Instantiate(unitPrefab, 
-            new Vector3(chunk.PositionInGameWorld.x + x + 0.5f, chunk.PositionInGameWorld.y + y + 1.5f, chunk.PositionInGameWorld.z + z + 0.5f), 
+        GameObject unit = Instantiate(unitPrefab, 
+            new Vector3(chunk.Coordinates.x + x + 0.5f, chunk.Coordinates.y + y + 1.5f, chunk.Coordinates.z + z + 0.5f), 
             Quaternion.identity);
 
-        controller.AddUnit(new WorldLocation(chunk, x, y, z));
+        controller.AddUnit(unit, new WorldLocation(chunk, x, y, z));
+    }
+
+
+    public Vector3 WorldLocationToCoordinates(WorldLocation worldLoc)
+        => new Vector3(worldLoc.Chunk.Coordinates.x + worldLoc.X * BlockData.Width,
+                       worldLoc.Chunk.Coordinates.y + worldLoc.Y * BlockData.Height,
+                       worldLoc.Chunk.Coordinates.z + worldLoc.Z * BlockData.Width);
+
+
+    public WorldLocation CoordinatesToWorldLocation(Vector3 coordinates)
+    {
+        Chunk chunk = Instance.WorldMap.GetChunkAtCoordinates(coordinates);
+        (int x, int y, int z) = chunk.GetBlockIndexFromCoordinates(coordinates);
+
+        return new WorldLocation(chunk, x, y, z);
     }
 }

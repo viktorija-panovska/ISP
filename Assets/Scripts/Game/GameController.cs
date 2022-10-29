@@ -44,9 +44,9 @@ public class GameController : MonoBehaviour
     }
 
 
-    public void AddUnit(WorldLocation unitLocation)
+    public void AddUnit(GameObject unitObject, WorldLocation worldPosition)
     {
-        activeUnits.Add(new Unit(unitLocation, Team.Red));
+        activeUnits.Add(new Unit(unitObject, worldPosition, Team.Red));
     }
 
 
@@ -56,7 +56,7 @@ public class GameController : MonoBehaviour
         {
             if (Physics.Raycast(Camera.main.ScreenPointToRay(Input.mousePosition), out RaycastHit hitInfo, Mathf.Infinity))
             {
-                Chunk chunk = LevelGen.WorldMap.GetChunkAtPosition(hitInfo.point);
+                Chunk chunk = LevelGenerator.Instance.WorldMap.GetChunkAtCoordinates(hitInfo.point);
                 chunk.ModifyBlock(hitInfo.point, remove: false);
             }
         }       
@@ -64,7 +64,7 @@ public class GameController : MonoBehaviour
         {
             if (Physics.Raycast(Camera.main.ScreenPointToRay(Input.mousePosition), out RaycastHit hitInfo, Mathf.Infinity))
             {
-                Chunk chunk = LevelGen.WorldMap.GetChunkAtPosition(hitInfo.point);
+                Chunk chunk = LevelGenerator.Instance.WorldMap.GetChunkAtCoordinates(hitInfo.point);
                 chunk.ModifyBlock(hitInfo.point, remove: true);
             }
         }
@@ -78,12 +78,12 @@ public class GameController : MonoBehaviour
             if (Physics.Raycast(Camera.main.ScreenPointToRay(Input.mousePosition), out RaycastHit hitInfo, Mathf.Infinity))
             {
                 Vector3 point = hitInfo.point;
-                Chunk chunk = LevelGen.WorldMap.GetChunkAtPosition(point);
-                (int x, int y, int z) = chunk.GetIndicesFromPosition(new Vector3(point.x, point.y - 0.5f, point.z));
+                Chunk chunk = LevelGenerator.Instance.WorldMap.GetChunkAtCoordinates(point);
+                (int x, int y, int z) = chunk.GetBlockIndexFromCoordinates(new Vector3(point.x, point.y - 0.5f, point.z));
 
                 foreach (Unit unit in activeUnits)
                 {
-                    List<WorldLocation> path = Pathfinding.FindPath(unit.Location, new WorldLocation(chunk, x, y, z));
+                    List <WorldLocation> path = Pathfinding.FindPath(unit.PositionInWorldMap, new WorldLocation(chunk, x, y, z));
 
                     if (path != null)
                         unit.MoveUnit(path);

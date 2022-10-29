@@ -30,21 +30,26 @@ public static class Pathfinding
     private const int StraightCost = 10;
     private const int DiagonalCost = 14;
 
-    private static readonly (int dx, int dz)[] neighborDirections 
-        = { (0, 1), (1, 0), (0, -1), (-1, 0), (1, 1), (-1, -1), (1, -1), (-1, 1) };
+    private static readonly (int dx, int dy, int dz)[] neighborDirections 
+        = { (0, 0, 1),  (1, 0, 0),  (0, 0, -1),  (-1, 0, 0),
+            (0, 1, 1),  (1, 1, 0),  (0, 1, -1),  (-1, 1, 0),
+            (0, -1, 1), (1, -1, 0), (0, -1, -1), (-1, -1, 0)};
+
 
 
     public static List<WorldLocation> FindPath(WorldLocation start, WorldLocation end)
     {
         Dictionary<string, PathNode> nodes = new Dictionary<string, PathNode>();
         List<string> openList = new List<string>();
-        List<string> closedList = new List<string>();
+        HashSet<string> closedList = new HashSet<string>();
 
         // add start node to open list
         PathNode startNode = new PathNode(
             start,
             prevNode: null,
-            gCost: 0, hCost: GetDistanceCost(start.X, start.Z, end.X, end.Z));
+            gCost: 0, 
+            hCost: GetDistanceCost(start.X, start.Z, end.X, end.Z)
+        );
 
         string startKey = GetKey(startNode.Location);
         nodes.Add(startKey, startNode);
@@ -62,6 +67,7 @@ public static class Pathfinding
 
             foreach (string neighbor in GetNeighborNodes(nodes[current], ref nodes))
             {
+                // node has already been visited
                 if (closedList.Contains(neighbor))
                     continue;
 
@@ -71,7 +77,8 @@ public static class Pathfinding
                     continue;
                 }
 
-                int gCost = nodes[current].GCost + GetDistanceCost(nodes[current].Location.X, nodes[current].Location.Z, nodes[neighbor].Location.X, nodes[neighbor].Location.Z);
+                int gCost = nodes[current].GCost + GetDistanceCost(nodes[current].Location.X, nodes[current].Location.Z, 
+                                                                   nodes[neighbor].Location.X, nodes[neighbor].Location.Z);
                 
                 if (gCost < nodes[neighbor].GCost)
                 {
@@ -89,28 +96,9 @@ public static class Pathfinding
     }
 
 
+    private static string GetKey(WorldLocation location)
+        => $"{location.Chunk.LocationInMap.x}{location.Chunk.LocationInMap.z}{location.X}{location.Y}{location.Z}";
 
-    private static List<string> GetNeighborNodes(PathNode currentNode, ref Dictionary<string, PathNode> allNodes)
-    {
-        List<string> neighbors = new List<string>();
-
-        foreach ((int dx, int dz) in neighborDirections)
-        {
-            WorldLocation newLocation = new WorldLocation(currentNode.Location.Chunk, currentNode.Location.X + dx, currentNode.Location.Y, currentNode.Location.Z + dz);
-            string key = GetKey(newLocation);
-
-            if (!allNodes.ContainsKey(key))
-            {
-                // check for the key of the neighboring chunk
-
-                allNodes.Add(key, new PathNode(newLocation, currentNode));
-            }
-
-            neighbors.Add(key);
-        }
-
-        return neighbors;
-    }
 
     private static string GetNodeWithLowestFCost(Dictionary<string, PathNode> allNodes, List<string> openList)
     {
@@ -123,13 +111,31 @@ public static class Pathfinding
         return lowestFCostNode;
     }
 
-    private static int GetDistanceCost(int startX, int startZ, int endX, int endZ)
-    {
-        int x = Mathf.Abs(startX - endX);
-        int z = Mathf.Abs(startZ - endZ);
 
-        return DiagonalCost * Mathf.Min(x, z) + StraightCost * Mathf.Abs(x - z);
+    private static List<string> GetNeighborNodes(PathNode currentNode, ref Dictionary<string, PathNode> allNodes)
+    {
+        List<string> neighbors = new List<string>();
+
+        foreach ((int dx, int dy, int dz) in neighborDirections)
+        {
+            // this works only for single chunk
+            // check for neighboring chunks too
+
+            WorldLocation newLocation = new WorldLocation(currentNode.Location.Chunk, 
+                                                          currentNode.Location.X + dx, 
+                                                          currentNode.Location.Y + dy, 
+                                                          currentNode.Location.Z + dz);
+            string key = GetKey(newLocation);
+
+            if (!allNodes.ContainsKey(key))
+                allNodes.Add(key, new PathNode(newLocation, prevNode: currentNode));
+                
+            neighbors.Add(key);
+        }
+
+        return neighbors;
     }
+
 
     private static bool IsSpaceWalkable(WorldLocation location)
     {
@@ -138,14 +144,22 @@ public static class Pathfinding
 
         BlockType blockType = location.Chunk.GetBlockAtIndex(location.X, location.Y, location.Z);
 
-        if (blockType == BlockType.None ||
-            blockType == BlockType.Air && (location.Chunk.GetBlockAtIndex(location.X, location.Y - 1, location.Z) == BlockType.Air ||
-                                           location.Chunk.GetBlockAtIndex(location.X, location.Y - 1, location.Z) == BlockType.Water) ||
-            blockType == BlockType.Grass && location.Chunk.GetBlockAtIndex(location.X, location.Y + 1, location.Z) != BlockType.Air)
+        if (blockType == BlockType.None || blockType == BlockType.Air || blockType == BlockType.Water || 
+           (blockType == BlockType.Grass && location.Chunk.GetBlockAtIndex(location.X, location.Y + 1, location.Z) == BlockType.Grass))
             return false;
 
         return true;
     }
+
+
+    private static int GetDistanceCost(int startX, int startZ, int endX, int endZ)
+    {
+        int x = Mathf.Abs(startX - endX);
+        int z = Mathf.Abs(startZ - endZ);
+
+        return DiagonalCost * Mathf.Min(x, z) + StraightCost * Mathf.Abs(x - z);
+    }
+
 
     private static List<WorldLocation> GetPath(PathNode endNode)
     {
@@ -161,10 +175,5 @@ public static class Pathfinding
 
         path.Reverse();
         return path;
-    }
-
-    private static string GetKey(WorldLocation location)
-    {
-        return $"{location.Chunk.PositionInWorldMap.x}{location.Chunk.PositionInWorldMap.z}{location.X}{location.Z}";
     }
 }

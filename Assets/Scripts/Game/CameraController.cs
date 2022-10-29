@@ -6,10 +6,8 @@ public class CameraController : MonoBehaviour
 
     private const float panSpeed = 1f;
     private const float movementTime = 5f;
+    private const float rotationSpeed = 5f;
     private const float zoomSpeed = 10f;
-
-    private const float minZoom = 300f;
-    private const float maxZoom = 20f;
 
 
     void Update()
@@ -31,6 +29,13 @@ public class CameraController : MonoBehaviour
             newPosition += (transform.right * panSpeed);
         if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow))
             newPosition += (transform.right * -panSpeed);
+
+
+        //if (Input.GetKey(KeyCode.Q))
+        //    newRotation *= Quaternion.Euler(Vector3.up * rotationSpeed);
+        //if (Input.GetKey(KeyCode.E))
+        //    newRotation *= Quaternion.Euler(Vector3.up * -rotationSpeed);
+
 
         if (Input.mouseScrollDelta.y != 0)
             newZoom += Input.mouseScrollDelta.y * zoomSpeed;

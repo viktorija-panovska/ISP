@@ -11,22 +11,23 @@ public enum Team
 
 public class Unit
 {
-    public WorldLocation Location;
+    public GameObject UnitObject { get; private set; }
+    public WorldLocation PositionInWorldMap;
 
     public Team Team { get; private set; }
     public int Health { get; private set; }
 
 
-    public Unit(WorldLocation location, Team team)
+    public Unit(GameObject unitObject, WorldLocation worldPosition, Team team)
     {
-        location = Location;
+        UnitObject = unitObject;
+        PositionInWorldMap = worldPosition;
         Team = team;
     }
 
-
-    public void MoveUnit(List<WorldLocation> points)
+    public void MoveUnit(List<WorldLocation> path)
     {
-        foreach (var loc in points)
-            Debug.Log("Chunk: " + loc.Chunk + "X: " + loc.X + "Y: " + loc.Y);
+        UnitObject.GetComponent<UnitMovementHandler>().SetPath(path);
+        PositionInWorldMap = path[^1];
     }
 }

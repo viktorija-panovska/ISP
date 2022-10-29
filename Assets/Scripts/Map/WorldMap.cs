@@ -3,7 +3,6 @@ using UnityEngine;
 
 public class WorldMap
 {
-    private readonly LevelGenerator levelGenerator;
     public readonly GameObject gameObject;
 
     // Noise Map
@@ -16,7 +15,7 @@ public class WorldMap
 
 
     // World Map
-    public const int ChunkNumber = 2;
+    public const int ChunkNumber = 1;
     public static int VoxelNumber { get => ChunkNumber * Chunk.Width; }
     private readonly Chunk[,] chunkMap = new Chunk[ChunkNumber, ChunkNumber];
 
@@ -35,11 +34,10 @@ public class WorldMap
 
 
 
-    public WorldMap(LevelGenerator levelGenerator, int mapSeed, Material worldMaterial)
+    public WorldMap(int mapSeed, Material worldMaterial)
     {
-        this.levelGenerator = levelGenerator;
         gameObject = new GameObject();
-        gameObject.transform.SetParent(levelGenerator.transform);
+        gameObject.transform.SetParent(LevelGenerator.Instance.transform);
         gameObject.name = "World Map";
 
         this.mapSeed = mapSeed;
@@ -53,26 +51,22 @@ public class WorldMap
 
     public Chunk GetChunkAtIndex(int x, int z) => chunkMap[x, z];
 
-    public Chunk GetChunkAtPosition(Vector3 chunkPosition)
-    {
-        int x = Mathf.FloorToInt(chunkPosition.x / Chunk.Width);
-        int z = Mathf.FloorToInt(chunkPosition.z / Chunk.Width);
-        return chunkMap[x, z];
-    }
+    public Chunk GetChunkAtCoordinates(Vector3 chunkPosition)
+        => chunkMap[Mathf.FloorToInt(chunkPosition.x / Chunk.Width), Mathf.FloorToInt(chunkPosition.z / Chunk.Width)];
 
     public BlockType GetBlockTypeAtPosition(Vector3 blockPosition)
     {
         if (!IsBlockInWorld(blockPosition))
             return BlockType.Air;
 
-        Chunk chunk = GetChunkAtPosition(blockPosition);
+        Chunk chunk = GetChunkAtCoordinates(blockPosition);
 
         if (chunk == null)
             return BlockType.Air;
 
-        int x = Mathf.FloorToInt(blockPosition.x) - Mathf.FloorToInt(chunk.PositionInGameWorld.x);
+        int x = Mathf.FloorToInt(blockPosition.x) - Mathf.FloorToInt(chunk.Coordinates.x);
         int y = Mathf.FloorToInt(blockPosition.y);
-        int z = Mathf.FloorToInt(blockPosition.z) - Mathf.FloorToInt(chunk.PositionInGameWorld.z);
+        int z = Mathf.FloorToInt(blockPosition.z) - Mathf.FloorToInt(chunk.Coordinates.z);
 
         BlockType block = chunk.GetBlockAtIndex(x, y, z);
 
