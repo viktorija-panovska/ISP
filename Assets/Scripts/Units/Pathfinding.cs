@@ -97,7 +97,7 @@ public static class Pathfinding
 
 
     private static string GetKey(WorldLocation location)
-        => $"{location.Chunk.LocationInMap.x}{location.Chunk.LocationInMap.z}{location.X}{location.Y}{location.Z}";
+        => $"{location.X}{location.Y}{location.Z}";
 
 
     private static string GetNodeWithLowestFCost(Dictionary<string, PathNode> allNodes, List<string> openList)
@@ -118,13 +118,15 @@ public static class Pathfinding
 
         foreach ((int dx, int dy, int dz) in neighborDirections)
         {
-            // this works only for single chunk
-            // check for neighboring chunks too
+            (int x, int y, int z) = (currentNode.Location.X + dx, currentNode.Location.Y + dy, currentNode.Location.Z + dz);
 
-            WorldLocation newLocation = new WorldLocation(currentNode.Location.Chunk, 
-                                                          currentNode.Location.X + dx, 
-                                                          currentNode.Location.Y + dy, 
-                                                          currentNode.Location.Z + dz);
+            if (x < 0 || x >= Chunk.Width * WorldMap.ChunkNumber ||
+                y < 0 || y >= Chunk.Height ||
+                z < 0 || z >= Chunk.Width * WorldMap.ChunkNumber)
+                continue;
+
+            WorldLocation newLocation = new WorldLocation(x, y, z);
+
             string key = GetKey(newLocation);
 
             if (!allNodes.ContainsKey(key))
@@ -139,13 +141,14 @@ public static class Pathfinding
 
     private static bool IsSpaceWalkable(WorldLocation location)
     {
-        if (location.Y == 0)
+        if (location.BlockIndex.y == 0)
             return false;
 
-        BlockType blockType = location.Chunk.GetBlockAtIndex(location.X, location.Y, location.Z);
+        Chunk chunk = WorldMap.Instance.GetChunkAtIndex(location.ChunkIndex.x, location.ChunkIndex.z);
+        BlockType blockType = chunk.GetBlockAtIndex(location.BlockIndex.x, location.BlockIndex.y, location.BlockIndex.z);
 
         if (blockType == BlockType.None || blockType == BlockType.Air || blockType == BlockType.Water || 
-           (blockType == BlockType.Grass && location.Chunk.GetBlockAtIndex(location.X, location.Y + 1, location.Z) == BlockType.Grass))
+           (blockType == BlockType.Grass && chunk.GetBlockAtIndex(location.BlockIndex.x, location.BlockIndex.y + 1, location.BlockIndex.z) == BlockType.Grass))
             return false;
 
         return true;

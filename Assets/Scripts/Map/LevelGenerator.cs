@@ -4,14 +4,15 @@ using UnityEngine;
 
 public struct WorldLocation
 {
-    public Chunk Chunk;
-    public int X;
-    public int Y;
-    public int Z;
+    public int X { get; }
+    public int Y { get; }
+    public int Z { get; }
 
-    public WorldLocation(Chunk chunk, int x, int y, int z)
+    public (int x, int z) ChunkIndex { get => (X / Chunk.Width, Z / Chunk.Width); }
+    public (int x, int y, int z) BlockIndex { get => (X % Chunk.Width, Y, Z % Chunk.Width); }
+
+    public WorldLocation(int x, int y, int z)
     {
-        Chunk = chunk;
         X = x;
         Y = y;
         Z = z;
@@ -25,7 +26,6 @@ public class LevelGenerator : MonoBehaviour
     public static LevelGenerator Instance;
 
     // World Map
-    public WorldMap WorldMap;
     public int MapSeed;
     public Material MapMaterial;
 
@@ -37,7 +37,7 @@ public class LevelGenerator : MonoBehaviour
     private void Start()
     {
         Instance = this;
-        WorldMap = new WorldMap(MapSeed, MapMaterial);
+        new WorldMap(MapSeed, MapMaterial);
 
         SpawnUnit();
     }
@@ -45,7 +45,7 @@ public class LevelGenerator : MonoBehaviour
 
     public void SpawnUnit()
     {
-        Chunk chunk = WorldMap.GetChunkAtIndex(Random.Range(0, WorldMap.ChunkNumber), Random.Range(0, WorldMap.ChunkNumber));
+        Chunk chunk = WorldMap.Instance.GetChunkAtIndex(Random.Range(0, WorldMap.ChunkNumber), Random.Range(0, WorldMap.ChunkNumber));
 
         int x = Random.Range(0, Chunk.Width);
         int y;
@@ -59,21 +59,25 @@ public class LevelGenerator : MonoBehaviour
             new Vector3(chunk.Coordinates.x + x + 0.5f, chunk.Coordinates.y + y + 1.5f, chunk.Coordinates.z + z + 0.5f), 
             Quaternion.identity);
 
-        controller.AddUnit(unit, new WorldLocation(chunk, x, y, z));
+        controller.AddUnit(unit, new WorldLocation((int)chunk.Coordinates.x + x, (int)chunk.Coordinates.y + y, (int)chunk.Coordinates.z + z));
     }
 
 
-    public Vector3 WorldLocationToCoordinates(WorldLocation worldLoc)
-        => new Vector3(worldLoc.Chunk.Coordinates.x + worldLoc.X * BlockData.Width,
-                       worldLoc.Chunk.Coordinates.y + worldLoc.Y * BlockData.Height,
-                       worldLoc.Chunk.Coordinates.z + worldLoc.Z * BlockData.Width);
+    public Vector3 WorldLocationToCoordinates(WorldLocation worldLocation)
+    {
+        Chunk chunk = WorldMap.Instance.GetChunkAtIndex(worldLocation.ChunkIndex.x, worldLocation.ChunkIndex.z);
+
+        return new Vector3(chunk.Coordinates.x + worldLocation.BlockIndex.x * BlockData.Width,
+                           chunk.Coordinates.y + worldLocation.BlockIndex.y * BlockData.Height,
+                           chunk.Coordinates.z + worldLocation.BlockIndex.z * BlockData.Width);
+    }
 
 
     public WorldLocation CoordinatesToWorldLocation(Vector3 coordinates)
     {
-        Chunk chunk = Instance.WorldMap.GetChunkAtCoordinates(coordinates);
+        Chunk chunk = WorldMap.Instance.GetChunkAtCoordinates(coordinates);
         (int x, int y, int z) = chunk.GetBlockIndexFromCoordinates(coordinates);
 
-        return new WorldLocation(chunk, x, y, z);
+        return new WorldLocation(chunk.Index.x * Chunk.Width + x, y, chunk.Index.z * Chunk.Width + z);
     }
 }

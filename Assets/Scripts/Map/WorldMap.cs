@@ -3,7 +3,8 @@ using UnityEngine;
 
 public class WorldMap
 {
-    public readonly GameObject gameObject;
+    public static WorldMap Instance { get; private set; }
+    private readonly GameObject gameObject;
 
     // Noise Map
     private readonly int mapSeed;
@@ -15,15 +16,17 @@ public class WorldMap
 
 
     // World Map
-    public const int ChunkNumber = 1;
-    public static int VoxelNumber { get => ChunkNumber * Chunk.Width; }
+    public Transform Transform { get => gameObject.transform; }
+    public Vector3 Coordinates { get => Transform.position; }
+    public const int ChunkNumber = 2;
+    public int VoxelNumber { get => ChunkNumber * Chunk.Width; }
     private readonly Chunk[,] chunkMap = new Chunk[ChunkNumber, ChunkNumber];
 
 
     // Texture
-    public readonly Material WorldMaterial;
+    public Material WorldMaterial { get; private set; }
     public const int TextureAtlasBlocks = 4;
-    public static float NormalizedTextureBlockSize { get => 1f / (float)TextureAtlasBlocks; }
+    public float NormalizedTextureBlockSize { get => 1f / TextureAtlasBlocks; }
     public static readonly BlockProperties[] BlockTypes =
     {
         new BlockProperties(false, 0, 0),      // None
@@ -36,6 +39,8 @@ public class WorldMap
 
     public WorldMap(int mapSeed, Material worldMaterial)
     {
+        Instance = this;
+
         gameObject = new GameObject();
         gameObject.transform.SetParent(LevelGenerator.Instance.transform);
         gameObject.name = "World Map";
