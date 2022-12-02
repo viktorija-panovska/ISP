@@ -1,98 +1,6 @@
 using UnityEngine;
 
 
-# region  Block
-
-public enum BlockType
-{
-    None,
-    Air,
-    Water,
-    Grass
-}
-
-
-public struct BlockProperties
-{
-    public bool IsSolid { get; }
-    public int TopTextureId { get; }
-    public int SideTextureId { get; }
-
-    public BlockProperties(bool isSolid, int topTextureId, int sideTextureId)
-    {
-        IsSolid = isSolid;
-        TopTextureId = topTextureId;
-        SideTextureId = sideTextureId;
-    }
-}
-
-
-public struct BlockData
-{
-    public const int Width = 1;
-    public const int Height = 1;
-    public const int Vertices = 8;
-    public const int Faces = 6;
-    public const int VerticesPerFace = 4;
-
-    public static readonly Vector3[] VertexOffsets = new Vector3[Vertices]
-    {
-        new Vector3(0,     0,      0),       // front lower left
-        new Vector3(Width, 0,      0),       // front lower right
-        new Vector3(Width, Height, 0),       // front upper right
-        new Vector3(0,     Height, 0),       // front upper left
-        new Vector3(0,     0,      Width),   // back lower left
-        new Vector3(Width, 0,      Width),   // back lower right
-        new Vector3(Width, Height, Width),   // back upper right
-        new Vector3(0,     Height, Width),   // back upper left
-    };
-
-    // These are the indeces of the vertices on each face in the VertexOffsets array
-    public static readonly int[,] FaceVertices = new int[Faces, VerticesPerFace]
-    {
-        { 0, 1, 2, 3 },   // front face
-        { 5, 4, 7, 6 },   // back face
-        { 3, 2, 6, 7 },   // top face
-        { 0, 1, 5, 4 },   // bottom face
-        { 4, 0, 3, 7 },   // left face
-        { 1, 5, 6, 2 },   // right face
-    };
-
-    public static readonly Vector2[] UvOffsets = new Vector2[VerticesPerFace]
-    {
-        new Vector2(0, 0),
-        new Vector2(WorldMap.Instance.NormalizedTextureBlockSize, 0),
-        new Vector2(WorldMap.Instance.NormalizedTextureBlockSize, WorldMap.Instance.NormalizedTextureBlockSize),
-        new Vector2(0, WorldMap.Instance.NormalizedTextureBlockSize)
-    };
-
-    // This is the vector that points us to the face of the neighboring voxel that touches
-    // the chosen face of this block
-    public static readonly Vector3[] NeighborBlockFace = new Vector3[Faces]
-    {
-        new Vector3(0, 0, -1),    // front face
-        new Vector3(0, 0, 1),     // back face
-        new Vector3(0, 1, 0),     // top face
-        new Vector3(0, -1, 0),    // bottom face
-        new Vector3(-1, 0, 0),    // left face
-        new Vector3(1, 0, 0)      // right face
-    };
-
-    public static readonly bool[] IsSideFace = new bool[] 
-    { 
-        true,
-        true,
-        false,
-        false,
-        true,
-        true
-    };
-}
-
-# endregion
-
-
-
 public class MeshData
 {
     public Vector3[] Vertices { get; }
@@ -101,9 +9,9 @@ public class MeshData
 
     public MeshData(int width, int height)
     {
-        Vertices = new Vector3[width * height * (BlockData.Faces * BlockData.VerticesPerFace)];
+        Vertices = new Vector3[width * width * height * (BlockData.Faces * BlockData.VerticesPerFace)];
         Uvs = new Vector2[Vertices.Length];
-        Triangles = new int[width * height * (BlockData.Faces * 6)];
+        Triangles = new int[width * width * height * (BlockData.Faces * 6)];
     }
 
     public void AddVertex(int index, Vector3 vertex)
@@ -136,11 +44,10 @@ public class Chunk
     public Vector3 Coordinates { get => gameObject.transform.position; }
     public (int x, int z) Index { get; private set; }
 
-    public const int Width = 5;
-    public const int Height = 15;
+    public const int Width = 1;
+    public const int Height = 1;
 
-    private readonly BlockType[,,] blockMap = new BlockType[Width, Height, Width];
-
+    private readonly Block[,,] blockMap = new Block[Width, Height, Width];
 
 
     public Chunk(WorldMap worldMap, (int x, int z) locationInMap)
@@ -169,7 +76,7 @@ public class Chunk
             z < 0 || z >= Width)
             return BlockType.None;
 
-        return blockMap[x, y, z];
+        return blockMap[x, y, z].Type;
     }
 
     public (int x, int y, int z) GetBlockIndexFromCoordinates(Vector3 position) => (
@@ -194,7 +101,7 @@ public class Chunk
         for (int y = 0; y < Height; ++y)
             for (int x = 0; x < Width; ++x)
                 for (int z = 0; z < Width; ++z)
-                    blockMap[x, y, z] = WorldMap.Instance.GenerateBlock(new Vector3(x, y, z) + Coordinates);
+                    blockMap[x, y, z] = new Block(WorldMap.Instance.GenerateBlock(new Vector3(x, y, z) + Coordinates));
     }
 
     private void UpdateMesh()
@@ -211,7 +118,7 @@ public class Chunk
         for (int y = 0; y < Height; ++y)
             for (int x = 0; x < Width; ++x)
                 for (int z = 0; z < Width; ++z)
-                    if (WorldMap.BlockTypes[(int)blockMap[x, y, z]].IsSolid)
+                    if (WorldMap.BlockTypes[(int)blockMap[x, y, z].Type].IsSolid)
                         AddBlockToMesh(chunkData, new Vector3(x, y, z), ref vertexIndex, ref triangleIndex);
 
         return chunkData;
@@ -220,9 +127,8 @@ public class Chunk
     private void AddBlockToMesh(MeshData chunkData, Vector3 blockPosition, ref int vertexIndex, ref int triangleIndex)
     {
         // get coordinates for texture from texture atlas
-        BlockType blockType = blockMap[(int)blockPosition.x, (int)blockPosition.y, (int)blockPosition.z];
-        Vector2 topTextureCoords = GetTextureCoordinates(WorldMap.BlockTypes[(int)blockType].TopTextureId);
-        Vector2 sideTextureCoords = GetTextureCoordinates(WorldMap.BlockTypes[(int)blockType].SideTextureId);
+        Block block = blockMap[(int)blockPosition.x, (int)blockPosition.y, (int)blockPosition.z];
+        Vector2 topTextureCoords = GetTextureCoordinates(WorldMap.BlockTypes[(int)block.Type].TopTextureId);
 
         for (int face = 0; face < BlockData.Faces; ++face)
         {
@@ -231,12 +137,13 @@ public class Chunk
             {
                 for (int i = 0; i < BlockData.VerticesPerFace; ++i)
                 {
-                    chunkData.AddVertex(vertexIndex + i, blockPosition + BlockData.VertexOffsets[BlockData.FaceVertices[face, i]]);
-
-                    if (BlockData.IsSideFace[face])
-                        chunkData.AddUV(vertexIndex + i, sideTextureCoords + BlockData.UvOffsets[i]);
+                    int index = BlockData.FaceVertices[face, i];
+                    if (BlockData.IsTopVertex[index])
+                        chunkData.AddVertex(vertexIndex + i, blockPosition + block.GetVertex(index));
                     else
-                        chunkData.AddUV(vertexIndex + i, topTextureCoords + BlockData.UvOffsets[i]);
+                        chunkData.AddVertex(vertexIndex + i, blockPosition + BlockData.VertexOffsets[index]);
+                        
+                    chunkData.AddUV(vertexIndex + i, topTextureCoords + BlockData.UvOffsets[i]);
                 }
 
                 chunkData.AddTriangles(triangleIndex, vertexIndex, vertexIndex + 2, vertexIndex + 1, vertexIndex + 2, vertexIndex, vertexIndex + 3);
@@ -280,32 +187,64 @@ public class Chunk
         if (!IsBlockInChunk(blockPosition))
             return WorldMap.BlockTypes[(int)WorldMap.Instance.GetBlockTypeAtPosition(blockPosition + Coordinates)].IsSolid;
 
-        return WorldMap.BlockTypes[(int)blockMap[(int)blockPosition.x, (int)blockPosition.y, (int)blockPosition.z]].IsSolid;
+        return WorldMap.BlockTypes[(int)blockMap[(int)blockPosition.x, (int)blockPosition.y, (int)blockPosition.z].Type].IsSolid;
     }
 
 
 
-    public void ModifyBlock(Vector3 blockPosition, bool remove)
+    public void ModifyBlock(Vector3 hitPosition, bool remove)
     {
-        (int x, int y, int z) = GetBlockIndexFromCoordinates(new Vector3(blockPosition.x, blockPosition.y - 0.5f, blockPosition.z));
+        (int x, int y, int z) = GetBlockIndexFromCoordinates(new Vector3(hitPosition.x, hitPosition.y, hitPosition.z));
+
+        int vertex;
+        float slack = 0.2f;
+
+        Vector3 distance = hitPosition - new Vector3(x, y, z);
+
+        if (distance.x >= BlockData.VertexOffsets[2].x - slack &&
+            distance.y >= BlockData.VertexOffsets[2].y - slack &&
+            distance.z <= BlockData.VertexOffsets[2].z + slack)
+            vertex = 2;
+        else if (distance.x <= BlockData.VertexOffsets[3].x + slack &&
+            distance.y >= BlockData.VertexOffsets[3].y - slack &&
+            distance.z <= BlockData.VertexOffsets[3].z + slack)
+            vertex = 3;
+        else if (distance.x >= BlockData.VertexOffsets[6].x - slack &&
+            distance.y >= BlockData.VertexOffsets[6].y - slack &&
+            distance.z >= BlockData.VertexOffsets[6].z - slack)
+            vertex = 6;
+        else if (distance.x <= BlockData.VertexOffsets[7].x + slack &&
+            distance.y >= BlockData.VertexOffsets[7].y - slack &&
+            distance.z >= BlockData.VertexOffsets[7].z - slack)
+            vertex = 7;
+        else
+            return;
+
+        Debug.Log($"{x}|{y}|{z} vertex " + vertex);
 
         bool update = false;
-        if (remove && blockMap[x, y + 1, z] == BlockType.Air && y != 0)  // we can only remove the top block and we cannot remove the bottom row
+        if (remove && blockMap[x, y + 1, z].Type == BlockType.Air)
         {
-            blockMap[x, y, z] = BlockType.Air;
+            GoDown(x, y, z, vertex);
             update = true;
-        }
+        }           
 
-        if (!remove && blockMap[x, y, z] != BlockType.Air && blockMap[x, y + 1, z] == BlockType.Air && y + 1 < Height)
-        {
-            blockMap[x, y + 1, z] = BlockType.Grass;
-            update = true;
-        }
+        //if (remove && blockMap[x, y + 1, z] == BlockType.Air && y != 0)  // we can only remove the top block and we cannot remove the bottom row
+        //{
+        //    blockMap[x, y, z] = BlockType.Air;
+        //    update = true;
+        //}
+
+        //if (!remove && blockMap[x, y, z] != BlockType.Air && blockMap[x, y + 1, z] == BlockType.Air && y + 1 < Height)
+        //{
+        //    blockMap[x, y + 1, z] = BlockType.Grass;
+        //    update = true;
+        //}
 
         if (update)
         {
             UpdateMesh();
-            UpdateSurroundingChunks(blockPosition);
+            UpdateSurroundingChunks(hitPosition);
         }
     }
 
@@ -321,5 +260,46 @@ public class Chunk
                     WorldMap.Instance.GetChunkAtCoordinates(neighborPos).UpdateMesh();                 
             }
         }
+    }
+
+
+
+    private void GoDown(int x, int y, int z, int vertex)
+    {
+        Block block = blockMap[x, y, z];
+        float vertexHeight = block.GetVertex(vertex).y;
+        float diagonalVertexHeight = block.GetDiagonalVertex(vertex).y;
+
+        if (vertexHeight == BlockData.Height && diagonalVertexHeight == BlockData.Height)
+            block.LowerVertex(vertex);
+        else if (vertexHeight == BlockData.Height && diagonalVertexHeight == 0)
+            block.Type = BlockType.Air;
+        else if (vertexHeight == 0 && diagonalVertexHeight == BlockData.Height)
+        {
+            block.Type = BlockType.Air;
+
+            if (y - 1 > 1)
+                blockMap[x, y - 1, z].LowerVertex(vertex);
+        }
+
+        // all 8 adjacent side blocks need to be updated
+    }
+
+    private void IncreaseVertex(int x, int y, int z, int vertex)
+    {
+        // case 1:
+        // current = 1, diagonal = 1
+        // add block above with current = 1, others = 0
+
+        // case 2
+        // current = 1, diagonal = 0
+        // diagonal = 1, goto case 1
+
+        // case 3
+        // current = 0, diagonal = 1
+        // restore to normal cube
+
+        // all 8 adjacent side blocks need to be updated
+
     }
 }

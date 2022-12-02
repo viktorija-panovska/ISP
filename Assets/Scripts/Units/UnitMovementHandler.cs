@@ -9,7 +9,6 @@ public class UnitMovementHandler : MonoBehaviour
     private Vector3 startPosition;
 
     private const float moveSpeed = 1f;
-    private float timer = 0;
 
     private List<WorldLocation> path;
     private int currentNode;
@@ -39,13 +38,11 @@ public class UnitMovementHandler : MonoBehaviour
 
     private void MoveUnit()
     {
-        timer += Time.deltaTime * moveSpeed;
-
         Vector3 target = LevelGenerator.Instance.WorldLocationToCoordinates(path[currentNode]);
         target = new Vector3(target.x + 0.5f, target.y + 1.5f, target.z + 0.5f);
 
         if (PlayerCoordinates != target)
-            PlayerCoordinates = Vector3.Lerp(startPosition, target, timer);
+            PlayerCoordinates = Vector3.Lerp(startPosition, target, moveSpeed);
         else
         {
             currentNode++;
@@ -58,9 +55,34 @@ public class UnitMovementHandler : MonoBehaviour
     private void Reset(bool keepPath)
     {
         startPosition = PlayerCoordinates;
-        timer = 0;
         if (!keepPath) path = null;
         currentNode = 0;
         newPath = false;
+    }
+
+
+
+
+
+    public void Move(List<WorldLocation> path)
+    {
+        this.path = path;
+
+        StartCoroutine(WaitAndMove(0.1f));
+    }
+
+    private IEnumerator<WaitForSeconds> WaitAndMove(float delayTime)
+    {
+        yield return new WaitForSeconds(delayTime);
+
+        Vector3 target = LevelGenerator.Instance.WorldLocationToCoordinates(path[currentNode]);
+        target = new Vector3(target.x + 0.5f, target.y + 1.5f, target.z + 0.5f);
+
+        float startTime = Time.time;
+        while (Time.time - startTime <= 2)
+        {
+            PlayerCoordinates = Vector3.Lerp(PlayerCoordinates, target, Time.time - startTime);
+            yield return null;
+        }
     }
 }

@@ -153,7 +153,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   MapSeed: 1165198
-  MapMaterial: {fileID: 2100000, guid: 0012ed1bdbef30c4d9a2dd9c9e4be710, type: 2}
+  MapMaterial: {fileID: 2100000, guid: 563d08a9dbb01ba488d870a80c126b43, type: 2}
   unitPrefab: {fileID: 1359270074452477915, guid: c073c259110f72a479b45cc948ab0dde, type: 3}
   controller: {fileID: 1733252712}
 --- !u!4 &5685941
@@ -416,7 +416,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: -90}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 512.6, y: -492}
+  m_AnchoredPosition: {x: 512.6, y: -379}
   m_SizeDelta: {x: 90, y: 850}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &247434067

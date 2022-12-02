@@ -18,7 +18,7 @@ public class WorldMap
     // World Map
     public Transform Transform { get => gameObject.transform; }
     public Vector3 Coordinates { get => Transform.position; }
-    public const int ChunkNumber = 2;
+    public const int ChunkNumber = 1;
     public int VoxelNumber { get => ChunkNumber * Chunk.Width; }
     private readonly Chunk[,] chunkMap = new Chunk[ChunkNumber, ChunkNumber];
 
