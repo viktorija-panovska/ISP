@@ -2,11 +2,26 @@ using UnityEngine;
 
 public static class NoiseGenerator
 {
-    public static Vector2[] GenerateNoiseOffsets(int mapSeed, int octaves)
+    private static int seed;
+    private const float scale = 0.5f;
+    private const int octaves = 1;              // number of levels of detail
+    private const float persistence = 0.5f;     // how much each octave contributes to the overall shape (adjusts the amplitude) - in range 0..1
+    private const float lacunarity = 2;         // how much detail is added or removed at each octave (adjusts frequency) - must be > 1
+    private static Vector2[] offsets;
+
+
+    public static void Initialize(int mapSeed)
+    {
+        seed = mapSeed;
+        offsets = GenerateNoiseOffsets();
+    }
+
+
+    private static Vector2[] GenerateNoiseOffsets()
     {
         // to get different random maps every time, we need to sample from different random coordinates
         // we sample at differnet random coordinates for each octave
-        System.Random ranGen = new System.Random(mapSeed);
+        System.Random ranGen = new System.Random(seed);
         Vector2[] offsets = new Vector2[octaves];
 
         for (int i = 0; i < octaves; ++i)
@@ -20,8 +35,8 @@ public static class NoiseGenerator
     }
 
 
-    public static float GetPerlinAtPosition(Vector3 position, float scale, Vector2[] offsets,
-                                            int octaves, float persistence, float lacunarity)
+    // returns a value between 0 and 1
+    public static float GetPerlinAtPosition(Vector3 position)
     {
         float amplitude = 1;
         float frequency = 1;
@@ -32,8 +47,8 @@ public static class NoiseGenerator
         {
             // we cannot use the pixel coordinates(x, y) because the perlin noise always generates the same value at whole numbers
             // we also multiply by scale to not get an extremely zoomed in picture
-            float x = position.x / Chunk.TileNumber * scale + offsets[i].x;
-            float y = position.y / Chunk.TileNumber * scale + offsets[i].y;
+            float x = position.x / Chunk.WidthInPixels * scale + offsets[i].x;
+            float y = position.y / Chunk.WidthInPixels * scale + offsets[i].y;
 
             // increase the noise by the perlin value of each octave
             // the higher the frequency, the further apart the sample points will be, so the elevation will change more rapidly
