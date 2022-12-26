@@ -146,7 +146,18 @@ public class Chunk
                 else if (z == 0 && ChunkIndex.z > 0)
                     height = WorldMap.GetVertexHeight((ChunkIndex.x, ChunkIndex.z - 1), (x, MaxVertexIndex - z));
                 else
+                {
                     height = Mathf.FloorToInt(NoiseGenerator.GetPerlinAtPosition(ChunkPosition + meshData.vertices[currentVertices[0]]) * MaxSteps) * StepHeight;
+
+                    if (x > 0)
+                        height = Mathf.Clamp(height, meshData.vertices[vertices[x - 1, z][0]].y - StepHeight, meshData.vertices[vertices[x - 1, z][0]].y + StepHeight);
+
+                    if (z > 0)
+                        height = Mathf.Clamp(height, meshData.vertices[vertices[x, z - 1][0]].y - StepHeight, meshData.vertices[vertices[x, z - 1][0]].y + StepHeight);
+
+                    if (x > 0 && z > 0)
+                        height = Mathf.Clamp(height, meshData.vertices[vertices[x - 1, z - 1][0]].y - StepHeight, meshData.vertices[vertices[x - 1, z - 1][0]].y + StepHeight);
+                }
 
                 foreach (int v in currentVertices)
                     meshData.vertices[v].y = height;
@@ -196,18 +207,21 @@ public class Chunk
                 meshData.vertices[v].y += StepHeight;
         }
 
-        // Update neighboring vertices
-        //foreach ((int dx, int dz) in vertexNeighbors)
-        //{
-        //    // Check if we're out of bounds
-        //    if (x + dx >= 0 && x + dx < vertices.Length &&
-        //        z + dz >= 0 && z + dz < vertices.Length)
-        //    {
-        //        // Since they should all have the same height, we can just check for one
-        //        if (meshData.vertices[vertices[x + dx, z + dz][0]].y / StepHeight < meshData.vertices[currentVertices[0]].y / StepHeight - 1 ||
-        //            meshData.vertices[vertices[x + dx, z + dz][0]].y / StepHeight > meshData.vertices[currentVertices[0]].y / StepHeight + 1)
-        //            UpdateHeightAtPoint(x + dx, z + dz, decrease);
-        //    }
-        //}
+        //Update neighboring vertices
+        foreach ((int dx, int dz) in vertexNeighbors)
+        {
+            // Check if we're out of bounds of the current chunk
+            if (x + dx >= 0 && x + dx < WidthInVertices && z + dz >= 0 && z + dz < WidthInVertices)
+            {
+                // Since they should all have the same height, we can just check for one
+                if (Mathf.Abs(meshData.vertices[currentVertices[0]].y - meshData.vertices[vertices[x + dx, z + dz][0]].y) > StepHeight)
+                {
+                    UpdateHeightAtPoint(x + dx, z + dz, decrease);
+
+                    if (x + dx == 0 || x + dx < MaxVertexIndex || z + dz == 0 || z + dz < MaxVertexIndex)
+                        WorldMap.UpdateSurroundingChunks(ChunkIndex.x, ChunkIndex.z, x + dx, z + dz, decrease);
+                }
+            }
+        }
     }
 }

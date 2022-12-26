@@ -3,8 +3,8 @@ using UnityEngine;
 public static class NoiseGenerator
 {
     private static int seed;
-    private const float scale = 0.5f;
-    private const int octaves = 1;              // number of levels of detail
+    private const float scale = 2f;
+    private const int octaves = 6;              // number of levels of detail
     private const float persistence = 0.5f;     // how much each octave contributes to the overall shape (adjusts the amplitude) - in range 0..1
     private const float lacunarity = 2;         // how much detail is added or removed at each octave (adjusts frequency) - must be > 1
     private static Vector2[] offsets;
@@ -48,11 +48,11 @@ public static class NoiseGenerator
             // we cannot use the pixel coordinates(x, y) because the perlin noise always generates the same value at whole numbers
             // we also multiply by scale to not get an extremely zoomed in picture
             float x = position.x / Chunk.WidthInPixels * scale + offsets[i].x;
-            float y = position.y / Chunk.WidthInPixels * scale + offsets[i].y;
+            float z = position.z / Chunk.WidthInPixels * scale + offsets[i].y;
 
             // increase the noise by the perlin value of each octave
             // the higher the frequency, the further apart the sample points will be, so the elevation will change more rapidly
-            elevation += Mathf.PerlinNoise(x * frequency, y * frequency) * amplitude;
+            elevation += Mathf.PerlinNoise(x * frequency, z * frequency) * amplitude;
             amplitudeSum += amplitude;
 
             // decreases each octave

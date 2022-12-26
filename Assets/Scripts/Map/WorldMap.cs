@@ -54,64 +54,37 @@ public static class WorldMap
 
         chunk.UpdateChunk(x, z, decrease);
 
-        UpdateSurroundingChunks(chunk_X, chunk_Z, x, z, decrease);
+        if (x == 0 || z == 0 || x == Chunk.MaxVertexIndex || z == Chunk.MaxVertexIndex)
+            UpdateSurroundingChunks(chunk_X, chunk_Z, x, z, decrease);
     }
 
-    private static void UpdateSurroundingChunks(int chunk_X, int chunk_Z, int x, int z, bool decrease)
+    public static void UpdateSurroundingChunks(int chunk_X, int chunk_Z, int x, int z, bool decrease)
     {
-        if (x == 0)
-        {
-            if (z == 0)
-            {
-                if (chunk_X > 0)
-                    chunkMap[chunk_X - 1, chunk_Z].UpdateChunk(Chunk.MaxVertexIndex, 0, decrease);
-                else if (chunk_Z > 0)
-                    chunkMap[chunk_X, chunk_Z - 1].UpdateChunk(0, Chunk.MaxVertexIndex, decrease);
-                else if (chunk_X > 0 && chunk_Z > 0)
-                    chunkMap[chunk_X - 1, chunk_Z - 1].UpdateChunk(Chunk.MaxVertexIndex, Chunk.MaxVertexIndex, decrease);
-            }
-            else if (z == Chunk.MaxVertexIndex)
-            {
-                if (chunk_X > 0)
-                    chunkMap[chunk_X - 1, chunk_Z].UpdateChunk(Chunk.MaxVertexIndex, Chunk.MaxVertexIndex, decrease);
-                else if (chunk_Z + 1 < ChunkNumber)
-                    chunkMap[chunk_X, chunk_Z + 1].UpdateChunk(0, 0, decrease);
-                else if (chunk_X > 0 && chunk_Z + 1 < ChunkNumber)
-                    chunkMap[chunk_X - 1, chunk_Z + 1].UpdateChunk(Chunk.MaxVertexIndex, 0, decrease);
-            }
-            else
-            {
-                if (chunk_X > 0)
-                    chunkMap[chunk_X - 1, chunk_Z].UpdateChunk(Chunk.MaxVertexIndex, z, decrease);
-            }
-        }
+        if (x == 0 && chunk_X > 0)
+            chunkMap[chunk_X - 1, chunk_Z].UpdateChunk(Chunk.MaxVertexIndex, z, decrease);
 
-        else if (z == 0)
-        {
-            if (x == Chunk.MaxVertexIndex)
-            {
-                if (chunk_Z > 0)
-                    chunkMap[chunk_X, chunk_Z - 1].UpdateChunk(0, Chunk.MaxVertexIndex, decrease);
-                else if (chunk_X + 1 < ChunkNumber)
-                    chunkMap[chunk_X + 1, chunk_Z].UpdateChunk(0, 0, decrease);
-                else if (chunk_Z > 0 && chunk_X + 1 < ChunkNumber)
-                    chunkMap[chunk_X + 1, chunk_Z - 1].UpdateChunk(0, Chunk.MaxVertexIndex, decrease);
-            }
-            else
-            {
-                if (chunk_Z > 0)
-                    chunkMap[chunk_X, chunk_Z - 1].UpdateChunk(x, Chunk.MaxVertexIndex, decrease);
-            }
-        }
+        if (z == 0 && chunk_Z > 0)
+            chunkMap[chunk_X, chunk_Z - 1].UpdateChunk(x, Chunk.MaxVertexIndex, decrease);
 
-        else if (x == Chunk.MaxVertexIndex && z == Chunk.MaxVertexIndex)
-        {
-            if (chunk_X + 1 < ChunkNumber)
-                chunkMap[chunk_X + 1, chunk_Z].UpdateChunk(0, Chunk.MaxVertexIndex, decrease);
-            else if (chunk_Z + 1 < ChunkNumber)
-                chunkMap[chunk_X, chunk_Z + 1].UpdateChunk(Chunk.MaxVertexIndex, 0, decrease);
-            else if (chunk_X - 1 < ChunkNumber && chunk_Z - 1 < ChunkNumber)
-                chunkMap[chunk_X + 1, chunk_Z + 1].UpdateChunk(0, 0, decrease);
-        }
+        if (x == Chunk.MaxVertexIndex && chunk_X + 1 < ChunkNumber)
+            chunkMap[chunk_X + 1, chunk_Z].UpdateChunk(0, z, decrease);
+
+        if (z == Chunk.MaxVertexIndex && chunk_Z + 1 < ChunkNumber)
+            chunkMap[chunk_X, chunk_Z + 1].UpdateChunk(x, 0, decrease);
+
+
+        // Corners
+
+        if (x == 0 && z == 0 && chunk_X > 0 && chunk_Z > 0)
+            chunkMap[chunk_X - 1, chunk_Z - 1].UpdateChunk(Chunk.MaxVertexIndex, Chunk.MaxVertexIndex, decrease);
+
+        if (x == 0 && z == Chunk.MaxVertexIndex && chunk_X > 0 && chunk_Z + 1 < ChunkNumber)
+            chunkMap[chunk_X - 1, chunk_Z + 1].UpdateChunk(Chunk.MaxVertexIndex, 0, decrease);
+
+        if (x == Chunk.MaxVertexIndex && z == 0 && chunk_Z > 0 && chunk_X + 1 < ChunkNumber)
+            chunkMap[chunk_X + 1, chunk_Z - 1].UpdateChunk(0, Chunk.MaxVertexIndex, decrease);
+
+        if (x == Chunk.MaxVertexIndex && z == Chunk.MaxVertexIndex && chunk_X + 1 < ChunkNumber && chunk_Z + 1 < ChunkNumber)
+            chunkMap[chunk_X + 1, chunk_Z + 1].UpdateChunk(0, 0, decrease);
     }
 }
