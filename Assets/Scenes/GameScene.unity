@@ -152,8 +152,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5ba09a0708cae1f44a63ae87e59335bc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  MapSeed: 56441684
+  MapSeed: 2147483647
   MapMaterial: {fileID: 2100000, guid: 5c1e1cf3be0b7c14aad9dde1a7d53819, type: 2}
+  unitPrefab: {fileID: 1359270074452477915, guid: c073c259110f72a479b45cc948ab0dde, type: 3}
+  controller: {fileID: 525157002}
 --- !u!4 &5685941
 Transform:
   m_ObjectHideFlags: 0

@@ -47,8 +47,8 @@ public static class NoiseGenerator
         {
             // we cannot use the pixel coordinates(x, y) because the perlin noise always generates the same value at whole numbers
             // we also multiply by scale to not get an extremely zoomed in picture
-            float x = position.x / Chunk.WidthInPixels * scale + offsets[i].x;
-            float z = position.z / Chunk.WidthInPixels * scale + offsets[i].y;
+            float x = position.x / Chunk.Width * scale + offsets[i].x;
+            float z = position.z / Chunk.Width * scale + offsets[i].y;
 
             // increase the noise by the perlin value of each octave
             // the higher the frequency, the further apart the sample points will be, so the elevation will change more rapidly

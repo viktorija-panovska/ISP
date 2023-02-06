@@ -54,7 +54,7 @@ public class CameraController : MonoBehaviour
             thisCamera.transform.position = Vector3.Lerp(thisCamera.transform.position, newPosition, Time.deltaTime * movementTime);
 
         if (newZoom != thisCamera.fieldOfView)
-            thisCamera.fieldOfView = Mathf.Clamp(Mathf.Lerp(thisCamera.fieldOfView, newZoom, Time.deltaTime * movementTime), minZoom, maxZoom);
+            thisCamera.fieldOfView = Mathf.Clamp(Mathf.Lerp(thisCamera.fieldOfView, newZoom, Time.deltaTime * zoomTime), minZoom, maxZoom);
 
         if (newRotation != thisCamera.transform.rotation)
             thisCamera.transform.rotation = Quaternion.Lerp(thisCamera.transform.rotation, newRotation, Time.deltaTime * rotationTime);
