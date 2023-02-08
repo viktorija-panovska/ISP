@@ -18,6 +18,8 @@ public class LevelGenerator : MonoBehaviour
 {
     public static LevelGenerator Instance;
 
+    public Transform Viewer;
+
     // World Map
     public int MapSeed;
     public Material MapMaterial;
@@ -32,7 +34,13 @@ public class LevelGenerator : MonoBehaviour
         Instance = this;
         WorldMap.Create(MapSeed, MapMaterial);
 
-        SpawnUnit();
+        //for (int i = 0; i < 3; ++i)
+        //    SpawnUnit();
+    }
+
+    private void Update()
+    {
+        WorldMap.DrawMap(Viewer.position);
     }
 
 

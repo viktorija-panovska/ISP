@@ -30,7 +30,7 @@ public static class Pathfinding
     private const int StraightCost = 10;
     private const int DiagonalCost = 14;
 
-    private static readonly (int dx, int dz)[] neighborDirections
+    private static readonly (int, int)[] neighborDirections
         = { (0, 1), (1, 0), (0, -1), (-1, 0), (1, 1), (1, -1), (-1, 1), (-1, -1) };
 
 
@@ -113,10 +113,10 @@ public static class Pathfinding
     {
         List<Vector2> neighbors = new();
 
-        foreach ((int dx, int dz) in neighborDirections)
+        foreach ((int xOffset, int zOffset) in neighborDirections)
         {
-            float x = currentNode.Location.X + (dx * Chunk.TileWidth);
-            float z = currentNode.Location.Z + (dz * Chunk.TileWidth);
+            float x = currentNode.Location.X + (xOffset * Chunk.TileWidth);
+            float z = currentNode.Location.Z + (zOffset * Chunk.TileWidth);
 
             if (x < 0 || x > WorldMap.Width ||
                 z < 0 || z > WorldMap.Width)

@@ -1,4 +1,6 @@
 using UnityEngine;
+using System.Collections.Generic;
+
 
 public static class WorldMap
 {
@@ -11,6 +13,11 @@ public static class WorldMap
     public const int Width = ChunkNumber * Chunk.Width;
 
     private readonly static Chunk[,] chunkMap = new Chunk[ChunkNumber, ChunkNumber];
+    private readonly static List<(int, int)> lastVisibleChunks = new();
+
+    private const int chunksVisible = 5;   // TODO: derive value from size of camera
+    private const int viewDistance = 300;
+
 
     // Texture
     public static Material WorldMaterial { get; private set; }
@@ -52,22 +59,54 @@ public static class WorldMap
 
     // Create Map
     public static void Create(int mapSeed, Material worldMaterial)
-        {
-            gameObject = new GameObject();
-            gameObject.transform.SetParent(LevelGenerator.Instance.transform);
-            gameObject.name = "World Map";
-            WorldMaterial = worldMaterial;
+    {
+        gameObject = new GameObject();
+        gameObject.transform.SetParent(LevelGenerator.Instance.transform);
+        gameObject.name = "World Map";
+        WorldMaterial = worldMaterial;
 
-            NoiseGenerator.Initialize(mapSeed);
+        NoiseGenerator.Initialize(mapSeed);
 
-            GenerateWorldMap();
-        }
+        GenerateWorldMap();
+    }
 
     private static void GenerateWorldMap()
     {
         for (int z = 0; z < ChunkNumber; ++z)
             for (int x = 0; x < ChunkNumber; ++x)
                 chunkMap[z, x] = new Chunk((x, z));
+    }
+
+
+    // Draw Map
+    public static void DrawMap(Vector3 position)
+    {
+        foreach ((int x, int z) lastChunk in lastVisibleChunks)
+            chunkMap[lastChunk.z, lastChunk.x].SetVisibility(false);
+
+        lastVisibleChunks.Clear();
+
+        (int chunk_x, int chunk_z) = GetChunkIndex(position.x, position.z);
+
+        int offset = Mathf.FloorToInt(chunksVisible / 2);
+
+        for (int zOffset = -offset; zOffset <= offset; ++zOffset)
+        {
+            for (int xOffset = -offset; xOffset <= offset; ++xOffset)
+            {
+                (int x, int z) newChunk = (chunk_x + xOffset, chunk_z + zOffset);
+                if (newChunk.x >= 0 && newChunk.z >= 0 &&
+                    newChunk.x < chunkMap.GetLength(1) && newChunk.z < chunkMap.GetLength(0))
+                {
+                    if (chunkMap[newChunk.z, newChunk.x].DistanceFromPoint(position) <= viewDistance)
+                    {
+                        chunkMap[newChunk.z, newChunk.x].SetVisibility(true);
+                        lastVisibleChunks.Add(newChunk);
+                    }
+
+                }
+            }
+        }
     }
 
 
