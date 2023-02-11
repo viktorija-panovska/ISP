@@ -84,7 +84,7 @@ public class Chunk
         chunkBounds = new(ChunkPosition + new Vector3(Width / 2, 0, Width / 2), new Vector3(Width, 0, Width));
 
         meshData = GenerateMeshData();
-        //SetVertexHeights();
+        SetVertexHeights();
         DrawMesh();
     }
 

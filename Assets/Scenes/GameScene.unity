@@ -152,10 +152,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5ba09a0708cae1f44a63ae87e59335bc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  CameraRig: {fileID: 2124198437}
   MapSeed: 2147483647
   MapMaterial: {fileID: 2100000, guid: 5c1e1cf3be0b7c14aad9dde1a7d53819, type: 2}
-  unitPrefab: {fileID: 1359270074452477915, guid: c073c259110f72a479b45cc948ab0dde, type: 3}
-  controller: {fileID: 525157002}
+  UnitPrefab: {fileID: 1359270074452477915, guid: c073c259110f72a479b45cc948ab0dde, type: 3}
+  Controller: {fileID: 525157002}
 --- !u!4 &5685941
 Transform:
   m_ObjectHideFlags: 0
@@ -164,7 +165,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5685939}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 7.389586, y: 14.5337715, z: -18.425518}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -196,14 +197,14 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 16732099}
-  m_LocalRotation: {x: 0.2588191, y: 0, z: 0, w: 0.9659258}
-  m_LocalPosition: {x: 250, y: 200, z: -100}
+  m_LocalRotation: {x: 0.3420201, y: 0, z: 0, w: 0.9396927}
+  m_LocalPosition: {x: 0, y: 700, z: -700}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 2124198438}
   m_RootOrder: 0
-  m_LocalEulerAnglesHint: {x: 30, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 40, y: 0, z: 0}
 --- !u!81 &16732101
 AudioListener:
   m_ObjectHideFlags: 0
@@ -236,8 +237,8 @@ Camera:
     width: 1
     height: 1
   near clip plane: 0.3
-  far clip plane: 1000
-  field of view: 30
+  far clip plane: 3000
+  field of view: 10
   orthographic: 0
   orthographic size: 30
   m_Depth: 0
@@ -2477,4 +2478,4 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8fa299f8d65a3494ea4f32bcc510de9c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  thisCamera: {fileID: 16732102}
+  ThisCamera: {fileID: 16732102}

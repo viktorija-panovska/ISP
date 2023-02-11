@@ -18,29 +18,33 @@ public class LevelGenerator : MonoBehaviour
 {
     public static LevelGenerator Instance;
 
-    public Transform Viewer;
+    public GameObject CameraRig;
 
     // World Map
     public int MapSeed;
     public Material MapMaterial;
 
     // Units
-    public GameObject unitPrefab;
-    public GameController controller;
+    public GameObject UnitPrefab;
+    public GameController Controller;
 
 
     private void Start()
     {
         Instance = this;
         WorldMap.Create(MapSeed, MapMaterial);
+        CameraRig.transform.position = new Vector3(WorldMap.Width / 2, CameraRig.transform.position.y, WorldMap.Width / 2);
 
+        WorldMap.DrawMap(CameraRig.transform.position);
         //for (int i = 0; i < 3; ++i)
         //    SpawnUnit();
     }
 
+
     private void Update()
     {
-        WorldMap.DrawMap(Viewer.position);
+        if (Physics.Raycast(Camera.main.ScreenPointToRay(new Vector3(Screen.width / 2, 0, Screen.height / 2)), out RaycastHit hitInfo, Mathf.Infinity))
+            WorldMap.DrawMap(hitInfo.point);
     }
 
 
@@ -50,14 +54,14 @@ public class LevelGenerator : MonoBehaviour
 
         // TODO: Change from hard coded offsets to offsets based on the height of the prefab
         GameObject unit = Instantiate(
-            unitPrefab, 
+            UnitPrefab, 
             new Vector3(location.X, 
                 WorldMap.GetVertexHeight(location) + 15, 
                 location.Z),
             Quaternion.identity
         );
 
-        controller.AddUnit(unit, location);
+        Controller.AddUnit(unit, location);
     }
 
 
