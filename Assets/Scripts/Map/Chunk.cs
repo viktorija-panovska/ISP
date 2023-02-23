@@ -1,7 +1,8 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class MeshData
+
+public struct MeshData
 {
     public Vector3[] vertices;
     public int[] triangles;
@@ -35,7 +36,7 @@ public class MeshData
 
 public class Chunk
 {
-    private readonly GameObject gameObject;
+    public readonly GameObject gameObject;
     private readonly MeshData meshData;
     private readonly Bounds chunkBounds;
 
@@ -63,6 +64,7 @@ public class Chunk
         (0, 0),
         (TileWidth / 2, TileWidth / 2)
     };
+
     private readonly List<int>[,] vertices = new List<int>[TileNumber + 1, TileNumber + 1];
     private readonly int[,] centers = new int[TileNumber, TileNumber];
 
@@ -73,8 +75,6 @@ public class Chunk
         gameObject.AddComponent<MeshFilter>();
         gameObject.AddComponent<MeshRenderer>();
         gameObject.AddComponent<MeshCollider>();
-        gameObject.GetComponent<MeshRenderer>().material = WorldMap.WorldMaterial;
-        gameObject.transform.SetParent(WorldMap.Transform);
 
         ChunkIndex = locationInMap;
         gameObject.transform.position = new Vector3(ChunkIndex.x * Width, 0, ChunkIndex.z * Width);
@@ -85,7 +85,6 @@ public class Chunk
 
         meshData = GenerateMeshData();
         SetVertexHeights();
-        DrawMesh();
     }
 
 
@@ -96,7 +95,6 @@ public class Chunk
 
     public float DistanceFromPoint(Vector3 point) => Mathf.Sqrt(chunkBounds.SqrDistance(point));
 
-
     // Inputs are coordinates relative to the chunk
     public (int, int) IndicesFromCoordinates(float x, float z)
         => (Mathf.FloorToInt(x / TileWidth), Mathf.FloorToInt(z / TileWidth));
@@ -104,14 +102,18 @@ public class Chunk
     public (float, float) CoordinatesFromIndices(int x, int z)
         => (x * TileWidth, z * TileWidth);
 
+    private float GetVertexHeightAtIndex(int x, int z) => meshData.vertices[vertices[z, x][0]].y;
+
     public float GetVertexHeight(float x, float z)
     {
         (int x_i, int z_i) = IndicesFromCoordinates(x, z);
-        return meshData.vertices[vertices[z_i, x_i][0]].y;
+        return GetVertexHeightAtIndex(x_i, z_i);
     }
 
 
-    // Building Mesh
+
+
+    #region Building Mesh
     private MeshData GenerateMeshData()
     {
         MeshData meshData = new(Width, Width);
@@ -178,8 +180,13 @@ public class Chunk
         }
 
         for (int z = 0; z < centers.GetLength(0); ++z)
+        {
             for (int x = 0; x < centers.GetLength(1); ++x)
-                ComputeCenter(x, z);
+            {
+                float height = CalculateCenterHeight(x, z);
+                meshData.vertices[centers[z, x]].y = height;
+            }
+        }
     }
 
     private float CalculateVertexHeight(int x, int z, int vertexIndex)
@@ -188,7 +195,7 @@ public class Chunk
 
         if (x > 0 && z == 0)
         {
-            float lastHeight = meshData.vertices[vertices[z, x - 1][0]].y;
+            float lastHeight = GetVertexHeightAtIndex(x - 1, z);
             height = Mathf.Clamp(height, lastHeight - StepHeight, lastHeight + StepHeight);
         }
         else if (z > 0)
@@ -200,7 +207,7 @@ public class Chunk
             foreach ((int neighbor_x, int neighbor_z) in directions)
                 if (x + neighbor_x >= 0 && x + neighbor_x < vertices.GetLength(1) &&
                     z + neighbor_z >= 0 && z + neighbor_z < vertices.GetLength(0))
-                    neighborHeights.Add(meshData.vertices[vertices[z + neighbor_z, x + neighbor_x][0]].y);
+                    neighborHeights.Add(GetVertexHeightAtIndex(x + neighbor_x, z + neighbor_z));
 
             if (neighborHeights.TrueForAll(EqualToFirst))
                 height = Mathf.Clamp(height, neighborHeights[0] - StepHeight, neighborHeights[0] + StepHeight);
@@ -222,21 +229,21 @@ public class Chunk
         return height;
     }
 
-    private void ComputeCenter(int x, int z)
+    private float CalculateCenterHeight(int x, int z)
     {
         float[] cornerHeights = new float[4];
         int i = 0;
         for (int zOffset = 0; zOffset <= 1; ++zOffset)
             for (int xOffset = 0; xOffset <= 1; ++xOffset)
-                cornerHeights[i++] = meshData.vertices[vertices[z + zOffset, x + xOffset][0]].y;
+                cornerHeights[i++] = GetVertexHeightAtIndex(x + xOffset, z + zOffset);
 
         if (cornerHeights[0] == cornerHeights[3] && cornerHeights[1] == cornerHeights[2])
-            meshData.vertices[centers[z, x]].y = Mathf.Max(cornerHeights);
+            return Mathf.Max(cornerHeights);
         else
-            meshData.vertices[centers[z, x]].y = Mathf.Min(cornerHeights) + (StepHeight / 2);
+            return Mathf.Min(cornerHeights) + (StepHeight / 2);
     }
 
-    private void DrawMesh()
+    public void SetMesh()
     {
         Mesh mesh = new()
         {
@@ -251,22 +258,23 @@ public class Chunk
         gameObject.GetComponent<MeshFilter>().mesh = mesh;
         gameObject.GetComponent<MeshCollider>().sharedMesh = mesh;
     }
+    #endregion
 
 
-
-    // Modifying Mesh
-    public void UpdateChunk((float x, float z) coords, bool decrease)
+    #region Modifying Mesh
+    public void UpdateHeights((float x, float z) coords, bool decrease)
     {
         (int x, int z) = IndicesFromCoordinates(coords.x, coords.z);
         UpdateHeightAtPoint(x, z, decrease);
-        DrawMesh();
     }
+
 
     private void UpdateHeightAtPoint(int x, int z, bool decrease)
     {
         // Get all the vertices that share the clicked point
         List<int> currentVertices = vertices[z, x];
 
+        // Update the heights of all the vertices at the current point
         foreach (int v in currentVertices)
         {
             if (decrease && meshData.vertices[v].y > 0)
@@ -276,31 +284,53 @@ public class Chunk
                 meshData.vertices[v].y += StepHeight;
         }
 
-        //Update neighboring vertices
+
+        //Update neighboring vertices in current chunk
         for (int zOffset = -1; zOffset <= 1; ++zOffset)
         {
             for (int xOffset = -1; xOffset <= 1; ++xOffset)
             {
-                // check if we're out of bounds of the current chunk
-                if (z + zOffset >= 0 && z + zOffset < vertices.GetLength(0) && x + xOffset >= 0 && x + xOffset < vertices.GetLength(1))
-                {
-                    // since they should all have the same height, we can just check for one
-                    if (Mathf.Abs(meshData.vertices[currentVertices[0]].y - meshData.vertices[vertices[z + zOffset, x + xOffset][0]].y) > StepHeight)
-                    {
-                        UpdateHeightAtPoint(x + xOffset, z + zOffset, decrease);
+                int neighborX = x + xOffset;
+                int neighborZ = z + zOffset;
 
-                        // if we're on the boundary, we should also update the neighboring chunk
-                        if (x + xOffset == 0 || z + zOffset == 0 || x + xOffset == vertices.GetLength(1) - 1 || z + zOffset == vertices.GetLength(0) - 1)
-                            WorldMap.UpdateSurroundingChunks(ChunkIndex.x, ChunkIndex.z, x + xOffset, z + zOffset, decrease);
+                // check if we're out of bounds of the current chunk
+                if ((xOffset, zOffset) != (0, 0))
+                {
+                    if (neighborZ >= 0 && neighborZ < vertices.GetLength(0) && neighborX >= 0 && neighborX < vertices.GetLength(1))
+                    {
+                        if (Mathf.Abs(meshData.vertices[currentVertices[0]].y - GetVertexHeightAtIndex(neighborX, neighborZ)) > StepHeight)
+                            UpdateHeightAtPoint(neighborX, neighborZ, decrease);
+                    }
+                    else
+                    {
+                        (float x, float z) coords = CoordinatesFromIndices(x, z);
+
+                        WorldMap.UpdateVertex(
+                            (neighborX < 0 ? ChunkIndex.x - 1 : (neighborX >= vertices.GetLength(1) ? ChunkIndex.x + 1 : ChunkIndex.x),
+                             neighborZ < 0 ? ChunkIndex.z - 1 : (neighborZ >= vertices.GetLength(0) ? ChunkIndex.z + 1 : ChunkIndex.z)),
+                            (neighborX < 0 ? Width : (neighborX >= vertices.GetLength(1) ? 0 : coords.x),
+                             neighborZ < 0 ? Width : (neighborZ >= vertices.GetLength(0) ? 0 : coords.z)),
+                            GetVertexHeightAtIndex(x, z),
+                            decrease);
                     }
                 }
             }
         }
 
+        // Recompute centers
         for (int center_z = -1; center_z <= 0; ++center_z)
+        {
             for (int center_x = -1; center_x <= 0; ++center_x)
-                if (x + center_x >= 0 && z + center_z >= 0 && 
-                    x + center_x < centers.GetLength(1) && z + center_z < centers.GetLength(0))
-                    ComputeCenter(x + center_x, z + center_z);
+            {
+                (int x, int z) center = (x + center_x, z + center_z);
+
+                if (center.x >= 0 && center.z >= 0 && center.x < centers.GetLength(1) && center.z < centers.GetLength(0))
+                {
+                    float height = CalculateCenterHeight(center.x, center.z);
+                    meshData.vertices[centers[center.z, center.x]].y = height;
+                }
+            }
+        }       
     }
+    #endregion
 }

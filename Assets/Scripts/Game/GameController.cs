@@ -1,6 +1,13 @@
 using System.Collections.Generic;
 using UnityEngine;
+using Unity.Netcode;
 
+
+public enum Teams
+{
+    Red,
+    Blue
+}
 
 public enum Powers
 {
@@ -15,16 +22,44 @@ public enum Powers
 }
 
 
-public class GameController : MonoBehaviour
+[RequireComponent(typeof(CameraController))]
+public class GameController : NetworkBehaviour
 {
+    public GameObject CameraRig;
+    public Camera PlayerCamera;
+
+    public GameObject RedUnitPrefab;
+    public GameObject BlueUnitPrefab;
+    private const int startingUnits = 1;
+
     public Texture2D ClickyCursorTexture;
 
     private Powers activePower = Powers.MoldTerrain;
-    private readonly List<Unit> activeUnits = new();
 
 
-    void Update()
+    public override void OnNetworkSpawn()
     {
+        if (!IsOwner) return;
+
+        if (IsServer)
+            CameraRig.transform.position = new Vector3(0, CameraRig.transform.position.y, 0);
+        else
+            CameraRig.transform.position = new Vector3(WorldMap.Width, CameraRig.transform.position.y, WorldMap.Width);
+
+        WorldMap.DrawVisibleMap(CameraRig.transform.position);
+
+        if (IsServer)
+            SpawnUnitsServerRpc();
+    }
+
+
+    private void Update()
+    {
+        if (!IsOwner) return;
+
+        if (Physics.Raycast(PlayerCamera.ScreenPointToRay(new Vector3(Screen.width / 2, 0, Screen.height / 2)), out RaycastHit hitInfo, Mathf.Infinity))
+            WorldMap.DrawVisibleMap(hitInfo.point);
+
         if (Input.GetKeyDown(KeyCode.Alpha1))
             activePower = Powers.MoldTerrain;
         if (Input.GetKeyDown(KeyCode.Alpha2))
@@ -43,10 +78,48 @@ public class GameController : MonoBehaviour
     }
 
 
-    public void AddUnit(GameObject unitObject, WorldLocation worldPosition)
+    #region Unit Spawn
+    [ServerRpc(RequireOwnership = true)]
+    private void SpawnUnitsServerRpc()
     {
-        activeUnits.Add(new Unit(unitObject, worldPosition, Team.Red));
+        List<WorldLocation> occupiedSpots = new();
+        
+        for (int i = 0; i < startingUnits; ++i)
+        {
+            // Player 0
+            SpawnUnit(RedUnitPrefab, 0, (0, Chunk.Width), ref occupiedSpots);
+
+            // Player 1
+            SpawnUnit(BlueUnitPrefab, 1, (WorldMap.Width, WorldMap.Width - Chunk.Width), ref occupiedSpots);
+        }
     }
+
+
+    private WorldLocation GetRandomWorldLocationInRange(int min, int max)
+        => new(Random.Range(min, max), Random.Range(min, max));
+
+
+    private void SpawnUnit(GameObject unitPrefab, ulong ownerId, (int min, int max) spawnLocationRange, ref List<WorldLocation> occupiedSpots)
+    {
+        WorldLocation location = GetRandomWorldLocationInRange(spawnLocationRange.min, spawnLocationRange.max);
+
+        while (occupiedSpots.Contains(location))
+            location = GetRandomWorldLocationInRange(spawnLocationRange.min, spawnLocationRange.max);
+
+        occupiedSpots.Add(location);
+
+
+        GameObject unit = Instantiate(
+            unitPrefab,
+            new Vector3(
+                location.X, 
+                WorldMap.GetVertexHeight(location) + unitPrefab.GetComponent<MeshRenderer>().bounds.size.y / 2, 
+                location.Z),
+            Quaternion.identity);
+
+        unit.GetComponent<NetworkObject>().Spawn(destroyWithScene: true);
+    }
+    #endregion
 
 
     private bool IsClickable(Vector3 hitPoint)
@@ -71,46 +144,70 @@ public class GameController : MonoBehaviour
     }
 
 
+    #region Mold Terrain
     private void MoldTerrain()
     {
-        if (Physics.Raycast(Camera.main.ScreenPointToRay(Input.mousePosition), out RaycastHit hitInfo, Mathf.Infinity))
+        if (Physics.Raycast(PlayerCamera.ScreenPointToRay(Input.mousePosition), out RaycastHit hitInfo, Mathf.Infinity))
         {
             Vector3 hitPoint = hitInfo.point;
 
             if (IsClickable(hitPoint))
             {
-                WorldLocation location = new(hitPoint.x, hitPoint.z);
-
                 if (Input.GetMouseButtonDown(0))
-                    WorldMap.UpdateMap(location, decrease: false);
+                    UpdateMapServerRpc(hitPoint.x, hitPoint.z, decrease: false);
                 else if (Input.GetMouseButtonDown(1))
-                    WorldMap.UpdateMap(location, decrease: true);
+                    UpdateMapServerRpc(hitPoint.x, hitPoint.z, decrease: true);
             }
-        }
+        }            
     }
 
 
+    [ServerRpc]
+    public void UpdateMapServerRpc(float x, float z, bool decrease)
+    {
+        WorldMap.UpdateMap(new WorldLocation(x, z), decrease);
+
+        // TODO: Update heights of units standing on the updated vertices
+
+        SynchronizeMapClientRpc();
+    }
+
+
+    [ClientRpc]
+    private void SynchronizeMapClientRpc()
+    {
+        //if (IsHost) return;
+        //WorldMap.SynchronizeMap();
+    }
+
+    #endregion
+
+
+
+    #region Guide Followers
     private void GuideFollowers()
     {
-        if (Physics.Raycast(Camera.main.ScreenPointToRay(Input.mousePosition), out RaycastHit hitInfo, Mathf.Infinity))
+        if (Physics.Raycast(PlayerCamera.ScreenPointToRay(Input.mousePosition), out RaycastHit hitInfo, Mathf.Infinity))
         {
             Vector3 hitPoint = hitInfo.point;
 
-            if (IsClickable(hitPoint))
-            {
-                WorldLocation endLocation = new(hitPoint.x, hitPoint.z);
-
-                if (Input.GetMouseButtonDown(0))
-                {
-                    foreach (Unit unit in activeUnits)
-                    {
-                        List<WorldLocation> path = Pathfinding.FindPath(unit.PositionInWorldMap, endLocation);
-
-                        if (path != null && path.Count > 0)
-                            unit.MoveUnit(path);
-                    }
-                }
-            }
+            if (IsClickable(hitPoint) && Input.GetMouseButtonDown(0))
+                MoveUnits(hitPoint);
         }
     }
+
+
+    private void MoveUnits(Vector3 endPoint)
+    {
+        //WorldLocation endLocation = new(endPoint.x, endPoint.z);
+
+        //foreach (Unit unit in activeUnits)
+        //{
+        //    List<WorldLocation> path = Pathfinding.FindPath(unit.PositionInWorldMap, endLocation);
+
+        //    if (path != null && path.Count > 0)
+        //        unit.MoveUnit(path);
+        //}
+    }
+    #endregion
 }

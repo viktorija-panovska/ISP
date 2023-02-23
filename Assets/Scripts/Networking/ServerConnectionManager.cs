@@ -90,8 +90,6 @@ public class ServerConnectionManager : MonoBehaviour
 
     private void OnClientDisconnect(ulong clientId)
     {
-        Debug.Log("Server Disconnect");
-
         clientSceneMap.Remove(clientId);
 
         if (clientId == NetworkManager.Singleton.LocalClientId)

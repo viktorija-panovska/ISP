@@ -1,23 +1,21 @@
 using System.Collections.Generic;
 using UnityEngine;
+using Unity.Netcode;
 
 
-public static class WorldMap
+public class WorldMap : NetworkBehaviour
 {
-    private static GameObject gameObject;
-
     // World Map
-    public static Transform Transform { get => gameObject.transform; }
-    public static Vector3 Position { get => Transform.position; }
-    public const int ChunkNumber = 10;
+    public Vector3 Position { get => transform.position; }
+    public const int ChunkNumber = 2;
     public const int Width = ChunkNumber * Chunk.Width;
 
     private readonly static Chunk[,] chunkMap = new Chunk[ChunkNumber, ChunkNumber];
     private readonly static List<(int, int)> lastVisibleChunks = new();
+    private readonly static List<(int x, int z)> modifiedChunks = new();
 
-
-    // Texture
-    public static Material WorldMaterial { get; private set; }
+    public int MapSeed;
+    public Material WorldMaterial;
 
 
 
@@ -54,32 +52,38 @@ public static class WorldMap
     }
 
 
+
+
     // Create Map
-    public static void Create(int mapSeed, Material worldMaterial)
+    public override void OnNetworkSpawn()
     {
-        gameObject = new GameObject();
-        gameObject.transform.SetParent(LevelGenerator.Instance.transform);
-        gameObject.name = "World Map";
-        WorldMaterial = worldMaterial;
-
-        NoiseGenerator.Initialize(mapSeed);
-
+        NoiseGenerator.Initialize(MapSeed);
         GenerateWorldMap();
     }
 
-    private static void GenerateWorldMap()
+
+    private void GenerateWorldMap()
     {
         for (int z = 0; z < ChunkNumber; ++z)
+        {
             for (int x = 0; x < ChunkNumber; ++x)
-                chunkMap[z, x] = new Chunk((x, z));
+            {
+                Chunk chunk = new Chunk((x, z));
+                chunk.gameObject.GetComponent<MeshRenderer>().material = WorldMaterial;
+                chunk.SetMesh();
+                chunk.gameObject.transform.SetParent(transform);
+
+                chunkMap[z, x] = chunk;
+            }
+        }
     }
 
 
     // Draw Map
-    public static void DrawMap(Vector3 cameraPosition)
+    public static void DrawVisibleMap(Vector3 cameraPosition)
     {
-        foreach ((int x, int z) lastChunk in lastVisibleChunks)
-            chunkMap[lastChunk.z, lastChunk.x].SetVisibility(false);
+        foreach ((int x, int z) in lastVisibleChunks)
+            chunkMap[z, x].SetVisibility(false);
 
         lastVisibleChunks.Clear();
 
@@ -109,45 +113,25 @@ public static class WorldMap
     // Update Map
     public static void UpdateMap(WorldLocation location, bool decrease)
     {
-        (int chunk_x, int chunk_z) = GetChunkIndex(location.X, location.Z);
-        Chunk chunk = chunkMap[chunk_z, chunk_x];
+        (int x, int z) chunkIndex = GetChunkIndex(location.X, location.Z);
+        Chunk chunk = chunkMap[chunkIndex.z, chunkIndex.x];
 
         (float x, float z) local = LocalCoordsFromGlobal(location.X, location.Z);
 
-        chunk.UpdateChunk(local, decrease);
+        chunk.UpdateHeights(local, decrease);
+        modifiedChunks.Add(chunkIndex);
 
-        if (local.x == 0 || local.z == 0 || local.x == Chunk.Width || local.z == Chunk.Width)
-            UpdateSurroundingChunks(chunk.ChunkIndex.x, chunk.ChunkIndex.z, local.x, local.z, decrease);
+        foreach ((int x, int z) in modifiedChunks)
+            chunkMap[z, x].SetMesh();
     }
 
-    public static void UpdateSurroundingChunks(int chunk_X, int chunk_Z, float x, float z, bool decrease)
+    public static void UpdateVertex((int x, int z) chunk, (float x, float z) vertex, float neighborHeight, bool decrease)
     {
-        if (x == 0 && chunk_X > 0)
-            chunkMap[chunk_Z, chunk_X - 1].UpdateChunk((Chunk.Width, z), decrease);
-
-        if (z == 0 && chunk_Z > 0)
-            chunkMap[chunk_Z - 1, chunk_X].UpdateChunk((x, Chunk.Width), decrease);
-
-        if (x == Chunk.Width && chunk_X + 1 < ChunkNumber)
-            chunkMap[chunk_Z, chunk_X + 1].UpdateChunk((0, z), decrease);
-
-        if (z == Chunk.Width && chunk_Z + 1 < ChunkNumber)
-            chunkMap[chunk_Z + 1, chunk_X].UpdateChunk((x, 0), decrease);
-
-
-        // Corners
-
-        if (x == 0 && z == 0 && chunk_X > 0 && chunk_Z > 0)
-            chunkMap[chunk_Z - 1, chunk_X - 1].UpdateChunk((Chunk.Width, Chunk.Width), decrease);
-
-        if (x == 0 && z == Chunk.Width && chunk_X > 0 && chunk_Z + 1 < ChunkNumber)
-            chunkMap[chunk_Z + 1, chunk_X - 1].UpdateChunk((Chunk.Width, 0), decrease);
-
-        if (x == Chunk.Width && z == 0 && chunk_Z > 0 && chunk_X + 1 < ChunkNumber)
-            chunkMap[chunk_Z - 1, chunk_X + 1].UpdateChunk((0, Chunk.Width), decrease);
-
-        if (x == Chunk.Width && z == Chunk.Width &&
-            chunk_X + 1 < ChunkNumber && chunk_Z + 1 < ChunkNumber)
-            chunkMap[chunk_Z + 1, chunk_X + 1].UpdateChunk((0, 0), decrease);
+        if (chunk.x >= 0 && chunk.z >= 0 && chunk.x < ChunkNumber && chunk.z < ChunkNumber &&
+            chunkMap[chunk.z, chunk.x].GetVertexHeight(vertex.x, vertex.z) != neighborHeight)
+        {
+            chunkMap[chunk.z, chunk.x].UpdateHeights(vertex, decrease);
+            modifiedChunks.Add(chunk);
+        }
     }
 }

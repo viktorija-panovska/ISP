@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections.Generic;
+using Unity.Netcode;
 
 
 public enum Team
@@ -8,26 +9,27 @@ public enum Team
     Blue
 }
 
-
+[RequireComponent(typeof(NetworkObject))]
 public class Unit
 {
     public GameObject UnitObject { get; }
     public WorldLocation PositionInWorldMap;
 
-    public Team Team { get; private set; }
+    public Teams Team { get; private set; }
     public int Health { get; private set; }
 
 
-    public Unit(GameObject unitObject, WorldLocation worldPosition, Team team)
+
+    public Unit(GameObject unitObject, WorldLocation worldPosition, Teams team)
     {
         UnitObject = unitObject;
         PositionInWorldMap = worldPosition;
         Team = team;
     }
 
-    public void MoveUnit(List<WorldLocation> path)
-    {
-        UnitObject.GetComponent<UnitMovementHandler>().SetPath(path);
-        PositionInWorldMap = path[^1];
-    }
+    //public void MoveUnit(List<WorldLocation> path)
+    //{
+    //    UnitObject.GetComponent<UnitMovementHandler>().SetPath(path);
+    //    PositionInWorldMap = path[^1];
+    //}
 }

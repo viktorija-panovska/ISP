@@ -34,8 +34,6 @@ public class ClientConnectionManager : MonoBehaviour
 
     private void OnClientDisconnect(ulong clientId)
     {
-        Debug.Log("Client Disconnect");
-
         if (NetworkManager.Singleton.IsHost)
             return;
 
