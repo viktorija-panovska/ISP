@@ -100,6 +100,12 @@ public class ServerConnectionManager : MonoBehaviour
         else
         {
             ClearClientData(clientId);
+
+            if (gameInProgress)
+            {
+                NetworkManager.Singleton.SceneManager.LoadScene("Lobby", LoadSceneMode.Single);
+                gameInProgress = false;
+            }
         }
     }
 

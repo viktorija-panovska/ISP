@@ -97,4 +97,10 @@ public class ConnectionManager : MonoBehaviour
         if (NetworkManager.Singleton.IsHost)
             ServerConnectionManager.Instance.OnUserDisconnectRequest();
     }
+
+
+    public void OnApplicationQuit()
+    {
+        RequestDisconnect();
+    }
 }

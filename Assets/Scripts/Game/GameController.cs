@@ -28,10 +28,13 @@ public class GameController : NetworkBehaviour
     public GameObject CameraRig;
     public Camera PlayerCamera;
 
+    private bool isGamePaused = false;
+
     public GameObject RedUnitPrefab;
     public GameObject BlueUnitPrefab;
     private const int startingUnits = 1;
 
+    public GameObject GameHUDPrefab;
     public Texture2D ClickyCursorTexture;
 
     private Powers activePower = Powers.MoldTerrain;
@@ -41,13 +44,22 @@ public class GameController : NetworkBehaviour
     {
         if (!IsOwner) return;
 
+
+        // Set HUD
+        GameObject hud = Instantiate(GameHUDPrefab);
+        hud.GetComponent<GameHUD>().SetGameController(this);
+
+
+        // Set camera
         if (IsServer)
             CameraRig.transform.position = new Vector3(0, CameraRig.transform.position.y, 0);
         else
             CameraRig.transform.position = new Vector3(WorldMap.Width, CameraRig.transform.position.y, WorldMap.Width);
 
-        WorldMap.DrawVisibleMap(CameraRig.transform.position);
+        WorldMap.Instance.DrawVisibleMap(CameraRig.transform.position);
 
+
+        // Set units
         if (IsServer)
             SpawnUnitsServerRpc();
     }
@@ -57,8 +69,10 @@ public class GameController : NetworkBehaviour
     {
         if (!IsOwner) return;
 
+        if (isGamePaused) return;
+
         if (Physics.Raycast(PlayerCamera.ScreenPointToRay(new Vector3(Screen.width / 2, 0, Screen.height / 2)), out RaycastHit hitInfo, Mathf.Infinity))
-            WorldMap.DrawVisibleMap(hitInfo.point);
+            WorldMap.Instance.DrawVisibleMap(hitInfo.point);
 
         if (Input.GetKeyDown(KeyCode.Alpha1))
             activePower = Powers.MoldTerrain;
@@ -75,6 +89,17 @@ public class GameController : NetworkBehaviour
                 GuideFollowers();
                 break;
         }
+    }
+
+
+    public void PauseGame()
+    {
+        isGamePaused = true;
+    }
+
+    public void ResumeGame()
+    {
+        isGamePaused = false;
     }
 
 
@@ -113,7 +138,7 @@ public class GameController : NetworkBehaviour
             unitPrefab,
             new Vector3(
                 location.X, 
-                WorldMap.GetVertexHeight(location) + unitPrefab.GetComponent<MeshRenderer>().bounds.size.y / 2, 
+                WorldMap.Instance.GetVertexHeight(location) + unitPrefab.GetComponent<MeshRenderer>().bounds.size.y / 2, 
                 location.Z),
             Quaternion.identity);
 
@@ -144,6 +169,7 @@ public class GameController : NetworkBehaviour
     }
 
 
+
     #region Mold Terrain
     private void MoldTerrain()
     {
@@ -165,19 +191,9 @@ public class GameController : NetworkBehaviour
     [ServerRpc]
     public void UpdateMapServerRpc(float x, float z, bool decrease)
     {
-        WorldMap.UpdateMap(new WorldLocation(x, z), decrease);
+        WorldMap.Instance.UpdateMap(new WorldLocation(x, z), decrease);
 
         // TODO: Update heights of units standing on the updated vertices
-
-        SynchronizeMapClientRpc();
-    }
-
-
-    [ClientRpc]
-    private void SynchronizeMapClientRpc()
-    {
-        //if (IsHost) return;
-        //WorldMap.SynchronizeMap();
     }
 
     #endregion

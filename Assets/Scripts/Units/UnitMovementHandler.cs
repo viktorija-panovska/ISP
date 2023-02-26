@@ -64,7 +64,7 @@ public class UnitMovementHandler : NetworkBehaviour
 
         randomTarget = new Vector3(
             targetLocation.X, 
-            WorldMap.GetVertexHeight(targetLocation) + GetComponent<MeshRenderer>().bounds.size.y / 2, 
+            WorldMap.Instance.GetVertexHeight(targetLocation) + GetComponent<MeshRenderer>().bounds.size.y / 2, 
             targetLocation.Z
         );
     }
@@ -85,7 +85,7 @@ public class UnitMovementHandler : NetworkBehaviour
 
         Vector3 target = new(
             current.X,
-            WorldMap.GetVertexHeight(current) + GetComponent<MeshRenderer>().bounds.size.y / 2,
+            WorldMap.Instance.GetVertexHeight(current) + GetComponent<MeshRenderer>().bounds.size.y / 2,
             current.Z
         );
 

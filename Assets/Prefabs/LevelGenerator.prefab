@@ -46,6 +46,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   WorldMapPrefab: {fileID: 3501683329456848355, guid: 082a2fe2a2b53914aacee4e175d9aed2, type: 3}
+  ChunkPrefab: {fileID: 1698938185675829648, guid: e9369c851b6ba8541b51f23fbc438cd4, type: 3}
   GameControllerPrefab: {fileID: 7143908596591986811, guid: 7267269d651085e439d391512352dc0e, type: 3}
 --- !u!114 &8290158909957413356
 MonoBehaviour:

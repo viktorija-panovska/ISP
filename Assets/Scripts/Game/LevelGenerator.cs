@@ -24,11 +24,11 @@ public struct WorldLocation
             {
                 if ((dx, dz) != (0, 0))
                 {
-                    (float x, float z) neighbor = (X + dx * Chunk.TileWidth, Z + dz * Chunk.TileWidth);
+                    (float x, float z) = (X + dx * Chunk.TileWidth, Z + dz * Chunk.TileWidth);
 
-                    if (neighbor.x >= 0 && neighbor.z >= 0 &&
-                        neighbor.x < WorldMap.Width && neighbor.z < WorldMap.Width)
-                        neighbors.Add(new WorldLocation(neighbor.x, neighbor.z));
+                    if (x >= 0 && z >= 0 &&
+                        x < WorldMap.Width && z < WorldMap.Width)
+                        neighbors.Add(new WorldLocation(x, z));
                 }
             }
         }
@@ -40,7 +40,7 @@ public struct WorldLocation
 
 public class LevelGenerator : NetworkBehaviour
 {
-    public static LevelGenerator Instance; 
+    public static LevelGenerator Instance;
 
     public GameObject WorldMapPrefab;
     public GameObject GameControllerPrefab;

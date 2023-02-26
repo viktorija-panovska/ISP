@@ -34,6 +34,7 @@ public struct MeshData
 }
 
 
+
 public class Chunk
 {
     public readonly GameObject gameObject;
@@ -88,6 +89,7 @@ public class Chunk
     }
 
 
+
     public void SetVisibility(bool isVisible)
     {
         gameObject.SetActive(isVisible);
@@ -109,7 +111,6 @@ public class Chunk
         (int x_i, int z_i) = IndicesFromCoordinates(x, z);
         return GetVertexHeightAtIndex(x_i, z_i);
     }
-
 
 
 
@@ -168,9 +169,9 @@ public class Chunk
                 (float x_coord, float z_coord) = CoordinatesFromIndices(x, z);
 
                 if (x == 0 && ChunkIndex.x > 0)
-                    height = WorldMap.GetVertexHeight((ChunkIndex.x - 1, ChunkIndex.z), (Width, z_coord));
+                    height = WorldMap.Instance.GetVertexHeight((ChunkIndex.x - 1, ChunkIndex.z), (Width, z_coord));
                 else if (z == 0 && ChunkIndex.z > 0)
-                    height = WorldMap.GetVertexHeight((ChunkIndex.x, ChunkIndex.z - 1), (x_coord, Width));
+                    height = WorldMap.Instance.GetVertexHeight((ChunkIndex.x, ChunkIndex.z - 1), (x_coord, Width));
                 else
                     height = CalculateVertexHeight(x, z, currentVertices[0]);
 
@@ -261,15 +262,20 @@ public class Chunk
     #endregion
 
 
+
     #region Modifying Mesh
-    public void UpdateHeights((float x, float z) coords, bool decrease)
+    public List<(int x, int z, float height, bool isCenter)> UpdateHeights((float x, float z) coords, bool decrease)
     {
+        List<(int x, int z, float height, bool isCenter)> modifiedVertices = new();
+
         (int x, int z) = IndicesFromCoordinates(coords.x, coords.z);
-        UpdateHeightAtPoint(x, z, decrease);
+        UpdateHeightAtPoint(x, z, decrease, ref modifiedVertices);
+
+        return modifiedVertices;
     }
 
 
-    private void UpdateHeightAtPoint(int x, int z, bool decrease)
+    private void UpdateHeightAtPoint(int x, int z, bool decrease, ref List<(int x, int z, float height, bool isCenter)> modifiedVertices)
     {
         // Get all the vertices that share the clicked point
         List<int> currentVertices = vertices[z, x];
@@ -284,6 +290,7 @@ public class Chunk
                 meshData.vertices[v].y += StepHeight;
         }
 
+        modifiedVertices.Add((x, z, GetVertexHeightAtIndex(x, z), false));
 
         //Update neighboring vertices in current chunk
         for (int zOffset = -1; zOffset <= 1; ++zOffset)
@@ -299,13 +306,13 @@ public class Chunk
                     if (neighborZ >= 0 && neighborZ < vertices.GetLength(0) && neighborX >= 0 && neighborX < vertices.GetLength(1))
                     {
                         if (Mathf.Abs(meshData.vertices[currentVertices[0]].y - GetVertexHeightAtIndex(neighborX, neighborZ)) > StepHeight)
-                            UpdateHeightAtPoint(neighborX, neighborZ, decrease);
+                            UpdateHeightAtPoint(neighborX, neighborZ, decrease, ref modifiedVertices);
                     }
                     else
                     {
                         (float x, float z) coords = CoordinatesFromIndices(x, z);
 
-                        WorldMap.UpdateVertex(
+                        WorldMap.Instance.UpdateVertexInChunk(
                             (neighborX < 0 ? ChunkIndex.x - 1 : (neighborX >= vertices.GetLength(1) ? ChunkIndex.x + 1 : ChunkIndex.x),
                              neighborZ < 0 ? ChunkIndex.z - 1 : (neighborZ >= vertices.GetLength(0) ? ChunkIndex.z + 1 : ChunkIndex.z)),
                             (neighborX < 0 ? Width : (neighborX >= vertices.GetLength(1) ? 0 : coords.x),
@@ -328,9 +335,21 @@ public class Chunk
                 {
                     float height = CalculateCenterHeight(center.x, center.z);
                     meshData.vertices[centers[center.z, center.x]].y = height;
+                    modifiedVertices.Add((center.x, center.z, height, true));
                 }
             }
         }       
+    }
+
+
+    public void SetVertexHeightAtPoint(int x, int z, float height, bool isCenter)
+    {
+        if (!isCenter)
+            foreach (var v in vertices[x, z])
+                meshData.vertices[v].y = height;
+
+        if (isCenter)
+            meshData.vertices[centers[x, z]].y = height;
     }
     #endregion
 }

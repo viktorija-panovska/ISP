@@ -137,8 +137,8 @@ public static class Pathfinding
 
     private static bool IsReachable(PathNode current, PathNode neighbor)
     {
-        float currentY = WorldMap.GetVertexHeight(current.Location);
-        float neighborY = WorldMap.GetVertexHeight(neighbor.Location);
+        float currentY = WorldMap.Instance.GetVertexHeight(current.Location);
+        float neighborY = WorldMap.Instance.GetVertexHeight(neighbor.Location);
 
         return Mathf.Abs(currentY - neighborY) <= Chunk.StepHeight;
     }

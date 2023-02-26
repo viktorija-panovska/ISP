@@ -31,8 +31,8 @@ public class CameraController : MonoBehaviour
     private void MoveCamera()
     {
         ChangePosition();
-        ChangeRotation();
-        ChangeZoom();
+        //ChangeRotation();
+        //ChangeZoom();
     }
 
 
@@ -54,6 +54,8 @@ public class CameraController : MonoBehaviour
 
         if (newPosition != CameraRig.transform.position)
             CameraRig.transform.position = Vector3.Lerp(CameraRig.transform.position, newPosition, Time.deltaTime * movementTime);
+
+
     }
 
 
