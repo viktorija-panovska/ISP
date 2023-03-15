@@ -19,7 +19,7 @@ public class ServerConnectionManager : MonoBehaviour
     private bool gameInProgress;
 
     private Dictionary<string, PlayerData> clientData;
-    private Dictionary<ulong, string> clientIdToPlayerId;       
+    private Dictionary<ulong, string> clientIdToPlayerId;
     private Dictionary<ulong, int> clientSceneMap;          // which client is in which scene
 
 
@@ -66,7 +66,7 @@ public class ServerConnectionManager : MonoBehaviour
 
     public void SetServerPassword(string password) => serverPassword = password;
 
-     
+
     public string GetServerPassword() => serverPassword;
 
     public void OnClientSceneChanged(ulong clientId, int sceneIndex)
@@ -93,7 +93,7 @@ public class ServerConnectionManager : MonoBehaviour
         clientSceneMap.Remove(clientId);
 
         if (clientId == NetworkManager.Singleton.LocalClientId)
-        { 
+        {
             NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnect;
             ClearAllClientData();
         }
@@ -156,7 +156,7 @@ public class ServerConnectionManager : MonoBehaviour
 
     private void OnServerStart()
     {
-        if (!NetworkManager.Singleton.IsHost) 
+        if (!NetworkManager.Singleton.IsHost)
             return;
 
         string clientGuid = Guid.NewGuid().ToString();

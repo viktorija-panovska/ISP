@@ -24,12 +24,6 @@ public class ClientConnectionManager : MonoBehaviour
         DontDestroyOnLoad(gameObject);
     }
 
-    private void OnDestroy()
-    {
-        if (ConnectionManager.Instance == null || NetworkManager.Singleton == null)
-            return;
-    }
-
 
     // ----- Disconnect ----- //
     public void OnUserDisconnectRequest()

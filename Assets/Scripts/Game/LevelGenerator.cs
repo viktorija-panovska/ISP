@@ -1,39 +1,16 @@
 using UnityEngine;
 using Unity.Netcode;
-using System.Collections.Generic;
 
 
 public struct WorldLocation
 {
-    public float X { get; }
-    public float Z { get; }
+    public float X;
+    public float Z;
 
     public WorldLocation(float x, float z)
     {
         X = Mathf.Round(x / Chunk.TileWidth) * Chunk.TileWidth;
         Z = Mathf.Round(z / Chunk.TileWidth) * Chunk.TileWidth;
-    }
-
-    public List<WorldLocation> GetNeighboringLocations()
-    {
-        List<WorldLocation> neighbors = new();
-
-        for (int dz = -1; dz <= 1; dz++)
-        {
-            for (int dx = -1; dx <= 1; ++dx)
-            {
-                if ((dx, dz) != (0, 0))
-                {
-                    (float x, float z) = (X + dx * Chunk.TileWidth, Z + dz * Chunk.TileWidth);
-
-                    if (x >= 0 && z >= 0 &&
-                        x < WorldMap.Width && z < WorldMap.Width)
-                        neighbors.Add(new WorldLocation(x, z));
-                }
-            }
-        }
-
-        return neighbors;
     }
 }
 

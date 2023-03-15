@@ -25,7 +25,6 @@ public enum Powers
 [RequireComponent(typeof(CameraController))]
 public class GameController : NetworkBehaviour
 {
-    public GameObject CameraRig;
     public Camera PlayerCamera;
 
     private bool isGamePaused = false;
@@ -38,41 +37,29 @@ public class GameController : NetworkBehaviour
     public Texture2D ClickyCursorTexture;
 
     private Powers activePower = Powers.MoldTerrain;
+    private readonly List<ulong> activeUnits = new();
+
+    private WorldLocation lastClickedVertex = new(-1, -1);    // when guiding followers
+
 
 
     public override void OnNetworkSpawn()
     {
         if (!IsOwner) return;
 
-
         // Set HUD
         GameObject hud = Instantiate(GameHUDPrefab);
         hud.GetComponent<GameHUD>().SetGameController(this);
 
-
-        // Set camera
-        if (IsServer)
-            CameraRig.transform.position = new Vector3(0, CameraRig.transform.position.y, 0);
-        else
-            CameraRig.transform.position = new Vector3(WorldMap.Width, CameraRig.transform.position.y, WorldMap.Width);
-
-        WorldMap.Instance.DrawVisibleMap(CameraRig.transform.position);
-
-
         // Set units
-        if (IsServer)
-            SpawnUnitsServerRpc();
+        SpawnUnitsServerRpc();
     }
-
 
     private void Update()
     {
         if (!IsOwner) return;
 
         if (isGamePaused) return;
-
-        if (Physics.Raycast(PlayerCamera.ScreenPointToRay(new Vector3(Screen.width / 2, 0, Screen.height / 2)), out RaycastHit hitInfo, Mathf.Infinity))
-            WorldMap.Instance.DrawVisibleMap(hitInfo.point);
 
         if (Input.GetKeyDown(KeyCode.Alpha1))
             activePower = Powers.MoldTerrain;
@@ -92,6 +79,7 @@ public class GameController : NetworkBehaviour
     }
 
 
+
     public void PauseGame()
     {
         isGamePaused = true;
@@ -103,20 +91,20 @@ public class GameController : NetworkBehaviour
     }
 
 
+
     #region Unit Spawn
-    [ServerRpc(RequireOwnership = true)]
-    private void SpawnUnitsServerRpc()
+    [ServerRpc]
+    private void SpawnUnitsServerRpc(ServerRpcParams serverRpcParams = default)
     {
         List<WorldLocation> occupiedSpots = new();
-        
-        for (int i = 0; i < startingUnits; ++i)
-        {
-            // Player 0
-            SpawnUnit(RedUnitPrefab, 0, (0, Chunk.Width), ref occupiedSpots);
 
-            // Player 1
-            SpawnUnit(BlueUnitPrefab, 1, (WorldMap.Width, WorldMap.Width - Chunk.Width), ref occupiedSpots);
-        }
+        ulong clientId = serverRpcParams.Receive.SenderClientId;
+
+        GameObject unitPrefab = clientId == 0 ? RedUnitPrefab : BlueUnitPrefab;
+        (int min, int max) range = clientId == 0 ? (0, Chunk.Width) : (WorldMap.Width, WorldMap.Width - Chunk.Width);
+
+        for (int i = 0; i < startingUnits; ++i)
+            SpawnUnit(unitPrefab, clientId, range, ref occupiedSpots);
     }
 
 
@@ -133,18 +121,32 @@ public class GameController : NetworkBehaviour
 
         occupiedSpots.Add(location);
 
-
         GameObject unit = Instantiate(
             unitPrefab,
             new Vector3(
-                location.X, 
-                WorldMap.Instance.GetVertexHeight(location) + unitPrefab.GetComponent<MeshRenderer>().bounds.size.y / 2, 
+                location.X,
+                WorldMap.Instance.GetVertexHeight(location) + unitPrefab.GetComponent<MeshRenderer>().bounds.extents.y,
                 location.Z),
             Quaternion.identity);
 
         unit.GetComponent<NetworkObject>().Spawn(destroyWithScene: true);
+        unit.GetComponent<Unit>().SetTeam(ownerId);
+
+        AddUnitClientRpc(unit.GetComponent<NetworkObject>().NetworkObjectId, new ClientRpcParams { 
+            Send = new ClientRpcSendParams { 
+                TargetClientIds = new ulong[] { ownerId } 
+            } 
+        });
+    }
+
+
+    [ClientRpc]
+    private void AddUnitClientRpc(ulong unitId, ClientRpcParams clientRpcParams = default)
+    {
+        activeUnits.Add(unitId);
     }
     #endregion
+
 
 
     private bool IsClickable(Vector3 hitPoint)
@@ -189,7 +191,7 @@ public class GameController : NetworkBehaviour
 
 
     [ServerRpc]
-    public void UpdateMapServerRpc(float x, float z, bool decrease)
+    private void UpdateMapServerRpc(float x, float z, bool decrease)
     {
         WorldMap.Instance.UpdateMap(new WorldLocation(x, z), decrease);
 
@@ -205,25 +207,31 @@ public class GameController : NetworkBehaviour
     {
         if (Physics.Raycast(PlayerCamera.ScreenPointToRay(Input.mousePosition), out RaycastHit hitInfo, Mathf.Infinity))
         {
-            Vector3 hitPoint = hitInfo.point;
+            Vector3 endPoint = hitInfo.point;
 
-            if (IsClickable(hitPoint) && Input.GetMouseButtonDown(0))
-                MoveUnits(hitPoint);
+            if (IsClickable(endPoint) && Input.GetMouseButtonDown(0))
+                foreach (ulong id in activeUnits)
+                    MoveUnitServerRpc(id, endPoint);
         }
     }
 
 
-    private void MoveUnits(Vector3 endPoint)
+    [ServerRpc]
+    private void MoveUnitServerRpc(ulong id, Vector3 endPoint)
     {
-        //WorldLocation endLocation = new(endPoint.x, endPoint.z);
+        Unit unit = GetNetworkObject(id).gameObject.GetComponent<Unit>();
 
-        //foreach (Unit unit in activeUnits)
-        //{
-        //    List<WorldLocation> path = Pathfinding.FindPath(unit.PositionInWorldMap, endLocation);
+        WorldLocation endLocation = new(endPoint.x, endPoint.z);
 
-        //    if (path != null && path.Count > 0)
-        //        unit.MoveUnit(path);
-        //}
+        if (endLocation.X == lastClickedVertex.X && endLocation.Z == lastClickedVertex.Z)
+            return;
+
+        lastClickedVertex = endLocation;
+
+        List<WorldLocation> path = Pathfinding.FindPath(new(unit.Position.x, unit.Position.z), endLocation);
+
+        if (path != null && path.Count > 0)
+            unit.MoveUnit(path);
     }
     #endregion
 }

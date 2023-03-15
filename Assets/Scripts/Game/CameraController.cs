@@ -1,19 +1,17 @@
-
 using UnityEngine;
+using Unity.Netcode;
 
-public class CameraController : MonoBehaviour
+
+public class CameraController : NetworkBehaviour
 {
     public GameObject CameraRig;
     public Camera PlayerCamera;
 
     public static float ViewDistance = Screen.width;
-    public static int ChunksVisible = Mathf.RoundToInt(ViewDistance / Chunk.Width); 
+    public static int ChunksVisible = Mathf.CeilToInt(ViewDistance / Chunk.Width); 
 
     private const float movementTime = 50f;
     private const float movementSpeed = 1f;
-
-    private const float rotationTime = 25f;
-    private const float rotationSpeed = 1f;
 
     private const float zoomTime = 50f;
     private const float zoomSpeed = 35f;
@@ -21,26 +19,29 @@ public class CameraController : MonoBehaviour
     private const float maxZoom = 1200f;
 
 
+    public override void OnNetworkSpawn()
+    {
+        if (!IsOwner) return;
+
+        // Set camera
+        if (OwnerClientId == 0)
+            CameraRig.transform.position = new Vector3(0, CameraRig.transform.position.y, 0);
+        else
+            CameraRig.transform.position = new Vector3(WorldMap.Width, CameraRig.transform.position.y, WorldMap.Width);
+
+        WorldMap.Instance.DrawVisibleMap(CameraRig.transform.position);
+    }
+
 
     private void Update()
     {
-        MoveCamera();
+        if (ChangePosition() || ChangeZoom())
+            RedrawMap();
     }
 
 
-    private void MoveCamera()
+    private bool ChangePosition()
     {
-        ChangePosition();
-        //ChangeRotation();
-        //ChangeZoom();
-    }
-
-
-    private void ChangePosition()
-    {
-        // TODO: Fix controls when rotated
-
-
         Vector3 newPosition = CameraRig.transform.position;
 
         if (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow))
@@ -53,27 +54,16 @@ public class CameraController : MonoBehaviour
             newPosition += (transform.right * -movementSpeed);
 
         if (newPosition != CameraRig.transform.position)
+        {
             CameraRig.transform.position = Vector3.Lerp(CameraRig.transform.position, newPosition, Time.deltaTime * movementTime);
+            return true;
+        }
 
-
+        return false;
     }
 
 
-    private void ChangeRotation()
-    {
-        Quaternion newRotation = CameraRig.transform.rotation;
-
-        if (Input.GetKey(KeyCode.Q))
-            newRotation *= Quaternion.Euler(Vector3.up * rotationSpeed);
-        if (Input.GetKey(KeyCode.E))
-            newRotation *= Quaternion.Euler(Vector3.up * -rotationSpeed);
-
-        if (newRotation != CameraRig.transform.rotation)
-            CameraRig.transform.rotation = Quaternion.Lerp(CameraRig.transform.rotation, newRotation, Time.deltaTime * rotationTime);
-    }
-
-
-    private void ChangeZoom()
+    private bool ChangeZoom()
     {
         Vector3 newZoom = PlayerCamera.transform.localPosition;
 
@@ -86,6 +76,16 @@ public class CameraController : MonoBehaviour
         {
             newZoom = new Vector3(newZoom.x, Mathf.Clamp(newZoom.y, minZoom, maxZoom), Mathf.Clamp(newZoom.z, -maxZoom, -minZoom));
             PlayerCamera.transform.localPosition = Vector3.Lerp(PlayerCamera.transform.localPosition, newZoom, Time.deltaTime * zoomTime);
+            return true;
         }
+
+        return false;
+    }
+
+
+    private void RedrawMap()
+    {
+        if (Physics.Raycast(PlayerCamera.ScreenPointToRay(new Vector3(Screen.width / 2, 0, Screen.height / 2)), out RaycastHit hitInfo, Mathf.Infinity)) 
+            WorldMap.Instance.DrawVisibleMap(hitInfo.point);
     }
 }

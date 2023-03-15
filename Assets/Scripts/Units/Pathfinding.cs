@@ -30,9 +30,6 @@ public static class Pathfinding
     private const int StraightCost = 10;
     private const int DiagonalCost = 14;
 
-    private static readonly (int, int)[] neighborDirections
-        = { (0, 1), (1, 0), (0, -1), (-1, 0), (1, 1), (1, -1), (-1, 1), (-1, -1) };
-
 
     public static List<WorldLocation> FindPath(WorldLocation start, WorldLocation end) 
     {
@@ -113,24 +110,28 @@ public static class Pathfinding
     {
         List<Vector2> neighbors = new();
 
-        foreach ((int xOffset, int zOffset) in neighborDirections)
+        for (int zOffset = -1; zOffset <= 1; ++zOffset)
         {
-            float x = currentNode.Location.X + (xOffset * Chunk.TileWidth);
-            float z = currentNode.Location.Z + (zOffset * Chunk.TileWidth);
+            for (int xOffset = -1; xOffset <= 1; ++xOffset)
+            {
+                float x = currentNode.Location.X + (xOffset * Chunk.TileWidth);
+                float z = currentNode.Location.Z + (zOffset * Chunk.TileWidth);
 
-            if (x < 0 || x > WorldMap.Width ||
-                z < 0 || z > WorldMap.Width)
-                continue;
+                if (x < 0 || x > WorldMap.Width ||
+                    z < 0 || z > WorldMap.Width)
+                    continue;
 
-            WorldLocation newLocation = new(x, z);
+                WorldLocation newLocation = new(x, z);
 
-            Vector2 key = GetKey(newLocation);
+                Vector2 key = GetKey(newLocation);
 
-            if (!allNodes.ContainsKey(key))
-                allNodes.Add(key, new PathNode(newLocation, prevNode: currentNode));
+                if (!allNodes.ContainsKey(key))
+                    allNodes.Add(key, new PathNode(newLocation, prevNode: currentNode));
 
-            neighbors.Add(key);
+                neighbors.Add(key);
+            }
         }
+
         return neighbors;
     }
 

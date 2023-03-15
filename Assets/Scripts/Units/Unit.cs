@@ -1,6 +1,5 @@
 using UnityEngine;
 using System.Collections.Generic;
-using Unity.Netcode;
 
 
 public enum Team
@@ -9,27 +8,33 @@ public enum Team
     Blue
 }
 
-[RequireComponent(typeof(NetworkObject))]
-public class Unit
+
+[RequireComponent(typeof(UnitMovementHandler))]
+public class Unit : MonoBehaviour
 {
-    public GameObject UnitObject { get; }
-    public WorldLocation PositionInWorldMap;
+    public Vector3 Position { get => gameObject.transform.position; private set => gameObject.transform.position = value; }
+    public WorldLocation Location { get => new(Position.x, Position.z); }
 
     public Teams Team { get; private set; }
     public int Health { get; private set; }
 
 
-
-    public Unit(GameObject unitObject, WorldLocation worldPosition, Teams team)
+    public void SetTeam(ulong ownerId)
     {
-        UnitObject = unitObject;
-        PositionInWorldMap = worldPosition;
-        Team = team;
+        if (ownerId == 0)
+            Team = Teams.Red;
+        else
+            Team = Teams.Blue;
     }
 
-    //public void MoveUnit(List<WorldLocation> path)
-    //{
-    //    UnitObject.GetComponent<UnitMovementHandler>().SetPath(path);
-    //    PositionInWorldMap = path[^1];
-    //}
+
+    public void MoveUnit(List<WorldLocation> path)
+    {
+        gameObject.GetComponent<UnitMovementHandler>().SetPath(path);
+    }
+
+    public void UpdateHeight()
+    {
+        Position = new Vector3(Position.x, WorldMap.Instance.GetVertexHeight(Location));
+    }
 }
