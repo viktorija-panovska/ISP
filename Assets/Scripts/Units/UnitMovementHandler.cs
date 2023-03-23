@@ -302,6 +302,7 @@ public class UnitMovementHandler : NetworkBehaviour
                 return false;
 
             if (WorldMap.Instance.GetVertexHeight(start) != WorldMap.Instance.GetVertexHeight(neighbor))
+                return false;
         }
 
         return true;
