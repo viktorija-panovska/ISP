@@ -66,7 +66,7 @@ public class WorldMap : NetworkBehaviour
 
     // World Map
     public Vector3 Position { get => transform.position; }
-    public const int ChunkNumber = 2;
+    public const int ChunkNumber = 1;
     public const int Width = ChunkNumber * Chunk.Width;
 
     private readonly Chunk[,] chunkMap = new Chunk[ChunkNumber, ChunkNumber];
