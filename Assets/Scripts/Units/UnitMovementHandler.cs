@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Runtime.ExceptionServices;
 using System.Transactions;
 using Unity.Collections;
+using Unity.Mathematics;
 using Unity.Netcode;
 using Unity.VisualScripting;
 using UnityEngine;
@@ -19,6 +20,8 @@ public class UnitMovementHandler : NetworkBehaviour
     private List<WorldLocation> path;
     private int targetIndex = 0;
     private bool hasNewPath;
+    private Vector3? pathTarget;
+    private bool intermediateStep;
 
 
     // Roaming
@@ -29,6 +32,7 @@ public class UnitMovementHandler : NetworkBehaviour
     private Vector3 roamTarget;
 
 
+    private bool foundFlat = false;
     private bool stop = false;
 
 
@@ -67,20 +71,37 @@ public class UnitMovementHandler : NetworkBehaviour
 
     private void FollowPath()
     {
-        WorldLocation targetLocation = path[targetIndex];
-
-        Vector3 targetCoordinates = new(
-            targetLocation.X,
-            WorldMap.Instance.GetVertexHeight(targetLocation) + GetComponent<MeshRenderer>().bounds.extents.y,
-            targetLocation.Z
-        );
-
-        if (!MoveToTarget(targetCoordinates))
+        if (pathTarget == null)
         {
-            targetIndex++;
+            WorldLocation targetLocation = path[targetIndex];
+            WorldLocation currentLocation = new(Position.x, Position.z, isCenter: intermediateStep);
 
-            if (targetIndex >= path.Count)
-                ResetPath(keepPath: false);
+            if (!intermediateStep && currentLocation.X != targetLocation.X && currentLocation.Z != targetLocation.Z)
+            {
+                intermediateStep = true;
+                targetLocation = WorldLocation.GetCenter(currentLocation, targetLocation);
+            }
+            else
+                intermediateStep = false;
+
+            pathTarget = new(
+                targetLocation.X,
+                WorldMap.Instance.GetHeight(targetLocation) + GetComponent<MeshRenderer>().bounds.extents.y,
+                targetLocation.Z
+            );
+        }
+
+        else if (!MoveToTarget(pathTarget.Value))
+        {
+            pathTarget = null;
+
+            if (!intermediateStep)
+            {
+                targetIndex++;
+
+                if (targetIndex >= path.Count)
+                    ResetPath(keepPath: false);
+            }
         }
     }
 
@@ -101,7 +122,7 @@ public class UnitMovementHandler : NetworkBehaviour
         if (!keepPath)
         {
             path = null;
-            stop = true;
+            if (foundFlat) stop = true;
         }
         targetIndex = 0;
         hasNewPath = false;
@@ -114,23 +135,20 @@ public class UnitMovementHandler : NetworkBehaviour
 
     private void Roam()
     {
-        if (!MoveToTarget(roamTarget))
+        WorldLocation currentLocation = new(Position.x, Position.z);
+
+        // we didn't find a flat space to go to
+        if (!MoveToFlatSpace(currentLocation))
         {
-            WorldLocation currentLocation = new(roamTarget.x, roamTarget.z);
-
-            // we didn't find a flat space to go to
-            if (!MoveToFlatSpace(currentLocation))
+            if (stepsTaken <= RoamDistance)
+                stepsTaken++;
+            else
             {
-                if (stepsTaken <= RoamDistance)
-                    stepsTaken++;
-                else
-                {
-                    stepsTaken = 0;
-                    roamDirection = ChooseRoamDirection(currentLocation);
-                }
-
-                ChooseNewRoamTarget(currentLocation);
+                stepsTaken = 0;
+                roamDirection = ChooseRoamDirection(currentLocation);
             }
+
+            ChooseNewRoamTarget(currentLocation);
         }
     }
 
@@ -145,7 +163,7 @@ public class UnitMovementHandler : NetworkBehaviour
                     currentLocation.X + dx < WorldMap.Width && currentLocation.Z + dz < WorldMap.Width)
                     availableDirections.Add((dx, dz));
 
-        return availableDirections[Random.Range(0, availableDirections.Count - 1)];
+        return availableDirections[UnityEngine.Random.Range(0, availableDirections.Count - 1)];
     }
 
     private void ChooseNewRoamTarget(WorldLocation currentLocation)
@@ -159,13 +177,7 @@ public class UnitMovementHandler : NetworkBehaviour
             target = (currentLocation.X + roamDirection.x * Chunk.TileWidth, currentLocation.Z + roamDirection.z * Chunk.TileWidth);
         }
 
-        WorldLocation targetLocation = new(target.x, target.z);
-
-        roamTarget = new(
-            targetLocation.X,
-            WorldMap.Instance.GetVertexHeight(targetLocation) + GetComponent<MeshRenderer>().bounds.extents.y,
-            targetLocation.Z
-        );
+        path = new() { new WorldLocation(target.x, target.z) };
     }
 
 
@@ -301,10 +313,11 @@ public class UnitMovementHandler : NetworkBehaviour
             if (neighbor.X < 0 || neighbor.Z < 0 || neighbor.X > WorldMap.Width || neighbor.Z > WorldMap.Width)
                 return false;
 
-            if (WorldMap.Instance.GetVertexHeight(start) != WorldMap.Instance.GetVertexHeight(neighbor))
+            if (WorldMap.Instance.GetHeight(start) != WorldMap.Instance.GetHeight(neighbor))
                 return false;
         }
 
+        foundFlat = true;
         return true;
     }
 

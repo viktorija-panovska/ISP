@@ -77,14 +77,14 @@ public class WorldMap : NetworkBehaviour
     public Material WorldMaterial;
 
 
-    public float GetVertexHeight((int x, int z) chunk, (float x, float z) localVertexCoord)
-        => chunkMap[chunk.z, chunk.x].GetVertexHeight(localVertexCoord.x, localVertexCoord.z);
+    public float GetHeight((int x, int z) chunk, (float x, float z) localVertexCoord)
+        => chunkMap[chunk.z, chunk.x].GetHeight(localVertexCoord.x, localVertexCoord.z);
 
-    public float GetVertexHeight(WorldLocation globalVertexCoord)
+    public float GetHeight(WorldLocation globalVertexCoord)
     {
         (int chunk_x, int chunk_z) = GetChunkIndex(globalVertexCoord.X, globalVertexCoord.Z);
         (float local_x, float local_z) = LocalCoordsFromGlobal(globalVertexCoord.X, globalVertexCoord.Z);
-        return chunkMap[chunk_x, chunk_z].GetVertexHeight(local_x, local_z);
+        return chunkMap[chunk_x, chunk_z].GetHeight(local_x, local_z);
     }
 
     private (int, int) GetChunkIndex(float x, float z)
@@ -193,7 +193,7 @@ public class WorldMap : NetworkBehaviour
     public void UpdateVertexInChunk((int x, int z) chunkIndex, (float x, float z) vertexCoords, float neighborHeight, bool decrease)
     {
         if (chunkIndex.x >= 0 && chunkIndex.z >= 0 && chunkIndex.x < ChunkNumber && chunkIndex.z < ChunkNumber &&
-            chunkMap[chunkIndex.z, chunkIndex.x].GetVertexHeight(vertexCoords.x, vertexCoords.z) != neighborHeight)
+            chunkMap[chunkIndex.z, chunkIndex.x].GetHeight(vertexCoords.x, vertexCoords.z) != neighborHeight)
         {
             var updatedVertices = chunkMap[chunkIndex.z, chunkIndex.x].UpdateHeights(vertexCoords, decrease);
 

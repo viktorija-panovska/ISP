@@ -35,6 +35,6 @@ public class Unit : MonoBehaviour
 
     public void UpdateHeight()
     {
-        Position = new Vector3(Position.x, WorldMap.Instance.GetVertexHeight(Location));
+        Position = new Vector3(Position.x, WorldMap.Instance.GetHeight(Location));
     }
 }

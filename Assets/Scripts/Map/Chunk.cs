@@ -105,14 +105,17 @@ public class Chunk
         => (x * TileWidth, z * TileWidth);
 
     private float GetVertexHeightAtIndex(int x, int z) => meshData.vertices[vertices[z, x][0]].y;
+    private float GetCenterHeightAtIndex(int x, int z) => meshData.vertices[centers[z, x]].y;
 
-    public float GetVertexHeight(float x, float z)
+    public float GetHeight(float x, float z)
     {
         (int x_i, int z_i) = IndicesFromCoordinates(x, z);
-        return GetVertexHeightAtIndex(x_i, z_i);
+
+        if (x % TileWidth == 0 && x % TileWidth == 0) 
+            return GetVertexHeightAtIndex(x_i, z_i);
+        else
+            return GetCenterHeightAtIndex(x_i, z_i);
     }
-
-
 
 
     #region Building Mesh
@@ -170,9 +173,9 @@ public class Chunk
                 (float x_coord, float z_coord) = CoordinatesFromIndices(x, z);
 
                 if (x == 0 && ChunkIndex.x > 0)
-                    height = WorldMap.Instance.GetVertexHeight((ChunkIndex.x - 1, ChunkIndex.z), (Width, z_coord));
+                    height = WorldMap.Instance.GetHeight((ChunkIndex.x - 1, ChunkIndex.z), (Width, z_coord));
                 else if (z == 0 && ChunkIndex.z > 0)
-                    height = WorldMap.Instance.GetVertexHeight((ChunkIndex.x, ChunkIndex.z - 1), (x_coord, Width));
+                    height = WorldMap.Instance.GetHeight((ChunkIndex.x, ChunkIndex.z - 1), (x_coord, Width));
                 else
                     height = CalculateVertexHeight(x, z, currentVertices[0]);
 

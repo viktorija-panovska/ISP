@@ -125,7 +125,7 @@ public class GameController : NetworkBehaviour
             unitPrefab,
             new Vector3(
                 location.X,
-                WorldMap.Instance.GetVertexHeight(location) + unitPrefab.GetComponent<MeshRenderer>().bounds.extents.y,
+                WorldMap.Instance.GetHeight(location) + unitPrefab.GetComponent<MeshRenderer>().bounds.extents.y,
                 location.Z),
             Quaternion.identity);
 
