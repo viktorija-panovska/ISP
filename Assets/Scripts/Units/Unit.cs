@@ -1,8 +1,8 @@
 using UnityEngine;
 using System.Collections.Generic;
+using Unity.Netcode;
 
-
-[RequireComponent(typeof(UnitMovementHandler))]
+[RequireComponent(typeof(NetworkObject), typeof(UnitMovementHandler))]
 public class Unit : MonoBehaviour
 {
     private UnitMovementHandler MovementHandler { get => GetComponent<UnitMovementHandler>(); }
@@ -16,6 +16,15 @@ public class Unit : MonoBehaviour
     public int Speed { get; private set; }
 
     public event NotifyEnterHouse EnterHouse;
+    public event NotifyBattleBegin BattleBegin;
+
+
+    public void Awake()
+    {
+        Health = 10;
+        Strength = 2;
+        Speed = 1;
+    }
 
 
     public void SetTeam(ulong ownerId)
@@ -29,6 +38,11 @@ public class Unit : MonoBehaviour
     public void MoveUnit(List<WorldLocation> path)
     {
         MovementHandler.SetPath(path);
+    }
+
+    public void TakeDamage(int damage)
+    {
+        Health -= damage;
     }
 
     public virtual void OnEnterHouse()
@@ -45,10 +59,18 @@ public class Unit : MonoBehaviour
 
     public void OnTriggerEnter(Collider other)
     {
-        Debug.Log("HI");
-    }
+        if (Team != Teams.Red) return;
 
-    // When another hit box overlaps this unit's hit box, stop the unit.
-    // Both units roll 1d20 + Speed for which one goes first.
-    // Then they hit each other for Strength amount of damage to health.
+        if (other.gameObject.layer == gameObject.layer)
+        {
+            var otherUnit = other.gameObject.GetComponent<Unit>();
+
+            if (Team != otherUnit.Team)
+            {
+                MovementHandler.Stop();
+                other.GetComponent<UnitMovementHandler>().Stop();
+                BattleBegin?.Invoke(gameObject, other.gameObject);
+            }
+        }
+    }
 }

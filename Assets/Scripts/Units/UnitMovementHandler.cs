@@ -8,7 +8,8 @@ public enum MoveState
     FoundHouse,
     FoundFlatSpace,
     BuildingHouse,
-    EnteringHouse
+    EnteringHouse,
+    Stop
 }
 
 public class UnitMovementHandler : NetworkBehaviour
@@ -24,7 +25,6 @@ public class UnitMovementHandler : NetworkBehaviour
     // Following path
     private List<WorldLocation> path;
     private int targetIndex = 0;
-    private bool hasNewPath;
     private Vector3? pathTarget;
     private bool intermediateStep;
 
@@ -37,6 +37,7 @@ public class UnitMovementHandler : NetworkBehaviour
 
 
     // Building
+    private MoveState lastMoveState = MoveState.Searching;
     private MoveState moveState = MoveState.Searching;
     private List<WorldLocation> houseVertices;
 
@@ -68,8 +69,8 @@ public class UnitMovementHandler : NetworkBehaviour
             return;
         }
 
-        if (hasNewPath)
-            ResetPath(keepPath: true);
+        if (moveState == MoveState.Stop)
+            return;
 
         if (path != null)
             FollowPath();
@@ -82,13 +83,24 @@ public class UnitMovementHandler : NetworkBehaviour
         PlaceFound?.Invoke(houseVertices, Unit.Team);
     }
 
+    public void Stop()
+    {
+        lastMoveState = moveState;
+        moveState = MoveState.Stop;
+    }
+
+    public void Resume()
+    {
+        moveState = lastMoveState;
+    }
+
 
     #region Following path
 
     public void SetPath(List<WorldLocation> path)
     {
         this.path = path;
-        hasNewPath = true;
+        targetIndex = 0;
     }
 
     private void FollowPath()
@@ -122,7 +134,7 @@ public class UnitMovementHandler : NetworkBehaviour
                 targetIndex++;
 
                 if (targetIndex >= path.Count)
-                    ResetPath(keepPath: false);
+                    ResetPath();
             }
         }
     }
@@ -139,27 +151,22 @@ public class UnitMovementHandler : NetworkBehaviour
         return false;
     }
 
-    private void ResetPath(bool keepPath)
+    private void ResetPath()
     {
-        if (!keepPath)
-        {
-            path = null;
-
-            if (moveState == MoveState.FoundFlatSpace)
-            {
-                if (!IsStillFree())
-                    moveState = MoveState.Searching;
-                else
-                    moveState = MoveState.BuildingHouse;
-            }
-            else if (moveState == MoveState.FoundHouse)
-                moveState = MoveState.EnteringHouse;
-            else
-                moveState = MoveState.Searching;
-        }
-
+        path = null;
         targetIndex = 0;
-        hasNewPath = false;
+
+        if (moveState == MoveState.FoundFlatSpace)
+        {
+            if (!IsStillFree())
+                moveState = MoveState.Searching;
+            else
+                moveState = MoveState.BuildingHouse;
+        }
+        else if (moveState == MoveState.FoundHouse)
+            moveState = MoveState.EnteringHouse;
+        else
+            moveState = MoveState.Searching;
     }
 
     private bool IsStillFree()
@@ -231,7 +238,7 @@ public class UnitMovementHandler : NetworkBehaviour
     {
         if (CheckSurroundingSquares(currentLocation))
         {
-            ResetPath(keepPath: false);
+            ResetPath();
             return true;
         }
 

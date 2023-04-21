@@ -17,7 +17,7 @@ GameObject:
   - component: {fileID: 7717977119458414991}
   - component: {fileID: 1514589992434970474}
   - component: {fileID: 6410732497418058628}
-  m_Layer: 0
+  m_Layer: 3
   m_Name: RedUnit
   m_TagString: Untagged
   m_Icon: {fileID: 0}

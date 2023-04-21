@@ -1,18 +1,15 @@
 using System.Collections.Generic;
 using UnityEngine;
 using Unity.Netcode;
-
+using System.Collections;
 
 public delegate void NotifyPlaceFound(List<WorldLocation> vertices, Teams team);
 public delegate void NotifyEnterHouse(GameObject unitObject, House house);
 public delegate void NotifyDestroyHouse(GameObject house);
+public delegate void NotifyBattleBegin(GameObject redUnit, GameObject blueUnit);
 
 
-public enum Teams
-{
-    Red,
-    Blue
-}
+
 
 public enum Powers
 {
@@ -136,8 +133,10 @@ public class GameController : NetworkBehaviour
             Quaternion.identity);
 
         unitObject.GetComponent<NetworkObject>().Spawn(destroyWithScene: true);
-        unitObject.GetComponent<Unit>().SetTeam(ownerId);
-        unitObject.GetComponent<Unit>().EnterHouse += EnterHouse;
+        Unit unit = unitObject.GetComponent<Unit>();
+        unit.SetTeam(ownerId);
+        unit.EnterHouse += OnEnterHouse;
+        unit.BattleBegin += OnBattleBegin;
         unitObject.GetComponent<UnitMovementHandler>().PlaceFound += SpawnHouse;
 
         AddUnitClientRpc(unitObject.GetComponent<NetworkObject>().NetworkObjectId, new ClientRpcParams 
@@ -204,7 +203,7 @@ public class GameController : NetworkBehaviour
             WorldMap.Instance.SetHouseAtVertex(vertex, house);
     }
 
-    public void EnterHouse(GameObject unitObject, House house)
+    public void OnEnterHouse(GameObject unitObject, House house)
     {
         house.AddUnit();
         DespawnUnit(unitObject);
@@ -220,7 +219,66 @@ public class GameController : NetworkBehaviour
 
         ulong clientId = (ulong) (house.Team == Teams.Red ? 0 : 1);
         for (int i = 0; i < house.UnitsInHouse; ++i)
-            SpawnUnit(clientId == 0 ? RedUnitPrefab : BlueUnitPrefab, clientId, house.OccupiedVertices[0]);
+            SpawnUnit(clientId == 0 ? RedUnitPrefab : BlueUnitPrefab, clientId, house.OccupiedVertices[i % house.OccupiedVertices.Count]);
+    }
+    #endregion
+
+
+    #region Combat
+    private void OnBattleBegin(GameObject red, GameObject blue)
+    {
+        StartCoroutine(MakeAttacks(red, blue));
+    }
+
+    private IEnumerator MakeAttacks(GameObject red, GameObject blue)
+    {
+        Unit redUnit = red.GetComponent<Unit>();
+        Unit blueUnit = blue.GetComponent<Unit>();
+
+        while (redUnit.Health > 0 || blueUnit.Health > 0)
+        {
+            int redSpeed = Random.Range(1, 20) + redUnit.Speed;
+            int blueSpeed = Random.Range(1, 20) + blueUnit.Speed;
+
+            if (redSpeed > blueSpeed)
+            {
+                if (Kill(red, blue))
+                    break;
+            }
+            else if (blueSpeed > redSpeed)
+            {
+                if (Kill(blue, red))
+                    break;
+            }
+
+            yield return new WaitForSeconds(2);
+        }
+    }
+
+    private bool Kill(GameObject first, GameObject second)
+    {
+        Unit firstUnit = first.GetComponent<Unit>();
+        Unit secondUnit = second.GetComponent<Unit>();
+
+        secondUnit.TakeDamage(firstUnit.Strength);
+
+        if (secondUnit.Health <= 0)
+        {
+            DespawnUnit(second);
+            first.GetComponent<UnitMovementHandler>().Resume();
+            return true;
+        }
+
+        firstUnit.TakeDamage(secondUnit.Strength);
+
+        if (firstUnit.Health <= 0)
+        {
+            DespawnUnit(first);
+            second.GetComponent<UnitMovementHandler>().Resume();
+            return true;
+        }
+
+        return false;
     }
     #endregion
 

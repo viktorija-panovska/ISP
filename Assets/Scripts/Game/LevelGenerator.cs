@@ -1,6 +1,12 @@
 using UnityEngine;
 using Unity.Netcode;
 
+public enum Teams
+{
+    None,
+    Red,
+    Blue
+}
 
 public struct WorldLocation
 {
