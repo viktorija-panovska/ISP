@@ -3,6 +3,11 @@ using UnityEngine;
 using Unity.Netcode;
 
 
+public delegate void NotifyPlaceFound(List<WorldLocation> vertices, Teams team);
+public delegate void NotifyEnterHouse(GameObject unitObject, House house);
+public delegate void NotifyDestroyHouse(GameObject house);
+
+
 public enum Teams
 {
     Red,
@@ -31,7 +36,9 @@ public class GameController : NetworkBehaviour
 
     public GameObject RedUnitPrefab;
     public GameObject BlueUnitPrefab;
-    private const int startingUnits = 1;
+    private const int startingUnits = 2;
+
+    public GameObject HousePrefab;
 
     public GameObject GameHUDPrefab;
     public Texture2D ClickyCursorTexture;
@@ -101,52 +108,121 @@ public class GameController : NetworkBehaviour
         ulong clientId = serverRpcParams.Receive.SenderClientId;
 
         GameObject unitPrefab = clientId == 0 ? RedUnitPrefab : BlueUnitPrefab;
-        (int min, int max) range = clientId == 0 ? (0, Chunk.Width) : (WorldMap.Width, WorldMap.Width - Chunk.Width);
+        (int min, int max) = clientId == 0 ? (0, Chunk.Width) : (WorldMap.Width, WorldMap.Width - Chunk.Width);
 
         for (int i = 0; i < startingUnits; ++i)
-            SpawnUnit(unitPrefab, clientId, range, ref occupiedSpots);
-    }
+        {
+            WorldLocation location = GetRandomWorldLocationInRange(min, max);
 
+            while (occupiedSpots.Contains(location))
+                location = GetRandomWorldLocationInRange(min, max);
+            occupiedSpots.Add(location);
+
+            SpawnUnit(unitPrefab, clientId, location);
+        }
+    }
 
     private WorldLocation GetRandomWorldLocationInRange(int min, int max)
         => new(Random.Range(min, max), Random.Range(min, max));
 
-
-    private void SpawnUnit(GameObject unitPrefab, ulong ownerId, (int min, int max) spawnLocationRange, ref List<WorldLocation> occupiedSpots)
+    private void SpawnUnit(GameObject unitPrefab, ulong ownerId, WorldLocation spawnLocation)
     {
-        WorldLocation location = GetRandomWorldLocationInRange(spawnLocationRange.min, spawnLocationRange.max);
-
-        while (occupiedSpots.Contains(location))
-            location = GetRandomWorldLocationInRange(spawnLocationRange.min, spawnLocationRange.max);
-
-        occupiedSpots.Add(location);
-
-        GameObject unit = Instantiate(
+        GameObject unitObject = Instantiate(
             unitPrefab,
             new Vector3(
-                location.X,
-                WorldMap.Instance.GetHeight(location) + unitPrefab.GetComponent<MeshRenderer>().bounds.extents.y,
-                location.Z),
+                spawnLocation.X,
+                WorldMap.Instance.GetHeight(spawnLocation) + unitPrefab.GetComponent<MeshRenderer>().bounds.extents.y,
+                spawnLocation.Z),
             Quaternion.identity);
 
-        unit.GetComponent<NetworkObject>().Spawn(destroyWithScene: true);
-        unit.GetComponent<Unit>().SetTeam(ownerId);
+        unitObject.GetComponent<NetworkObject>().Spawn(destroyWithScene: true);
+        unitObject.GetComponent<Unit>().SetTeam(ownerId);
+        unitObject.GetComponent<Unit>().EnterHouse += EnterHouse;
+        unitObject.GetComponent<UnitMovementHandler>().PlaceFound += SpawnHouse;
 
-        AddUnitClientRpc(unit.GetComponent<NetworkObject>().NetworkObjectId, new ClientRpcParams { 
-            Send = new ClientRpcSendParams { 
+        AddUnitClientRpc(unitObject.GetComponent<NetworkObject>().NetworkObjectId, new ClientRpcParams 
+        { 
+            Send = new ClientRpcSendParams 
+            { 
                 TargetClientIds = new ulong[] { ownerId } 
             } 
         });
     }
 
+    private void DespawnUnit(GameObject unitObject)
+    {
+        RemoveUnitClientRpc(unitObject.GetComponent<NetworkObject>().NetworkObjectId, new ClientRpcParams
+        {
+            Send = new ClientRpcSendParams
+            {
+                TargetClientIds = new ulong[] { (ulong) (unitObject.GetComponent<Unit>().Team == Teams.Red ? 0 : 1) }
+            }
+        });
+
+        unitObject.GetComponent<NetworkObject>().Despawn();
+    }
 
     [ClientRpc]
     private void AddUnitClientRpc(ulong unitId, ClientRpcParams clientRpcParams = default)
     {
         activeUnits.Add(unitId);
     }
+
+    [ClientRpc]
+    private void RemoveUnitClientRpc(ulong unitId, ClientRpcParams clientRpcParams = default)
+    {
+        activeUnits.Remove(unitId);
+    }
     #endregion
 
+
+    #region Houses
+    public void SpawnHouse(List<WorldLocation> vertices, Teams team)
+    {
+        WorldLocation? rootVertex = null;
+
+        foreach (WorldLocation vertex in vertices)
+            if (rootVertex == null || vertex.X < rootVertex.Value.X || (vertex.X == rootVertex.Value.X && vertex.Z < rootVertex.Value.Z))
+                rootVertex = vertex;
+
+        GameObject houseObject = Instantiate(
+            HousePrefab,
+            new Vector3(
+                rootVertex.Value.X + HousePrefab.GetComponent<MeshRenderer>().bounds.extents.x + 2.5f,
+                WorldMap.Instance.GetHeight(rootVertex.Value) + HousePrefab.GetComponent<MeshRenderer>().bounds.extents.y,
+                rootVertex.Value.Z + HousePrefab.GetComponent<MeshRenderer>().bounds.extents.z + 2.5f),
+            Quaternion.identity);
+
+        houseObject.GetComponent<NetworkObject>().Spawn(destroyWithScene: true);
+
+        House house = houseObject.GetComponent<House>();
+        house.SetTeam(team);
+        house.SetOccupyingVertices(vertices);
+        house.DestroyHouse += DestroyHouse;
+
+        foreach (WorldLocation vertex in vertices)
+            WorldMap.Instance.SetHouseAtVertex(vertex, house);
+    }
+
+    public void EnterHouse(GameObject unitObject, House house)
+    {
+        house.AddUnit();
+        DespawnUnit(unitObject);
+    }
+
+    public void DestroyHouse(GameObject houseObject)
+    {
+        House house = houseObject.GetComponent<House>();
+        houseObject.GetComponent<NetworkObject>().Despawn();
+
+        foreach (WorldLocation vertex in house.OccupiedVertices)
+            WorldMap.Instance.SetHouseAtVertex(vertex, null);
+
+        ulong clientId = (ulong) (house.Team == Teams.Red ? 0 : 1);
+        for (int i = 0; i < house.UnitsInHouse; ++i)
+            SpawnUnit(clientId == 0 ? RedUnitPrefab : BlueUnitPrefab, clientId, house.OccupiedVertices[0]);
+    }
+    #endregion
 
 
     private bool IsClickable(Vector3 hitPoint)
@@ -169,7 +245,6 @@ public class GameController : NetworkBehaviour
             return false;
         }
     }
-
 
 
     #region Mold Terrain
@@ -195,7 +270,14 @@ public class GameController : NetworkBehaviour
     {
         WorldMap.Instance.UpdateMap(new WorldLocation(x, z), decrease);
 
-        // TODO: Update heights of units standing on the updated vertices
+        UpdateUnitHeightsClientRpc();
+    }
+
+    [ClientRpc]
+    private void UpdateUnitHeightsClientRpc()
+    {
+        //foreach (ulong id in activeUnits)
+        //    GetNetworkObject(id).gameObject.GetComponent<Unit>().UpdateHeight();
     }
 
     #endregion

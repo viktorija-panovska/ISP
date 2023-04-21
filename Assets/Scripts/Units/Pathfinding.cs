@@ -31,7 +31,7 @@ public static class Pathfinding
     private const int DiagonalCost = 14;
 
 
-    public static List<WorldLocation> FindPath(WorldLocation start, WorldLocation end) 
+    public static List<WorldLocation> FindPath(WorldLocation start, WorldLocation end)
     {
         Dictionary<Vector2, PathNode> nodes = new();
         List<Vector2> openList = new();
@@ -53,7 +53,7 @@ public static class Pathfinding
         {
             Vector2 current = GetNodeWithLowestFCost(nodes, openList);
 
-            if (nodes[current].Location.X == end.X && 
+            if (nodes[current].Location.X == end.X &&
                 nodes[current].Location.Z == end.Z)
                 return GetPath(nodes[current]);
 

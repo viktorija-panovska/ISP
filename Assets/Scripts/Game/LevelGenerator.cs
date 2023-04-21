@@ -28,7 +28,6 @@ public struct WorldLocation
 
         return new(a.X + dx * (Chunk.TileWidth / 2), a.Z + dz * (Chunk.TileWidth / 2), isCenter: true);
     }
-
 }
 
 

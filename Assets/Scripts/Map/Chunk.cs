@@ -34,7 +34,6 @@ public struct MeshData
 }
 
 
-
 public class Chunk
 {
     public readonly GameObject gameObject;
@@ -68,6 +67,8 @@ public class Chunk
 
     private readonly List<int>[,] vertices = new List<int>[TileNumber + 1, TileNumber + 1];
     private readonly int[,] centers = new int[TileNumber, TileNumber];
+
+    private House[,] houseAtVertex = new House[TileNumber + 1, TileNumber + 1];
 
 
     public Chunk((int x, int z) locationInMap)
@@ -116,6 +117,19 @@ public class Chunk
         else
             return GetCenterHeightAtIndex(x_i, z_i);
     }
+
+    public void SetHouseAtVertex(float x, float z, House house)
+    {
+        (int x_i, int z_i) = IndicesFromCoordinates(x, z);
+        houseAtVertex[z_i, x_i] = house;
+    }
+
+    public House GetHouseAtVertex(float x, float z)
+    {
+        (int x_i, int z_i) = IndicesFromCoordinates(x, z);
+        return houseAtVertex[z_i, x_i];
+    }
+
 
 
     #region Building Mesh
@@ -293,6 +307,9 @@ public class Chunk
             if (!decrease && meshData.vertices[v].y < MaxHeight)
                 meshData.vertices[v].y += StepHeight;
         }
+
+        if (houseAtVertex[z, x] != null)
+            houseAtVertex[z, x].OnDestroyHouse();
 
         modifiedVertices.Add((x, z, GetVertexHeightAtIndex(x, z), false));
 

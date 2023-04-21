@@ -109,6 +109,21 @@ public class WorldMap : NetworkBehaviour
         return (local_x, local_z);
     }
 
+    public void SetHouseAtVertex(WorldLocation globalVertexCoord, House house)
+    {
+        (int chunk_x, int chunk_z) = GetChunkIndex(globalVertexCoord.X, globalVertexCoord.Z);
+        (float local_x, float local_z) = LocalCoordsFromGlobal(globalVertexCoord.X, globalVertexCoord.Z);
+        chunkMap[chunk_x, chunk_z].SetHouseAtVertex(local_x, local_z, house);
+    }
+
+    public House GetHouseAtVertex(WorldLocation globalVertexCoord)
+    {
+        (int chunk_x, int chunk_z) = GetChunkIndex(globalVertexCoord.X, globalVertexCoord.Z);
+        (float local_x, float local_z) = LocalCoordsFromGlobal(globalVertexCoord.X, globalVertexCoord.Z);
+        return chunkMap[chunk_x, chunk_z].GetHouseAtVertex(local_x, local_z);
+    }
+
+
 
     // Create Map
     public override void OnNetworkSpawn()
