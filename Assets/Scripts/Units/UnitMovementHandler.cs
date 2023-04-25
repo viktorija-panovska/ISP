@@ -5,10 +5,9 @@ using UnityEngine;
 public enum MoveState
 {
     Searching,
-    FoundHouse,
+    FoundFriendlyHouse,
+    FoundEnemyHouse,
     FoundFlatSpace,
-    BuildingHouse,
-    EnteringHouse,
     Stop
 }
 
@@ -51,23 +50,9 @@ public class UnitMovementHandler : NetworkBehaviour
         roamDirection = ChooseRoamDirection(new WorldLocation(Position.x, Position.z));
     }
 
-
     private void Update()
     {
         if (!IsOwner) return;
-
-        if (moveState == MoveState.BuildingHouse)
-        {
-            OnPlaceFound();
-            Unit.OnEnterHouse();
-            return;
-        }
-
-        if (moveState == MoveState.EnteringHouse)
-        {
-            Unit.OnEnterHouse();
-            return;
-        }
 
         if (moveState == MoveState.Stop)
             return;
@@ -76,11 +61,6 @@ public class UnitMovementHandler : NetworkBehaviour
             FollowPath();
         else
             Roam();
-    }
-
-    protected virtual void OnPlaceFound()
-    {
-        PlaceFound?.Invoke(houseVertices, Unit.Team);
     }
 
     public void Stop()
@@ -92,6 +72,70 @@ public class UnitMovementHandler : NetworkBehaviour
     public void Resume()
     {
         moveState = lastMoveState;
+    }
+
+
+
+    private void EndPath()
+    {
+        path = null;
+        targetIndex = 0;
+
+        if (moveState == MoveState.FoundFlatSpace)
+        {
+            if (!IsStillFree())
+                moveState = MoveState.Searching;
+            else
+            {
+                moveState = MoveState.Stop;
+                OnPlaceFound();
+                Unit.OnEnterHouse();
+                return;
+            }
+        }
+        else if (moveState == MoveState.FoundFriendlyHouse)
+        {
+            if (!WorldMap.Instance.IsOccupied(houseVertices[0]) || !WorldMap.Instance.GetHouseAtVertex(houseVertices[0]).IsEnterable(Unit.Team))
+                moveState = MoveState.Searching;
+            else
+            {
+                moveState = MoveState.Stop;
+                Unit.OnEnterHouse();
+                return;
+            }
+        }
+        else if (moveState == MoveState.FoundEnemyHouse)
+        {
+            if (!WorldMap.Instance.IsOccupied(houseVertices[0]) || WorldMap.Instance.GetHouseAtVertex(houseVertices[0]).IsEnterable(Unit.Team))
+                moveState = MoveState.Searching;
+            else
+            {
+                moveState = MoveState.Stop;
+                Unit.OnAttackHouse();
+                return;
+            }
+        }
+        else
+            moveState = MoveState.Searching;
+    }
+
+    protected virtual void OnPlaceFound()
+    {
+        PlaceFound?.Invoke(houseVertices, Unit.Team);
+    }
+
+    private bool IsStillFree()
+    {
+        if (WorldMap.Instance.IsOccupied(houseVertices[0]))
+            return false;
+
+        float height = WorldMap.Instance.GetHeight(houseVertices[0]);
+
+        foreach (WorldLocation vertex in houseVertices)
+            if (WorldMap.Instance.GetHeight(vertex) != height)
+                return false;
+
+        return true;
     }
 
 
@@ -134,7 +178,7 @@ public class UnitMovementHandler : NetworkBehaviour
                 targetIndex++;
 
                 if (targetIndex >= path.Count)
-                    ResetPath();
+                    EndPath();
             }
         }
     }
@@ -149,35 +193,6 @@ public class UnitMovementHandler : NetworkBehaviour
             return true;
         }
         return false;
-    }
-
-    private void ResetPath()
-    {
-        path = null;
-        targetIndex = 0;
-
-        if (moveState == MoveState.FoundFlatSpace)
-        {
-            if (!IsStillFree())
-                moveState = MoveState.Searching;
-            else
-                moveState = MoveState.BuildingHouse;
-        }
-        else if (moveState == MoveState.FoundHouse)
-            moveState = MoveState.EnteringHouse;
-        else
-            moveState = MoveState.Searching;
-    }
-
-    private bool IsStillFree()
-    {
-        float height = WorldMap.Instance.GetHeight(houseVertices[0]);
-
-        foreach (WorldLocation vertex in houseVertices)
-            if (WorldMap.Instance.GetHeight(vertex) != height || IsOccupied(vertex))
-                return false;
-
-        return true;
     }
 
     #endregion
@@ -238,7 +253,7 @@ public class UnitMovementHandler : NetworkBehaviour
     {
         if (CheckSurroundingSquares(currentLocation))
         {
-            ResetPath();
+            EndPath();
             return true;
         }
 
@@ -371,19 +386,17 @@ public class UnitMovementHandler : NetworkBehaviour
 
     private bool IsSpaceHouseOrFree(WorldLocation start, (int x, int z) direction)
     {
-        if (IsOccupied(start))
-        {
-            if (IsEnterable(start))
-            {
-                moveState = MoveState.FoundHouse;
-                return true;
-            }
-
-            return false;
-        }
-
         (int, int)[] vertexOffsets;
         List<WorldLocation> freeVertices = new() { start };
+        List<WorldLocation> occupiedVertices = new();
+        bool isEnterable = false;
+
+        if (WorldMap.Instance.IsOccupied(start))
+        {
+            occupiedVertices.Add(start);
+            if (WorldMap.Instance.GetHouseAtVertex(start).IsEnterable(Unit.Team))
+                isEnterable = true;
+        }
 
         if (direction.x == 0)
             vertexOffsets = new[] { (0, direction.z), (-1, 0), (-1, direction.z) };
@@ -391,7 +404,6 @@ public class UnitMovementHandler : NetworkBehaviour
             vertexOffsets = new[] { (direction.x, 0), (0, -1), (direction.x, -1) };
         else
             vertexOffsets = new[] { (direction.x, 0), (0, direction.z), (direction.x, direction.z) };
-
 
         foreach ((int x, int z) in vertexOffsets)
         {
@@ -401,20 +413,37 @@ public class UnitMovementHandler : NetworkBehaviour
                 WorldMap.Instance.GetHeight(start) != WorldMap.Instance.GetHeight(vertex))
                 return false;
 
-            freeVertices.Add(vertex);
+            if (WorldMap.Instance.IsOccupied(vertex))
+                occupiedVertices.Add(vertex);
+            else
+                freeVertices.Add(vertex);
         }
 
-        moveState = MoveState.FoundFlatSpace;
-        houseVertices = freeVertices;
-        return true;
-    }
+        if (occupiedVertices.Count == 4)
+        {
+            if (isEnterable)
+            {
+                moveState = MoveState.FoundFriendlyHouse;
+                houseVertices = occupiedVertices;
+                return true;
+            }
+            else if (WorldMap.Instance.GetHouseAtVertex(start).IsAttackable(Unit.Team))
+            {
+                moveState = MoveState.FoundEnemyHouse;
+                houseVertices = occupiedVertices;
+                return true;
+            }
+            else return false;
+        }
+        
+        if (freeVertices.Count == 4)
+        {
+            moveState = MoveState.FoundFlatSpace;
+            houseVertices = freeVertices;
+            return true;
+        }
 
-    private bool IsOccupied(WorldLocation vertex) => WorldMap.Instance.GetHouseAtVertex(vertex) != null;
-
-    private bool IsEnterable(WorldLocation vertex)
-    {
-        House house = WorldMap.Instance.GetHouseAtVertex(vertex);
-        return house.Team == Unit.Team && !house.IsFull();
+        return false;
     }
     #endregion
 }

@@ -10,13 +10,17 @@ public class Unit : MonoBehaviour
     public Vector3 Position { get => gameObject.transform.position; private set => gameObject.transform.position = value; }
     public WorldLocation Location { get => new(Position.x, Position.z); }
 
-    public Teams Team { get; private set; }
+    public Teams Team;
+
     public int Health { get; private set; }
     public int Strength { get; private set; }
     public int Speed { get; private set; }
 
+    public bool IsFighting { get; private set; }
+
     public event NotifyEnterHouse EnterHouse;
-    public event NotifyBattleBegin BattleBegin;
+    public event NotifyAttackUnit BattleBegin;
+    public event NotifyAttackHouse AttackHouse;
 
 
     public void Awake()
@@ -26,18 +30,21 @@ public class Unit : MonoBehaviour
         Speed = 1;
     }
 
-
-    public void SetTeam(ulong ownerId)
-    {
-        if (ownerId == 0)
-            Team = Teams.Red;
-        else
-            Team = Teams.Blue;
-    }
-
     public void MoveUnit(List<WorldLocation> path)
     {
         MovementHandler.SetPath(path);
+    }
+
+    public void StartBattle()
+    {
+        IsFighting = true;
+        MovementHandler.Stop();
+    }
+
+    public void EndBattle()
+    {
+        IsFighting = false;
+        MovementHandler.Resume();
     }
 
     public void TakeDamage(int damage)
@@ -45,9 +52,16 @@ public class Unit : MonoBehaviour
         Health -= damage;
     }
 
+
+
     public virtual void OnEnterHouse()
     {
-        EnterHouse?.Invoke(gameObject, WorldMap.Instance.GetHouseAtVertex(Location));
+        EnterHouse?.Invoke(this, WorldMap.Instance.GetHouseAtVertex(Location));
+    }
+
+    public virtual void OnAttackHouse()
+    {
+        AttackHouse?.Invoke(this, WorldMap.Instance.GetHouseAtVertex(Location));
     }
 
 
@@ -65,11 +79,11 @@ public class Unit : MonoBehaviour
         {
             var otherUnit = other.gameObject.GetComponent<Unit>();
 
-            if (Team != otherUnit.Team)
+            if (Team != otherUnit.Team && !otherUnit.IsFighting)
             {
-                MovementHandler.Stop();
-                other.GetComponent<UnitMovementHandler>().Stop();
-                BattleBegin?.Invoke(gameObject, other.gameObject);
+                StartBattle();
+                otherUnit.StartBattle();
+                BattleBegin?.Invoke(this, otherUnit);
             }
         }
     }

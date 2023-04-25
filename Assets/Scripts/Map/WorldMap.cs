@@ -123,6 +123,8 @@ public class WorldMap : NetworkBehaviour
         return chunkMap[chunk_x, chunk_z].GetHouseAtVertex(local_x, local_z);
     }
 
+    public bool IsOccupied(WorldLocation vertex) => GetHouseAtVertex(vertex) != null;
+
 
 
     // Create Map

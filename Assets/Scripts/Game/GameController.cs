@@ -3,13 +3,13 @@ using UnityEngine;
 using Unity.Netcode;
 using System.Collections;
 
+public delegate void NotifySpawnUnit(WorldLocation location, Teams team);
+public delegate void NotifyAttackUnit(Unit redUnit, Unit blueUnit);
+
 public delegate void NotifyPlaceFound(List<WorldLocation> vertices, Teams team);
-public delegate void NotifyEnterHouse(GameObject unitObject, House house);
-public delegate void NotifyDestroyHouse(GameObject house);
-public delegate void NotifyBattleBegin(GameObject redUnit, GameObject blueUnit);
-
-
-
+public delegate void NotifyEnterHouse(Unit unit, House house);
+public delegate void NotifyDestroyHouse(House house);
+public delegate void NotifyAttackHouse(Unit unit, House house);
 
 public enum Powers
 {
@@ -31,11 +31,9 @@ public class GameController : NetworkBehaviour
 
     private bool isGamePaused = false;
 
-    public GameObject RedUnitPrefab;
-    public GameObject BlueUnitPrefab;
+    public GameObject[] HousePrefabs;
+    public GameObject[] UnitPrefabs;
     private const int startingUnits = 2;
-
-    public GameObject HousePrefab;
 
     public GameObject GameHUDPrefab;
     public Texture2D ClickyCursorTexture;
@@ -56,7 +54,7 @@ public class GameController : NetworkBehaviour
         hud.GetComponent<GameHUD>().SetGameController(this);
 
         // Set units
-        SpawnUnitsServerRpc();
+        InitialSpawnUnitsServerRpc();
     }
 
     private void Update()
@@ -82,6 +80,10 @@ public class GameController : NetworkBehaviour
         }
     }
 
+    public override void OnNetworkDespawn()
+    {
+        Cursor.SetCursor(null, Vector2.zero, CursorMode.Auto);
+    }
 
 
     public void PauseGame()
@@ -98,13 +100,12 @@ public class GameController : NetworkBehaviour
 
     #region Unit Spawn
     [ServerRpc]
-    private void SpawnUnitsServerRpc(ServerRpcParams serverRpcParams = default)
+    private void InitialSpawnUnitsServerRpc(ServerRpcParams serverRpcParams = default)
     {
         List<WorldLocation> occupiedSpots = new();
 
         ulong clientId = serverRpcParams.Receive.SenderClientId;
 
-        GameObject unitPrefab = clientId == 0 ? RedUnitPrefab : BlueUnitPrefab;
         (int min, int max) = clientId == 0 ? (0, Chunk.Width) : (WorldMap.Width, WorldMap.Width - Chunk.Width);
 
         for (int i = 0; i < startingUnits; ++i)
@@ -115,28 +116,35 @@ public class GameController : NetworkBehaviour
                 location = GetRandomWorldLocationInRange(min, max);
             occupiedSpots.Add(location);
 
-            SpawnUnit(unitPrefab, clientId, location);
+            SpawnUnit(clientId, location);
         }
     }
 
     private WorldLocation GetRandomWorldLocationInRange(int min, int max)
         => new(Random.Range(min, max), Random.Range(min, max));
 
-    private void SpawnUnit(GameObject unitPrefab, ulong ownerId, WorldLocation spawnLocation)
+    private void SpawnUnit(WorldLocation spawnLocation, Teams team)
+    {
+        SpawnUnit((ulong)team - 1, spawnLocation);
+    }
+
+    private void SpawnUnit(ulong ownerId, WorldLocation spawnLocation)
     {
         GameObject unitObject = Instantiate(
-            unitPrefab,
+            UnitPrefabs[ownerId + 1],
             new Vector3(
                 spawnLocation.X,
-                WorldMap.Instance.GetHeight(spawnLocation) + unitPrefab.GetComponent<MeshRenderer>().bounds.extents.y,
+                WorldMap.Instance.GetHeight(spawnLocation) + UnitPrefabs[ownerId + 1].GetComponent<MeshRenderer>().bounds.extents.y,
                 spawnLocation.Z),
             Quaternion.identity);
 
         unitObject.GetComponent<NetworkObject>().Spawn(destroyWithScene: true);
+
+
         Unit unit = unitObject.GetComponent<Unit>();
-        unit.SetTeam(ownerId);
-        unit.EnterHouse += OnEnterHouse;
-        unit.BattleBegin += OnBattleBegin;
+        unit.EnterHouse += EnterHouse;
+        unit.BattleBegin += AttackUnit;
+        unit.AttackHouse += AttackHouse;
         unitObject.GetComponent<UnitMovementHandler>().PlaceFound += SpawnHouse;
 
         AddUnitClientRpc(unitObject.GetComponent<NetworkObject>().NetworkObjectId, new ClientRpcParams 
@@ -148,17 +156,17 @@ public class GameController : NetworkBehaviour
         });
     }
 
-    private void DespawnUnit(GameObject unitObject)
+    private void DespawnUnit(Unit unit)
     {
-        RemoveUnitClientRpc(unitObject.GetComponent<NetworkObject>().NetworkObjectId, new ClientRpcParams
+        RemoveUnitClientRpc(unit.gameObject.GetComponent<NetworkObject>().NetworkObjectId, new ClientRpcParams
         {
             Send = new ClientRpcSendParams
             {
-                TargetClientIds = new ulong[] { (ulong) (unitObject.GetComponent<Unit>().Team == Teams.Red ? 0 : 1) }
+                TargetClientIds = new ulong[] { (ulong)unit.Team - 1 }
             }
         });
 
-        unitObject.GetComponent<NetworkObject>().Despawn();
+        unit.gameObject.GetComponent<NetworkObject>().Despawn();
     }
 
     [ClientRpc]
@@ -178,6 +186,16 @@ public class GameController : NetworkBehaviour
     #region Houses
     public void SpawnHouse(List<WorldLocation> vertices, Teams team)
     {
+        SpawnHouse(HousePrefabs[(int)HouseTypes.Hut], vertices, team);
+    }
+
+    private void SpawnHouse(GameObject housePrefab, List<WorldLocation> vertices, Teams team = Teams.None)
+    {
+        Debug.Log($"{team} Spawning house at ");
+
+        foreach (var vertex in vertices)
+            Debug.Log($"    {vertex.X} {vertex.Z}");
+
         WorldLocation? rootVertex = null;
 
         foreach (WorldLocation vertex in vertices)
@@ -185,60 +203,56 @@ public class GameController : NetworkBehaviour
                 rootVertex = vertex;
 
         GameObject houseObject = Instantiate(
-            HousePrefab,
+            housePrefab,
             new Vector3(
-                rootVertex.Value.X + HousePrefab.GetComponent<MeshRenderer>().bounds.extents.x + 2.5f,
-                WorldMap.Instance.GetHeight(rootVertex.Value) + HousePrefab.GetComponent<MeshRenderer>().bounds.extents.y,
-                rootVertex.Value.Z + HousePrefab.GetComponent<MeshRenderer>().bounds.extents.z + 2.5f),
+                rootVertex.Value.X + housePrefab.GetComponent<MeshRenderer>().bounds.extents.x + 2.5f,
+                WorldMap.Instance.GetHeight(rootVertex.Value) + housePrefab.GetComponent<MeshRenderer>().bounds.extents.y,
+                rootVertex.Value.Z + housePrefab.GetComponent<MeshRenderer>().bounds.extents.z + 2.5f),
             Quaternion.identity);
 
         houseObject.GetComponent<NetworkObject>().Spawn(destroyWithScene: true);
 
         House house = houseObject.GetComponent<House>();
-        house.SetTeam(team);
-        house.SetOccupyingVertices(vertices);
+        house.Initialize(team, vertices);
         house.DestroyHouse += DestroyHouse;
+        house.ReleaseUnit += SpawnUnit;
 
         foreach (WorldLocation vertex in vertices)
             WorldMap.Instance.SetHouseAtVertex(vertex, house);
     }
 
-    public void OnEnterHouse(GameObject unitObject, House house)
+    public void EnterHouse(Unit unit, House house)
     {
         house.AddUnit();
-        DespawnUnit(unitObject);
+        DespawnUnit(unit);
     }
 
-    public void DestroyHouse(GameObject houseObject)
+    public void DestroyHouse(House house)
     {
-        House house = houseObject.GetComponent<House>();
-        houseObject.GetComponent<NetworkObject>().Despawn();
+        house.gameObject.GetComponent<NetworkObject>().Despawn();
 
         foreach (WorldLocation vertex in house.OccupiedVertices)
             WorldMap.Instance.SetHouseAtVertex(vertex, null);
 
         ulong clientId = (ulong) (house.Team == Teams.Red ? 0 : 1);
         for (int i = 0; i < house.UnitsInHouse; ++i)
-            SpawnUnit(clientId == 0 ? RedUnitPrefab : BlueUnitPrefab, clientId, house.OccupiedVertices[i % house.OccupiedVertices.Count]);
+            SpawnUnit(clientId, house.OccupiedVertices[i % house.OccupiedVertices.Count]);
     }
     #endregion
 
 
     #region Combat
-    private void OnBattleBegin(GameObject red, GameObject blue)
+    private void AttackUnit(Unit red, Unit blue)
     {
-        StartCoroutine(MakeAttacks(red, blue));
+        StartCoroutine(HitUnit(red, blue));
     }
 
-    private IEnumerator MakeAttacks(GameObject red, GameObject blue)
+    private IEnumerator HitUnit(Unit red, Unit blue)
     {
-        Unit redUnit = red.GetComponent<Unit>();
-        Unit blueUnit = blue.GetComponent<Unit>();
-
-        while (redUnit.Health > 0 || blueUnit.Health > 0)
+        while (red.Health > 0 && blue.Health > 0)
         {
-            int redSpeed = Random.Range(1, 20) + redUnit.Speed;
-            int blueSpeed = Random.Range(1, 20) + blueUnit.Speed;
+            int redSpeed = Random.Range(1, 20) + red.Speed;
+            int blueSpeed = Random.Range(1, 20) + blue.Speed;
 
             if (redSpeed > blueSpeed)
             {
@@ -255,31 +269,57 @@ public class GameController : NetworkBehaviour
         }
     }
 
-    private bool Kill(GameObject first, GameObject second)
+    private bool Kill(Unit first, Unit second)
     {
-        Unit firstUnit = first.GetComponent<Unit>();
-        Unit secondUnit = second.GetComponent<Unit>();
+        second.TakeDamage(first.Strength);
 
-        secondUnit.TakeDamage(firstUnit.Strength);
-
-        if (secondUnit.Health <= 0)
+        if (second.Health <= 0)
         {
             DespawnUnit(second);
-            first.GetComponent<UnitMovementHandler>().Resume();
+            first.EndBattle();
             return true;
         }
 
-        firstUnit.TakeDamage(secondUnit.Strength);
+        first.TakeDamage(second.Strength);
 
-        if (firstUnit.Health <= 0)
+        if (first.Health <= 0)
         {
             DespawnUnit(first);
-            second.GetComponent<UnitMovementHandler>().Resume();
+            second.EndBattle();
             return true;
         }
 
         return false;
     }
+
+
+    private void AttackHouse(Unit unit, House house)
+    {
+        StartCoroutine(HitHouse(unit, house));
+    }
+
+    private IEnumerator HitHouse(Unit unit, House house)
+    {
+        var vertices = house.OccupiedVertices;
+        while (unit.Health > 0 && house.Health > 0)
+        {
+            house.TakeDamage(unit.Strength);
+
+            if (house.Health <= 0)
+            {
+                unit.GetComponent<UnitMovementHandler>().Resume();
+                DestroyHouse(house);
+                SpawnHouse(HousePrefabs[(int)HouseTypes.DestroyedHouse], vertices);
+                break;
+            }
+
+            yield return new WaitForSeconds(2);
+        }
+
+        if (unit.Health <= 0) 
+            house.EndAttack();
+    }
+
     #endregion
 
 

@@ -171,9 +171,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   PlayerCamera: {fileID: 2478225818546641266}
-  RedUnitPrefab: {fileID: 1359270074452477915, guid: c073c259110f72a479b45cc948ab0dde, type: 3}
-  BlueUnitPrefab: {fileID: 1359270074452477915, guid: d08e6ff7542b9f8408273ca6e41bb0de, type: 3}
-  HousePrefab: {fileID: 3435573214129474652, guid: b7c76e4edb289ac42bc4cbef75e3ef48, type: 3}
+  HousePrefabs:
+  - {fileID: 2958902495337925058, guid: 54cbdaa068e3a7344b060f5fd14c304d, type: 3}
+  - {fileID: 3435573214129474652, guid: b7c76e4edb289ac42bc4cbef75e3ef48, type: 3}
+  UnitPrefabs:
+  - {fileID: 7508563087423339071, guid: ce1c6995d1299b742890f9975e90dd3a, type: 3}
+  - {fileID: 1359270074452477915, guid: c073c259110f72a479b45cc948ab0dde, type: 3}
+  - {fileID: 1359270074452477915, guid: d08e6ff7542b9f8408273ca6e41bb0de, type: 3}
   GameHUDPrefab: {fileID: 730342177293130224, guid: c07505d8b2dbb7044b7ffb3d51c15a63, type: 3}
   ClickyCursorTexture: {fileID: 2800000, guid: ac46e0aacfaacee4087163ef315a1a6f, type: 3}
 --- !u!114 &6010189852682913565

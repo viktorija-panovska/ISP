@@ -68,7 +68,7 @@ public class Chunk
     private readonly List<int>[,] vertices = new List<int>[TileNumber + 1, TileNumber + 1];
     private readonly int[,] centers = new int[TileNumber, TileNumber];
 
-    private House[,] houseAtVertex = new House[TileNumber + 1, TileNumber + 1];
+    private readonly House[,] houseAtVertex = new House[TileNumber + 1, TileNumber + 1];
 
 
     public Chunk((int x, int z) locationInMap)
