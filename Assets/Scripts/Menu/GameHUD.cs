@@ -1,10 +1,11 @@
 using UnityEngine;
-
+using UnityEngine.UI;
 
 public class GameHUD : MonoBehaviour
 {
     private GameController gameController;
     public GameObject SettingsMenuContainer;
+    public Slider ManaBar;
 
 
     private void Update()
@@ -39,5 +40,15 @@ public class GameHUD : MonoBehaviour
     {
         gameController.ResumeGame();
         SettingsMenuContainer.gameObject.SetActive(false);
+    }
+
+
+
+    public void UpdateManaBar(int newValue)
+    {
+        ManaBar.value = newValue;
+
+
+
     }
 }

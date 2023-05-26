@@ -20,6 +20,8 @@ public class UnitMovementHandler : NetworkBehaviour
     private const float MoveSpeed = 2f;
     private const float PositionError = 0.5f;
 
+    private bool isGuided = false;
+
 
     // Following path
     private List<WorldLocation> path;
@@ -47,6 +49,9 @@ public class UnitMovementHandler : NetworkBehaviour
     {
         if (!IsOwner) return;
 
+
+        // Once units are released from a house, don't check the first step and set roaming direction in the opposite direction of the house
+
         roamDirection = ChooseRoamDirection(new WorldLocation(Position.x, Position.z));
     }
 
@@ -71,7 +76,7 @@ public class UnitMovementHandler : NetworkBehaviour
 
     public void Resume()
     {
-        moveState = lastMoveState;
+        moveState = moveState != MoveState.Stop ? lastMoveState : MoveState.Searching;
     }
 
 
@@ -81,39 +86,24 @@ public class UnitMovementHandler : NetworkBehaviour
         path = null;
         targetIndex = 0;
 
-        if (moveState == MoveState.FoundFlatSpace)
+        if (moveState == MoveState.FoundFlatSpace && IsStillFree())
         {
-            if (!IsStillFree())
-                moveState = MoveState.Searching;
-            else
-            {
-                moveState = MoveState.Stop;
-                OnPlaceFound();
-                Unit.OnEnterHouse();
-                return;
-            }
+            moveState = MoveState.Stop;
+            OnPlaceFound();
+            Unit.OnEnterHouse();
+            return;
         }
-        else if (moveState == MoveState.FoundFriendlyHouse)
+        else if (moveState == MoveState.FoundFriendlyHouse && IsFriendlyHouse())
         {
-            if (!WorldMap.Instance.IsOccupied(houseVertices[0]) || !WorldMap.Instance.GetHouseAtVertex(houseVertices[0]).IsEnterable(Unit.Team))
-                moveState = MoveState.Searching;
-            else
-            {
-                moveState = MoveState.Stop;
-                Unit.OnEnterHouse();
-                return;
-            }
+            moveState = MoveState.Stop;
+            Unit.OnEnterHouse();
+            return;
         }
-        else if (moveState == MoveState.FoundEnemyHouse)
+        else if (moveState == MoveState.FoundEnemyHouse && IsEnemyHouse())
         {
-            if (!WorldMap.Instance.IsOccupied(houseVertices[0]) || WorldMap.Instance.GetHouseAtVertex(houseVertices[0]).IsEnterable(Unit.Team))
-                moveState = MoveState.Searching;
-            else
-            {
-                moveState = MoveState.Stop;
-                Unit.OnAttackHouse();
-                return;
-            }
+            moveState = MoveState.Stop;
+            Unit.OnAttackHouse();
+            return;
         }
         else
             moveState = MoveState.Searching;
@@ -138,11 +128,18 @@ public class UnitMovementHandler : NetworkBehaviour
         return true;
     }
 
+    private bool IsFriendlyHouse() 
+        => WorldMap.Instance.IsOccupied(houseVertices[0]) && WorldMap.Instance.GetHouseAtVertex(houseVertices[0]).IsEnterable(Unit);
+
+    private bool IsEnemyHouse()
+        => WorldMap.Instance.IsOccupied(houseVertices[0]) && WorldMap.Instance.GetHouseAtVertex(houseVertices[0]).IsAttackable(Unit.Team);
+
 
     #region Following path
 
-    public void SetPath(List<WorldLocation> path)
+    public void SetPath(List<WorldLocation> path, bool isGuided = false)
     {
+        this.isGuided = isGuided;
         this.path = path;
         targetIndex = 0;
     }
@@ -179,6 +176,19 @@ public class UnitMovementHandler : NetworkBehaviour
 
                 if (targetIndex >= path.Count)
                     EndPath();
+
+                if (!isGuided)
+                {
+                    if (moveState == MoveState.FoundFlatSpace && !IsStillFree() || 
+                        moveState == MoveState.FoundFriendlyHouse && !IsFriendlyHouse() ||
+                        moveState == MoveState.FoundEnemyHouse && !IsEnemyHouse())
+                    {
+                        path = null;
+                        targetIndex = 0;
+                        moveState = MoveState.Searching;
+                        return;
+                    }
+                }
             }
         }
     }
@@ -245,7 +255,7 @@ public class UnitMovementHandler : NetworkBehaviour
             targetLocation = new WorldLocation(target.x, target.z);
         }
 
-        path = new() { targetLocation };
+        SetPath(new() { targetLocation });
     }
 
 
@@ -394,7 +404,7 @@ public class UnitMovementHandler : NetworkBehaviour
         if (WorldMap.Instance.IsOccupied(start))
         {
             occupiedVertices.Add(start);
-            if (WorldMap.Instance.GetHouseAtVertex(start).IsEnterable(Unit.Team))
+            if (WorldMap.Instance.GetHouseAtVertex(start).IsEnterable(Unit))
                 isEnterable = true;
         }
 
