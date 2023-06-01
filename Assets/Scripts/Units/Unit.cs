@@ -16,7 +16,7 @@ public struct BaseUnit : IUnitType
     public int MaxHealth => 5;
     public int Strength => 2;
     public int Speed => 1;
-    public int ManaGain => 0;
+    public int ManaGain => 10;
 }
 
 public struct HutUnit : IUnitType
@@ -24,13 +24,13 @@ public struct HutUnit : IUnitType
     public int MaxHealth => 10;
     public int Strength => 2;
     public int Speed => 1;
-    public int ManaGain => 2;
+    public int ManaGain => 10;
 }
 
 
 
 [RequireComponent(typeof(NetworkObject), typeof(UnitMovementHandler))]
-public class Unit : MonoBehaviour
+public class Unit : NetworkBehaviour
 {
     public IUnitType UnitType { get; private set; }
     public int Health { get; private set; }
@@ -53,29 +53,59 @@ public class Unit : MonoBehaviour
     public void Initialize(IUnitType unitType)
     {
         UnitType = unitType;
-
         Health = UnitType.MaxHealth;
-        HealthBar.maxValue = UnitType.MaxHealth;
-        UpdateHealthBar();
     }
 
 
     // Health Bar //
 
-    private void UpdateHealthBar()
+    public void OnMouseEnter()
     {
-        HealthBar.value = Health;
-    }
-
-    public void OnMouseOver()
-    {
-        HealthBar.gameObject.SetActive(true);
+        ToggleHealthBarServerRpc(show: true);
     }
 
     public void OnMouseExit()
     {
-        HealthBar.gameObject.SetActive(false);
+        ToggleHealthBarServerRpc(show: false);
     }
+
+
+    [ServerRpc(RequireOwnership = false)]
+    private void ToggleHealthBarServerRpc(bool show, ServerRpcParams parameters = default)
+    {
+        ToggleHealthBarClientRpc(show, UnitType.MaxHealth, Health, new ClientRpcParams
+        {
+            Send = new ClientRpcSendParams
+            {
+                TargetClientIds = new ulong[] { parameters.Receive.SenderClientId }
+            }
+        });        
+    }
+
+    [ClientRpc]
+    private void ToggleHealthBarClientRpc(bool show, int maxHealth, int currentHealth, ClientRpcParams parameters = default)
+    {
+        if (!show)
+        {
+            HealthBar.gameObject.SetActive(false);
+            return;
+        }
+
+        HealthBar.maxValue = maxHealth;
+        HealthBar.value = currentHealth;
+        HealthBar.gameObject.SetActive(true);
+    }
+
+    [ClientRpc]
+    private void UpdateHealthBarClientRpc(int maxHealth, int currentHealth, ClientRpcParams parameters = default)
+    {
+        if (HealthBar.gameObject.activeSelf)
+        {
+            HealthBar.maxValue = maxHealth;
+            HealthBar.value = currentHealth;
+        }
+    }
+
 
 
     // Movement //
@@ -84,7 +114,15 @@ public class Unit : MonoBehaviour
     {
         // last location, next location (direction that the unit is going in, 
 
-        Position = new Vector3(Position.x, WorldMap.Instance.GetHeight(Location), Position.z);
+        /*Given 2 points, (x1,y1,z1) and (x2,y2,z2), you can take the difference between the two, so you end up with (x2-x1,y2-y1,z2-z1). 
+         * Take the norm of this (i.e. take the distance between the original 2 points), and divide (x2-x1,y2-y1,z2-z1) by that value. 
+         * You now have a vector with the same slope as the line between the first 2 points, but it has magnitude one, 
+         * since you normalized it (by dividing by its magnitude). 
+         * Then add/subtract that vector to one of the original points to get your final answer.*/
+
+        Debug.Log("HI");
+
+        //Position = new Vector3(Position.x, WorldMap.Instance.GetHeight(Location), Position.z);
     }
 
     public void MoveUnit(List<WorldLocation> path)
@@ -141,6 +179,7 @@ public class Unit : MonoBehaviour
     public void TakeDamage(int damage)
     {
         Health -= damage;
-        UpdateHealthBar();
+
+        UpdateHealthBarClientRpc(UnitType.MaxHealth, Health);
     }
 }

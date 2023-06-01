@@ -27,8 +27,8 @@ public class PathNode
 
 public static class Pathfinding
 {
-    private const int StraightCost = 10;
-    private const int DiagonalCost = 14;
+    private const int STRAIGHT_COST = 10;
+    private const int DIAGONAL_COST = 14;
 
 
     public static List<WorldLocation> FindPath(WorldLocation start, WorldLocation end)
@@ -114,11 +114,11 @@ public static class Pathfinding
         {
             for (int xOffset = -1; xOffset <= 1; ++xOffset)
             {
-                float x = currentNode.Location.X + (xOffset * Chunk.TileWidth);
-                float z = currentNode.Location.Z + (zOffset * Chunk.TileWidth);
+                float x = currentNode.Location.X + (xOffset * Chunk.TILE_WIDTH);
+                float z = currentNode.Location.Z + (zOffset * Chunk.TILE_WIDTH);
 
-                if (x < 0 || x > WorldMap.Width ||
-                    z < 0 || z > WorldMap.Width)
+                if (x < 0 || x > WorldMap.WIDTH ||
+                    z < 0 || z > WorldMap.WIDTH)
                     continue;
 
                 WorldLocation newLocation = new(x, z);
@@ -141,7 +141,7 @@ public static class Pathfinding
         float currentY = WorldMap.Instance.GetHeight(current.Location);
         float neighborY = WorldMap.Instance.GetHeight(neighbor.Location);
 
-        return Mathf.Abs(currentY - neighborY) <= Chunk.StepHeight;
+        return Mathf.Abs(currentY - neighborY) <= Chunk.STEP_HEIGHT;
     }
 
 
@@ -150,7 +150,7 @@ public static class Pathfinding
         float x = Mathf.Abs(start.X - end.X);
         float z = Mathf.Abs(start.Z - end.Z);
 
-        return DiagonalCost * Mathf.Min(x, z) + StraightCost * Mathf.Abs(x - z);
+        return DIAGONAL_COST * Mathf.Min(x, z) + STRAIGHT_COST * Mathf.Abs(x - z);
     }
 
 

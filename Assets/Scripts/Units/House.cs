@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Unity.Netcode;
 using UnityEngine.UI;
 
 
@@ -35,7 +36,7 @@ public struct Hut : IHouseType
 }
 
 
-public class House : MonoBehaviour
+public class House : NetworkBehaviour
 {
     public IHouseType HouseType { get; private set; }
     public bool IsDestroyed { get; private set; }
@@ -52,9 +53,11 @@ public class House : MonoBehaviour
     public Image Fill;
 
     private bool maxUnitsReached = false;
-    private bool isUnderAttack = false;
-    private const int unitReleaseWait = 10;
+    private const int UNIT_RELEASE_WAIT = 10;
 
+    private const int MAX_ATTACKING_UNITS = 4;
+    private HashSet<Unit> attackingUnits = new();
+    private bool IsUnderAttack { get => attackingUnits.Count > 0; }
 
 
     public void Initialize(IHouseType houseType, Teams team, List<WorldLocation> occupiedVertices)
@@ -65,41 +68,70 @@ public class House : MonoBehaviour
         Team = team;
         OccupiedVertices = occupiedVertices;
         Health = HouseType.MaxHealth;
-
-        if (IsDestroyed)
-        {
-            HealthBar.maxValue = HouseType.MaxHealth;
-            Fill.color = Team == Teams.Red ? Color.red : Color.blue;
-            UpdateHealthBar();
-        }
     }
 
 
     // Health Bar //
 
-    public void UpdateHealthBar()
+    public void OnMouseEnter()
     {
-        HealthBar.value = Health;
-    }
-
-    public void OnMouseOver()
-    {
-        if (IsDestroyed)
-            HealthBar.gameObject.SetActive(true);
+        if (!IsDestroyed)
+            ToggleHealthBarServerRpc(show: true);
     }
 
     public void OnMouseExit()
     {
-        if (IsDestroyed)
-            HealthBar.gameObject.SetActive(false);
+        if (!IsDestroyed)
+            ToggleHealthBarServerRpc(show: false);
     }
+
+
+    [ServerRpc(RequireOwnership = false)]
+    private void ToggleHealthBarServerRpc(bool show, ServerRpcParams parameters = default)
+    {
+        ToggleHealthBarClientRpc(show, HouseType.MaxHealth, Health, Team, new ClientRpcParams
+        {
+            Send = new ClientRpcSendParams
+            {
+                TargetClientIds = new ulong[] { parameters.Receive.SenderClientId }
+            }
+        });
+    }
+
+    [ClientRpc]
+    private void ToggleHealthBarClientRpc(bool show, int maxHealth, int currentHealth, Teams team, ClientRpcParams parameters = default)
+    {
+        if (!show)
+        {
+            HealthBar.gameObject.SetActive(false);
+            return;
+        }
+
+        HealthBar.maxValue = maxHealth;
+        HealthBar.value = currentHealth;
+        Fill.color = team == Teams.Red ? Color.red : Color.blue;
+        HealthBar.gameObject.SetActive(true);
+    }
+
+    [ClientRpc]
+    private void UpdateHealthBarClientRpc(int maxHealth, int currentHealth, Teams team, ClientRpcParams parameters = default)
+    {
+        if (HealthBar.gameObject.activeSelf)
+        {
+            HealthBar.maxValue = maxHealth;
+            HealthBar.value = currentHealth;
+            Fill.color = team == Teams.Red ? Color.red : Color.blue;
+        }
+    }
+
 
 
     // Unit Interaction //
 
-    public bool IsEnterable(Unit unit) => Team == unit.Team && UnitsInHouse < HouseType.MaxCapacity && !isUnderAttack;
+    public bool IsEnterable(Unit unit) => Team == unit.Team && UnitsInHouse < HouseType.MaxCapacity && !IsUnderAttack;
 
-    public bool IsAttackable(Teams otherTeam) => IsDestroyed && ((Team == Teams.Red && otherTeam == Teams.Blue) || (Team == Teams.Blue && otherTeam == Teams.Red));
+    public bool IsAttackable(Teams otherTeam) 
+        => !IsDestroyed && ((Team == Teams.Red && otherTeam == Teams.Blue) || (Team == Teams.Blue && otherTeam == Teams.Red)) && attackingUnits.Count <= MAX_ATTACKING_UNITS;
 
 
     // Units //
@@ -116,14 +148,14 @@ public class House : MonoBehaviour
         else if (Health < HouseType.MaxHealth)
             Health += HouseType.MaxHealth - Health;
 
-        UpdateHealthBar();
+        UpdateHealthBarClientRpc(HouseType.MaxHealth, Health, Team);
     }
 
     private IEnumerator ReleaseNewUnits()
     {
-        while (!isUnderAttack && UnitsInHouse > 0 && !maxUnitsReached)
+        while (!IsUnderAttack && UnitsInHouse > 0 && !maxUnitsReached)
         {
-            yield return new WaitForSeconds(unitReleaseWait);
+            yield return new WaitForSeconds(UNIT_RELEASE_WAIT);
             ReleaseUnit?.Invoke(OccupiedVertices[Random.Range(0, OccupiedVertices.Count - 1)], this, true);
         }
     }
@@ -136,12 +168,19 @@ public class House : MonoBehaviour
 
     // Battle //
 
-    public void TakeDamage(int damage)
+    public void TakeDamage(int damage, Unit attacker)
     {
-        Health -= damage;
-        UpdateHealthBar();
+        if (!attackingUnits.Contains(attacker))
+            attackingUnits.Add(attacker);
 
-        isUnderAttack = true;
+        Health -= damage;
+        UpdateHealthBarClientRpc(HouseType.MaxHealth, Health, Team);
+
+        if (Health <= 0)
+        {
+            OnDestroyHouse(false);
+            return;
+        }
 
         if (UnitsInHouse > 0)
         {
@@ -150,16 +189,18 @@ public class House : MonoBehaviour
         }
     }
 
-    public virtual void OnDestroyHouse()
+    public virtual void OnDestroyHouse(bool hasTerrainChanged)
     {
-        DestroyHouse?.Invoke(this);
+        DestroyHouse?.Invoke(this, hasTerrainChanged, attackingUnits);
+
+        attackingUnits = new();
     }
 
-    public void EndAttack()
+    public void EndAttack(Unit attacker)
     {
-        isUnderAttack = false;
+        attackingUnits.Remove(attacker);
 
-        if (UnitsInHouse > 0)
-            ReleaseNewUnits();
+        if (!IsUnderAttack && UnitsInHouse > 0 && !maxUnitsReached)
+            StartCoroutine(ReleaseNewUnits());
     }
 }

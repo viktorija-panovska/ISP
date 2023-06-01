@@ -17,8 +17,8 @@ public struct WorldLocation
     {
         if (!isCenter)
         {
-            X = Mathf.Round(x / Chunk.TileWidth) * Chunk.TileWidth;
-            Z = Mathf.Round(z / Chunk.TileWidth) * Chunk.TileWidth;
+            X = Mathf.Round(x / Chunk.TILE_WIDTH) * Chunk.TILE_WIDTH;
+            Z = Mathf.Round(z / Chunk.TILE_WIDTH) * Chunk.TILE_WIDTH;
         }
         else
         {
@@ -29,10 +29,10 @@ public struct WorldLocation
 
     public static WorldLocation GetCenter(WorldLocation a, WorldLocation b)
     {
-        float dx = (b.X - a.X) / Chunk.TileWidth;
-        float dz = (b.Z - a.Z) / Chunk.TileWidth;
+        float dx = (b.X - a.X) / Chunk.TILE_WIDTH;
+        float dz = (b.Z - a.Z) / Chunk.TILE_WIDTH;
 
-        return new(a.X + dx * (Chunk.TileWidth / 2), a.Z + dz * (Chunk.TileWidth / 2), isCenter: true);
+        return new(a.X + dx * (Chunk.TILE_WIDTH / 2), a.Z + dz * (Chunk.TILE_WIDTH / 2), isCenter: true);
     }
 }
 

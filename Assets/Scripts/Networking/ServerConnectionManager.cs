@@ -11,8 +11,8 @@ public class ServerConnectionManager : MonoBehaviour
 {
     public static ServerConnectionManager Instance;
 
-    private const int maxPlayers = 2;
-    private const int maxConnectionPayload = 1024;
+    private const int MAX_PLAYERS = 2;
+    private const int MAX_CONNECTION_PAYLOAD = 1024;
 
     private static int serverScene => SceneManager.GetActiveScene().buildIndex;
     private string serverPassword;
@@ -173,7 +173,7 @@ public class ServerConnectionManager : MonoBehaviour
         byte[] connectionData = request.Payload;
         ulong clientId = request.ClientNetworkId;
 
-        if (connectionData.Length > maxConnectionPayload)
+        if (connectionData.Length > MAX_CONNECTION_PAYLOAD)
         {
             response.Approved = false;
             return;
@@ -194,7 +194,7 @@ public class ServerConnectionManager : MonoBehaviour
             return;
         }
 
-        if (!gameInProgress && clientData.Count < maxPlayers)
+        if (!gameInProgress && clientData.Count < MAX_PLAYERS)
         {
             clientIdToPlayerId[clientId] = connectionPayload.playerId;
             clientData[connectionPayload.playerId] = new PlayerData(connectionPayload.playerName, clientId);

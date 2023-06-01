@@ -44,31 +44,31 @@ public class Chunk
     public (int x, int z) ChunkIndex { get; private set; }
     public bool IsVisible { get => gameObject.activeSelf; }
 
-    public const int TileWidth = 50;
-    public const int TileNumber = 5;
-    public const int Width = TileNumber * TileWidth;
+    public const int TILE_WIDTH = 50;
+    public const int TILE_NUMBER = 5;
+    public const int WIDTH = TILE_NUMBER * TILE_WIDTH;
 
-    public const int StepHeight = 20;
-    public const int MaxSteps = 7;
-    public const int MaxHeight = StepHeight * MaxSteps;
+    public const int STEP_HEIGHT = 20;
+    public const int MAX_STEPS = 7;
+    public const int MAX_HEIGHT = STEP_HEIGHT * MAX_STEPS;
 
     private readonly (int x, int z)[] vertexOffsets =
     {
         (0, 0),
-        (TileWidth, 0),
-        (TileWidth, 0),
-        (TileWidth, TileWidth),
-        (TileWidth, TileWidth),
-        (0, TileWidth),
-        (0, TileWidth),
+        (TILE_WIDTH, 0),
+        (TILE_WIDTH, 0),
+        (TILE_WIDTH, TILE_WIDTH),
+        (TILE_WIDTH, TILE_WIDTH),
+        (0, TILE_WIDTH),
+        (0, TILE_WIDTH),
         (0, 0),
-        (TileWidth / 2, TileWidth / 2)
+        (TILE_WIDTH / 2, TILE_WIDTH / 2)
     };
 
-    private readonly List<int>[,] vertices = new List<int>[TileNumber + 1, TileNumber + 1];
-    private readonly int[,] centers = new int[TileNumber, TileNumber];
+    private readonly List<int>[,] vertices = new List<int>[TILE_NUMBER + 1, TILE_NUMBER + 1];
+    private readonly int[,] centers = new int[TILE_NUMBER, TILE_NUMBER];
 
-    private readonly House[,] houseAtVertex = new House[TileNumber + 1, TileNumber + 1];
+    private readonly House[,] houseAtVertex = new House[TILE_NUMBER + 1, TILE_NUMBER + 1];
 
 
     public Chunk((int x, int z) locationInMap)
@@ -79,11 +79,11 @@ public class Chunk
         gameObject.AddComponent<MeshCollider>();
 
         ChunkIndex = locationInMap;
-        gameObject.transform.position = new Vector3(ChunkIndex.x * Width, 0, ChunkIndex.z * Width);
+        gameObject.transform.position = new Vector3(ChunkIndex.x * WIDTH, 0, ChunkIndex.z * WIDTH);
         gameObject.name = "Chunk " + ChunkIndex.x + " " + ChunkIndex.z;
         SetVisibility(false);
 
-        chunkBounds = new(ChunkPosition + new Vector3(Width / 2, 0, Width / 2), new Vector3(Width, 0, Width));
+        chunkBounds = new(ChunkPosition + new Vector3(WIDTH / 2, 0, WIDTH / 2), new Vector3(WIDTH, 0, WIDTH));
 
         meshData = GenerateMeshData();
         SetVertexHeights();
@@ -100,10 +100,10 @@ public class Chunk
 
     // Inputs are coordinates relative to the chunk
     public (int, int) IndicesFromCoordinates(float x, float z)
-        => (Mathf.FloorToInt(x / TileWidth), Mathf.FloorToInt(z / TileWidth));
+        => (Mathf.FloorToInt(x / TILE_WIDTH), Mathf.FloorToInt(z / TILE_WIDTH));
 
     public (float, float) CoordinatesFromIndices(int x, int z)
-        => (x * TileWidth, z * TileWidth);
+        => (x * TILE_WIDTH, z * TILE_WIDTH);
 
     private float GetVertexHeightAtIndex(int x, int z) => meshData.vertices[vertices[z, x][0]].y;
     private float GetCenterHeightAtIndex(int x, int z) => meshData.vertices[centers[z, x]].y;
@@ -112,7 +112,7 @@ public class Chunk
     {
         (int x_i, int z_i) = IndicesFromCoordinates(x, z);
 
-        if (x % TileWidth == 0 && x % TileWidth == 0) 
+        if (x % TILE_WIDTH == 0 && x % TILE_WIDTH == 0) 
             return GetVertexHeightAtIndex(x_i, z_i);
         else
             return GetCenterHeightAtIndex(x_i, z_i);
@@ -135,19 +135,19 @@ public class Chunk
     #region Building Mesh
     private MeshData GenerateMeshData()
     {
-        MeshData meshData = new(Width, Width);
+        MeshData meshData = new(WIDTH, WIDTH);
         int vertexIndex = 0;
         int triangleIndex = 0;
 
-        for (int z = 0; z < Width; z += TileWidth)
+        for (int z = 0; z < WIDTH; z += TILE_WIDTH)
         {
-            for (int x = 0; x < Width; x += TileWidth)
+            for (int x = 0; x < WIDTH; x += TILE_WIDTH)
             {
                 for (int i = 0; i < vertexOffsets.Length; ++i)
                 {
                     Vector3 vertex = new(x + vertexOffsets[i].x, 0, z + vertexOffsets[i].z);
                     meshData.AddVertex(vertexIndex + i, vertex);
-                    meshData.AddUV(vertexIndex + i, new Vector2(vertex.x / Width, vertex.z / Width));
+                    meshData.AddUV(vertexIndex + i, new Vector2(vertex.x / WIDTH, vertex.z / WIDTH));
 
                     (int x_i, int z_i) = IndicesFromCoordinates(x + vertexOffsets[i].x, z + vertexOffsets[i].z);
 
@@ -187,9 +187,9 @@ public class Chunk
                 (float x_coord, float z_coord) = CoordinatesFromIndices(x, z);
 
                 if (x == 0 && ChunkIndex.x > 0)
-                    height = WorldMap.Instance.GetHeight((ChunkIndex.x - 1, ChunkIndex.z), (Width, z_coord));
+                    height = WorldMap.Instance.GetHeight((ChunkIndex.x - 1, ChunkIndex.z), (WIDTH, z_coord));
                 else if (z == 0 && ChunkIndex.z > 0)
-                    height = WorldMap.Instance.GetHeight((ChunkIndex.x, ChunkIndex.z - 1), (x_coord, Width));
+                    height = WorldMap.Instance.GetHeight((ChunkIndex.x, ChunkIndex.z - 1), (x_coord, WIDTH));
                 else
                     height = CalculateVertexHeight(x, z, currentVertices[0]);
 
@@ -210,12 +210,12 @@ public class Chunk
 
     private float CalculateVertexHeight(int x, int z, int vertexIndex)
     {
-        float height = Mathf.FloorToInt(NoiseGenerator.GetPerlinAtPosition(ChunkPosition + meshData.vertices[vertexIndex]) * MaxSteps) * StepHeight;
+        float height = Mathf.FloorToInt(NoiseGenerator.GetPerlinAtPosition(ChunkPosition + meshData.vertices[vertexIndex]) * MAX_STEPS) * STEP_HEIGHT;
 
         if (x > 0 && z == 0)
         {
             float lastHeight = GetVertexHeightAtIndex(x - 1, z);
-            height = Mathf.Clamp(height, lastHeight - StepHeight, lastHeight + StepHeight);
+            height = Mathf.Clamp(height, lastHeight - STEP_HEIGHT, lastHeight + STEP_HEIGHT);
         }
         else if (z > 0)
         {
@@ -229,15 +229,15 @@ public class Chunk
                     neighborHeights.Add(GetVertexHeightAtIndex(x + neighbor_x, z + neighbor_z));
 
             if (neighborHeights.TrueForAll(EqualToFirst))
-                height = Mathf.Clamp(height, neighborHeights[0] - StepHeight, neighborHeights[0] + StepHeight);
+                height = Mathf.Clamp(height, neighborHeights[0] - STEP_HEIGHT, neighborHeights[0] + STEP_HEIGHT);
             else
             {
                 float[] neighborHeightsArray = neighborHeights.ToArray();
                 float minHeight = Mathf.Min(neighborHeightsArray);
                 float maxHeight = Mathf.Max(neighborHeightsArray);
 
-                if (Mathf.Abs(minHeight - maxHeight) > StepHeight)
-                    height = minHeight + StepHeight;
+                if (Mathf.Abs(minHeight - maxHeight) > STEP_HEIGHT)
+                    height = minHeight + STEP_HEIGHT;
                 else
                     height = Mathf.Clamp(height, minHeight, maxHeight);
             }
@@ -259,7 +259,7 @@ public class Chunk
         if (cornerHeights[0] == cornerHeights[3] && cornerHeights[1] == cornerHeights[2])
             return Mathf.Max(cornerHeights);
         else
-            return Mathf.Min(cornerHeights) + (StepHeight / 2);
+            return Mathf.Min(cornerHeights) + (STEP_HEIGHT / 2);
     }
 
     public void SetMesh()
@@ -302,14 +302,14 @@ public class Chunk
         foreach (int v in currentVertices)
         {
             if (decrease && meshData.vertices[v].y > 0)
-                meshData.vertices[v].y -= StepHeight;
+                meshData.vertices[v].y -= STEP_HEIGHT;
 
-            if (!decrease && meshData.vertices[v].y < MaxHeight)
-                meshData.vertices[v].y += StepHeight;
+            if (!decrease && meshData.vertices[v].y < MAX_HEIGHT)
+                meshData.vertices[v].y += STEP_HEIGHT;
         }
 
         if (houseAtVertex[z, x] != null)
-            houseAtVertex[z, x].OnDestroyHouse();
+            houseAtVertex[z, x].OnDestroyHouse(true);
 
         modifiedVertices.Add((x, z, GetVertexHeightAtIndex(x, z), false));
 
@@ -326,7 +326,7 @@ public class Chunk
                 {
                     if (neighborZ >= 0 && neighborZ < vertices.GetLength(0) && neighborX >= 0 && neighborX < vertices.GetLength(1))
                     {
-                        if (Mathf.Abs(meshData.vertices[currentVertices[0]].y - GetVertexHeightAtIndex(neighborX, neighborZ)) > StepHeight)
+                        if (Mathf.Abs(meshData.vertices[currentVertices[0]].y - GetVertexHeightAtIndex(neighborX, neighborZ)) > STEP_HEIGHT)
                             UpdateHeightAtPoint(neighborX, neighborZ, decrease, ref modifiedVertices);
                     }
                     else
@@ -336,8 +336,8 @@ public class Chunk
                         WorldMap.Instance.UpdateVertexInChunk(
                             (neighborX < 0 ? ChunkIndex.x - 1 : (neighborX >= vertices.GetLength(1) ? ChunkIndex.x + 1 : ChunkIndex.x),
                              neighborZ < 0 ? ChunkIndex.z - 1 : (neighborZ >= vertices.GetLength(0) ? ChunkIndex.z + 1 : ChunkIndex.z)),
-                            (neighborX < 0 ? Width : (neighborX >= vertices.GetLength(1) ? 0 : coords.x),
-                             neighborZ < 0 ? Width : (neighborZ >= vertices.GetLength(0) ? 0 : coords.z)),
+                            (neighborX < 0 ? WIDTH : (neighborX >= vertices.GetLength(1) ? 0 : coords.x),
+                             neighborZ < 0 ? WIDTH : (neighborZ >= vertices.GetLength(0) ? 0 : coords.z)),
                             GetVertexHeightAtIndex(x, z),
                             decrease);
                     }

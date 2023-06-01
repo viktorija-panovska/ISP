@@ -3,13 +3,15 @@ using UnityEngine;
 using Unity.Netcode;
 using System.Collections;
 
+
 public delegate void NotifySpawnUnit(WorldLocation location, House originHouse, bool newUnit);
 public delegate void NotifyAttackUnit(Unit redUnit, Unit blueUnit);
 
 public delegate void NotifyPlaceFound(List<WorldLocation> vertices, Teams team);
 public delegate void NotifyEnterHouse(Unit unit, House house);
-public delegate void NotifyDestroyHouse(House house);
+public delegate void NotifyDestroyHouse(House house, bool hasTerrainChanged, HashSet<Unit> attackingUnits);
 public delegate void NotifyAttackHouse(Unit unit, House house);
+
 
 public enum Powers
 {
@@ -23,33 +25,34 @@ public enum Powers
 }
 
 
-[RequireComponent(typeof(CameraController))]
+[RequireComponent(typeof(NetworkObject))]
 public class GameController : NetworkBehaviour
 {
-    public Camera PlayerCamera;
+    public bool IsGamePaused { get; private set; }
 
-    private bool isGamePaused = false;
+    public GameObject CameraControllerPrefab;
+    private CameraController cameraController;
+    private Camera playerCamera;
+
+    public GameObject GameHUDPrefab;
+    private GameHUD hud;
 
     public GameObject[] HousePrefabs;
     public GameObject[] UnitPrefabs;
-    private const int startingUnits = 2;
+    private const int STARTING_UNITS = 2;
 
-    private int[] unitNumber = { 0, 0 };
-    private const int maxUnitsPerPlayer = 2;
-
-    public GameObject GameHUDPrefab;
-    public GameHUD HUD;
-    public Texture2D ClickyCursorTexture;
+    private readonly int[] unitNumber = { 0, 0 };
+    private const int MAX_UNITS_PER_PLAYER = 2;
 
     private Powers activePower = Powers.MoldTerrain;
     private readonly List<ulong> activeUnits = new();
 
     private WorldLocation lastClickedVertex = new(-1, -1);    // when guiding followers
 
-    private const int MIN_MANA = 1;
-    private const int MAX_MANA = 94;
+    public const int MIN_MANA = 0;
+    public const int MAX_MANA = 100;
     public int Mana { get; private set; }
-    private readonly int[] powerCost = { 0, 10 };
+    public readonly int[] PowerCost = { 0, 10 };
 
 
 
@@ -57,20 +60,28 @@ public class GameController : NetworkBehaviour
     {
         if (!IsOwner) return;
 
+        // Set camera controller
+        cameraController = Instantiate(CameraControllerPrefab).GetComponent<CameraController>();
+        playerCamera = cameraController.MainCamera;
+
         // Set HUD
-        GameObject hud = Instantiate(GameHUDPrefab);
-        HUD = hud.GetComponent<GameHUD>();
-        HUD.SetGameController(this);
+        GameObject HUD = Instantiate(GameHUDPrefab);
+
+        hud = HUD.GetComponent<GameHUD>();
+        hud.SetGameController(this);
+
+        cameraController.SetGameHUD(hud);
 
         // Set units
         InitialSpawnUnitsServerRpc();
     }
 
+
     private void Update()
     {
         if (!IsOwner) return;
 
-        if (isGamePaused) return;
+        if (IsGamePaused) return;
 
         if (Input.GetKeyDown(KeyCode.Alpha1))
             activePower = Powers.MoldTerrain;
@@ -79,7 +90,7 @@ public class GameController : NetworkBehaviour
         if (Input.GetKeyDown(KeyCode.Alpha3))
             activePower = Powers.Earthquake;
 
-        if (powerCost[(int)activePower] > Mana)
+        if (PowerCost[(int)activePower] > Mana)
             activePower = Powers.MoldTerrain;
 
         switch (activePower)
@@ -98,25 +109,21 @@ public class GameController : NetworkBehaviour
         }
     }
 
-    public override void OnNetworkDespawn()
-    {
-        Cursor.SetCursor(null, Vector2.zero, CursorMode.Auto);
-    }
 
 
     public void PauseGame()
     {
-        isGamePaused = true;
+        IsGamePaused = true;
     }
 
     public void ResumeGame()
     {
-        isGamePaused = false;
+        IsGamePaused = false;
     }
 
 
 
-    #region Unit Spawn
+    #region Units
     [ServerRpc]
     private void InitialSpawnUnitsServerRpc(ServerRpcParams serverRpcParams = default)
     {
@@ -124,9 +131,9 @@ public class GameController : NetworkBehaviour
 
         ulong clientId = serverRpcParams.Receive.SenderClientId;
 
-        (int min, int max) = clientId == 0 ? (0, Chunk.Width) : (WorldMap.Width, WorldMap.Width - Chunk.Width);
+        (int min, int max) = clientId == 0 ? (0, Chunk.WIDTH) : (WorldMap.WIDTH, WorldMap.WIDTH - Chunk.WIDTH);
 
-        for (int i = 0; i < startingUnits; ++i)
+        for (int i = 0; i < STARTING_UNITS; ++i)
         {
             WorldLocation location = GetRandomWorldLocationInRange(min, max);
 
@@ -143,8 +150,11 @@ public class GameController : NetworkBehaviour
 
     private void SpawnUnit(WorldLocation spawnLocation, House originHouse, bool newUnit)
     {
-        if (originHouse == null || unitNumber[(int)originHouse.Team - 1] == maxUnitsPerPlayer)
+        if (newUnit && (originHouse == null || unitNumber[(int)originHouse.Team - 1] == MAX_UNITS_PER_PLAYER))
+        {
             originHouse.StopReleasingUnits();
+            return;
+        }
 
         SpawnUnit((ulong)originHouse.Team - 1, spawnLocation, originHouse.HouseType.UnitType, newUnit);
     }
@@ -169,11 +179,6 @@ public class GameController : NetworkBehaviour
         unit.AttackHouse += AttackHouse;
         unitObject.GetComponent<UnitMovementHandler>().PlaceFound += SpawnHouse;
 
-        if (newUnit)
-            unitNumber[ownerId]++;
-
-        AddMana(unitType.ManaGain);
-
         AddUnitClientRpc(unitObject.GetComponent<NetworkObject>().NetworkObjectId, new ClientRpcParams 
         { 
             Send = new ClientRpcSendParams 
@@ -181,6 +186,19 @@ public class GameController : NetworkBehaviour
                 TargetClientIds = new ulong[] { ownerId } 
             } 
         });
+        
+        if (newUnit)
+        {
+            unitNumber[ownerId]++;
+
+            AddManaClientRpc(unitType.ManaGain, new ClientRpcParams
+            {
+                Send = new ClientRpcSendParams
+                {
+                    TargetClientIds = new ulong[] { ownerId }
+                }
+            });
+        }
     }
 
     private void DespawnUnit(Unit unit, bool isDead = true)
@@ -244,10 +262,18 @@ public class GameController : NetworkBehaviour
         house.DestroyHouse += DestroyHouse;
         house.ReleaseUnit += SpawnUnit;
 
-        AddMana(houseType.ManaGain);
-
         foreach (WorldLocation vertex in vertices)
             WorldMap.Instance.SetHouseAtVertex(vertex, house);
+
+
+        if (!house.IsDestroyed)
+            AddManaClientRpc(houseType.ManaGain, new ClientRpcParams
+            {
+                Send = new ClientRpcSendParams
+                {
+                    TargetClientIds = new ulong[] { (ulong)team - 1 }
+                }
+            });
     }
 
     public void EnterHouse(Unit unit, House house)
@@ -256,10 +282,22 @@ public class GameController : NetworkBehaviour
         DespawnUnit(unit, false);
     }
 
-    public void DestroyHouse(House house)
+    public void DestroyHouse(House house, bool hasTerrainMoved, HashSet<Unit> attackingUnits = null)
     {
+        if (attackingUnits != null)
+        {
+            foreach (Unit unit in attackingUnits)
+            {
+                StopCoroutine(HitHouse(unit, house));
+                unit.GetComponent<UnitMovementHandler>().Resume();
+            }
+        }
+
         foreach (WorldLocation vertex in house.OccupiedVertices)
             WorldMap.Instance.SetHouseAtVertex(vertex, null);
+
+        if (!hasTerrainMoved)
+            SpawnHouse(new DestroyedHouse(), house.OccupiedVertices);
 
         ulong clientId = (ulong) (house.Team == Teams.Red ? 0 : 1);
         for (int i = 0; i < house.UnitsInHouse; ++i)
@@ -330,51 +368,22 @@ public class GameController : NetworkBehaviour
 
     private IEnumerator HitHouse(Unit unit, House house)
     {
-        var vertices = house.OccupiedVertices;
         while (house.Health > 0 && unit.Health > 0 && !unit.IsFighting)
         {
-            house.TakeDamage(unit.UnitType.Strength);
-
-            if (house.Health <= 0)
-            {
-                DestroyHouse(house);
-                SpawnHouse(new DestroyedHouse(), vertices);
-                unit.GetComponent<UnitMovementHandler>().Resume();
-                break;
-            }
-
+            house.TakeDamage(unit.UnitType.Strength, unit);
             yield return new WaitForSeconds(2);
         }
 
         if (unit.Health <= 0 || unit.IsFighting)
-            house.EndAttack();
+            house.EndAttack(unit);
     }
 
     #endregion
 
 
-    private bool IsClickable(Vector3 hitPoint)
-    {
-        if (Mathf.Abs(Mathf.Round(hitPoint.x / Chunk.TileWidth) - hitPoint.x / Chunk.TileWidth) < 0.1 &&
-            Mathf.Abs(Mathf.Round(hitPoint.y / Chunk.StepHeight) - hitPoint.y / Chunk.StepHeight) < 0.1 &&
-            Mathf.Abs(Mathf.Round(hitPoint.z / Chunk.TileWidth) - hitPoint.z / Chunk.TileWidth) < 0.1)
-        {
-            Cursor.SetCursor(
-                ClickyCursorTexture,
-                new Vector2(ClickyCursorTexture.width / 2, ClickyCursorTexture.height / 2),
-                CursorMode.Auto
-            );
 
-            return true;
-        }
-        else
-        {
-            Cursor.SetCursor(null, Vector2.zero, CursorMode.Auto);
-            return false;
-        }
-    }
-
-    private void AddMana(int manaGain)
+    [ClientRpc]
+    private void AddManaClientRpc(int manaGain, ClientRpcParams clientRpcParams = default)
     {
         if (Mana == MAX_MANA)
             return;
@@ -383,7 +392,7 @@ public class GameController : NetworkBehaviour
         else
             Mana += manaGain;
 
-        HUD.UpdateManaBar(Mana);
+        hud.UpdateManaBar(Mana);
     }
 
     private void RemoveMana(int manaLoss)
@@ -395,7 +404,17 @@ public class GameController : NetworkBehaviour
         else
             Mana -= manaLoss;
 
-        HUD.UpdateManaBar(Mana);
+        hud.UpdateManaBar(Mana);
+    }
+
+    public void SwitchCameras(bool isMapCamera)
+    {
+        if (isMapCamera)
+            PauseGame();
+        else
+            ResumeGame();
+
+        cameraController.SwitchCameras(isMapCamera);
     }
 
 
@@ -403,17 +422,14 @@ public class GameController : NetworkBehaviour
     #region Mold Terrain
     private void MoldTerrain()
     {
-        if (Physics.Raycast(PlayerCamera.ScreenPointToRay(Input.mousePosition), out RaycastHit hitInfo, Mathf.Infinity))
+        if (Physics.Raycast(playerCamera.ScreenPointToRay(Input.mousePosition), out RaycastHit hitInfo, Mathf.Infinity) && hud.IsClickable(hitInfo.point))
         {
             Vector3 hitPoint = hitInfo.point;
 
-            if (IsClickable(hitPoint))
-            {
-                if (Input.GetMouseButtonDown(0))
-                    UpdateMapServerRpc(hitPoint.x, hitPoint.z, decrease: false);
-                else if (Input.GetMouseButtonDown(1))
-                    UpdateMapServerRpc(hitPoint.x, hitPoint.z, decrease: true);
-            }
+            if (Input.GetMouseButtonDown(0))
+                UpdateMapServerRpc(hitPoint.x, hitPoint.z, decrease: false);
+            else if (Input.GetMouseButtonDown(1))
+                UpdateMapServerRpc(hitPoint.x, hitPoint.z, decrease: true);
         }            
     }
 
@@ -422,15 +438,6 @@ public class GameController : NetworkBehaviour
     private void UpdateMapServerRpc(float x, float z, bool decrease)
     {
         WorldMap.Instance.UpdateMap(new WorldLocation(x, z), decrease);
-
-        UpdateUnitHeightsClientRpc();
-    }
-
-    [ClientRpc]
-    private void UpdateUnitHeightsClientRpc()
-    {
-        foreach (ulong id in activeUnits)
-            GetNetworkObject(id).gameObject.GetComponent<Unit>().UpdateHeight();
     }
 
     #endregion
@@ -440,13 +447,13 @@ public class GameController : NetworkBehaviour
     #region Guide Followers
     private void GuideFollowers()
     {
-        if (Physics.Raycast(PlayerCamera.ScreenPointToRay(Input.mousePosition), out RaycastHit hitInfo, Mathf.Infinity))
+        if (Physics.Raycast(playerCamera.ScreenPointToRay(Input.mousePosition), out RaycastHit hitInfo, Mathf.Infinity))
         {
             Vector3 endPoint = hitInfo.point;
 
-            if (IsClickable(endPoint) && Input.GetMouseButtonDown(0))
+            if (hud.IsClickable(endPoint) && Input.GetMouseButtonDown(0))
             {
-                RemoveMana(powerCost[(int)Powers.GuideFollowers]);
+                RemoveMana(PowerCost[(int)Powers.GuideFollowers]);
 
                 activePower = Powers.MoldTerrain;
 
@@ -476,6 +483,7 @@ public class GameController : NetworkBehaviour
             unit.MoveUnit(path);
     }
     #endregion
+
 
 
     #region Earthquake

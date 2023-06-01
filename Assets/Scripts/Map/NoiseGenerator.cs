@@ -3,10 +3,10 @@ using UnityEngine;
 public static class NoiseGenerator
 {
     private static int seed;
-    private const float scale = 2f;
-    private const int octaves = 6;              // number of levels of detail
-    private const float persistence = 0.5f;     // how much each octave contributes to the overall shape (adjusts the amplitude) - in range 0..1
-    private const float lacunarity = 2;         // how much detail is added or removed at each octave (adjusts frequency) - must be > 1
+    private const float SCALE = 2f;
+    private const int OCTAVES = 6;              // number of levels of detail
+    private const float PERSISTENCE = 0.5f;     // how much each octave contributes to the overall shape (adjusts the amplitude) - in range 0..1
+    private const float LACUNARITY = 2;         // how much detail is added or removed at each octave (adjusts frequency) - must be > 1
     private static Vector2[] offsets;
 
 
@@ -22,9 +22,9 @@ public static class NoiseGenerator
         // to get different random maps every time, we need to sample from different random coordinates
         // we sample at differnet random coordinates for each octave
         System.Random ranGen = new System.Random(seed);
-        Vector2[] offsets = new Vector2[octaves];
+        Vector2[] offsets = new Vector2[OCTAVES];
 
-        for (int i = 0; i < octaves; ++i)
+        for (int i = 0; i < OCTAVES; ++i)
         {
             float offsetX = ranGen.Next(-1000, 1000);
             float offsetY = ranGen.Next(-1000, 1000);
@@ -43,12 +43,12 @@ public static class NoiseGenerator
         float elevation = 0;
         float amplitudeSum = 0;
 
-        for (int i = 0; i < octaves; ++i)
+        for (int i = 0; i < OCTAVES; ++i)
         {
             // we cannot use the pixel coordinates(x, y) because the perlin noise always generates the same value at whole numbers
             // we also multiply by scale to not get an extremely zoomed in picture
-            float x = position.x / Chunk.Width * scale + offsets[i].x;
-            float z = position.z / Chunk.Width * scale + offsets[i].y;
+            float x = position.x / Chunk.WIDTH * SCALE + offsets[i].x;
+            float z = position.z / Chunk.WIDTH * SCALE + offsets[i].y;
 
             // increase the noise by the perlin value of each octave
             // the higher the frequency, the further apart the sample points will be, so the elevation will change more rapidly
@@ -56,88 +56,19 @@ public static class NoiseGenerator
             amplitudeSum += amplitude;
 
             // decreases each octave
-            amplitude *= persistence;
+            amplitude *= PERSISTENCE;
 
             //increases each octave
-            frequency *= lacunarity;
+            frequency *= LACUNARITY;
         }
 
         return (elevation / amplitudeSum);
     }
 
 
-
-
-    public static float[,] GenerateNoiseMap(int mapWidth, int mapHeight, int seed, float scale, 
-                                            int octaves, float persistence, float lacunarity)
+    public static float GetFalloffAtPosition(Vector3 position)
     {
-        float[,] falloffMap = GenerateFalloffMap(mapWidth, mapHeight);
-
-        float[,] noiseMap = new float[mapHeight, mapWidth];
-
-        // to get different random maps every time, we need to sample from different random coordinates
-        // we sample at differnet random coordinates for each octave
-        System.Random ranGen = new System.Random(seed);
-        Vector2[] offsets = new Vector2[octaves];
-
-        for (int i = 0; i < octaves; ++i)
-        {
-            float offsetX = ranGen.Next(-1000, 1000);
-            float offsetY = ranGen.Next(-1000, 1000);
-            offsets[i] = new Vector2(offsetX, offsetY);
-        }
-
-
-        for (int y = 0; y < mapHeight; ++y) 
-        {
-            for (int x = 0; x < mapWidth; ++x)
-            {
-                float amplitude = 1;
-                float frequency = 1;
-                float elevation = 0;
-                float amplitudeSum = 0;
-
-                for (int i = 0; i < octaves; ++i)
-                {
-                    // we cannot use the pixel coordinates(x, y) because the perlin noise always generates the same value at whole numbers
-                    // we also multiply by scale to not get an extremely zoomed in picture
-                    float xCoordinate = (float)x / mapWidth * scale + offsets[i].x;
-                    float yCoordinate = (float)y / mapHeight * scale + offsets[i].y;
-
-                    // increase the noise by the perlin value of each octave
-                    // the higher the frequency, the further apart the sample points will be, so the elevation will change more rapidly
-                    elevation += Mathf.PerlinNoise(xCoordinate * frequency, yCoordinate * frequency) * amplitude;
-                    amplitudeSum += amplitude;
-
-                    // decreases each octave
-                    amplitude *= persistence;
-
-                    //increases each octave
-                    frequency *= lacunarity;
-                }
-
-                noiseMap[y, x] = (elevation / amplitudeSum) - falloffMap[y, x];
-            }
-        }
-
-        return noiseMap;
-    }
-
-
-    // Makes the map look like a peninsula
-    public static float[,] GenerateFalloffMap(int mapWidth, int mapHeight)
-    {
-        float[,] falloffMap = new float[mapHeight, mapWidth];
-
-        for (int y = 0; y < mapHeight; ++y)
-        {
-            for (int x = 0; x < mapWidth; ++x)
-            {
-                float distance = Mathf.Sqrt(Mathf.Pow(((mapWidth - 1) - x) / 10, 2) + Mathf.Pow(((mapHeight - 1) - y) / 1.5f, 2));
-                falloffMap[y, x] = distance / mapWidth;
-            }
-        }
-
-        return falloffMap;
+        float distance = Mathf.Sqrt(Mathf.Pow((Chunk.WIDTH - 1 - position.x) / 10, 2) + Mathf.Pow((Chunk.WIDTH - 1 - position.z) / 1.5f, 2));
+        return distance / Chunk.WIDTH;
     }
 }

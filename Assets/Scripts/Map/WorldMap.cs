@@ -66,11 +66,10 @@ public class WorldMap : NetworkBehaviour
 
     // World Map
     public Vector3 Position { get => transform.position; }
-    public const int ChunkNumber = 1;
-    public const int Width = ChunkNumber * Chunk.Width;
+    public const int CHUNK_NUMBER = 5;
+    public const int WIDTH = CHUNK_NUMBER * Chunk.WIDTH;
 
-    private readonly Chunk[,] chunkMap = new Chunk[ChunkNumber, ChunkNumber];
-    private readonly List<(int, int)> lastVisibleChunks = new();
+    private readonly Chunk[,] chunkMap = new Chunk[CHUNK_NUMBER, CHUNK_NUMBER];
     private readonly List<(int, int)> modifiedChunks = new();
 
     public int MapSeed;
@@ -87,24 +86,26 @@ public class WorldMap : NetworkBehaviour
         return chunkMap[chunk_x, chunk_z].GetHeight(local_x, local_z);
     }
 
-    private (int, int) GetChunkIndex(float x, float z)
-    {
-        int chunk_x = Mathf.FloorToInt(x / Chunk.Width);
-        int chunk_z = Mathf.FloorToInt(z / Chunk.Width);
+    public Chunk GetChunk(int x, int z) => chunkMap[z, x];
 
-        if (chunk_x == ChunkNumber) chunk_x--;
-        if (chunk_z == ChunkNumber) chunk_z--;
+    public (int, int) GetChunkIndex(float x, float z)
+    {
+        int chunk_x = Mathf.FloorToInt(x / Chunk.WIDTH);
+        int chunk_z = Mathf.FloorToInt(z / Chunk.WIDTH);
+
+        if (chunk_x == CHUNK_NUMBER) chunk_x--;
+        if (chunk_z == CHUNK_NUMBER) chunk_z--;
 
         return (chunk_x, chunk_z);
     }
 
     private (float, float) LocalCoordsFromGlobal(float global_x, float global_z)
     {
-        float local_x = global_x % Chunk.Width;
-        float local_z = global_z % Chunk.Width;
+        float local_x = global_x % Chunk.WIDTH;
+        float local_z = global_z % Chunk.WIDTH;
 
-        if (global_x == Width) local_x = Chunk.Width;
-        if (global_z == Width) local_z = Chunk.Width;
+        if (global_x == WIDTH) local_x = Chunk.WIDTH;
+        if (global_z == WIDTH) local_z = Chunk.WIDTH;
 
         return (local_x, local_z);
     }
@@ -138,9 +139,9 @@ public class WorldMap : NetworkBehaviour
 
     private void GenerateWorldMap()
     {
-        for (int z = 0; z < ChunkNumber; ++z)
+        for (int z = 0; z < CHUNK_NUMBER; ++z)
         {
-            for (int x = 0; x < ChunkNumber; ++x)
+            for (int x = 0; x < CHUNK_NUMBER; ++x)
             {
                 Chunk chunk = new((x, z));
                 chunk.gameObject.GetComponent<MeshRenderer>().material = WorldMaterial;
@@ -151,38 +152,6 @@ public class WorldMap : NetworkBehaviour
             }
         }
     }
-
-
-    // Draw Map
-    public void DrawVisibleMap(Vector3 cameraPosition)
-    {
-        foreach ((int x, int z) in lastVisibleChunks)
-            chunkMap[z, x].SetVisibility(false);
-
-        lastVisibleChunks.Clear();
-
-        (int chunk_x, int chunk_z) = GetChunkIndex(cameraPosition.x, cameraPosition.z);
-
-        int offset = Mathf.FloorToInt(CameraController.ChunksVisible / 2);
-
-        for (int zOffset = -offset; zOffset <= offset; ++zOffset)
-        {
-            for (int xOffset = -offset; xOffset <= offset; ++xOffset)
-            {
-                (int x, int z) newChunk = (chunk_x + xOffset, chunk_z + zOffset);
-                if (newChunk.x >= 0 && newChunk.z >= 0 &&
-                    newChunk.x < chunkMap.GetLength(1) && newChunk.z < chunkMap.GetLength(0))
-                {
-                    if (chunkMap[newChunk.z, newChunk.x].DistanceFromPoint(cameraPosition) <= CameraController.ViewDistance)
-                    {
-                        chunkMap[newChunk.z, newChunk.x].SetVisibility(true);
-                        lastVisibleChunks.Add(newChunk);
-                    }
-                }
-            }
-        }
-    }
-
 
 
     #region Update Map
@@ -209,7 +178,7 @@ public class WorldMap : NetworkBehaviour
 
     public void UpdateVertexInChunk((int x, int z) chunkIndex, (float x, float z) vertexCoords, float neighborHeight, bool decrease)
     {
-        if (chunkIndex.x >= 0 && chunkIndex.z >= 0 && chunkIndex.x < ChunkNumber && chunkIndex.z < ChunkNumber &&
+        if (chunkIndex.x >= 0 && chunkIndex.z >= 0 && chunkIndex.x < CHUNK_NUMBER && chunkIndex.z < CHUNK_NUMBER &&
             chunkMap[chunkIndex.z, chunkIndex.x].GetHeight(vertexCoords.x, vertexCoords.z) != neighborHeight)
         {
             var updatedVertices = chunkMap[chunkIndex.z, chunkIndex.x].UpdateHeights(vertexCoords, decrease);

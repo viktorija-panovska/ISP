@@ -17,8 +17,8 @@ public class UnitMovementHandler : NetworkBehaviour
 
     private Vector3 Position { get => transform.position; set => transform.position = value; }
 
-    private const float MoveSpeed = 2f;
-    private const float PositionError = 0.5f;
+    private const float MOVE_SPEED = 2f;
+    private const float POSITION_ERROR = 0.5f;
 
     private bool isGuided = false;
 
@@ -31,8 +31,8 @@ public class UnitMovementHandler : NetworkBehaviour
 
 
     // Roaming
-    private const int ViewDistance = 5;
-    private const int RoamDistance = 10;
+    private const int VIEW_DISTANCE = 5;
+    private const int ROAM_DISTANCE = 10;
     private int stepsTaken;
     private (int x, int z) roamDirection;
 
@@ -195,11 +195,11 @@ public class UnitMovementHandler : NetworkBehaviour
 
     private bool MoveToTarget(Vector3 target)
     {
-        if (Mathf.Abs(Position.x - target.x) > PositionError ||
-            Mathf.Abs(Position.y - target.y) > PositionError ||
-            Mathf.Abs(Position.z - target.z) > PositionError)
+        if (Mathf.Abs(Position.x - target.x) > POSITION_ERROR ||
+            Mathf.Abs(Position.y - target.y) > POSITION_ERROR ||
+            Mathf.Abs(Position.z - target.z) > POSITION_ERROR)
         {
-            Position = Vector3.Lerp(Position, target, MoveSpeed * Time.deltaTime);
+            Position = Vector3.Lerp(Position, target, MOVE_SPEED * Time.deltaTime);
             return true;
         }
         return false;
@@ -216,7 +216,7 @@ public class UnitMovementHandler : NetworkBehaviour
 
         if (!MoveToHouseOrFree(currentLocation))
         {
-            if (stepsTaken <= RoamDistance)
+            if (stepsTaken <= ROAM_DISTANCE)
                 stepsTaken++;
             else
             {
@@ -236,7 +236,7 @@ public class UnitMovementHandler : NetworkBehaviour
             for (int dx = -1; dx <= 1; ++dx)
                 if ((dx, dz) != (0, 0) && (dx, dz) != (-roamDirection.x, -roamDirection.z) &&
                     currentLocation.X + dx >= 0 && currentLocation.Z + dz >= 0 &&
-                    currentLocation.X + dx < WorldMap.Width && currentLocation.Z + dz < WorldMap.Width)
+                    currentLocation.X + dx < WorldMap.WIDTH && currentLocation.Z + dz < WorldMap.WIDTH)
                     availableDirections.Add((dx, dz));
 
         return availableDirections[Random.Range(0, availableDirections.Count - 1)];
@@ -244,14 +244,14 @@ public class UnitMovementHandler : NetworkBehaviour
 
     private void ChooseNewRoamTarget(WorldLocation currentLocation)
     {
-        (float x, float z) target = (currentLocation.X + roamDirection.x * Chunk.TileWidth, currentLocation.Z + roamDirection.z * Chunk.TileWidth);
+        (float x, float z) target = (currentLocation.X + roamDirection.x * Chunk.TILE_WIDTH, currentLocation.Z + roamDirection.z * Chunk.TILE_WIDTH);
         WorldLocation targetLocation = new(target.x, target.z);
 
-        if (target.x < 0 || target.z < 0 || target.x > WorldMap.Width || target.z > WorldMap.Width)
+        if (target.x < 0 || target.z < 0 || target.x > WorldMap.WIDTH || target.z > WorldMap.WIDTH)
         {
             stepsTaken = 0;
             roamDirection = ChooseRoamDirection(currentLocation);
-            target = (currentLocation.X + roamDirection.x * Chunk.TileWidth, currentLocation.Z + roamDirection.z * Chunk.TileWidth);
+            target = (currentLocation.X + roamDirection.x * Chunk.TILE_WIDTH, currentLocation.Z + roamDirection.z * Chunk.TILE_WIDTH);
             targetLocation = new WorldLocation(target.x, target.z);
         }
 
@@ -285,18 +285,18 @@ public class UnitMovementHandler : NetworkBehaviour
 
     private WorldLocation? FindHouseOrFree_Vertical(WorldLocation currentLocation)
     {
-        for (int dist = 1; dist < ViewDistance; ++dist)
+        for (int dist = 1; dist < VIEW_DISTANCE; ++dist)
         {
-            float targetZ = currentLocation.Z + roamDirection.z * dist * Chunk.TileWidth;
+            float targetZ = currentLocation.Z + roamDirection.z * dist * Chunk.TILE_WIDTH;
 
-            if (targetZ < 0 || targetZ > WorldMap.Width)
+            if (targetZ < 0 || targetZ > WorldMap.WIDTH)
                 continue;
 
             for (int x = -dist; x <= dist + 1; ++x)
             {
-                float targetX = currentLocation.X + x * Chunk.TileWidth;
+                float targetX = currentLocation.X + x * Chunk.TILE_WIDTH;
 
-                if (targetX < 0 || targetX > WorldMap.Width)
+                if (targetX < 0 || targetX > WorldMap.WIDTH)
                     continue;
 
                 WorldLocation target = new(targetX, targetZ);
@@ -311,18 +311,18 @@ public class UnitMovementHandler : NetworkBehaviour
 
     private WorldLocation? FindHouseOrFree_Horizontal(WorldLocation currentLocation)
     {
-        for (int dist = 1; dist < ViewDistance; ++dist)
+        for (int dist = 1; dist < VIEW_DISTANCE; ++dist)
         {
-            float targetX = currentLocation.X + roamDirection.x * dist * Chunk.TileWidth;
+            float targetX = currentLocation.X + roamDirection.x * dist * Chunk.TILE_WIDTH;
 
-            if (targetX < 0 || targetX > WorldMap.Width)
+            if (targetX < 0 || targetX > WorldMap.WIDTH)
                 continue;
 
             for (int z = -dist; z <= dist + 1; ++z)
             {
-                float targetZ = currentLocation.Z + z * Chunk.TileWidth;
+                float targetZ = currentLocation.Z + z * Chunk.TILE_WIDTH;
 
-                if (targetZ < 0 || targetZ > WorldMap.Width)
+                if (targetZ < 0 || targetZ > WorldMap.WIDTH)
                     continue;
 
                 WorldLocation target = new(targetX, targetZ);
@@ -337,22 +337,22 @@ public class UnitMovementHandler : NetworkBehaviour
 
     private WorldLocation? FindHouseOrFree_Diagonal(WorldLocation currentLocation)
     {
-        for (int dist = 1; dist < ViewDistance; ++dist)
+        for (int dist = 1; dist < VIEW_DISTANCE; ++dist)
         {
             for (int z = 0; z <= dist; ++z)
             {
-                float targetZ = currentLocation.Z + roamDirection.z * z * Chunk.TileWidth;
+                float targetZ = currentLocation.Z + roamDirection.z * z * Chunk.TILE_WIDTH;
 
-                if (targetZ < 0 || targetZ > WorldMap.Width)
+                if (targetZ < 0 || targetZ > WorldMap.WIDTH)
                     continue;
 
                 if (z == dist)
                 {
                     for (int x = 0; x <= dist; ++x)
                     {
-                        float targetX = currentLocation.X + roamDirection.z * x * Chunk.TileWidth;
+                        float targetX = currentLocation.X + roamDirection.z * x * Chunk.TILE_WIDTH;
 
-                        if (targetX < 0 || targetX > WorldMap.Width)
+                        if (targetX < 0 || targetX > WorldMap.WIDTH)
                             continue;
 
                         WorldLocation target = new(targetX, targetZ);
@@ -363,9 +363,9 @@ public class UnitMovementHandler : NetworkBehaviour
                 }
                 else
                 {
-                    float targetX = currentLocation.X + roamDirection.x * dist * Chunk.TileWidth;
+                    float targetX = currentLocation.X + roamDirection.x * dist * Chunk.TILE_WIDTH;
 
-                    if (targetX < 0 || targetX > WorldMap.Width)
+                    if (targetX < 0 || targetX > WorldMap.WIDTH)
                         continue;
 
                     WorldLocation target = new(targetX, targetZ);
@@ -384,9 +384,9 @@ public class UnitMovementHandler : NetworkBehaviour
         if (IsSpaceHouseOrFree(location, (1, 0)) || IsSpaceHouseOrFree(location, (-1, 0)))
             return true;
 
-        if (location.Z + Chunk.TileWidth <= WorldMap.Width)
+        if (location.Z + Chunk.TILE_WIDTH <= WorldMap.WIDTH)
         {
-            WorldLocation neighbor = new(location.X, location.Z + Chunk.TileWidth);
+            WorldLocation neighbor = new(location.X, location.Z + Chunk.TILE_WIDTH);
 
             return IsSpaceHouseOrFree(neighbor, (1, 0)) || IsSpaceHouseOrFree(neighbor, (-1, 0));
         }
@@ -417,9 +417,9 @@ public class UnitMovementHandler : NetworkBehaviour
 
         foreach ((int x, int z) in vertexOffsets)
         {
-            WorldLocation vertex = new(start.X + x * Chunk.TileWidth, start.Z + z * Chunk.TileWidth);
+            WorldLocation vertex = new(start.X + x * Chunk.TILE_WIDTH, start.Z + z * Chunk.TILE_WIDTH);
 
-            if (vertex.X < 0 || vertex.Z < 0 || vertex.X > WorldMap.Width || vertex.Z > WorldMap.Width ||
+            if (vertex.X < 0 || vertex.Z < 0 || vertex.X > WorldMap.WIDTH || vertex.Z > WorldMap.WIDTH ||
                 WorldMap.Instance.GetHeight(start) != WorldMap.Instance.GetHeight(vertex))
                 return false;
 
