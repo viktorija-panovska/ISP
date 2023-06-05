@@ -473,8 +473,12 @@ MonoBehaviour:
   - {fileID: 5157260517230895276}
   - {fileID: 670246456062858943}
   MapContainer: {fileID: 1744291492340139955}
-  ClickyCursorTexture: {fileID: 2800000, guid: ac46e0aacfaacee4087163ef315a1a6f, type: 3}
   MapCursor: {fileID: 752729530229425112}
+  MarkerPrefabs:
+  - {fileID: 8871506309048447763, guid: 3bf7160ca2a59fb43a7260876b926de2, type: 3}
+  - {fileID: 1141325955590303294, guid: 0a8dc5e812df1dd4fb241b1918f938e8, type: 3}
+  - {fileID: 7528364326940227171, guid: bae6226a2dc289e4893aa826de30c4fb, type: 3}
+  - {fileID: 7852297131598407310, guid: c3451271fcf6b344d8a70a029ce1f9ee, type: 3}
 --- !u!1 &730342177433578374
 GameObject:
   m_ObjectHideFlags: 0

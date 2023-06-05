@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Unity.Netcode;
 using UnityEngine;
 
+
 public enum MoveState
 {
     Searching,
@@ -233,11 +234,16 @@ public class UnitMovementHandler : NetworkBehaviour
         List<(int, int)> availableDirections = new();
 
         for (int dz = -1; dz <= 1; ++dz)
+        {
             for (int dx = -1; dx <= 1; ++dx)
+            {
+                WorldLocation newLoc = new(currentLocation.X + dx * Chunk.TILE_WIDTH, currentLocation.Z + dz * Chunk.TILE_WIDTH);
+
                 if ((dx, dz) != (0, 0) && (dx, dz) != (-roamDirection.x, -roamDirection.z) &&
-                    currentLocation.X + dx >= 0 && currentLocation.Z + dz >= 0 &&
-                    currentLocation.X + dx < WorldMap.WIDTH && currentLocation.Z + dz < WorldMap.WIDTH)
+                    newLoc.X >= 0 && newLoc.Z >= 0 && newLoc.X <= WorldMap.WIDTH && newLoc.Z <= WorldMap.WIDTH)
                     availableDirections.Add((dx, dz));
+            }
+        }
 
         return availableDirections[Random.Range(0, availableDirections.Count - 1)];
     }
@@ -350,7 +356,7 @@ public class UnitMovementHandler : NetworkBehaviour
                 {
                     for (int x = 0; x <= dist; ++x)
                     {
-                        float targetX = currentLocation.X + roamDirection.z * x * Chunk.TILE_WIDTH;
+                        float targetX = currentLocation.X + roamDirection.x * x * Chunk.TILE_WIDTH;
 
                         if (targetX < 0 || targetX > WorldMap.WIDTH)
                             continue;

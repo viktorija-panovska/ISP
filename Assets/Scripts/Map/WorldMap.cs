@@ -66,7 +66,7 @@ public class WorldMap : NetworkBehaviour
 
     // World Map
     public Vector3 Position { get => transform.position; }
-    public const int CHUNK_NUMBER = 5;
+    public const int CHUNK_NUMBER = 2;
     public const int WIDTH = CHUNK_NUMBER * Chunk.WIDTH;
 
     private readonly Chunk[,] chunkMap = new Chunk[CHUNK_NUMBER, CHUNK_NUMBER];
@@ -83,7 +83,7 @@ public class WorldMap : NetworkBehaviour
     {
         (int chunk_x, int chunk_z) = GetChunkIndex(globalVertexCoord.X, globalVertexCoord.Z);
         (float local_x, float local_z) = LocalCoordsFromGlobal(globalVertexCoord.X, globalVertexCoord.Z);
-        return chunkMap[chunk_x, chunk_z].GetHeight(local_x, local_z);
+        return chunkMap[chunk_z, chunk_x].GetHeight(local_x, local_z);
     }
 
     public Chunk GetChunk(int x, int z) => chunkMap[z, x];
@@ -114,14 +114,14 @@ public class WorldMap : NetworkBehaviour
     {
         (int chunk_x, int chunk_z) = GetChunkIndex(globalVertexCoord.X, globalVertexCoord.Z);
         (float local_x, float local_z) = LocalCoordsFromGlobal(globalVertexCoord.X, globalVertexCoord.Z);
-        chunkMap[chunk_x, chunk_z].SetHouseAtVertex(local_x, local_z, house);
+        chunkMap[chunk_z, chunk_x].SetHouseAtVertex(local_x, local_z, house);
     }
 
     public House GetHouseAtVertex(WorldLocation globalVertexCoord)
     {
         (int chunk_x, int chunk_z) = GetChunkIndex(globalVertexCoord.X, globalVertexCoord.Z);
         (float local_x, float local_z) = LocalCoordsFromGlobal(globalVertexCoord.X, globalVertexCoord.Z);
-        return chunkMap[chunk_x, chunk_z].GetHouseAtVertex(local_x, local_z);
+        return chunkMap[chunk_z, chunk_x].GetHouseAtVertex(local_x, local_z);
     }
 
     public bool IsOccupied(WorldLocation vertex) => GetHouseAtVertex(vertex) != null;

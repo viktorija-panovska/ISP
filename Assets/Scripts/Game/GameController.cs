@@ -2,15 +2,20 @@ using System.Collections.Generic;
 using UnityEngine;
 using Unity.Netcode;
 using System.Collections;
-
+using System.Linq;
+using Unity.VisualScripting;
+using static UnityEngine.GraphicsBuffer;
 
 public delegate void NotifySpawnUnit(WorldLocation location, House originHouse, bool newUnit);
 public delegate void NotifyAttackUnit(Unit redUnit, Unit blueUnit);
+public delegate void NotifyDestroyUnit(Unit unit, bool isDead);
 
 public delegate void NotifyPlaceFound(List<WorldLocation> vertices, Teams team);
 public delegate void NotifyEnterHouse(Unit unit, House house);
 public delegate void NotifyDestroyHouse(House house, bool hasTerrainChanged, HashSet<Unit> attackingUnits);
 public delegate void NotifyAttackHouse(Unit unit, House house);
+
+public delegate void NotifyRemoveFlag();
 
 
 public enum Powers
@@ -41,18 +46,24 @@ public class GameController : NetworkBehaviour
     public GameObject[] UnitPrefabs;
     private const int STARTING_UNITS = 2;
 
+    private readonly List<Unit> activeUnits = new();
     private readonly int[] unitNumber = { 0, 0 };
     private const int MAX_UNITS_PER_PLAYER = 2;
-
-    private Powers activePower = Powers.MoldTerrain;
-    private readonly List<ulong> activeUnits = new();
 
     private WorldLocation lastClickedVertex = new(-1, -1);    // when guiding followers
 
     public const int MIN_MANA = 0;
     public const int MAX_MANA = 100;
     public int Mana { get; private set; }
-    public readonly int[] PowerCost = { 0, 10 };
+    public readonly int[] PowerCost = { 0, 0, 0, 0 };
+    private Powers activePower = Powers.MoldTerrain;
+
+    public GameObject FlagPrefab;
+    private Unit leader = null;
+    private WorldLocation? flagLocation = null;
+
+    private const int EARTHQUAKE_RANGE = 3;
+    public GameObject SwampPrefab;
 
 
 
@@ -89,6 +100,8 @@ public class GameController : NetworkBehaviour
             activePower = Powers.GuideFollowers;
         if (Input.GetKeyDown(KeyCode.Alpha3))
             activePower = Powers.Earthquake;
+        if (Input.GetKeyDown(KeyCode.Alpha4))
+            activePower = Powers.Swamp;
 
         if (PowerCost[(int)activePower] > Mana)
             activePower = Powers.MoldTerrain;
@@ -105,6 +118,10 @@ public class GameController : NetworkBehaviour
 
             case Powers.Earthquake:
                 CauseEarthquake();
+                break;
+
+            case Powers.Swamp:
+                PlaceSwamp();
                 break;
         }
     }
@@ -133,6 +150,8 @@ public class GameController : NetworkBehaviour
 
         (int min, int max) = clientId == 0 ? (0, Chunk.WIDTH) : (WorldMap.WIDTH, WorldMap.WIDTH - Chunk.WIDTH);
 
+        int leader = Random.Range(0, STARTING_UNITS - 1);
+        
         for (int i = 0; i < STARTING_UNITS; ++i)
         {
             WorldLocation location = GetRandomWorldLocationInRange(min, max);
@@ -141,12 +160,19 @@ public class GameController : NetworkBehaviour
                 location = GetRandomWorldLocationInRange(min, max);
             occupiedSpots.Add(location);
 
-            SpawnUnit(clientId, location, new BaseUnit());
+            SpawnUnit(clientId, location, new BaseUnit(), i == leader);
         }
     }
 
     private WorldLocation GetRandomWorldLocationInRange(int min, int max)
-        => new(Random.Range(min, max), Random.Range(min, max));
+    {
+        WorldLocation randomLocation = new(Random.Range(min, max), Random.Range(min, max));
+
+        while (WorldMap.Instance.GetHeight(randomLocation) == 0)
+            randomLocation = new(Random.Range(min, max), Random.Range(min, max));
+
+        return randomLocation;
+    }
 
     private void SpawnUnit(WorldLocation spawnLocation, House originHouse, bool newUnit)
     {
@@ -159,7 +185,7 @@ public class GameController : NetworkBehaviour
         SpawnUnit((ulong)originHouse.Team - 1, spawnLocation, originHouse.HouseType.UnitType, newUnit);
     }
 
-    private void SpawnUnit(ulong ownerId, WorldLocation spawnLocation, IUnitType unitType, bool newUnit = true)
+    private void SpawnUnit(ulong ownerId, WorldLocation spawnLocation, IUnitType unitType, bool newUnit = true, bool isLeader = false)
     {
         GameObject unitObject = Instantiate(
             UnitPrefabs[ownerId + 1],
@@ -172,14 +198,15 @@ public class GameController : NetworkBehaviour
         unitObject.GetComponent<NetworkObject>().Spawn(destroyWithScene: true);
 
         Unit unit = unitObject.GetComponent<Unit>();
-        unit.Initialize(unitType);
+        unit.Initialize(unitType, isLeader);
 
-        unit.EnterHouse += EnterHouse;
         unit.AttackUnit += AttackUnit;
+        unit.DestroyUnit += DespawnUnit;
+        unit.EnterHouse += EnterHouse;
         unit.AttackHouse += AttackHouse;
         unitObject.GetComponent<UnitMovementHandler>().PlaceFound += SpawnHouse;
 
-        AddUnitClientRpc(unitObject.GetComponent<NetworkObject>().NetworkObjectId, new ClientRpcParams 
+        AddUnitClientRpc(unitObject.GetComponent<NetworkObject>().NetworkObjectId, isLeader, new ClientRpcParams 
         { 
             Send = new ClientRpcSendParams 
             { 
@@ -203,7 +230,7 @@ public class GameController : NetworkBehaviour
 
     private void DespawnUnit(Unit unit, bool isDead = true)
     {
-        RemoveUnitClientRpc(unit.gameObject.GetComponent<NetworkObject>().NetworkObjectId, new ClientRpcParams
+        RemoveUnitClientRpc(unit.gameObject.GetComponent<NetworkObject>().NetworkObjectId, unit.IsLeader && isDead, new ClientRpcParams
         {
             Send = new ClientRpcSendParams
             {
@@ -218,15 +245,25 @@ public class GameController : NetworkBehaviour
     }
 
     [ClientRpc]
-    private void AddUnitClientRpc(ulong unitId, ClientRpcParams clientRpcParams = default)
+    private void AddUnitClientRpc(ulong unitId, bool isLeader, ClientRpcParams clientRpcParams = default)
     {
-        activeUnits.Add(unitId);
+        Unit unit = GetNetworkObject(unitId).gameObject.GetComponent<Unit>();
+
+        if (isLeader)
+            leader = unit;
+
+        activeUnits.Add(unit);
     }
 
     [ClientRpc]
-    private void RemoveUnitClientRpc(ulong unitId, ClientRpcParams clientRpcParams = default)
+    private void RemoveUnitClientRpc(ulong unitId, bool isLeaderDead, ClientRpcParams clientRpcParams = default)
     {
-        activeUnits.Remove(unitId);
+        Unit unit = GetNetworkObject(unitId).gameObject.GetComponent<Unit>();
+
+        if (isLeaderDead)
+            leader = null;
+
+        activeUnits.Add(unit);
     }
     #endregion
 
@@ -405,6 +442,8 @@ public class GameController : NetworkBehaviour
             Mana -= manaLoss;
 
         hud.UpdateManaBar(Mana);
+
+
     }
 
     public void SwitchCameras(bool isMapCamera)
@@ -420,17 +459,30 @@ public class GameController : NetworkBehaviour
 
 
     #region Mold Terrain
+
     private void MoldTerrain()
     {
-        if (Physics.Raycast(playerCamera.ScreenPointToRay(Input.mousePosition), out RaycastHit hitInfo, Mathf.Infinity) && hud.IsClickable(hitInfo.point))
+        int index = (int)Powers.MoldTerrain;
+        hud.SwitchMarker(index);
+
+        if (Physics.Raycast(playerCamera.ScreenPointToRay(Input.mousePosition), out RaycastHit hitInfo, Mathf.Infinity))
         {
             Vector3 hitPoint = hitInfo.point;
 
-            if (Input.GetMouseButtonDown(0))
-                UpdateMapServerRpc(hitPoint.x, hitPoint.z, decrease: false);
-            else if (Input.GetMouseButtonDown(1))
-                UpdateMapServerRpc(hitPoint.x, hitPoint.z, decrease: true);
-        }            
+            if (hud.IsClickable(hitPoint))
+            {
+                hud.HighlightMarker(hitPoint, index, true);
+
+                if (Input.GetMouseButtonDown(0))
+                    UpdateMapServerRpc(hitPoint.x, hitPoint.z, decrease: false);
+                else if (Input.GetMouseButtonDown(1))
+                    UpdateMapServerRpc(hitPoint.x, hitPoint.z, decrease: true);
+            }
+            else
+            {
+                hud.GrayoutMarker(hitPoint, index);
+            }
+        }
     }
 
 
@@ -445,30 +497,43 @@ public class GameController : NetworkBehaviour
 
 
     #region Guide Followers
+
     private void GuideFollowers()
     {
+        int index = (int)Powers.GuideFollowers;
+        hud.SwitchMarker(index);
+
         if (Physics.Raycast(playerCamera.ScreenPointToRay(Input.mousePosition), out RaycastHit hitInfo, Mathf.Infinity))
         {
-            Vector3 endPoint = hitInfo.point;
+            Vector3 hitPoint = hitInfo.point;
 
-            if (hud.IsClickable(endPoint) && Input.GetMouseButtonDown(0))
+            if (hud.IsClickable(hitPoint) /*&& (leader != null || flagLocation != null)*/)
             {
-                RemoveMana(PowerCost[(int)Powers.GuideFollowers]);
+                hud.HighlightMarker(hitPoint, index, true);
 
-                activePower = Powers.MoldTerrain;
+                if (Input.GetMouseButtonDown(0))
+                {
+                    RemoveMana(PowerCost[index]);
+                    SpawnFlagServerRpc(hitPoint);
+                    activePower = Powers.MoldTerrain;
+                    hud.SwitchMarker(0);
 
-                foreach (ulong id in activeUnits)
-                    MoveUnitServerRpc(id, endPoint);
+                    foreach (Unit unit in activeUnits)
+                        MoveUnitServerRpc(unit.gameObject.GetComponent<NetworkObject>().NetworkObjectId, hitPoint);
+                }
             }
-
+            else
+            {
+                hud.GrayoutMarker(hitPoint, index);
+            }
         }
     }
 
 
     [ServerRpc]
-    private void MoveUnitServerRpc(ulong id, Vector3 endPoint)
+    private void MoveUnitServerRpc(ulong unitId, Vector3 endPoint)
     {
-        Unit unit = GetNetworkObject(id).gameObject.GetComponent<Unit>();
+        Unit unit = GetNetworkObject(unitId).gameObject.GetComponent<Unit>();
 
         WorldLocation endLocation = new(endPoint.x, endPoint.z);
 
@@ -482,14 +547,140 @@ public class GameController : NetworkBehaviour
         if (path != null && path.Count > 0)
             unit.MoveUnit(path);
     }
+
+
+    [ServerRpc]
+    private void SpawnFlagServerRpc(Vector3 position)
+    {
+        flagLocation = new(position.x, position.z);
+
+        GameObject flagObject = Instantiate(
+            FlagPrefab,
+            new Vector3(flagLocation.Value.X, WorldMap.Instance.GetHeight(flagLocation.Value), flagLocation.Value.Z),
+            Quaternion.identity);
+
+        flagObject.GetComponent<NetworkObject>().Spawn(destroyWithScene: true);
+    }
+
+
+    [ServerRpc]
+    private void RemoveFlagServerRpc()
+    {
+        Debug.Log("Remove");
+    }
+
     #endregion
 
 
 
     #region Earthquake
+
     private void CauseEarthquake()
     {
+        int index = (int)Powers.Earthquake;
+        hud.SwitchMarker(index);
 
+        if (Physics.Raycast(playerCamera.ScreenPointToRay(Input.mousePosition), out RaycastHit hitInfo, Mathf.Infinity))
+        {
+            Vector3 hitPoint = hitInfo.point;
+
+            if (hud.IsClickable(hitPoint))
+            {
+                hud.HighlightMarker(hitPoint, index, false);
+
+                if (Input.GetMouseButtonDown(0))
+                {
+                    RemoveMana(PowerCost[index]);
+                    activePower = Powers.MoldTerrain;
+                    LowerTerrainInAreaServerRpc(hitPoint);
+                }
+            }
+            else
+            {
+                hud.GrayoutMarker(hitPoint, index, false);
+            }
+        }
+    }
+
+
+    [ServerRpc]
+    private void LowerTerrainInAreaServerRpc(Vector3 center)
+    {
+        List<(float, float, float)> heights = new();
+
+        WorldLocation location = new(center.x, center.z);
+
+        for (int dist = 0; dist <= EARTHQUAKE_RANGE; ++dist)
+        {
+            for (int z = -dist; z <= dist; ++z)
+            {
+                float targetZ = location.Z + z * Chunk.TILE_WIDTH;
+                if (targetZ < 0 || targetZ > WorldMap.WIDTH)
+                    continue;
+
+                int[] xs;
+
+                if (z == dist || z == -dist) xs = Enumerable.Range(-dist, 2 * dist + 1).ToArray();
+                else xs = new[]{ -dist, dist };
+
+                foreach (int x in xs)
+                {
+                    float targetX = location.X + x * Chunk.TILE_WIDTH;
+                    if (targetX < 0 || targetX > WorldMap.WIDTH)
+                        continue;
+
+                    WorldLocation target = new(targetX, targetZ);
+                    heights.Add((target.X, target.Z, WorldMap.Instance.GetHeight(target)));
+                }
+            }
+        }
+
+        foreach ((float x, float z, float height) in heights)
+            if (height == WorldMap.Instance.GetHeight(new(x, z)))
+                UpdateMapServerRpc(x, z, decrease: true);
+    }
+
+    #endregion
+
+
+
+    #region Swamp
+
+    private void PlaceSwamp()
+    {
+        int index = (int)Powers.Swamp;
+        hud.SwitchMarker(index);
+
+        if (Physics.Raycast(playerCamera.ScreenPointToRay(Input.mousePosition), out RaycastHit hitInfo, Mathf.Infinity))
+        {
+            Vector3 hitPoint = hitInfo.point;
+
+            if (hud.IsClickable(hitPoint))
+            {
+                hud.HighlightMarker(hitPoint, index, true);
+
+                if (Input.GetMouseButtonDown(0))
+                {
+                    RemoveMana(PowerCost[index]);
+                    activePower = Powers.MoldTerrain;
+                    SpawnSwampServerRpc(hitPoint);
+                }
+            }
+            else
+            {
+                hud.GrayoutMarker(hitPoint, index);
+            }
+        }
+    }
+
+
+    [ServerRpc]
+    private void SpawnSwampServerRpc(Vector3 spawnLocation)
+    {
+        WorldLocation location = new(spawnLocation.x, spawnLocation.z);
+
+        GameObject unitObject = Instantiate(SwampPrefab, new Vector3(location.X, WorldMap.Instance.GetHeight(location), location.Z), Quaternion.identity);
+        unitObject.GetComponent<NetworkObject>().Spawn(destroyWithScene: true);
     }
 
     #endregion

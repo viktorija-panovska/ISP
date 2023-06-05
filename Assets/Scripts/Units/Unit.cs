@@ -35,6 +35,7 @@ public class Unit : NetworkBehaviour
     public IUnitType UnitType { get; private set; }
     public int Health { get; private set; }
     public bool IsFighting { get; private set; }
+    public bool IsLeader { get; private set; }
 
     private UnitMovementHandler MovementHandler { get => GetComponent<UnitMovementHandler>(); }
 
@@ -44,21 +45,48 @@ public class Unit : NetworkBehaviour
     public Teams Team;
     public Slider HealthBar;
 
-    public event NotifyEnterHouse EnterHouse;
     public event NotifyAttackUnit AttackUnit;
+    public event NotifyDestroyUnit DestroyUnit;
+
+    public event NotifyEnterHouse EnterHouse;
     public event NotifyAttackHouse AttackHouse;
 
 
 
-    public void Initialize(IUnitType unitType)
+    public void Initialize(IUnitType unitType, bool isLeader)
     {
         UnitType = unitType;
         Health = UnitType.MaxHealth;
+        IsLeader = isLeader;
     }
 
 
-    // Health Bar //
+    public void OnTriggerEnter(Collider other)
+    {
+        if (Team != Teams.Red || IsFighting) return;
 
+        if (other.gameObject.layer == gameObject.layer)
+        {
+            var otherUnit = other.gameObject.GetComponent<Unit>();
+
+            if (Team != otherUnit.Team && !otherUnit.IsFighting)
+            {
+                StartBattle();
+                otherUnit.StartBattle();
+                AttackUnit?.Invoke(this, otherUnit);
+            }
+        }
+    }
+
+
+    public void KillUnit()
+    {
+        DestroyUnit?.Invoke(this, true);
+    }
+
+
+
+    #region Health Bar
     public void OnMouseEnter()
     {
         ToggleHealthBarServerRpc(show: true);
@@ -105,10 +133,10 @@ public class Unit : NetworkBehaviour
             HealthBar.value = currentHealth;
         }
     }
+    #endregion
 
 
-
-    // Movement //
+    #region Movement
 
     public void UpdateHeight()
     {
@@ -130,8 +158,10 @@ public class Unit : NetworkBehaviour
         MovementHandler.SetPath(path, isGuided: true);
     }
 
+    #endregion
 
-    // House Interaction //
+
+    #region House interaction
 
     public virtual void OnEnterHouse()
     {
@@ -144,26 +174,10 @@ public class Unit : NetworkBehaviour
         AttackHouse?.Invoke(this, house);
     }
 
+    #endregion
 
-    // Unit Interaction //
 
-    public void OnTriggerEnter(Collider other)
-    {
-        if (Team != Teams.Red || IsFighting) return;
-
-        if (other.gameObject.layer == gameObject.layer)
-        {
-            var otherUnit = other.gameObject.GetComponent<Unit>();
-
-            if (Team != otherUnit.Team && !otherUnit.IsFighting)
-            {
-                StartBattle();
-                otherUnit.StartBattle();
-                AttackUnit?.Invoke(this, otherUnit);
-            }
-        }
-    }
-
+    #region Battle
     public void StartBattle()
     {
         IsFighting = true;
@@ -182,4 +196,5 @@ public class Unit : NetworkBehaviour
 
         UpdateHealthBarClientRpc(UnitType.MaxHealth, Health);
     }
+    #endregion
 }

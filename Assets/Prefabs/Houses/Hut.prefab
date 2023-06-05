@@ -201,7 +201,6 @@ GameObject:
   - component: {fileID: 5025113152812772960}
   - component: {fileID: 8476409890696036328}
   - component: {fileID: 4879853796011759092}
-  - component: {fileID: 2124399251723691160}
   - component: {fileID: 2651398114892138494}
   m_Layer: 0
   m_Name: Hut
@@ -292,19 +291,6 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!65 &2124399251723691160
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3435573214129474652}
-  m_Material: {fileID: 0}
-  m_IsTrigger: 0
-  m_Enabled: 1
-  serializedVersion: 2
-  m_Size: {x: 0.99999994, y: 1, z: 0.99999994}
-  m_Center: {x: 0, y: 0, z: 0}
 --- !u!114 &2651398114892138494
 MonoBehaviour:
   m_ObjectHideFlags: 0
