@@ -24,7 +24,7 @@ public struct HutUnit : IUnitType
     public int MaxHealth => 10;
     public int Strength => 2;
     public int Speed => 1;
-    public int ManaGain => 10;
+    public int ManaGain => 2;
 }
 
 
@@ -63,9 +63,14 @@ public class Unit : NetworkBehaviour
 
     public void OnTriggerEnter(Collider other)
     {
+        if (other.gameObject.layer == LayerMask.NameToLayer("Swamp"))
+        {
+            KillUnit();
+        }
+
         if (Team != Teams.Red || IsFighting) return;
 
-        if (other.gameObject.layer == gameObject.layer)
+        if (other.gameObject.layer == LayerMask.NameToLayer("Unit"))
         {
             var otherUnit = other.gameObject.GetComponent<Unit>();
 
@@ -76,6 +81,8 @@ public class Unit : NetworkBehaviour
                 AttackUnit?.Invoke(this, otherUnit);
             }
         }
+
+
     }
 
 

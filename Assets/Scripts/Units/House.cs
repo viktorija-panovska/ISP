@@ -31,7 +31,7 @@ public struct Hut : IHouseType
     public int MaxCapacity => 2;
     public int MaxHealth => 5;
     public int HealthRegenPerUnit => 2;
-    public int ManaGain => 2;
+    public int ManaGain => 10;
     public IUnitType UnitType => new HutUnit();
 }
 
@@ -178,7 +178,7 @@ public class House : NetworkBehaviour
 
         if (Health <= 0)
         {
-            OnDestroyHouse(false);
+            OnDestroyHouse(true);
             return;
         }
 
@@ -189,9 +189,9 @@ public class House : NetworkBehaviour
         }
     }
 
-    public virtual void OnDestroyHouse(bool hasTerrainChanged)
+    public virtual void OnDestroyHouse(bool spawnDestroyedHouse)
     {
-        DestroyHouse?.Invoke(this, hasTerrainChanged, attackingUnits);
+        DestroyHouse?.Invoke(this, spawnDestroyedHouse, attackingUnits);
 
         attackingUnits = new();
     }

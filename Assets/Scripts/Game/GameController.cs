@@ -3,8 +3,7 @@ using UnityEngine;
 using Unity.Netcode;
 using System.Collections;
 using System.Linq;
-using Unity.VisualScripting;
-using static UnityEngine.GraphicsBuffer;
+
 
 public delegate void NotifySpawnUnit(WorldLocation location, House originHouse, bool newUnit);
 public delegate void NotifyAttackUnit(Unit redUnit, Unit blueUnit);
@@ -12,10 +11,12 @@ public delegate void NotifyDestroyUnit(Unit unit, bool isDead);
 
 public delegate void NotifyPlaceFound(List<WorldLocation> vertices, Teams team);
 public delegate void NotifyEnterHouse(Unit unit, House house);
-public delegate void NotifyDestroyHouse(House house, bool hasTerrainChanged, HashSet<Unit> attackingUnits);
+public delegate void NotifyDestroyHouse(House house, bool spawnDestroyedHouse, HashSet<Unit> attackingUnits);
 public delegate void NotifyAttackHouse(Unit unit, House house);
 
 public delegate void NotifyRemoveFlag();
+public delegate void NotifyMoveSwamp(float height, GameObject swamp);
+public delegate void NotifyDestroySwamp(GameObject swamp);
 
 
 public enum Powers
@@ -82,6 +83,8 @@ public class GameController : NetworkBehaviour
         hud.SetGameController(this);
 
         cameraController.SetGameHUD(hud);
+
+        WorldMap.Instance.SetChunkEvents(MoveSwamp, DestroySwamp);
 
         // Set units
         InitialSpawnUnitsServerRpc();
@@ -319,7 +322,7 @@ public class GameController : NetworkBehaviour
         DespawnUnit(unit, false);
     }
 
-    public void DestroyHouse(House house, bool hasTerrainMoved, HashSet<Unit> attackingUnits = null)
+    public void DestroyHouse(House house, bool spawnDestroyedHouse, HashSet<Unit> attackingUnits = null)
     {
         if (attackingUnits != null)
         {
@@ -333,7 +336,7 @@ public class GameController : NetworkBehaviour
         foreach (WorldLocation vertex in house.OccupiedVertices)
             WorldMap.Instance.SetHouseAtVertex(vertex, null);
 
-        if (!hasTerrainMoved)
+        if (spawnDestroyedHouse)
             SpawnHouse(new DestroyedHouse(), house.OccupiedVertices);
 
         ulong clientId = (ulong) (house.Team == Teams.Red ? 0 : 1);
@@ -471,12 +474,14 @@ public class GameController : NetworkBehaviour
 
             if (hud.IsClickable(hitPoint))
             {
-                hud.HighlightMarker(hitPoint, index, true);
+                WorldLocation location = new(hitPoint.x, hitPoint.z);
+
+                hud.HighlightMarker(location, index, true);
 
                 if (Input.GetMouseButtonDown(0))
-                    UpdateMapServerRpc(hitPoint.x, hitPoint.z, decrease: false);
+                    UpdateMapServerRpc(location, decrease: false);
                 else if (Input.GetMouseButtonDown(1))
-                    UpdateMapServerRpc(hitPoint.x, hitPoint.z, decrease: true);
+                    UpdateMapServerRpc(location, decrease: true);
             }
             else
             {
@@ -487,9 +492,9 @@ public class GameController : NetworkBehaviour
 
 
     [ServerRpc]
-    private void UpdateMapServerRpc(float x, float z, bool decrease)
+    private void UpdateMapServerRpc(WorldLocation location, bool decrease)
     {
-        WorldMap.Instance.UpdateMap(new WorldLocation(x, z), decrease);
+        WorldMap.Instance.UpdateVertex(location, decrease);
     }
 
     #endregion
@@ -509,17 +514,18 @@ public class GameController : NetworkBehaviour
 
             if (hud.IsClickable(hitPoint) /*&& (leader != null || flagLocation != null)*/)
             {
-                hud.HighlightMarker(hitPoint, index, true);
+                WorldLocation location = new(hitPoint.x, hitPoint.z);
+                hud.HighlightMarker(location, index, true);
 
                 if (Input.GetMouseButtonDown(0))
                 {
                     RemoveMana(PowerCost[index]);
-                    SpawnFlagServerRpc(hitPoint);
+                    SpawnFlagServerRpc(location);
                     activePower = Powers.MoldTerrain;
                     hud.SwitchMarker(0);
 
                     foreach (Unit unit in activeUnits)
-                        MoveUnitServerRpc(unit.gameObject.GetComponent<NetworkObject>().NetworkObjectId, hitPoint);
+                        MoveUnitServerRpc(unit.gameObject.GetComponent<NetworkObject>().NetworkObjectId, location);
                 }
             }
             else
@@ -531,11 +537,9 @@ public class GameController : NetworkBehaviour
 
 
     [ServerRpc]
-    private void MoveUnitServerRpc(ulong unitId, Vector3 endPoint)
+    private void MoveUnitServerRpc(ulong unitId, WorldLocation endLocation)
     {
         Unit unit = GetNetworkObject(unitId).gameObject.GetComponent<Unit>();
-
-        WorldLocation endLocation = new(endPoint.x, endPoint.z);
 
         if (endLocation.X == lastClickedVertex.X && endLocation.Z == lastClickedVertex.Z)
             return;
@@ -550,9 +554,9 @@ public class GameController : NetworkBehaviour
 
 
     [ServerRpc]
-    private void SpawnFlagServerRpc(Vector3 position)
+    private void SpawnFlagServerRpc(WorldLocation location)
     {
-        flagLocation = new(position.x, position.z);
+        flagLocation = location;
 
         GameObject flagObject = Instantiate(
             FlagPrefab,
@@ -586,13 +590,14 @@ public class GameController : NetworkBehaviour
 
             if (hud.IsClickable(hitPoint))
             {
-                hud.HighlightMarker(hitPoint, index, false);
+                WorldLocation location = new(hitPoint.x, hitPoint.z);
+                hud.HighlightMarker(location, index, false);
 
                 if (Input.GetMouseButtonDown(0))
                 {
+                    LowerTerrainInAreaServerRpc(location);
                     RemoveMana(PowerCost[index]);
                     activePower = Powers.MoldTerrain;
-                    LowerTerrainInAreaServerRpc(hitPoint);
                 }
             }
             else
@@ -604,11 +609,9 @@ public class GameController : NetworkBehaviour
 
 
     [ServerRpc]
-    private void LowerTerrainInAreaServerRpc(Vector3 center)
+    private void LowerTerrainInAreaServerRpc(WorldLocation location)
     {
-        List<(float, float, float)> heights = new();
-
-        WorldLocation location = new(center.x, center.z);
+        List<WorldLocation> targets = new();
 
         for (int dist = 0; dist <= EARTHQUAKE_RANGE; ++dist)
         {
@@ -621,23 +624,20 @@ public class GameController : NetworkBehaviour
                 int[] xs;
 
                 if (z == dist || z == -dist) xs = Enumerable.Range(-dist, 2 * dist + 1).ToArray();
-                else xs = new[]{ -dist, dist };
+                else xs = new[] { -dist, dist };
 
                 foreach (int x in xs)
                 {
-                    float targetX = location.X + x * Chunk.TILE_WIDTH;
+                    float targetX = location.X + (x) * Chunk.TILE_WIDTH;
                     if (targetX < 0 || targetX > WorldMap.WIDTH)
                         continue;
 
-                    WorldLocation target = new(targetX, targetZ);
-                    heights.Add((target.X, target.Z, WorldMap.Instance.GetHeight(target)));
+                    targets.Add(new(targetX, targetZ));
                 }
             }
         }
 
-        foreach ((float x, float z, float height) in heights)
-            if (height == WorldMap.Instance.GetHeight(new(x, z)))
-                UpdateMapServerRpc(x, z, decrease: true);
+        WorldMap.Instance.UpdateMapRegion(targets, decrease: true);
     }
 
     #endregion
@@ -657,13 +657,14 @@ public class GameController : NetworkBehaviour
 
             if (hud.IsClickable(hitPoint))
             {
-                hud.HighlightMarker(hitPoint, index, true);
+                WorldLocation location = new(hitPoint.x, hitPoint.z);
+                hud.HighlightMarker(location, index, true);
 
                 if (Input.GetMouseButtonDown(0))
                 {
                     RemoveMana(PowerCost[index]);
                     activePower = Powers.MoldTerrain;
-                    SpawnSwampServerRpc(hitPoint);
+                    SpawnSwampServerRpc(location);
                 }
             }
             else
@@ -673,14 +674,27 @@ public class GameController : NetworkBehaviour
         }
     }
 
-
     [ServerRpc]
-    private void SpawnSwampServerRpc(Vector3 spawnLocation)
+    private void SpawnSwampServerRpc(WorldLocation location)
     {
-        WorldLocation location = new(spawnLocation.x, spawnLocation.z);
+        House house = WorldMap.Instance.GetHouseAtVertex(location);
+        if (house != null)
+            DestroyHouse(house, false);
 
-        GameObject unitObject = Instantiate(SwampPrefab, new Vector3(location.X, WorldMap.Instance.GetHeight(location), location.Z), Quaternion.identity);
-        unitObject.GetComponent<NetworkObject>().Spawn(destroyWithScene: true);
+        GameObject swampObject = Instantiate(SwampPrefab, new Vector3(location.X, WorldMap.Instance.GetHeight(location), location.Z), Quaternion.identity);
+        swampObject.GetComponent<NetworkObject>().Spawn(destroyWithScene: true);
+        WorldMap.Instance.SetSwampAtVertex(location, swampObject);
+    }
+
+
+    private void MoveSwamp(float height, GameObject swamp)
+    {
+        swamp.transform.position = new Vector3(swamp.transform.position.x, height, swamp.transform.position.z);
+    }
+
+    private void DestroySwamp(GameObject swamp)
+    {
+        swamp.GetComponent<NetworkObject>().Despawn();
     }
 
     #endregion

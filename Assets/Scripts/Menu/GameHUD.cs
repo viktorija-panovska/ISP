@@ -40,7 +40,6 @@ public class GameHUD : MonoBehaviour
         ManaBar.value = ManaBar.minValue;
     }
 
-
     private void Update()
     {
         if (gameController == null) return;
@@ -51,7 +50,6 @@ public class GameHUD : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.M))
             ToggleMap();
     }
-
 
     private void OnDestroy()
     {
@@ -83,6 +81,12 @@ public class GameHUD : MonoBehaviour
     }
 
 
+    public bool IsClickable(Vector3 hitPoint)
+    => Mathf.Abs(Mathf.Round(hitPoint.x / Chunk.TILE_WIDTH) - hitPoint.x / Chunk.TILE_WIDTH) < CLICKER_ERROR &&
+        Mathf.Abs(Mathf.Round(hitPoint.y / Chunk.STEP_HEIGHT) - hitPoint.y / Chunk.STEP_HEIGHT) < CLICKER_ERROR &&
+        Mathf.Abs(Mathf.Round(hitPoint.z / Chunk.TILE_WIDTH) - hitPoint.z / Chunk.TILE_WIDTH) < CLICKER_ERROR;
+
+
     public void UpdateManaBar(int mana)
     {
         ManaBar.value = mana;
@@ -108,13 +112,6 @@ public class GameHUD : MonoBehaviour
         }
     }
 
-
-    public bool IsClickable(Vector3 hitPoint)
-        =>  Mathf.Abs(Mathf.Round(hitPoint.x / Chunk.TILE_WIDTH) - hitPoint.x / Chunk.TILE_WIDTH) < CLICKER_ERROR &&
-            Mathf.Abs(Mathf.Round(hitPoint.y / Chunk.STEP_HEIGHT) - hitPoint.y / Chunk.STEP_HEIGHT) < CLICKER_ERROR &&
-            Mathf.Abs(Mathf.Round(hitPoint.z / Chunk.TILE_WIDTH) - hitPoint.z / Chunk.TILE_WIDTH) < CLICKER_ERROR;
-
-
     public void SetMapCursor()
     {
         Cursor.lockState = CursorLockMode.Locked;
@@ -137,9 +134,8 @@ public class GameHUD : MonoBehaviour
         markers[index].SetActive(true);
     }
 
-    public void HighlightMarker(Vector3 position, int index, bool changeHeight)
+    public void HighlightMarker(WorldLocation location, int index, bool changeHeight)
     {
-        WorldLocation location = new(position.x, position.z);
         markers[index].transform.position = new Vector3(location.X, changeHeight ? WorldMap.Instance.GetHeight(location) : Chunk.MAX_HEIGHT, location.Z);
         markers[index].GetComponent<MeshRenderer>().material.color = greenTransparent;
     }

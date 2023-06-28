@@ -70,5 +70,5 @@ MonoBehaviour:
   - {fileID: 7508563087423339071, guid: ce1c6995d1299b742890f9975e90dd3a, type: 3}
   - {fileID: 1359270074452477915, guid: c073c259110f72a479b45cc948ab0dde, type: 3}
   - {fileID: 1359270074452477915, guid: d08e6ff7542b9f8408273ca6e41bb0de, type: 3}
-  FlagPrefab: {fileID: 774093280261861242, guid: 5ba9817d6ed6dbd478cc20e54072198a, type: 3}
-  SwampPrefab: {fileID: 6534285827039871725, guid: 8b33782516fa5eb41a28fd30ba2a8d56, type: 3}
+  FlagPrefab: {fileID: 5231701076103875777, guid: 5ba9817d6ed6dbd478cc20e54072198a, type: 3}
+  SwampPrefab: {fileID: 6193067277398653297, guid: aa52b99bf9ed8e64f8ad973c4d0cf952, type: 3}

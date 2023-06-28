@@ -1,5 +1,6 @@
 using UnityEngine;
 using Unity.Netcode;
+using System;
 
 public enum Teams
 {
@@ -8,22 +9,22 @@ public enum Teams
     Blue
 }
 
-public struct WorldLocation
+public struct WorldLocation : INetworkSerializable, IEquatable<WorldLocation>
 {
-    public float X;
-    public float Z;
+    public int X;
+    public int Z;
 
     public WorldLocation(float x, float z, bool isCenter = false)
     {
         if (!isCenter)
         {
-            X = Mathf.Round(x / Chunk.TILE_WIDTH) * Chunk.TILE_WIDTH;
-            Z = Mathf.Round(z / Chunk.TILE_WIDTH) * Chunk.TILE_WIDTH;
+            X = Mathf.RoundToInt(x / Chunk.TILE_WIDTH) * Chunk.TILE_WIDTH;
+            Z = Mathf.RoundToInt(z / Chunk.TILE_WIDTH) * Chunk.TILE_WIDTH;
         }
         else
         {
-            X = Mathf.Ceil(x);
-            Z = Mathf.Ceil(z);
+            X = Mathf.CeilToInt(x);
+            Z = Mathf.CeilToInt(z);
         }
     }
 
@@ -33,6 +34,15 @@ public struct WorldLocation
         float dz = (b.Z - a.Z) / Chunk.TILE_WIDTH;
 
         return new(a.X + dx * (Chunk.TILE_WIDTH / 2), a.Z + dz * (Chunk.TILE_WIDTH / 2), isCenter: true);
+    }
+
+    public bool Equals(WorldLocation other)
+        => X == other.X && Z == other.Z;
+
+    public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
+    {
+        serializer.SerializeValue(ref X);
+        serializer.SerializeValue(ref Z);
     }
 }
 
