@@ -30,6 +30,9 @@ public class UnitMovementHandler : NetworkBehaviour
     private Vector3? pathTarget;
     private bool intermediateStep;
 
+    public WorldLocation StartLocation { get; private set; }
+    public WorldLocation EndLocation { get; private set; }
+
 
     // Roaming
     private const int VIEW_DISTANCE = 5;
@@ -50,6 +53,8 @@ public class UnitMovementHandler : NetworkBehaviour
     {
         if (!IsOwner) return;
 
+        StartLocation = new WorldLocation(Position.x, Position.z);
+        EndLocation = StartLocation;
 
         // Once units are released from a house, don't check the first step and set roaming direction in the opposite direction of the house
 
@@ -138,6 +143,8 @@ public class UnitMovementHandler : NetworkBehaviour
 
     #region Following path
 
+    public Vector3? GetNextLocation() => pathTarget;
+
     public void SetPath(List<WorldLocation> path, bool isGuided = false)
     {
         this.isGuided = isGuided;
@@ -149,21 +156,21 @@ public class UnitMovementHandler : NetworkBehaviour
     {
         if (pathTarget == null)
         {
-            WorldLocation targetLocation = path[targetIndex];
-            WorldLocation currentLocation = new(Position.x, Position.z, isCenter: intermediateStep);
+            EndLocation = path[targetIndex];
+            StartLocation = new(Position.x, Position.z, isCenter: intermediateStep);
 
-            if (!intermediateStep && currentLocation.X != targetLocation.X && currentLocation.Z != targetLocation.Z)
+            if (!intermediateStep && StartLocation.X != EndLocation.X && StartLocation.Z != EndLocation.Z)
             {
                 intermediateStep = true;
-                targetLocation = WorldLocation.GetCenter(currentLocation, targetLocation);
+                EndLocation = WorldLocation.GetCenter(StartLocation, EndLocation);
             }
             else
                 intermediateStep = false;
 
             pathTarget = new(
-                targetLocation.X,
-                WorldMap.Instance.GetHeight(targetLocation) + GetComponent<MeshRenderer>().bounds.extents.y,
-                targetLocation.Z
+                EndLocation.X,
+                WorldMap.Instance.GetHeight(EndLocation) + GetComponent<MeshRenderer>().bounds.extents.y,
+                EndLocation.Z
             );
         }
 

@@ -5,7 +5,7 @@ using UnityEngine.UI;
 
 public class GameHUD : MonoBehaviour
 {
-    private GameController gameController;
+    private PlayerController controller;
 
     public GameObject SettingsMenuContainer;
 
@@ -42,7 +42,7 @@ public class GameHUD : MonoBehaviour
 
     private void Update()
     {
-        if (gameController == null) return;
+        if (controller == null) return;
 
         if (Input.GetKeyDown(KeyCode.Escape) && !mapToggled)
             PauseGame();
@@ -57,15 +57,15 @@ public class GameHUD : MonoBehaviour
     }
 
 
-    public void SetGameController(GameController controller)
+    public void SetController(PlayerController controller)
     {
-        gameController = controller;
+        this.controller = controller;
     }
 
 
     private void PauseGame()
     {
-        gameController.PauseGame();
+        controller.PauseGame();
         SettingsMenuContainer.SetActive(true);
     }
 
@@ -76,15 +76,15 @@ public class GameHUD : MonoBehaviour
 
     public void CloseMenu()
     {
-        gameController.ResumeGame();
+        controller.ResumeGame();
         SettingsMenuContainer.gameObject.SetActive(false);
     }
 
 
     public bool IsClickable(Vector3 hitPoint)
-    => Mathf.Abs(Mathf.Round(hitPoint.x / Chunk.TILE_WIDTH) - hitPoint.x / Chunk.TILE_WIDTH) < CLICKER_ERROR &&
-        Mathf.Abs(Mathf.Round(hitPoint.y / Chunk.STEP_HEIGHT) - hitPoint.y / Chunk.STEP_HEIGHT) < CLICKER_ERROR &&
-        Mathf.Abs(Mathf.Round(hitPoint.z / Chunk.TILE_WIDTH) - hitPoint.z / Chunk.TILE_WIDTH) < CLICKER_ERROR;
+        => Mathf.Abs(Mathf.Round(hitPoint.x / Chunk.TILE_WIDTH) - hitPoint.x / Chunk.TILE_WIDTH) < CLICKER_ERROR &&
+            Mathf.Abs(Mathf.Round(hitPoint.y / Chunk.STEP_HEIGHT) - hitPoint.y / Chunk.STEP_HEIGHT) < CLICKER_ERROR &&
+            Mathf.Abs(Mathf.Round(hitPoint.z / Chunk.TILE_WIDTH) - hitPoint.z / Chunk.TILE_WIDTH) < CLICKER_ERROR;
 
 
     public void UpdateManaBar(int mana)
@@ -101,7 +101,7 @@ public class GameHUD : MonoBehaviour
         mapToggled = !mapToggled;
         ManaBar.gameObject.SetActive(!mapToggled);
         MapContainer.SetActive(mapToggled);
-        gameController.SwitchCameras(mapToggled);
+        controller.SwitchCameras(mapToggled);
 
 
         if (mapToggled)

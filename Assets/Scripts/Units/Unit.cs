@@ -64,9 +64,7 @@ public class Unit : NetworkBehaviour
     public void OnTriggerEnter(Collider other)
     {
         if (other.gameObject.layer == LayerMask.NameToLayer("Swamp"))
-        {
             KillUnit();
-        }
 
         if (Team != Teams.Red || IsFighting) return;
 
@@ -147,17 +145,24 @@ public class Unit : NetworkBehaviour
 
     public void UpdateHeight()
     {
-        // last location, next location (direction that the unit is going in, 
+        int startHeight = WorldMap.Instance.GetHeight(MovementHandler.StartLocation);
+        int endHeight = WorldMap.Instance.GetHeight(MovementHandler.EndLocation);
 
-        /*Given 2 points, (x1,y1,z1) and (x2,y2,z2), you can take the difference between the two, so you end up with (x2-x1,y2-y1,z2-z1). 
-         * Take the norm of this (i.e. take the distance between the original 2 points), and divide (x2-x1,y2-y1,z2-z1) by that value. 
-         * You now have a vector with the same slope as the line between the first 2 points, but it has magnitude one, 
-         * since you normalized it (by dividing by its magnitude). 
-         * Then add/subtract that vector to one of the original points to get your final answer.*/
+        if (startHeight == endHeight)
+            Position = new Vector3(Position.x, startHeight, Position.z);
+        else
+        {
+            float heightDifference = Mathf.Abs(endHeight - startHeight);
+            float totalDistance = new Vector2(MovementHandler.EndLocation.X - MovementHandler.StartLocation.X, MovementHandler.EndLocation.Z - MovementHandler.StartLocation.Z).magnitude;
 
-        Debug.Log("HI");
+            float distance = startHeight < endHeight 
+                ? new Vector2(Position.x - MovementHandler.StartLocation.X, Position.z - MovementHandler.StartLocation.Z).magnitude
+                : new Vector2(MovementHandler.EndLocation.X - Position.x, MovementHandler.EndLocation.Z - Position.z).magnitude;
 
-        //Position = new Vector3(Position.x, WorldMap.Instance.GetHeight(Location), Position.z);
+            int height = (int)(heightDifference * distance / totalDistance);
+
+            Position = new Vector3(Position.x, height, Position.z);
+        }
     }
 
     public void MoveUnit(List<WorldLocation> path)

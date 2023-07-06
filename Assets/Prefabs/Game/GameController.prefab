@@ -61,8 +61,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a605d493f3a4daf409ac30a0c0e208db, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  CameraControllerPrefab: {fileID: 220555260964469156, guid: 2def5a64f681d254daa40375182d5ee4, type: 3}
-  GameHUDPrefab: {fileID: 730342177293130224, guid: c07505d8b2dbb7044b7ffb3d51c15a63, type: 3}
+  WorldMapPrefab: {fileID: 3501683329456848355, guid: 082a2fe2a2b53914aacee4e175d9aed2, type: 3}
+  PlayerControllerPrefab: {fileID: 9219171105560015230, guid: f6cdb5dffe2edfe4a99ab2aa8f51eb68, type: 3}
   HousePrefabs:
   - {fileID: 2958902495337925058, guid: 54cbdaa068e3a7344b060f5fd14c304d, type: 3}
   - {fileID: 3435573214129474652, guid: b7c76e4edb289ac42bc4cbef75e3ef48, type: 3}
