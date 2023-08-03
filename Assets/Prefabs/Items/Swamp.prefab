@@ -14,6 +14,7 @@ GameObject:
   - component: {fileID: 4825406658645704280}
   - component: {fileID: 805834992570714740}
   - component: {fileID: 4799371964800609450}
+  - component: {fileID: 8335198842546392906}
   m_Layer: 6
   m_Name: Swamp
   m_TagString: Untagged
@@ -142,3 +143,16 @@ MonoBehaviour:
   ScaleThreshold: 0.01
   InLocalSpace: 0
   Interpolate: 1
+--- !u!114 &8335198842546392906
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6193067277398653297}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 93aea188db0d0e4488c720f4f84a802c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  Type: 2

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Unity.Netcode;
 using UnityEngine.UI;
 
+
 public interface IUnitType
 {
     public int MaxHealth { get; }
@@ -30,12 +31,13 @@ public struct HutUnit : IUnitType
 
 
 [RequireComponent(typeof(NetworkObject), typeof(UnitMovementHandler))]
-public class Unit : NetworkBehaviour
+public class Unit : NetworkBehaviour, IPlayerObject
 {
     public IUnitType UnitType { get; private set; }
     public int Health { get; private set; }
     public bool IsFighting { get; private set; }
     public bool IsLeader { get; private set; }
+    public bool IsKnight { get; private set; }
 
     private UnitMovementHandler MovementHandler { get => GetComponent<UnitMovementHandler>(); }
 
@@ -44,12 +46,9 @@ public class Unit : NetworkBehaviour
 
     public Teams Team;
     public Slider HealthBar;
-
-    public event NotifyAttackUnit AttackUnit;
-    public event NotifyDestroyUnit DestroyUnit;
-
-    public event NotifyEnterHouse EnterHouse;
-    public event NotifyAttackHouse AttackHouse;
+    public GameObject LeaderMarker;
+    public GameObject BattleDetector;
+    public GameObject KnightMarker;
 
 
 
@@ -76,19 +75,48 @@ public class Unit : NetworkBehaviour
             {
                 StartBattle();
                 otherUnit.StartBattle();
-                AttackUnit?.Invoke(this, otherUnit);
+                GameController.Instance.AttackUnit(this, otherUnit);
             }
         }
-
-
     }
 
 
     public void KillUnit()
     {
-        DestroyUnit?.Invoke(this, true);
+        GameController.Instance.DespawnUnit(this, true);
     }
 
+
+
+    #region Change Unit Type
+
+    public void MakeLeader()
+    {
+        IsLeader = true;
+        SetLeaderMarkerClientRpc(true);
+    }
+
+    [ClientRpc]
+    public void SetLeaderMarkerClientRpc(bool active)
+    {
+        LeaderMarker.SetActive(active);
+    }
+
+
+    public void MakeKnight()
+    {
+        IsKnight = true;
+        BattleDetector.SetActive(true);
+        SetKnightMarkerClientRpc(true);
+    }
+
+    [ClientRpc]
+    public void SetKnightMarkerClientRpc(bool active)
+    {
+        KnightMarker.SetActive(active);
+    }
+
+    #endregion
 
 
     #region Health Bar
@@ -104,7 +132,7 @@ public class Unit : NetworkBehaviour
 
 
     [ServerRpc(RequireOwnership = false)]
-    private void ToggleHealthBarServerRpc(bool show, ServerRpcParams parameters = default)
+    public void ToggleHealthBarServerRpc(bool show, ServerRpcParams parameters = default)
     {
         ToggleHealthBarClientRpc(show, UnitType.MaxHealth, Health, new ClientRpcParams
         {
@@ -159,15 +187,20 @@ public class Unit : NetworkBehaviour
                 ? new Vector2(Position.x - MovementHandler.StartLocation.X, Position.z - MovementHandler.StartLocation.Z).magnitude
                 : new Vector2(MovementHandler.EndLocation.X - Position.x, MovementHandler.EndLocation.Z - Position.z).magnitude;
 
-            int height = (int)(heightDifference * distance / totalDistance);
+            float height = heightDifference * distance / totalDistance;
 
-            Position = new Vector3(Position.x, height, Position.z);
+            Position = new Vector3(Position.x, startHeight < endHeight ? startHeight + height + GetComponent<MeshRenderer>().bounds.extents.y : endHeight + height + GetComponent<MeshRenderer>().bounds.extents.y, Position.z);
         }
     }
 
     public void MoveUnit(List<WorldLocation> path)
     {
         MovementHandler.SetPath(path, isGuided: true);
+    }
+
+    public void EndFollow()
+    {
+        MovementHandler.EndPath();
     }
 
     #endregion
@@ -177,19 +210,20 @@ public class Unit : NetworkBehaviour
 
     public virtual void OnEnterHouse()
     {
-        EnterHouse?.Invoke(this, WorldMap.Instance.GetHouseAtVertex(Location));
+        GameController.Instance.EnterHouse(this, WorldMap.Instance.GetHouseAtVertex(Location));
     }
 
     public virtual void OnAttackHouse()
     {
         House house = WorldMap.Instance.GetHouseAtVertex(Location);
-        AttackHouse?.Invoke(this, house);
+        GameController.Instance.AttackHouse(this, house);
     }
 
     #endregion
 
 
     #region Battle
+
     public void StartBattle()
     {
         IsFighting = true;
@@ -208,5 +242,6 @@ public class Unit : NetworkBehaviour
 
         UpdateHealthBarClientRpc(UnitType.MaxHealth, Health);
     }
+
     #endregion
 }

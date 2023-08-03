@@ -25,10 +25,11 @@ public class CameraController : MonoBehaviour
     public Camera MainCamera { get => mainCameraRig.GetComponentInChildren<Camera>(); }
     public Camera MapCamera { get => mapCameraRig.GetComponentInChildren<Camera>(); }
 
-    private (float width, float height) MainCameraDimensions { get => (Screen.width, Screen.height); }
+    private (float width, float height) MainCameraDimensions { get => (MainCamera.pixelWidth, MainCamera.pixelHeight); }
     private (float width, float height) MapCameraDimensions { get => (2 * MapCamera.orthographicSize * MapCamera.aspect, 2 * MapCamera.orthographicSize); }
 
     private bool isMapCamera;
+
 
 
     public void Awake()
@@ -37,9 +38,6 @@ public class CameraController : MonoBehaviour
         mapCameraRig = Instantiate(MapCameraRigPrefab);
 
         mapCameraRig.transform.position = new Vector3(MapCameraDimensions.width / 2, mapCameraRig.transform.position.y, MapCameraDimensions.height / 2);
-
-        // Set camera
-        mainCameraRig.transform.position = new Vector3(0, mainCameraRig.transform.position.y, 0);
 
         DrawVisibleMap(mainCameraRig.transform.position, MainCameraDimensions.width);
     }
@@ -59,14 +57,30 @@ public class CameraController : MonoBehaviour
             TeleportToLocation(mapCameraRig.transform.position);
     }
 
+
+
+    #region Setup
+
+    public void SetStart(ulong owner)
+    {
+        if (owner == 0)
+            mainCameraRig.transform.position = new Vector3(0, mainCameraRig.transform.position.y, 0);
+
+        if (owner == 1)
+            mainCameraRig.transform.position = new Vector3(WorldMap.WIDTH, mainCameraRig.transform.position.y, WorldMap.WIDTH);
+    }
+
     public void SetGameHUD(GameHUD gameHUD)
     {
         this.gameHUD = gameHUD;
     }
 
+    #endregion
+
 
 
     #region Movement
+
     private bool ChangePosition(GameObject rig, (float min, float max) horizontal_bounds, (float min, float max) vertical_bounds, float speed)
     {
         Vector3 newPosition = rig.transform.position;
@@ -114,11 +128,13 @@ public class CameraController : MonoBehaviour
 
         return false;
     }
+
     #endregion
 
 
 
     #region Map
+
     private void RedrawMap(Vector3 center, (float width, float height) dimensions, float viewDistance)
     {
         float topZ = center.z - (dimensions.height / 2);
@@ -130,8 +146,6 @@ public class CameraController : MonoBehaviour
         DrawVisibleMap(center, viewDistance);
     }
 
-
-    // Draw Map
     private void DrawVisibleMap(Vector3 cameraPosition, float viewDistance)
     {
         int chunksVisible = Mathf.CeilToInt(viewDistance / Chunk.WIDTH);
@@ -163,11 +177,12 @@ public class CameraController : MonoBehaviour
             }
         }
     }
+    
     #endregion
 
 
 
-    #region Map
+    #region Minimap
 
     public void SwitchCameras(bool isMapCamera)
     {

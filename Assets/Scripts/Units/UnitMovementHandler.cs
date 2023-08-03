@@ -46,7 +46,6 @@ public class UnitMovementHandler : NetworkBehaviour
     private MoveState moveState = MoveState.Searching;
     private List<WorldLocation> houseVertices;
 
-    public event NotifyPlaceFound PlaceFound;
 
 
     private void Start()
@@ -87,7 +86,7 @@ public class UnitMovementHandler : NetworkBehaviour
 
 
 
-    private void EndPath()
+    public void EndPath()
     {
         path = null;
         targetIndex = 0;
@@ -117,7 +116,7 @@ public class UnitMovementHandler : NetworkBehaviour
 
     protected virtual void OnPlaceFound()
     {
-        PlaceFound?.Invoke(houseVertices, Unit.Team);
+        GameController.Instance.SpawnHouse(houseVertices, Unit.Team);
     }
 
     private bool IsStillFree()

@@ -2,6 +2,21 @@ using Unity.Netcode;
 using UnityEngine;
 
 
+public interface IPlayerObject
+{
+    void MakeLeader();
+
+    [ClientRpc]
+    void SetLeaderMarkerClientRpc(bool active);
+
+    void OnMouseEnter();
+    void OnMouseExit();
+
+    [ServerRpc]
+    void ToggleHealthBarServerRpc(bool show, ServerRpcParams parameters = default);
+}
+
+
 [RequireComponent(typeof(NetworkObject))]
 public class PlayerController : NetworkBehaviour
 {
@@ -17,12 +32,8 @@ public class PlayerController : NetworkBehaviour
     private bool isGamePaused = false;
     private Teams team = Teams.None;
     private Powers activePower = Powers.MoldTerrain;
-    private Unit leader = null;
 
     public int Mana { get; private set; }
-
-    private WorldLocation lastClickedVertex = new(-1, -1);
-    private WorldLocation? flagLocation = null;
 
 
 
@@ -36,6 +47,7 @@ public class PlayerController : NetworkBehaviour
 
         // Set camera controller
         cameraController = Instantiate(CameraControllerPrefab).GetComponent<CameraController>();
+        cameraController.SetStart(OwnerClientId);
         playerCamera = cameraController.MainCamera;
 
         // Set HUD
@@ -59,6 +71,8 @@ public class PlayerController : NetworkBehaviour
             activePower = Powers.Earthquake;
         if (Input.GetKeyDown(KeyCode.Alpha4))
             activePower = Powers.Swamp;
+        if (Input.GetKeyDown(KeyCode.Alpha5))
+            activePower = Powers.Crusade;
 
         if (GameController.Instance.PowerCost[(int)activePower] > Mana)
             activePower = Powers.MoldTerrain;
@@ -79,6 +93,10 @@ public class PlayerController : NetworkBehaviour
 
             case Powers.Swamp:
                 PlaceSwamp();
+                break;
+
+            case Powers.Crusade:
+                SendKnight();
                 break;
         }
     }
@@ -149,15 +167,9 @@ public class PlayerController : NetworkBehaviour
                 hud.HighlightMarker(location, index, true);
 
                 if (Input.GetMouseButtonDown(0))
-                {
                     GameController.Instance.UpdateMapServerRpc(location, decrease: false);
-                    GameController.Instance.AdjustUnitHeightsServerRpc();
-                }
                 else if (Input.GetMouseButtonDown(1))
-                {
                     GameController.Instance.UpdateMapServerRpc(location, decrease: true);
-                    GameController.Instance.AdjustUnitHeightsServerRpc();
-                }
             }
             else
             {
@@ -176,26 +188,18 @@ public class PlayerController : NetworkBehaviour
         {
             Vector3 hitPoint = hitInfo.point;
 
-            if (hud.IsClickable(hitPoint) /*&& (leader != null || flagLocation != null)*/)
+            if (hud.IsClickable(hitPoint))
             {
                 WorldLocation location = new(hitPoint.x, hitPoint.z);
                 hud.HighlightMarker(location, index, true);
 
                 if (Input.GetMouseButtonDown(0))
                 {
-                    if (location.X == lastClickedVertex.X && location.Z == lastClickedVertex.Z)
-                        return;
-
-                    lastClickedVertex = location;
-                    flagLocation = location;
-
-
                     RemoveMana(GameController.Instance.PowerCost[index]);
-                    GameController.Instance.SpawnFlagServerRpc(location);
+                    GameController.Instance.MoveUnitsServerRpc(team, location);
+
                     activePower = Powers.MoldTerrain;
                     hud.SwitchMarker(0);
-
-                    GameController.Instance.MoveUnitsServerRpc(OwnerClientId, location);
                 }
             }
             else
@@ -225,7 +229,6 @@ public class PlayerController : NetworkBehaviour
                     GameController.Instance.LowerTerrainInAreaServerRpc(location);
                     RemoveMana(GameController.Instance.PowerCost[index]);
                     activePower = Powers.MoldTerrain;
-                    GameController.Instance.AdjustUnitHeightsServerRpc();
                 }
             }
             else
@@ -262,5 +265,17 @@ public class PlayerController : NetworkBehaviour
                 hud.GrayoutMarker(hitPoint, index);
             }
         }
+    }
+
+
+    private void SendKnight()
+    {
+        if (GameController.Instance.HasLeader(team))
+        {
+            RemoveMana(GameController.Instance.PowerCost[(int)Powers.GuideFollowers]);
+            GameController.Instance.SendKnightServerRpc(team);
+        }
+
+        activePower = Powers.MoldTerrain;
     }
 }

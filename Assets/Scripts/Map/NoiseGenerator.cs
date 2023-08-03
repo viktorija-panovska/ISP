@@ -62,12 +62,20 @@ public static class NoiseGenerator
             frequency *= LACUNARITY;
         }
 
-        return (elevation / amplitudeSum);
+        //Debug.Log(position);
+        //Debug.Log(elevation / amplitudeSum);
+        //Debug.Log((elevation + (1 - GetFalloffAtPosition(position))) / (2 * amplitudeSum));
+
+        return (elevation + (1 - GetFalloffAtPosition(position))) / (2 * amplitudeSum);
     }
 
 
     public static float GetFalloffAtPosition(Vector3 position)
     {
+        //float nx = 2 * position.x / WorldMap.WIDTH - 1;
+        //float nz = 2 * position.z / WorldMap.WIDTH - 1;
+
+        //return 1 - (1 - nx * nx) * (1 - nz * nz);
         float distance = Mathf.Sqrt(Mathf.Pow((Chunk.WIDTH - 1 - position.x) / 10, 2) + Mathf.Pow((Chunk.WIDTH - 1 - position.z) / 1.5f, 2));
         return distance / Chunk.WIDTH;
     }

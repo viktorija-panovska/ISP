@@ -170,4 +170,39 @@ public static class Pathfinding
 
         return path;
     }
+
+
+    public static WorldLocation? FollowUnit(WorldLocation start, WorldLocation unit)
+    {
+        WorldLocation? next = null;
+        float minCost = GetDistanceCost(start, unit);
+
+        for (int zOffset = -1; zOffset <= 1; ++zOffset)
+        {
+            for (int xOffset = -1; xOffset <= 1; ++xOffset)
+            {
+                float x = start.X + (xOffset * Chunk.TILE_WIDTH);
+                float z = start.Z + (zOffset * Chunk.TILE_WIDTH);
+
+                if (x < 0 || x > WorldMap.WIDTH ||
+                    z < 0 || z > WorldMap.WIDTH)
+                    continue;
+
+                WorldLocation newLocation = new(x, z);
+
+                if (Mathf.Abs(WorldMap.Instance.GetHeight(start) - WorldMap.Instance.GetHeight(newLocation)) > Chunk.STEP_HEIGHT)
+                    continue;
+
+                float cost = GetDistanceCost(newLocation, unit);
+
+                if (cost < minCost)
+                {
+                    minCost = cost;
+                    next = newLocation;
+                }
+            }
+        }
+
+        return next;
+    }
 }
