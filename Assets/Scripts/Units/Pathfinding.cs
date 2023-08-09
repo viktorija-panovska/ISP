@@ -66,13 +66,6 @@ public static class Pathfinding
                 if (closedList.Contains(neighbor))
                     continue;
 
-                // node cannot be reached
-                if (!IsReachable(nodes[current], nodes[neighbor]))
-                {
-                    closedList.Add(neighbor);
-                    continue;
-                }
-
                 float gCost = nodes[current].GCost + GetDistanceCost(nodes[current].Location, nodes[neighbor].Location);
 
                 if (gCost < nodes[neighbor].GCost)
@@ -117,11 +110,12 @@ public static class Pathfinding
                 float x = currentNode.Location.X + (xOffset * Chunk.TILE_WIDTH);
                 float z = currentNode.Location.Z + (zOffset * Chunk.TILE_WIDTH);
 
-                if (x < 0 || x > WorldMap.WIDTH ||
-                    z < 0 || z > WorldMap.WIDTH)
-                    continue;
-
                 WorldLocation newLocation = new(x, z);
+
+                if (x < 0 || x > WorldMap.WIDTH || z < 0 || z > WorldMap.WIDTH || 
+                    !WorldMap.Instance.IsSpaceAccessible(newLocation) ||
+                    Mathf.Abs(WorldMap.Instance.GetHeight(currentNode.Location) - WorldMap.Instance.GetHeight(newLocation)) > Chunk.STEP_HEIGHT)
+                    continue;
 
                 Vector2 key = GetKey(newLocation);
 
@@ -133,15 +127,6 @@ public static class Pathfinding
         }
 
         return neighbors;
-    }
-
-
-    private static bool IsReachable(PathNode current, PathNode neighbor)
-    {
-        float currentY = WorldMap.Instance.GetHeight(current.Location);
-        float neighborY = WorldMap.Instance.GetHeight(neighbor.Location);
-
-        return Mathf.Abs(currentY - neighborY) <= Chunk.STEP_HEIGHT;
     }
 
 

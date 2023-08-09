@@ -259,7 +259,7 @@ public class UnitMovementHandler : NetworkBehaviour
         (float x, float z) target = (currentLocation.X + roamDirection.x * Chunk.TILE_WIDTH, currentLocation.Z + roamDirection.z * Chunk.TILE_WIDTH);
         WorldLocation targetLocation = new(target.x, target.z);
 
-        if (target.x < 0 || target.z < 0 || target.x > WorldMap.WIDTH || target.z > WorldMap.WIDTH)
+        if (target.x < 0 || target.z < 0 || target.x > WorldMap.WIDTH || target.z > WorldMap.WIDTH || !WorldMap.Instance.IsSpaceAccessible(targetLocation))
         {
             stepsTaken = 0;
             roamDirection = ChooseRoamDirection(currentLocation);
@@ -312,9 +312,11 @@ public class UnitMovementHandler : NetworkBehaviour
                     continue;
 
                 WorldLocation target = new(targetX, targetZ);
-
-                if (IsSpaceHouseOrFree(target, roamDirection))
+                if (WorldMap.Instance.IsSpaceAccessible(target) && !WorldMap.Instance.IsSpaceSwamp(target) && IsSpaceHouseOrFree(target, roamDirection))
+                {
+                    Debug.Log($"{Unit.Team} {target.X} {target.Z}");
                     return target;
+                }
             }
         }
 
@@ -338,9 +340,11 @@ public class UnitMovementHandler : NetworkBehaviour
                     continue;
 
                 WorldLocation target = new(targetX, targetZ);
-
-                if (IsSpaceHouseOrFree(target, roamDirection))
+                if (WorldMap.Instance.IsSpaceAccessible(target) && !WorldMap.Instance.IsSpaceSwamp(target) && IsSpaceHouseOrFree(target, roamDirection))
+                {
+                    Debug.Log($"{Unit.Team} {target.X} {target.Z}");
                     return target;
+                }
             }
         }
 
@@ -368,9 +372,11 @@ public class UnitMovementHandler : NetworkBehaviour
                             continue;
 
                         WorldLocation target = new(targetX, targetZ);
-
-                        if (IsSpaceHouseOrFree(target, roamDirection))
+                        if (WorldMap.Instance.IsSpaceAccessible(target) && !WorldMap.Instance.IsSpaceSwamp(target) && IsSpaceHouseOrFree(target, roamDirection))
+                        {
+                            Debug.Log($"{Unit.Team} {target.X} {target.Z}");
                             return target;
+                        }
                     }
                 }
                 else
@@ -381,9 +387,11 @@ public class UnitMovementHandler : NetworkBehaviour
                         continue;
 
                     WorldLocation target = new(targetX, targetZ);
-
-                    if (IsSpaceHouseOrFree(target, roamDirection))
+                    if (WorldMap.Instance.IsSpaceAccessible(target) && !WorldMap.Instance.IsSpaceSwamp(target) && IsSpaceHouseOrFree(target, roamDirection))
+                    {
+                        Debug.Log($"{Unit.Team} {target.X} {target.Z}");
                         return target;
+                    }
                 }
             }
         }
@@ -432,7 +440,8 @@ public class UnitMovementHandler : NetworkBehaviour
             WorldLocation vertex = new(start.X + x * Chunk.TILE_WIDTH, start.Z + z * Chunk.TILE_WIDTH);
 
             if (vertex.X < 0 || vertex.Z < 0 || vertex.X > WorldMap.WIDTH || vertex.Z > WorldMap.WIDTH ||
-                WorldMap.Instance.GetHeight(start) != WorldMap.Instance.GetHeight(vertex))
+                WorldMap.Instance.GetHeight(start) != WorldMap.Instance.GetHeight(vertex) ||
+                !WorldMap.Instance.IsSpaceAccessible(vertex) || WorldMap.Instance.IsSpaceSwamp(vertex))
                 return false;
 
             if (WorldMap.Instance.IsOccupied(vertex))

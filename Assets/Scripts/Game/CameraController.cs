@@ -168,9 +168,11 @@ public class CameraController : MonoBehaviour
                 if (newChunk.x >= 0 && newChunk.z >= 0 &&
                     newChunk.x < WorldMap.CHUNK_NUMBER && newChunk.z < WorldMap.CHUNK_NUMBER)
                 {
-                    if (WorldMap.Instance.GetChunk(newChunk.x, newChunk.z).DistanceFromPoint(cameraPosition) <= viewDistance)
+                    Chunk chunk = WorldMap.Instance.GetChunk(newChunk.x, newChunk.z);
+
+                    if (chunk.DistanceFromPoint(cameraPosition) <= viewDistance)
                     {
-                        WorldMap.Instance.GetChunk(newChunk.x, newChunk.z).SetVisibility(true);
+                        chunk.SetVisibility(true);
                         lastVisibleChunks.Add(newChunk);
                     }
                 }

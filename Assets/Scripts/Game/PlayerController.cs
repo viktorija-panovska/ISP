@@ -1,3 +1,4 @@
+using System;
 using Unity.Netcode;
 using UnityEngine;
 
@@ -73,6 +74,8 @@ public class PlayerController : NetworkBehaviour
             activePower = Powers.Swamp;
         if (Input.GetKeyDown(KeyCode.Alpha5))
             activePower = Powers.Crusade;
+        if (Input.GetKeyDown(KeyCode.Alpha6))
+            activePower = Powers.Flood;
 
         if (GameController.Instance.PowerCost[(int)activePower] > Mana)
             activePower = Powers.MoldTerrain;
@@ -97,6 +100,10 @@ public class PlayerController : NetworkBehaviour
 
             case Powers.Crusade:
                 SendKnight();
+                break;
+
+            case Powers.Flood:
+                CreateFlood();
                 break;
         }
     }
@@ -160,7 +167,7 @@ public class PlayerController : NetworkBehaviour
         {
             Vector3 hitPoint = hitInfo.point;
 
-            if (hud.IsClickable(hitPoint))
+            if (hud.IsClickable(hitInfo))
             {
                 WorldLocation location = new(hitPoint.x, hitPoint.z);
 
@@ -188,7 +195,7 @@ public class PlayerController : NetworkBehaviour
         {
             Vector3 hitPoint = hitInfo.point;
 
-            if (hud.IsClickable(hitPoint))
+            if (hud.IsClickable(hitInfo))
             {
                 WorldLocation location = new(hitPoint.x, hitPoint.z);
                 hud.HighlightMarker(location, index, true);
@@ -219,7 +226,7 @@ public class PlayerController : NetworkBehaviour
         {
             Vector3 hitPoint = hitInfo.point;
 
-            if (hud.IsClickable(hitPoint))
+            if (hud.IsClickable(hitInfo))
             {
                 WorldLocation location = new(hitPoint.x, hitPoint.z);
                 hud.HighlightMarker(location, index, false);
@@ -248,7 +255,7 @@ public class PlayerController : NetworkBehaviour
         {
             Vector3 hitPoint = hitInfo.point;
 
-            if (hud.IsClickable(hitPoint))
+            if (hud.IsClickable(hitInfo))
             {
                 WorldLocation location = new(hitPoint.x, hitPoint.z);
                 hud.HighlightMarker(location, index, true);
@@ -272,10 +279,18 @@ public class PlayerController : NetworkBehaviour
     {
         if (GameController.Instance.HasLeader(team))
         {
-            RemoveMana(GameController.Instance.PowerCost[(int)Powers.GuideFollowers]);
+            RemoveMana(GameController.Instance.PowerCost[(int)Powers.Crusade]);
             GameController.Instance.SendKnightServerRpc(team);
         }
 
+        activePower = Powers.MoldTerrain;
+    }
+
+
+    private void CreateFlood()
+    {
+        GameController.Instance.IncreaseWaterLevelServerRpc();
+        RemoveMana(GameController.Instance.PowerCost[(int)Powers.Flood]);
         activePower = Powers.MoldTerrain;
     }
 }

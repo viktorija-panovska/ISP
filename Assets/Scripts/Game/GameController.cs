@@ -54,6 +54,15 @@ public struct WorldLocation : INetworkSerializable, IEquatable<WorldLocation>
         return new(a.X + dx * (Chunk.TILE_WIDTH / 2), a.Z + dz * (Chunk.TILE_WIDTH / 2), isCenter: true);
     }
 
+    public static WorldLocation GetRandomWorldLocationInRange(int min, int max)
+    {
+        WorldLocation randomLocation = new(UnityEngine.Random.Range(min, max), UnityEngine.Random.Range(min, max));
+
+        while (WorldMap.Instance.GetHeight(randomLocation) == 0 || WorldMap.Instance.IsSpaceAccessible(randomLocation))
+            randomLocation = new(UnityEngine.Random.Range(min, max), UnityEngine.Random.Range(min, max));
+
+        return randomLocation;
+    }
 
     public bool Equals(WorldLocation other)
         => X == other.X && Z == other.Z;
@@ -72,13 +81,7 @@ public class GameController : NetworkBehaviour
 {
     public static GameController Instance;
 
-    public const int MIN_MANA = 0;
-    public const int MAX_MANA = 100;
-
-    private const int STARTING_UNITS = 2;
-    private const int MAX_UNITS_PER_PLAYER = 5;
-    private const int EARTHQUAKE_RANGE = 3;
-
+    // Prefabs
     public GameObject WorldMapPrefab;
     public GameObject PlayerControllerPrefab;
     public GameObject[] HousePrefabs;
@@ -86,27 +89,29 @@ public class GameController : NetworkBehaviour
     public GameObject[] FlagPrefabs;
     public GameObject SwampPrefab;
     public GameObject[] ForestPrefabs;
+    public GameObject WaterPlanePrefab;
 
-    public readonly int[] PowerCost = { 0, 0, 0, 0 };
+    // Environment
+    private readonly int[] forestDensity = { 4, 1 };
+    private GameObject waterPlane;
+    public int WaterLevel { get; private set; }
 
+    // Civilization
+    private const int STARTING_UNITS = 2;
+    private const int MAX_UNITS_PER_PLAYER = 5;
     private readonly List<Unit>[] activeUnits = { new(), new() };
     private readonly int[] units = { 0, 0 };
     private readonly IPlayerObject[] leaders = new IPlayerObject[2];
     private readonly List<House>[] activeHouses = { new(), new() };
 
+    // Powers
+    public const int MIN_MANA = 0;
+    public const int MAX_MANA = 100;
+    public readonly int[] PowerCost = { 0, 0, 0, 0, 0, 0, 0 };
+
+    public const int EARTHQUAKE_RANGE = 3;
     private readonly GameObject[] flags = new GameObject[2];
-    private readonly int[] forestDensity = { 5, 3 };
 
-
-    private WorldLocation GetRandomWorldLocationInRange(int min, int max)
-    {
-        WorldLocation randomLocation = new(UnityEngine.Random.Range(min, max), UnityEngine.Random.Range(min, max));
-
-        while (WorldMap.Instance.GetHeight(randomLocation) == 0 || WorldMap.Instance.IsVertexOccupied(randomLocation))
-            randomLocation = new(UnityEngine.Random.Range(min, max), UnityEngine.Random.Range(min, max));
-
-        return randomLocation;
-    }
 
 
 
@@ -117,13 +122,13 @@ public class GameController : NetworkBehaviour
         Instance = this;
 
         if (IsServer) 
-        {
+        { 
             SpawnMap();
-            //PopulateMap();
+            PopulateMap();
         }
 
         SetupPlayerControllerServerRpc(NetworkManager.Singleton.LocalClientId);
-        InitialSpawnUnitsServerRpc();
+        //InitialSpawnUnitsServerRpc();
 
         SetupFlagsServerRpc();
     }
@@ -131,19 +136,25 @@ public class GameController : NetworkBehaviour
     private void SpawnMap()
     {
         GameObject worldMapObject = Instantiate(WorldMapPrefab);
-        worldMapObject.SetActive(true);
         worldMapObject.GetComponent<NetworkObject>().Spawn(destroyWithScene: true);
+
+        waterPlane = Instantiate(WaterPlanePrefab);
+        waterPlane.transform.position = new(WorldMap.WIDTH / 2, waterPlane.transform.position.y, WorldMap.WIDTH / 2);
+
+        // size the water plane to the size of the map
+        Vector3 scale = waterPlane.transform.localScale;
+        scale.x = WorldMap.WIDTH * scale.x / waterPlane.GetComponent<Renderer>().bounds.size.x;
+        scale.z = WorldMap.WIDTH * scale.z / waterPlane.GetComponent<Renderer>().bounds.size.z;
+        waterPlane.transform.localScale = scale;
+
+        waterPlane.GetComponent<NetworkObject>().Spawn(destroyWithScene: true);
     }
 
     [ServerRpc(RequireOwnership = false)]
     private void SetupPlayerControllerServerRpc(ulong clientID)
     {
         GameObject playerController = Instantiate(PlayerControllerPrefab);
-        playerController.SetActive(true);
-
-        NetworkObject networkObject = playerController.GetComponent<NetworkObject>();
-
-        networkObject.SpawnAsPlayerObject(clientID, true);
+        playerController.GetComponent<NetworkObject>().SpawnAsPlayerObject(clientID, destroyWithScene: true);
     }
 
     [ServerRpc(RequireOwnership = false)]
@@ -159,10 +170,10 @@ public class GameController : NetworkBehaviour
 
         for (int i = 0; i < STARTING_UNITS; ++i)
         {
-            WorldLocation location = GetRandomWorldLocationInRange(min, max);
+            WorldLocation location = WorldLocation.GetRandomWorldLocationInRange(min, max);
 
             while (occupiedSpots.Contains(location))
-                location = GetRandomWorldLocationInRange(min, max);
+                location = WorldLocation.GetRandomWorldLocationInRange(min, max);
             occupiedSpots.Add(location);
 
             SpawnUnit(clientId, location, new BaseUnit(), isLeader: i == leader);
@@ -175,11 +186,6 @@ public class GameController : NetworkBehaviour
         for (int i = 0; i < flags.Length; ++i)
         {
             flags[i] = Instantiate(FlagPrefabs[i], new Vector3(0, 0, 0), Quaternion.identity);
-            flags[i].SetActive(false);
-
-            Flag flag = flags[i].GetComponent<Flag>();
-            flag.Team = i == 0 ? Teams.Red : Teams.Blue;
-
             flags[i].GetComponent<NetworkObject>().Spawn(destroyWithScene: true);
         }
     }
@@ -193,6 +199,52 @@ public class GameController : NetworkBehaviour
     {
         PlayerController.Instance.AddMana(manaGain);
     }
+
+
+
+    #region Map
+
+    public void MoveFormation(float height, GameObject formation)
+    {
+        formation.transform.position = new Vector3(formation.transform.position.x, height, formation.transform.position.z);
+    }
+
+    public void DestroyFormation(GameObject formation)
+    {
+        formation.GetComponent<NetworkObject>().Despawn();
+    }
+
+
+    private void PopulateMap()
+    {
+        for (int z = 0; z < WorldMap.WIDTH; z += Chunk.TILE_WIDTH)
+        {
+            for (int x = 0; x < WorldMap.WIDTH; x += Chunk.TILE_WIDTH)
+            {
+                WorldLocation location = new(x, z);
+
+                if (!WorldMap.Instance.IsSpaceAccessible(location))
+                    continue;
+
+                for (int i = 0; i < ForestPrefabs.Length; ++i)
+                {
+                    if (UnityEngine.Random.Range(0, 20) < forestDensity[i])
+                    {
+                        GameObject forestObject = Instantiate(ForestPrefabs[i],
+                            new Vector3(location.X, WorldMap.Instance.GetHeight(location), location.Z),
+                            Quaternion.identity);
+
+                        forestObject.GetComponent<NetworkObject>().Spawn(destroyWithScene: true);
+                        WorldMap.Instance.SetFormationAtVertex(location, forestObject.GetComponent<NaturalFormation>());
+
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    #endregion
 
 
 
@@ -364,51 +416,6 @@ public class GameController : NetworkBehaviour
             activeHouses[(int)house.Team - 1].Remove(house);
 
         house.gameObject.GetComponent<NetworkObject>().Despawn();
-    }
-
-    #endregion
-
-
-
-    #region Natural Formations
-
-    public void MoveFormation(float height, GameObject formation)
-    {
-        formation.transform.position = new Vector3(formation.transform.position.x, height, formation.transform.position.z);
-    }
-
-    public void DestroyFormation(GameObject formation)
-    {
-        formation.GetComponent<NetworkObject>().Despawn();
-    }
-
-
-    private void PopulateMap()
-    {
-        for (int z = 0; z < WorldMap.WIDTH; z += Chunk.TILE_WIDTH)
-        {
-            for (int x = 0; x < WorldMap.WIDTH; x += Chunk.TILE_WIDTH)
-            {
-                for (int i = 0; i < ForestPrefabs.Length; ++i)
-                {
-                    if (UnityEngine.Random.Range(0, 10) < forestDensity[i])
-                    {
-                        WorldLocation location = new(x, z);
-
-                        GameObject forestObject = Instantiate(ForestPrefabs[i],
-                            new Vector3(location.X, WorldMap.Instance.GetHeight(location), location.Z),
-                            Quaternion.identity);
-
-                        NaturalFormation formation = forestObject.GetComponent<NaturalFormation>();
-                        WorldMap.Instance.SetFormationAtVertex(location, formation);
-
-                        forestObject.GetComponent<NetworkObject>().Spawn(destroyWithScene: true);
-
-                        break;
-                    }
-                }
-            }
-        }
     }
 
     #endregion
@@ -622,10 +629,7 @@ public class GameController : NetworkBehaviour
             DestroyHouse(house, false);
 
         GameObject swampObject = Instantiate(SwampPrefab, new Vector3(location.X, WorldMap.Instance.GetHeight(location), location.Z), Quaternion.identity);
-
-        NaturalFormation swamp = swampObject.GetComponent<NaturalFormation>();
-        WorldMap.Instance.SetFormationAtVertex(location, swamp);
-
+        WorldMap.Instance.SetFormationAtVertex(location, swampObject.GetComponent<NaturalFormation>());
         swampObject.GetComponent<NetworkObject>().Spawn(destroyWithScene: true);
     }
 
@@ -635,7 +639,7 @@ public class GameController : NetworkBehaviour
 
     #region Crusade
 
-    [ServerRpc]
+    [ServerRpc(RequireOwnership = false)]
     public void SendKnightServerRpc(Teams team)
     {
         int index = (int)team - 1;
@@ -649,6 +653,24 @@ public class GameController : NetworkBehaviour
         Unit leader = (Unit)leaders[index];
         leader.MakeKnight();
         leaders[index] = null;
+    }
+
+    #endregion
+
+
+
+    #region Flood
+
+    [ServerRpc(RequireOwnership = false)]
+    public void IncreaseWaterLevelServerRpc()
+    {
+        if (WaterLevel == Chunk.MAX_HEIGHT)
+            return;
+
+        WaterLevel += Chunk.STEP_HEIGHT;
+        waterPlane.transform.position = new(waterPlane.transform.position.x, waterPlane.transform.position.y + Chunk.STEP_HEIGHT, waterPlane.transform.position.z);
+
+        WorldMap.Instance.DestroyUnderwaterFormations();
     }
 
     #endregion

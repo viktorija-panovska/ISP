@@ -75,14 +75,12 @@ public class Chunk
     private readonly Dictionary<(int x, int z), NaturalFormation> formations = new();
 
 
-    public bool IsVertexOccupied(int x, int z)
+
+    public bool IsSpaceAccessible(int x, int z)
     {
         (int x, int z) index = CoordsToIndices(x, z);
-
-        if (houseAtVertex[index.z, index.x] != null || formations.ContainsKey(index))
-            return true;
-
-        return false;
+        return GetVertexHeightAtIndex(index.x, index.z) > GameController.Instance.WaterLevel
+               && (!formations.ContainsKey(index) || formations[index].Type == FormationTypes.Swamp);
     }
 
 
@@ -110,6 +108,9 @@ public class Chunk
     public void SetVisibility(bool isVisible)
     {
         gameObject.SetActive(isVisible);
+
+        foreach (((int, int) _, var formation) in formations)
+            formation.gameObject.SetActive(isVisible);
     }
 
     public float DistanceFromPoint(Vector3 point) => Mathf.Sqrt(chunkBounds.SqrDistance(point));
@@ -176,6 +177,28 @@ public class Chunk
     {
         (int, int) index = CoordsToIndices(x, z);
         formations.Add(index, formation);
+    }
+
+    public bool IsSpaceSwamp(int x, int z)
+    {
+        (int, int) index = CoordsToIndices(x, z);
+
+        return formations.ContainsKey(index) && formations[index].Type == FormationTypes.Swamp;
+    }
+
+    public void DestroyUnderwaterFormations()
+    {
+        List<(int x, int z)> underwater = new();
+
+        foreach ((int x, int z) key in formations.Keys)
+            if (GetVertexHeightAtIndex(key.x, key.z) <= GameController.Instance.WaterLevel)
+                underwater.Add(key);
+
+        foreach ((int x, int z) in underwater)
+        {
+            GameController.Instance.DestroyFormation(formations[(x, z)].gameObject);
+            formations.Remove((x, z));
+        }
     }
 
     #endregion
@@ -312,7 +335,7 @@ public class Chunk
                     neighborHeights.Add(GetVertexHeightAtIndex(x + neighbor_x, z + neighbor_z));
 
             if (neighborHeights.TrueForAll(EqualToFirst))
-                height = Mathf.Clamp(height, neighborHeights[0] - STEP_HEIGHT, neighborHeights[0] + STEP_HEIGHT);
+                height = Mathf.Clamp(height, Mathf.Max(0, neighborHeights[0] - STEP_HEIGHT), Mathf.Min(neighborHeights[0] + STEP_HEIGHT, MAX_HEIGHT));
             else
             {
                 int[] neighborHeightsArray = neighborHeights.ToArray();
@@ -375,8 +398,6 @@ public class Chunk
 
     private void UpdateHeightAtPoint(int x, int z, bool decrease, ref HashSet<(int, int)> modifiedVertices)
     {
-        if (GetVertexHeightAtIndex(x, z) == 0) return;
-
         // Get all the vertices that share the clicked point
         List<int> currentVertices = vertices[z, x];
 
@@ -403,7 +424,6 @@ public class Chunk
             else
                 GameController.Instance.MoveFormation(GetVertexHeightAtIndex(x, z), formations[(x, z)].gameObject);
         }
-
 
         if (!modifiedVertices.Contains(WorldMap.GlobalCoordsFromLocal(ChunkIndex, VertexIndicesToCoords(x, z))))
             modifiedVertices.Add(WorldMap.GlobalCoordsFromLocal(ChunkIndex, VertexIndicesToCoords(x, z)));

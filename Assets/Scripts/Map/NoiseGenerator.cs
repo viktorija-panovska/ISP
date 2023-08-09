@@ -62,10 +62,6 @@ public static class NoiseGenerator
             frequency *= LACUNARITY;
         }
 
-        //Debug.Log(position);
-        //Debug.Log(elevation / amplitudeSum);
-        //Debug.Log((elevation + (1 - GetFalloffAtPosition(position))) / (2 * amplitudeSum));
-
         return (elevation + (1 - GetFalloffAtPosition(position))) / (2 * amplitudeSum);
     }
 

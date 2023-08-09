@@ -222,6 +222,7 @@ public class House : NetworkBehaviour, IPlayerObject
 
         UnitsInHouse = 0;
     }
+    
     #endregion
 
 

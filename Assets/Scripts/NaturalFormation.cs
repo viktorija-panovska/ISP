@@ -1,5 +1,4 @@
 using UnityEngine;
-using Unity.Netcode;
 
 
 public enum FormationTypes
@@ -31,7 +30,7 @@ public struct Swamp : IFormationType
 
 
 
-public class NaturalFormation : NetworkBehaviour
+public class NaturalFormation : MonoBehaviour
 {
     public FormationTypes Type;
     public IFormationType FormationType { get; private set; }
@@ -55,7 +54,7 @@ public class NaturalFormation : NetworkBehaviour
     {
         int newHeight = WorldMap.Instance.GetHeight(new(Position.x, Position.z));
 
-        if (newHeight == 0)
+        if (newHeight == GameController.Instance.WaterLevel)
             return true;
 
         if (newHeight != height && !FormationType.DestroyOnlyAtBottom)

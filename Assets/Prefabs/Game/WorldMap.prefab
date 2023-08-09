@@ -63,4 +63,3 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   MapSeed: 546546
   WorldMaterial: {fileID: 2100000, guid: 5c1e1cf3be0b7c14aad9dde1a7d53819, type: 2}
-  ChunkPrefab: {fileID: 1698938185675829648, guid: e9369c851b6ba8541b51f23fbc438cd4, type: 3}

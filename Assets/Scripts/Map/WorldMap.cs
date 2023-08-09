@@ -56,7 +56,7 @@ public class WorldMap : NetworkBehaviour
     public static WorldMap Instance;
 
     public Vector3 Position { get => transform.position; }
-    public const int CHUNK_NUMBER = 2;
+    public const int CHUNK_NUMBER = 5;
     public const int WIDTH = CHUNK_NUMBER * Chunk.WIDTH;
 
     private readonly Chunk[,] chunkMap = new Chunk[CHUNK_NUMBER, CHUNK_NUMBER];
@@ -67,11 +67,11 @@ public class WorldMap : NetworkBehaviour
     public Material WorldMaterial;
 
 
-    public bool IsVertexOccupied(WorldLocation globalVertexCoord)
+    public bool IsSpaceAccessible(WorldLocation globalVertexCoord)
     {
         (int chunk_x, int chunk_z) = GetChunkIndex(globalVertexCoord.X, globalVertexCoord.Z);
         (int local_x, int local_z) = LocalCoordsFromGlobal(globalVertexCoord.X, globalVertexCoord.Z);
-        return chunkMap[chunk_z, chunk_x].IsVertexOccupied(local_x, local_z);
+        return chunkMap[chunk_z, chunk_x].IsSpaceAccessible(local_x, local_z);
     }
 
 
@@ -164,6 +164,20 @@ public class WorldMap : NetworkBehaviour
         chunkMap[chunk_z, chunk_x].SetFormationAtVertex(local_x, local_z, formation);
     }
 
+    public bool IsSpaceSwamp(WorldLocation globalVertexCoord)
+    {
+        (int chunk_x, int chunk_z) = GetChunkIndex(globalVertexCoord.X, globalVertexCoord.Z);
+        (int local_x, int local_z) = LocalCoordsFromGlobal(globalVertexCoord.X, globalVertexCoord.Z);
+        return chunkMap[chunk_z, chunk_x].IsSpaceSwamp(local_x, local_z);
+    }
+
+    public void DestroyUnderwaterFormations()
+    {
+        for (int z = 0; z < CHUNK_NUMBER; ++z)
+            for (int x = 0; x < CHUNK_NUMBER; ++x)
+                chunkMap[z, x].DestroyUnderwaterFormations();
+    }
+
     #endregion
 
 
@@ -188,7 +202,6 @@ public class WorldMap : NetworkBehaviour
                 chunk.gameObject.GetComponent<MeshRenderer>().material = WorldMaterial;
                 chunk.SetMesh();
                 chunk.gameObject.transform.SetParent(transform);
-
                 chunkMap[z, x] = chunk;
             }
         }

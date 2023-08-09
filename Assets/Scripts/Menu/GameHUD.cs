@@ -1,4 +1,3 @@
-using System;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -26,6 +25,8 @@ public class GameHUD : MonoBehaviour
 
 
 
+    #region Setup
+
     private void Awake()
     {
         // Set markers
@@ -35,10 +36,33 @@ public class GameHUD : MonoBehaviour
             markers[i].SetActive(false);
         }
 
+        GameObject earthquakeMarker = markers[(int)Powers.Earthquake];
+
+        // size the earthquake marker to the size of the map
+        Vector3 scale = earthquakeMarker.transform.localScale;
+        scale.x = (GameController.EARTHQUAKE_RANGE * Chunk.TILE_WIDTH) * scale.x / earthquakeMarker.GetComponent<Renderer>().bounds.size.x;
+        scale.z = (GameController.EARTHQUAKE_RANGE * Chunk.TILE_WIDTH) * scale.z / earthquakeMarker.GetComponent<Renderer>().bounds.size.z;
+        earthquakeMarker.transform.localScale = scale;
+
         ManaBar.minValue = GameController.MIN_MANA;
         ManaBar.maxValue = GameController.MAX_MANA;
         ManaBar.value = ManaBar.minValue;
     }
+
+    private void OnDestroy()
+    {
+        ResetCursor();
+    }
+
+    public void SetController(PlayerController controller)
+    {
+        this.controller = controller;
+    }
+
+    #endregion
+
+
+
 
     private void Update()
     {
@@ -50,18 +74,6 @@ public class GameHUD : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.M))
             ToggleMap();
     }
-
-    private void OnDestroy()
-    {
-        ResetCursor();
-    }
-
-
-    public void SetController(PlayerController controller)
-    {
-        this.controller = controller;
-    }
-
 
     private void PauseGame()
     {
@@ -81,11 +93,11 @@ public class GameHUD : MonoBehaviour
     }
 
 
-    public bool IsClickable(Vector3 hitPoint)
-        => Mathf.Abs(Mathf.Round(hitPoint.x / Chunk.TILE_WIDTH) - hitPoint.x / Chunk.TILE_WIDTH) < CLICKER_ERROR &&
-           Mathf.Abs(Mathf.Round(hitPoint.y / Chunk.STEP_HEIGHT) - hitPoint.y / Chunk.STEP_HEIGHT) < CLICKER_ERROR &&
-           Mathf.Abs(Mathf.Round(hitPoint.z / Chunk.TILE_WIDTH) - hitPoint.z / Chunk.TILE_WIDTH) < CLICKER_ERROR &&
-           !WorldMap.Instance.IsVertexOccupied(new(hitPoint.x, hitPoint.z));
+    public bool IsClickable(RaycastHit hitInfo)
+        => hitInfo.collider.gameObject.layer != LayerMask.NameToLayer("Water") &&
+           Mathf.Abs(Mathf.Round(hitInfo.point.x / Chunk.TILE_WIDTH) - hitInfo.point.x / Chunk.TILE_WIDTH) < CLICKER_ERROR &&
+           Mathf.Abs(Mathf.Round(hitInfo.point.y / Chunk.STEP_HEIGHT) - hitInfo.point.y / Chunk.STEP_HEIGHT) < CLICKER_ERROR &&
+           Mathf.Abs(Mathf.Round(hitInfo.point.z / Chunk.TILE_WIDTH) - hitInfo.point.z / Chunk.TILE_WIDTH) < CLICKER_ERROR;
 
 
     public void UpdateManaBar(int mana)
