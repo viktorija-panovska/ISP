@@ -278,6 +278,7 @@ GameObject:
   - component: {fileID: 8476409890696036328}
   - component: {fileID: 4879853796011759092}
   - component: {fileID: 2651398114892138494}
+  - component: {fileID: 4356391194417125182}
   m_Layer: 7
   m_Name: Hut
   m_TagString: Untagged
@@ -382,6 +383,19 @@ MonoBehaviour:
   HealthBar: {fileID: 963801196063003493}
   Fill: {fileID: 9197906121697523148}
   LeaderMarker: {fileID: 3040884800902197518}
+--- !u!65 &4356391194417125182
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3435573214129474652}
+  m_Material: {fileID: 0}
+  m_IsTrigger: 0
+  m_Enabled: 1
+  serializedVersion: 2
+  m_Size: {x: 1, y: 1, z: 1}
+  m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &7825948508522091219
 GameObject:
   m_ObjectHideFlags: 0

@@ -34,7 +34,7 @@ public class BattleDetector : MonoBehaviour
             {
                 target = house.gameObject;
 
-                WorldLocation position = house.GetClosestVertex(Unit.Position);
+                WorldLocation position = Helpers.GetClosestVertex(Unit.Position, house.Vertices).location;
 
                 List<WorldLocation> path = Pathfinding.FindPath(new WorldLocation(Unit.Position.x, Unit.Position.z), position);
 

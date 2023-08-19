@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Unity.Netcode;
 using UnityEngine;
@@ -5,7 +6,7 @@ using UnityEngine;
 
 public enum MoveState
 {
-    Searching,
+    Free,
     FoundFriendlyHouse,
     FoundEnemyHouse,
     FoundFlatSpace,
@@ -16,48 +17,47 @@ public class UnitMovementHandler : NetworkBehaviour
 {
     private Unit Unit { get => GetComponent<Unit>(); }
 
-    private Vector3 Position { get => transform.position; set => transform.position = value; }
+    private Vector3 Position { get => gameObject.transform.position; set => gameObject.transform.position = value; }
+    private WorldLocation Location { get => new(Position.x, Position.z); }
 
     private const float MOVE_SPEED = 2f;
     private const float POSITION_ERROR = 0.5f;
 
     private bool isGuided = false;
 
+    private readonly (int x, int z)[] directions = new (int, int)[] { (-1, 1), (0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (-1, -1), (-1, 0) };
+
 
     // Following path
     private List<WorldLocation> path;
     private int targetIndex = 0;
-    private Vector3? pathTarget;
+    private WorldLocation? pathTarget;
     private bool intermediateStep;
 
     public WorldLocation StartLocation { get; private set; }
-    public WorldLocation EndLocation { get; private set; }
+    public WorldLocation EndLocation { get => pathTarget ?? StartLocation; }
+
+    private Unit followingUnit;
 
 
     // Roaming
     private const int VIEW_DISTANCE = 5;
     private const int ROAM_DISTANCE = 10;
-    private int stepsTaken;
-    private (int x, int z) roamDirection;
+    private int stepsTaken = 0;
+    private (int x, int z) roamDirection = (0, 0);
 
 
     // Building
-    private MoveState lastMoveState = MoveState.Searching;
-    private MoveState moveState = MoveState.Searching;
+    private MoveState lastMoveState = MoveState.Free;
+    private MoveState moveState = MoveState.Free;
     private List<WorldLocation> houseVertices;
 
 
-
-    private void Start()
+    public void Initialize()
     {
-        if (!IsOwner) return;
-
         StartLocation = new WorldLocation(Position.x, Position.z);
-        EndLocation = StartLocation;
-
-        // Once units are released from a house, don't check the first step and set roaming direction in the opposite direction of the house
-
         roamDirection = ChooseRoamDirection(new WorldLocation(Position.x, Position.z));
+        ChooseNewRoamTarget(StartLocation);
     }
 
     private void Update()
@@ -67,8 +67,10 @@ public class UnitMovementHandler : NetworkBehaviour
         if (moveState == MoveState.Stop)
             return;
 
-        if (path != null)
+        if (path != null || pathTarget != null)
             FollowPath();
+        else if (followingUnit != null)
+            FollowUnit();
         else
             Roam();
     }
@@ -81,68 +83,14 @@ public class UnitMovementHandler : NetworkBehaviour
 
     public void Resume()
     {
-        moveState = moveState != MoveState.Stop ? lastMoveState : MoveState.Searching;
+        moveState = moveState != MoveState.Stop ? lastMoveState : MoveState.Free;
     }
 
-
-
-    public void EndPath()
-    {
-        path = null;
-        targetIndex = 0;
-
-        if (moveState == MoveState.FoundFlatSpace && IsStillFree())
-        {
-            moveState = MoveState.Stop;
-            OnPlaceFound();
-            Unit.OnEnterHouse();
-            return;
-        }
-        else if (moveState == MoveState.FoundFriendlyHouse && IsFriendlyHouse())
-        {
-            moveState = MoveState.Stop;
-            Unit.OnEnterHouse();
-            return;
-        }
-        else if (moveState == MoveState.FoundEnemyHouse && IsEnemyHouse())
-        {
-            moveState = MoveState.Stop;
-            Unit.OnAttackHouse();
-            return;
-        }
-        else
-            moveState = MoveState.Searching;
-    }
-
-    protected virtual void OnPlaceFound()
-    {
-        GameController.Instance.SpawnHouse(houseVertices, Unit.Team);
-    }
-
-    private bool IsStillFree()
-    {
-        if (WorldMap.Instance.IsOccupied(houseVertices[0]))
-            return false;
-
-        float height = WorldMap.Instance.GetHeight(houseVertices[0]);
-
-        foreach (WorldLocation vertex in houseVertices)
-            if (WorldMap.Instance.GetHeight(vertex) != height)
-                return false;
-
-        return true;
-    }
-
-    private bool IsFriendlyHouse() 
-        => WorldMap.Instance.IsOccupied(houseVertices[0]) && WorldMap.Instance.GetHouseAtVertex(houseVertices[0]).IsEnterable(Unit);
-
-    private bool IsEnemyHouse()
-        => WorldMap.Instance.IsOccupied(houseVertices[0]) && WorldMap.Instance.GetHouseAtVertex(houseVertices[0]).IsAttackable(Unit.Team);
 
 
     #region Following path
 
-    public Vector3? GetNextLocation() => pathTarget;
+    public WorldLocation? GetNextLocation() => pathTarget;
 
     public void SetPath(List<WorldLocation> path, bool isGuided = false)
     {
@@ -155,58 +103,83 @@ public class UnitMovementHandler : NetworkBehaviour
     {
         if (pathTarget == null)
         {
-            EndLocation = path[targetIndex];
+            if (path == null)
+                return;
+
+            pathTarget = path[targetIndex];
             StartLocation = new(Position.x, Position.z, isCenter: intermediateStep);
 
-            if (!intermediateStep && StartLocation.X != EndLocation.X && StartLocation.Z != EndLocation.Z)
+            if (!intermediateStep && StartLocation.X != pathTarget.Value.X && StartLocation.Z != pathTarget.Value.Z)
             {
                 intermediateStep = true;
-                EndLocation = WorldLocation.GetCenter(StartLocation, EndLocation);
+                pathTarget = WorldLocation.GetCenter(StartLocation, pathTarget.Value);
             }
             else
                 intermediateStep = false;
-
-            pathTarget = new(
-                EndLocation.X,
-                WorldMap.Instance.GetHeight(EndLocation) + GetComponent<MeshRenderer>().bounds.extents.y,
-                EndLocation.Z
-            );
         }
 
-        else if (!MoveToTarget(pathTarget.Value))
+        else if (!MoveToTarget(pathTarget.Value))   // we reached the target
         {
             pathTarget = null;
+
+            if (path == null) return;
 
             if (!intermediateStep)
             {
                 targetIndex++;
 
                 if (targetIndex >= path.Count)
+                {
                     EndPath();
+                    return;
+                }
 
                 if (!isGuided)
                 {
-                    if (moveState == MoveState.FoundFlatSpace && !IsStillFree() || 
-                        moveState == MoveState.FoundFriendlyHouse && !IsFriendlyHouse() ||
-                        moveState == MoveState.FoundEnemyHouse && !IsEnemyHouse())
+                    bool isGoalGone = moveState == MoveState.FoundFlatSpace && !IsStillFree() ||
+                                      moveState == MoveState.FoundFriendlyHouse && !IsFriendlyHouse() ||
+                                      moveState == MoveState.FoundEnemyHouse && !IsEnemyHouse();
+
+                    List<WorldLocation> vertices = FindFreeSpaceOrHouse(Location);
+                    if (vertices != null && houseVertices != null)
+                    {
+                        (WorldLocation location, float distance) newClosest = Helpers.GetClosestVertex(Position, vertices);
+                        (WorldLocation l, float distance) oldClosest = Helpers.GetClosestVertex(Position, houseVertices);
+                        if (isGoalGone || newClosest.distance < oldClosest.distance)
+                        {
+                            houseVertices = vertices;
+
+                            if (moveState == MoveState.FoundEnemyHouse)
+                            {
+                                House house = WorldMap.Instance.GetHouseAtVertex(houseVertices[0]);
+                                SetPath(Pathfinding.FindPath(Location, Helpers.GetClosestVertex(Position, house.GetAttackableVertices()).location));
+                            }
+                            else
+                            {
+                                SetPath(Pathfinding.FindPath(Location, newClosest.location));
+                            }
+                        }
+                    }
+                    else if (isGoalGone)
                     {
                         path = null;
                         targetIndex = 0;
-                        moveState = MoveState.Searching;
-                        return;
+                        moveState = MoveState.Free;
                     }
                 }
             }
         }
     }
 
-    private bool MoveToTarget(Vector3 target)
+    private bool MoveToTarget(WorldLocation target)
     {
-        if (Mathf.Abs(Position.x - target.x) > POSITION_ERROR ||
-            Mathf.Abs(Position.y - target.y) > POSITION_ERROR ||
-            Mathf.Abs(Position.z - target.z) > POSITION_ERROR)
+        Vector3 targetPosition = new(target.X, WorldMap.Instance.GetHeight(target) + Unit.HalfHeight, target.Z);
+
+        if (Mathf.Abs(Position.x - targetPosition.x) > POSITION_ERROR ||
+            Mathf.Abs(Position.y - targetPosition.y) > POSITION_ERROR ||
+            Mathf.Abs(Position.z - targetPosition.z) > POSITION_ERROR)
         {
-            Position = Vector3.Lerp(Position, target, MOVE_SPEED * Time.deltaTime);
+            Position = Vector3.Lerp(Position, targetPosition, MOVE_SPEED * Time.deltaTime);
             return true;
         }
         return false;
@@ -221,9 +194,11 @@ public class UnitMovementHandler : NetworkBehaviour
     {
         WorldLocation currentLocation = new(Position.x, Position.z);
 
-        if (!MoveToHouseOrFree(currentLocation))
+        List<WorldLocation> vertices = FindFreeSpaceOrHouse(currentLocation);
+
+        if (vertices == null)
         {
-            if (stepsTaken <= ROAM_DISTANCE)
+            if (stepsTaken <= ROAM_DISTANCE && roamDirection != (0, 0))
                 stepsTaken++;
             else
             {
@@ -233,25 +208,67 @@ public class UnitMovementHandler : NetworkBehaviour
 
             ChooseNewRoamTarget(currentLocation);
         }
+        else
+        {
+            houseVertices = vertices;
+
+            if (moveState == MoveState.FoundEnemyHouse)
+            {
+                House house = WorldMap.Instance.GetHouseAtVertex(houseVertices[0]);
+                SetPath(Pathfinding.FindPath(currentLocation, Helpers.GetClosestVertex(Position, house.GetAttackableVertices()).location));
+            }
+            else
+            {
+                SetPath(Pathfinding.FindPath(currentLocation, Helpers.GetClosestVertex(Position, houseVertices).location));
+            }
+        }
     }
 
     private (int, int) ChooseRoamDirection(WorldLocation currentLocation)
     {
         List<(int, int)> availableDirections = new();
 
-        for (int dz = -1; dz <= 1; ++dz)
+        void AddValidDirections((int, int)[] d)
         {
-            for (int dx = -1; dx <= 1; ++dx)
+            foreach ((int dx, int dz) in d)
             {
-                WorldLocation newLoc = new(currentLocation.X + dx * Chunk.TILE_WIDTH, currentLocation.Z + dz * Chunk.TILE_WIDTH);
+                WorldLocation location = new(currentLocation.X + dx * Chunk.TILE_WIDTH, currentLocation.Z + dz * Chunk.TILE_WIDTH);
 
-                if ((dx, dz) != (0, 0) && (dx, dz) != (-roamDirection.x, -roamDirection.z) &&
-                    newLoc.X >= 0 && newLoc.Z >= 0 && newLoc.X <= WorldMap.WIDTH && newLoc.Z <= WorldMap.WIDTH)
-                    availableDirections.Add((dx, dz));
+                if (!location.IsInBounds() || !WorldMap.Instance.IsSpaceAccessible(location) || 
+                    (WorldMap.Instance.IsOccupied(currentLocation) && WorldMap.Instance.IsOccupied(location) &&
+                     WorldMap.Instance.GetHouseAtVertex(currentLocation) == WorldMap.Instance.GetHouseAtVertex(location)))
+                    continue;
+
+                availableDirections.Add((dx, dz));
             }
         }
 
-        return availableDirections[Random.Range(0, availableDirections.Count - 1)];
+        if (roamDirection == (0, 0))
+            AddValidDirections(directions);
+        else
+        {
+            int currentDirection = Array.IndexOf(directions, roamDirection);
+
+            AddValidDirections(new (int, int)[] { 
+                directions[Helpers.NextArrayIndex(currentDirection, -1, directions.Length)], 
+                directions[Helpers.NextArrayIndex(currentDirection, +1, directions.Length)] });
+
+            if (availableDirections.Count == 0)
+                AddValidDirections(new (int, int)[] {
+                directions[Helpers.NextArrayIndex(currentDirection, -2, directions.Length)],
+                directions[Helpers.NextArrayIndex(currentDirection, +2, directions.Length)] });
+
+            if (availableDirections.Count == 0)
+                AddValidDirections(new (int, int)[] {
+                directions[Helpers.NextArrayIndex(currentDirection, -3, directions.Length)],
+                directions[Helpers.NextArrayIndex(currentDirection, +3, directions.Length)] });
+
+            if (availableDirections.Count == 0)
+                AddValidDirections(new (int, int)[] { directions[currentDirection],
+                directions[Helpers.NextArrayIndex(currentDirection, +4, directions.Length)] });
+        }
+
+        return availableDirections.Count > 0 ? availableDirections[UnityEngine.Random.Range(0, availableDirections.Count - 1)] : (0, 0);
     }
 
     private void ChooseNewRoamTarget(WorldLocation currentLocation)
@@ -259,7 +276,9 @@ public class UnitMovementHandler : NetworkBehaviour
         (float x, float z) target = (currentLocation.X + roamDirection.x * Chunk.TILE_WIDTH, currentLocation.Z + roamDirection.z * Chunk.TILE_WIDTH);
         WorldLocation targetLocation = new(target.x, target.z);
 
-        if (target.x < 0 || target.z < 0 || target.x > WorldMap.WIDTH || target.z > WorldMap.WIDTH || !WorldMap.Instance.IsSpaceAccessible(targetLocation))
+        if (!targetLocation.IsInBounds() || !WorldMap.Instance.IsSpaceAccessible(targetLocation) ||
+            (WorldMap.Instance.IsOccupied(currentLocation) && WorldMap.Instance.IsOccupied(targetLocation) &&
+             WorldMap.Instance.GetHouseAtVertex(currentLocation) == WorldMap.Instance.GetHouseAtVertex(targetLocation)))
         {
             stepsTaken = 0;
             roamDirection = ChooseRoamDirection(currentLocation);
@@ -271,31 +290,25 @@ public class UnitMovementHandler : NetworkBehaviour
     }
 
 
-    private bool MoveToHouseOrFree(WorldLocation currentLocation)
+    private List<WorldLocation> FindFreeSpaceOrHouse(WorldLocation currentLocation)
     {
-        if (CheckSurroundingSquares(currentLocation))
+        List<WorldLocation> vertices = FindFreeSpaceOrHouse_Surrounding(currentLocation);
+        if (vertices != null)
         {
+            houseVertices = vertices;
             EndPath();
-            return true;
+            return null;
         }
 
-        WorldLocation? targetLocation;
-
         if (roamDirection.x == 0)
-            targetLocation = FindHouseOrFree_Vertical(currentLocation);
+            return FindFreeSpaceOrHouse_Vertical(currentLocation);
         else if (roamDirection.z == 0)
-            targetLocation = FindHouseOrFree_Horizontal(currentLocation);
+            return FindFreeSpaceOrHouse_Horizontal(currentLocation);
         else
-            targetLocation = FindHouseOrFree_Diagonal(currentLocation);
-
-        if (targetLocation == null)
-            return false;
-
-        SetPath(Pathfinding.FindPath(currentLocation, targetLocation.Value));
-        return true;
+            return FindFreeSpaceOrHouse_Diagonal(currentLocation);
     }
 
-    private WorldLocation? FindHouseOrFree_Vertical(WorldLocation currentLocation)
+    private List<WorldLocation> FindFreeSpaceOrHouse_Vertical(WorldLocation currentLocation)
     {
         for (int dist = 1; dist < VIEW_DISTANCE; ++dist)
         {
@@ -312,10 +325,11 @@ public class UnitMovementHandler : NetworkBehaviour
                     continue;
 
                 WorldLocation target = new(targetX, targetZ);
-                if (WorldMap.Instance.IsSpaceAccessible(target) && !WorldMap.Instance.IsSpaceSwamp(target) && IsSpaceHouseOrFree(target, roamDirection))
+                if (WorldMap.Instance.IsSpaceAccessible(target) && !WorldMap.Instance.IsSpaceSwamp(target))
                 {
-                    Debug.Log($"{Unit.Team} {target.X} {target.Z}");
-                    return target;
+                    List<WorldLocation> vertices = GetFreeSpaceOrHouse(target);
+                    if (vertices != null)
+                        return vertices;
                 }
             }
         }
@@ -323,7 +337,7 @@ public class UnitMovementHandler : NetworkBehaviour
         return null;
     }
 
-    private WorldLocation? FindHouseOrFree_Horizontal(WorldLocation currentLocation)
+    private List<WorldLocation> FindFreeSpaceOrHouse_Horizontal(WorldLocation currentLocation)
     {
         for (int dist = 1; dist < VIEW_DISTANCE; ++dist)
         {
@@ -340,10 +354,11 @@ public class UnitMovementHandler : NetworkBehaviour
                     continue;
 
                 WorldLocation target = new(targetX, targetZ);
-                if (WorldMap.Instance.IsSpaceAccessible(target) && !WorldMap.Instance.IsSpaceSwamp(target) && IsSpaceHouseOrFree(target, roamDirection))
+                if (WorldMap.Instance.IsSpaceAccessible(target) && !WorldMap.Instance.IsSpaceSwamp(target))
                 {
-                    Debug.Log($"{Unit.Team} {target.X} {target.Z}");
-                    return target;
+                    List<WorldLocation> vertices = GetFreeSpaceOrHouse(target);
+                    if (vertices != null)
+                        return vertices;
                 }
             }
         }
@@ -351,98 +366,112 @@ public class UnitMovementHandler : NetworkBehaviour
         return null;
     }
 
-    private WorldLocation? FindHouseOrFree_Diagonal(WorldLocation currentLocation)
+    private List<WorldLocation> FindFreeSpaceOrHouse_Diagonal(WorldLocation currentLocation)
     {
         for (int dist = 1; dist < VIEW_DISTANCE; ++dist)
         {
             for (int z = 0; z <= dist; ++z)
             {
-                float targetZ = currentLocation.Z + roamDirection.z * z * Chunk.TILE_WIDTH;
-
-                if (targetZ < 0 || targetZ > WorldMap.WIDTH)
-                    continue;
+                (int, int)[] directions;
 
                 if (z == dist)
-                {
-                    for (int x = 0; x <= dist; ++x)
-                    {
-                        float targetX = currentLocation.X + roamDirection.x * x * Chunk.TILE_WIDTH;
-
-                        if (targetX < 0 || targetX > WorldMap.WIDTH)
-                            continue;
-
-                        WorldLocation target = new(targetX, targetZ);
-                        if (WorldMap.Instance.IsSpaceAccessible(target) && !WorldMap.Instance.IsSpaceSwamp(target) && IsSpaceHouseOrFree(target, roamDirection))
-                        {
-                            Debug.Log($"{Unit.Team} {target.X} {target.Z}");
-                            return target;
-                        }
-                    }
-                }
+                    directions = new (int, int)[] { (dist, dist) };
                 else
+                    directions = new (int, int)[] { (z, dist), (dist, z) };
+
+                foreach ((int dx, int dz) in directions)
                 {
-                    float targetX = currentLocation.X + roamDirection.x * dist * Chunk.TILE_WIDTH;
+                    WorldLocation target = new(currentLocation.X + roamDirection.x * dx * Chunk.TILE_WIDTH, currentLocation.Z + roamDirection.z * dz * Chunk.TILE_WIDTH);
 
-                    if (targetX < 0 || targetX > WorldMap.WIDTH)
-                        continue;
-
-                    WorldLocation target = new(targetX, targetZ);
-                    if (WorldMap.Instance.IsSpaceAccessible(target) && !WorldMap.Instance.IsSpaceSwamp(target) && IsSpaceHouseOrFree(target, roamDirection))
+                    if (target.IsInBounds() && WorldMap.Instance.IsSpaceAccessible(target) && !WorldMap.Instance.IsSpaceSwamp(target))
                     {
-                        Debug.Log($"{Unit.Team} {target.X} {target.Z}");
-                        return target;
+                        List<WorldLocation> vertices = GetFreeSpaceOrHouse(target);
+                        if (vertices != null)
+                            return vertices;
                     }
                 }
             }
         }
+
         return null;
     }
 
-
-    private bool CheckSurroundingSquares(WorldLocation location)
+    private List<WorldLocation> FindFreeSpaceOrHouse_Surrounding(WorldLocation location)
     {
-        if (IsSpaceHouseOrFree(location, (1, 0)) || IsSpaceHouseOrFree(location, (-1, 0)))
-            return true;
-
-        if (location.Z + Chunk.TILE_WIDTH <= WorldMap.WIDTH)
+        if (roamDirection.x == 0)
         {
-            WorldLocation neighbor = new(location.X, location.Z + Chunk.TILE_WIDTH);
+            for (int z = 1; z >= -1; z -= 2)
+            {
+                for (int x = 1; x >= -1; x -= 2)
+                {
+                    List<WorldLocation> vertices = GetFreeSpaceOrHouse(location, new (int, int)[] { (0, z * roamDirection.z), (x, 0), (x, z * roamDirection.z) });
+                    if (vertices != null) 
+                        return vertices;
+                }
+            }
 
-            return IsSpaceHouseOrFree(neighbor, (1, 0)) || IsSpaceHouseOrFree(neighbor, (-1, 0));
+        }
+        else if (roamDirection.z == 0)
+        {
+            for (int x = 1; x >= -1; x -= 2)
+            {
+                for (int z = 1; z >= -1; z -= 2)
+                {
+                    List<WorldLocation> vertices = GetFreeSpaceOrHouse(location, new (int, int)[] { (x * roamDirection.x, 0), (0, z), (x * roamDirection.x, z) });
+                    if (vertices != null) 
+                        return vertices;
+                }
+            }
+
+        }
+        else
+        {
+            for (int z = 1; z >= -1; z -= 2)
+            {
+                for (int x = 1; x >= -1; x -= 2)
+                {
+                    List<WorldLocation> vertices = GetFreeSpaceOrHouse(location, new (int, int)[] { (x * roamDirection.x, 0), (0, z * roamDirection.z), (x * roamDirection.x, z * roamDirection.z) });
+                    if (vertices != null)
+                        return vertices;
+                }
+            }
         }
 
-        return false;
+        return null;
     }
 
-    private bool IsSpaceHouseOrFree(WorldLocation start, (int x, int z) direction)
+    private List<WorldLocation> GetFreeSpaceOrHouse(WorldLocation start, (int, int)[] vertexOffsets = null)
     {
-        (int, int)[] vertexOffsets;
-        List<WorldLocation> freeVertices = new() { start };
+        List<WorldLocation> freeVertices = new();
         List<WorldLocation> occupiedVertices = new();
         bool isEnterable = false;
 
         if (WorldMap.Instance.IsOccupied(start))
         {
             occupiedVertices.Add(start);
-            if (WorldMap.Instance.GetHouseAtVertex(start).IsEnterable(Unit))
+            if (WorldMap.Instance.GetHouseAtVertex(start).CanUnitEnter(Unit))
                 isEnterable = true;
         }
-
-        if (direction.x == 0)
-            vertexOffsets = new[] { (0, direction.z), (-1, 0), (-1, direction.z) };
-        else if (direction.z == 0)
-            vertexOffsets = new[] { (direction.x, 0), (0, -1), (direction.x, -1) };
         else
-            vertexOffsets = new[] { (direction.x, 0), (0, direction.z), (direction.x, direction.z) };
+            freeVertices.Add(start);
+
+        if (vertexOffsets == null)
+        {
+            if (roamDirection.x == 0)
+                vertexOffsets = new[] { (0, roamDirection.z), (-1, 0), (-1, roamDirection.z) };
+            else if (roamDirection.z == 0)
+                vertexOffsets = new[] { (roamDirection.x, 0), (0, -1), (roamDirection.x, -1) };
+            else
+                vertexOffsets = new[] { (roamDirection.x, 0), (0, roamDirection.z), (roamDirection.x, roamDirection.z) };
+        }
 
         foreach ((int x, int z) in vertexOffsets)
         {
             WorldLocation vertex = new(start.X + x * Chunk.TILE_WIDTH, start.Z + z * Chunk.TILE_WIDTH);
 
-            if (vertex.X < 0 || vertex.Z < 0 || vertex.X > WorldMap.WIDTH || vertex.Z > WorldMap.WIDTH ||
-                WorldMap.Instance.GetHeight(start) != WorldMap.Instance.GetHeight(vertex) ||
+            if (!vertex.IsInBounds() || WorldMap.Instance.GetHeight(start) != WorldMap.Instance.GetHeight(vertex) ||
                 !WorldMap.Instance.IsSpaceAccessible(vertex) || WorldMap.Instance.IsSpaceSwamp(vertex))
-                return false;
+                return null;
 
             if (WorldMap.Instance.IsOccupied(vertex))
                 occupiedVertices.Add(vertex);
@@ -455,26 +484,99 @@ public class UnitMovementHandler : NetworkBehaviour
             if (isEnterable)
             {
                 moveState = MoveState.FoundFriendlyHouse;
-                houseVertices = occupiedVertices;
-                return true;
+                return occupiedVertices;
             }
             else if (WorldMap.Instance.GetHouseAtVertex(start).IsAttackable(Unit.Team))
             {
                 moveState = MoveState.FoundEnemyHouse;
-                houseVertices = occupiedVertices;
-                return true;
+                return occupiedVertices;
             }
-            else return false;
+            else return null;
         }
         
         if (freeVertices.Count == 4)
         {
             moveState = MoveState.FoundFlatSpace;
-            houseVertices = freeVertices;
-            return true;
+            return freeVertices;
         }
 
-        return false;
+        return null;
     }
+
+    #endregion
+
+
+    #region Following Unit
+
+    public void SetFollowingUnit(Unit unit)
+    {
+        followingUnit = unit;
+        isGuided = true;
+    }
+
+    private void FollowUnit()
+    {
+        WorldLocation? path = Pathfinding.FollowUnit(Unit.Location, followingUnit.Location);
+
+        if (path != null)
+            SetPath(new() { path.Value });
+    }
+
+    public void EndFollow()
+    {
+        followingUnit = null;
+        isGuided = false;
+    }
+
+    #endregion
+
+
+    #region End of Path
+
+    public void EndPath()
+    {
+        path = null;
+        targetIndex = 0;
+
+        if (moveState == MoveState.FoundFlatSpace && IsStillFree())
+        {
+            moveState = MoveState.Stop;
+            GameController.Instance.SpawnHouse(houseVertices, Unit.Team);
+            Unit.EnterHouse();
+            return;
+        }
+        else if (moveState == MoveState.FoundFriendlyHouse && IsFriendlyHouse())
+        {
+            moveState = MoveState.Stop;
+            Unit.EnterHouse();
+            return;
+        }
+        else if (moveState == MoveState.FoundEnemyHouse && IsEnemyHouse())
+        {
+            moveState = MoveState.Stop;
+            Unit.AttackHouse();
+            return;
+        }
+        else
+            moveState = MoveState.Free;
+    }
+
+    private bool IsStillFree()
+    {
+        float height = WorldMap.Instance.GetHeight(houseVertices[0]);
+
+        foreach (WorldLocation vertex in houseVertices)
+            if (WorldMap.Instance.GetHeight(vertex) != height || WorldMap.Instance.IsOccupied(vertex))
+                return false;
+
+        return true;
+    }
+
+    private bool IsFriendlyHouse()
+        => WorldMap.Instance.IsOccupied(houseVertices[0]) && WorldMap.Instance.GetHouseAtVertex(houseVertices[0]).CanUnitEnter(Unit);
+
+    private bool IsEnemyHouse()
+        => WorldMap.Instance.IsOccupied(houseVertices[0]) && WorldMap.Instance.GetHouseAtVertex(houseVertices[0]).IsAttackable(Unit.Team);
+
     #endregion
 }

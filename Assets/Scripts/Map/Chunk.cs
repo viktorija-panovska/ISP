@@ -76,15 +76,6 @@ public class Chunk
 
 
 
-    public bool IsSpaceAccessible(int x, int z)
-    {
-        (int x, int z) index = CoordsToIndices(x, z);
-        return GetVertexHeightAtIndex(index.x, index.z) > GameController.Instance.WaterLevel
-               && (!formations.ContainsKey(index) || formations[index].Type == FormationTypes.Swamp);
-    }
-
-
-
     #region Chunk Properties
 
     public Chunk((int x, int z) locationInMap)
@@ -171,19 +162,38 @@ public class Chunk
 
 
 
+    #region Space Accessibility
+
+
+    public bool IsSpaceTree(int x, int z)
+    => formations.ContainsKey(CoordsToIndices(x, z)) && formations[CoordsToIndices(x, z)].Type == FormationTypes.Tree;
+
+    public bool IsSpaceRock(int x, int z)
+        => formations.ContainsKey(CoordsToIndices(x, z)) && formations[CoordsToIndices(x, z)].Type == FormationTypes.Rock;
+
+    public bool IsSpaceSwamp(int x, int z)
+        => formations.ContainsKey(CoordsToIndices(x, z)) && formations[CoordsToIndices(x, z)].Type == FormationTypes.Swamp;
+
+    public bool IsSpaceForest(int x, int z)
+        => formations.ContainsKey(CoordsToIndices(x, z)) &&
+           (formations[CoordsToIndices(x, z)].Type == FormationTypes.Tree || formations[CoordsToIndices(x, z)].Type == FormationTypes.Rock);
+
+    public bool IsSpaceUnderwater(int x, int z)
+    {
+        (int x, int z) index = CoordsToIndices(x, z);
+        return GetVertexHeightAtIndex(index.x, index.z) <= GameController.Instance.WaterLevel;
+    }
+
+    #endregion
+
+
+
     #region Natural Formation
 
     public void SetFormationAtVertex(int x, int z, NaturalFormation formation)
     {
         (int, int) index = CoordsToIndices(x, z);
         formations.Add(index, formation);
-    }
-
-    public bool IsSpaceSwamp(int x, int z)
-    {
-        (int, int) index = CoordsToIndices(x, z);
-
-        return formations.ContainsKey(index) && formations[index].Type == FormationTypes.Swamp;
     }
 
     public void DestroyUnderwaterFormations()
@@ -412,7 +422,7 @@ public class Chunk
         }
 
         if (houseAtVertex[z, x] != null)
-            houseAtVertex[z, x].OnDestroyHouse(false);
+            houseAtVertex[z, x].DestroyHouse(false);
 
         if (formations.ContainsKey((x, z)))
         {

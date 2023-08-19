@@ -6,11 +6,8 @@ public class Flag : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        Debug.Log("Trigger Enter");
         if (other.gameObject.layer == LayerMask.NameToLayer("Unit"))
         {
-            Debug.Log("Unit collided");
-
             Unit unit = other.gameObject.GetComponent<Unit>();
 
             if (unit.Team != Team)
@@ -21,7 +18,7 @@ public class Flag : MonoBehaviour
 
             GameController.Instance.RemoveFlag(Team);
 
-            // end follow
+            GameController.Instance.EndFollow(Team);
         }
     }
 }

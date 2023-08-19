@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using Unity.Mathematics;
 using Unity.Netcode;
 using UnityEngine;
 
@@ -46,22 +47,15 @@ public struct WorldLocation : INetworkSerializable, IEquatable<WorldLocation>
         }
     }
 
+    public bool IsInBounds()
+        => X >= 0 && Z >= 0 && X <= WorldMap.WIDTH && Z <= WorldMap.WIDTH;
+
     public static WorldLocation GetCenter(WorldLocation a, WorldLocation b)
     {
         float dx = (b.X - a.X) / Chunk.TILE_WIDTH;
         float dz = (b.Z - a.Z) / Chunk.TILE_WIDTH;
 
         return new(a.X + dx * (Chunk.TILE_WIDTH / 2), a.Z + dz * (Chunk.TILE_WIDTH / 2), isCenter: true);
-    }
-
-    public static WorldLocation GetRandomWorldLocationInRange(int min, int max)
-    {
-        WorldLocation randomLocation = new(UnityEngine.Random.Range(min, max), UnityEngine.Random.Range(min, max));
-
-        while (WorldMap.Instance.GetHeight(randomLocation) == 0 || WorldMap.Instance.IsSpaceAccessible(randomLocation))
-            randomLocation = new(UnityEngine.Random.Range(min, max), UnityEngine.Random.Range(min, max));
-
-        return randomLocation;
     }
 
     public bool Equals(WorldLocation other)
@@ -114,7 +108,6 @@ public class GameController : NetworkBehaviour
 
 
 
-
     #region Setup
 
     public override void OnNetworkSpawn()
@@ -125,14 +118,15 @@ public class GameController : NetworkBehaviour
         { 
             SpawnMap();
             PopulateMap();
+            SpawnStarterUnits();
         }
 
-        SetupPlayerControllerServerRpc(NetworkManager.Singleton.LocalClientId);
-        //InitialSpawnUnitsServerRpc();
-
-        SetupFlagsServerRpc();
+        SetupPlayerControllersServerRpc();
     }
 
+    /// <summary>
+    /// Creates map object and water plane object and spawns them on the network.
+    /// </summary>
     private void SpawnMap()
     {
         GameObject worldMapObject = Instantiate(WorldMapPrefab);
@@ -150,71 +144,91 @@ public class GameController : NetworkBehaviour
         waterPlane.GetComponent<NetworkObject>().Spawn(destroyWithScene: true);
     }
 
-    [ServerRpc(RequireOwnership = false)]
-    private void SetupPlayerControllerServerRpc(ulong clientID)
-    {
-        GameObject playerController = Instantiate(PlayerControllerPrefab);
-        playerController.GetComponent<NetworkObject>().SpawnAsPlayerObject(clientID, destroyWithScene: true);
-    }
-
-    [ServerRpc(RequireOwnership = false)]
-    private void InitialSpawnUnitsServerRpc(ServerRpcParams serverRpcParams = default)
+    /// <summary>
+    /// Creates STARTING_UNITS amount of units for each team, in random locations in a given area, and spawns them on the network.
+    /// Selects a leader for each team from the spawned units.
+    /// </summary>
+    private void SpawnStarterUnits()
     {
         List<WorldLocation> occupiedSpots = new();
 
-        ulong clientId = serverRpcParams.Receive.SenderClientId;
-
-        (int min, int max) = clientId == 0 ? (0, Chunk.WIDTH) : (WorldMap.WIDTH, WorldMap.WIDTH - Chunk.WIDTH);
-
-        int leader = UnityEngine.Random.Range(0, STARTING_UNITS);
-
-        for (int i = 0; i < STARTING_UNITS; ++i)
+        for (int i = 0; i <= 1; ++i)
         {
-            WorldLocation location = WorldLocation.GetRandomWorldLocationInRange(min, max);
+            List<WorldLocation> availableSpots = FindAvailableSpawnLocations(i, ref occupiedSpots);
 
-            while (occupiedSpots.Contains(location))
-                location = WorldLocation.GetRandomWorldLocationInRange(min, max);
-            occupiedSpots.Add(location);
+            int leader = UnityEngine.Random.Range(0, STARTING_UNITS);
 
-            SpawnUnit(clientId, location, new BaseUnit(), isLeader: i == leader);
+            for (int j = 0; j < STARTING_UNITS; ++j)
+            {
+                WorldLocation location = availableSpots[UnityEngine.Random.Range(0, availableSpots.Count)];
+                availableSpots.Remove(location);
+                occupiedSpots.Add(location);
+                SpawnUnit(new BaseUnit(), i == 0 ? Teams.Red : Teams.Blue, location, isLeader: j == leader);
+            }
         }
     }
 
-    [ServerRpc(RequireOwnership = false)]
-    private void SetupFlagsServerRpc()
+    private List<WorldLocation> FindAvailableSpawnLocations(int playerId, ref List<WorldLocation> occupiedSpots)
     {
-        for (int i = 0; i < flags.Length; ++i)
+        List<WorldLocation> availableSpots = new();
+
+        for (int dist = 0; dist < WorldMap.CHUNK_NUMBER; ++dist)
         {
-            flags[i] = Instantiate(FlagPrefabs[i], new Vector3(0, 0, 0), Quaternion.identity);
-            flags[i].GetComponent<NetworkObject>().Spawn(destroyWithScene: true);
+            for (int chunk_z = 0; chunk_z <= dist; ++chunk_z)
+            {
+                (int, int)[] chunks;
+
+                if (chunk_z == dist)
+                    chunks = new (int, int)[] { (dist, dist) };
+                else
+                    chunks = new (int, int)[] { (chunk_z, dist), (dist, chunk_z) };
+
+                foreach ((int x, int z) chunk in chunks)
+                {
+                    for (int z = 0; z <= Chunk.WIDTH; z += Chunk.TILE_WIDTH)
+                    {
+                        for (int x = 0; x <= Chunk.WIDTH; x += Chunk.TILE_WIDTH)
+                        {
+                            WorldLocation location = new(chunk.x * Chunk.WIDTH + x, chunk.z * Chunk.WIDTH + z);
+
+                            if (playerId == 1)
+                                location = new(WorldMap.WIDTH - location.X, WorldMap.WIDTH - location.Z);
+
+                            if (!occupiedSpots.Contains(location) && WorldMap.Instance.IsSpaceAccessible(location))
+                                availableSpots.Add(location);
+                        }
+                    }
+
+                    if (availableSpots.Count > 0)
+                        return availableSpots;
+                }
+            }
         }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Creates a player controller for each user, which will serve as the player object.
+    /// </summary>
+    /// <param name="serverRpcParams">Holds the client ID</param>
+    [ServerRpc(RequireOwnership = false)]
+    private void SetupPlayerControllersServerRpc(ServerRpcParams serverRpcParams = default)
+    {
+        GameObject playerController = Instantiate(PlayerControllerPrefab);
+        playerController.GetComponent<NetworkObject>().SpawnAsPlayerObject(serverRpcParams.Receive.SenderClientId, destroyWithScene: true);
     }
 
     #endregion
 
 
 
-    [ClientRpc]
-    private void AddManaClientRpc(int manaGain, ClientRpcParams clientRpcParams = default)
-    {
-        PlayerController.Instance.AddMana(manaGain);
-    }
-
-
-
     #region Map
 
-    public void MoveFormation(float height, GameObject formation)
-    {
-        formation.transform.position = new Vector3(formation.transform.position.x, height, formation.transform.position.z);
-    }
-
-    public void DestroyFormation(GameObject formation)
-    {
-        formation.GetComponent<NetworkObject>().Despawn();
-    }
-
-
+    /// <summary>
+    /// Randomly sets locations on the map to be populated by Tree objects or Rock objects.
+    /// Called only once right after the construction of the map.
+    /// </summary>
     private void PopulateMap()
     {
         for (int z = 0; z < WorldMap.WIDTH; z += Chunk.TILE_WIDTH)
@@ -244,64 +258,55 @@ public class GameController : NetworkBehaviour
         }
     }
 
+    /// <summary>
+    /// Changes the y transform position of an object of type NaturalFormation.
+    /// </summary>
+    /// <param name="height">The new y transform position of the object.</param>
+    /// <param name="formation">Game object of the formation.</param>
+    public void MoveFormation(float height, GameObject formation)
+    {
+        formation.transform.position = new Vector3(formation.transform.position.x, height, formation.transform.position.z);
+    }
+
+    /// <summary>
+    /// Destroys an object of type NaturalFormation and removes it from the network.
+    /// </summary>
+    /// <param name="formation">Game object of the formation.</param>
+    public void DestroyFormation(GameObject formation)
+    {
+        formation.GetComponent<NetworkObject>().Despawn();
+    }
+
     #endregion
 
 
 
     #region Units
 
-    public void SpawnUnit(WorldLocation spawnLocation, House originHouse, bool newUnit)
+    public void SpawnUnit(IUnitType unitType, Teams team, WorldLocation spawnLocation, House originHouse = null, bool isLeader = false)
     {
-        bool isLeader = false;
+        int playerId = (int)team - 1;
 
-        if (newUnit && (originHouse == null || activeUnits[(int)originHouse.Team - 1].Count == MAX_UNITS_PER_PLAYER))
-        {
-            originHouse.StopReleasingUnits();
-            return;
-        }
-
-        if (!newUnit && originHouse.ContainsLeader)
-        {
-            originHouse.RemoveLeader();
-            isLeader = true;
-        }
-
-        SpawnUnit((ulong)originHouse.Team - 1, spawnLocation, originHouse.HouseType.UnitType, newUnit, isLeader);
-    }
-
-    private void SpawnUnit(ulong ownerId, WorldLocation spawnLocation, IUnitType unitType, bool newUnit = true, bool isLeader = false)
-    {
         GameObject unitObject = Instantiate(
-            UnitPrefabs[ownerId + 1],
+            UnitPrefabs[playerId + 1],
             new Vector3(
                 spawnLocation.X,
-                WorldMap.Instance.GetHeight(spawnLocation) + UnitPrefabs[ownerId + 1].GetComponent<MeshRenderer>().bounds.extents.y,
+                WorldMap.Instance.GetHeight(spawnLocation) + UnitPrefabs[playerId + 1].GetComponent<MeshRenderer>().bounds.extents.y,
                 spawnLocation.Z),
             Quaternion.identity);
 
         unitObject.GetComponent<NetworkObject>().Spawn(destroyWithScene: true);
 
         Unit unit = unitObject.GetComponent<Unit>();
-        unit.Initialize(unitType, isLeader);
+        unit.Initialize(unitType, originHouse, isLeader);
         
-        activeUnits[ownerId].Add(unit);
-        units[ownerId]++;
+        activeUnits[playerId].Add(unit);
+        units[playerId]++;
 
         if (isLeader)
         {
-            leaders[ownerId] = unit;
+            leaders[playerId] = unit;
             unit.MakeLeader();
-        }
-
-        if (newUnit)
-        {
-            AddManaClientRpc(unitType.ManaGain, new ClientRpcParams
-            {
-                Send = new ClientRpcSendParams
-                {
-                    TargetClientIds = new ulong[] { ownerId }
-                }
-            });
         }
     }
 
@@ -315,19 +320,23 @@ public class GameController : NetworkBehaviour
                 leaders[(int)unit.Team - 1] = null;
         }
 
+        if (unit.IsLeader && unit.IsFollowed)
+            EndFollow(unit.Team);
+
         activeUnits[(int)unit.Team - 1].Remove(unit);
         unit.gameObject.GetComponent<NetworkObject>().Despawn();
     }
 
-    [ServerRpc(RequireOwnership = false)]
-    public void AdjustUnitHeightsServerRpc()
+    private void AdjustUnitHeights()
     {
         foreach (List<Unit> unitList in activeUnits)
             foreach (Unit unit in unitList)
                 unit.UpdateHeight();
     }
 
-    public bool HasLeader(Teams team) => leaders[(int) team - 1] != null;
+    public bool HasLeader(Teams team) => leaders[(int)team - 1] != null;
+
+    public bool AreMaxUnitsReached(Teams teams) => units[(int)teams - 1] == MAX_UNITS_PER_PLAYER;
 
     #endregion
 
@@ -337,6 +346,8 @@ public class GameController : NetworkBehaviour
 
     public void SpawnHouse(List<WorldLocation> vertices, Teams team)
     {
+        // TODO: calculate the type of house
+
         SpawnHouse(new Hut(), vertices, team);
     }
 
@@ -392,28 +403,25 @@ public class GameController : NetworkBehaviour
         DespawnUnit(unit, false);
     }
 
-    public void DestroyHouse(House house, bool spawnDestroyedHouse, HashSet<Unit> attackingUnits = null)
+    public void DestroyHouse(House house, bool spawnDestroyedHouse, Dictionary<WorldLocation, Unit> attackingUnits = null)
     {
         if (attackingUnits != null)
         {
-            foreach (Unit unit in attackingUnits)
+            foreach (Unit unit in attackingUnits.Values)
             {
                 StopCoroutine(HitHouse(unit, house));
                 unit.GetComponent<UnitMovementHandler>().Resume();
             }
         }
 
-        foreach (WorldLocation vertex in house.OccupiedVertices)
+        if (!house.IsDestroyed)
+            activeHouses[(int)house.Team - 1].Remove(house);
+
+        foreach (WorldLocation vertex in house.Vertices)
             WorldMap.Instance.SetHouseAtVertex(vertex, null);
 
         if (spawnDestroyedHouse)
-            SpawnHouse(new DestroyedHouse(), house.OccupiedVertices);
-
-        for (int i = 0; i < house.UnitsInHouse; ++i)
-            SpawnUnit(house.OccupiedVertices[i % house.OccupiedVertices.Count], house, newUnit: false);
-
-        if (!house.IsDestroyed)
-            activeHouses[(int)house.Team - 1].Remove(house);
+            SpawnHouse(new DestroyedHouse(), house.Vertices);
 
         house.gameObject.GetComponent<NetworkObject>().Despawn();
     }
@@ -433,8 +441,8 @@ public class GameController : NetworkBehaviour
     {
         while (red.Health > 0 && blue.Health > 0)
         {
-            int redSpeed = UnityEngine.Random.Range(1, 20) + red.UnitType.Speed;
-            int blueSpeed = UnityEngine.Random.Range(1, 20) + blue.UnitType.Speed;
+            int redSpeed = UnityEngine.Random.Range(1, 21) + red.UnitType.Speed;
+            int blueSpeed = UnityEngine.Random.Range(1, 21) + blue.UnitType.Speed;
 
             if (redSpeed > blueSpeed)
             {
@@ -475,6 +483,7 @@ public class GameController : NetworkBehaviour
     }
 
 
+
     public void AttackHouse(Unit unit, House house)
     {
         StartCoroutine(HitHouse(unit, house));
@@ -502,6 +511,7 @@ public class GameController : NetworkBehaviour
     public void UpdateMapServerRpc(WorldLocation location, bool decrease)
     {
         WorldMap.Instance.UpdateMapRegion(new List<WorldLocation> { location }, decrease);
+        AdjustUnitHeights();
     }
 
     #endregion
@@ -515,16 +525,21 @@ public class GameController : NetworkBehaviour
     {
         int index = (int)team - 1;
 
-        if (flags[index].activeSelf && leaders[index] == null)
-            return; 
+        if (flags[index] != null && leaders[index] == null)
+            return;
 
-        flags[index].transform.position = new Vector3(endLocation.X, WorldMap.Instance.GetHeight(endLocation), endLocation.Z);
-        flags[index].SetActive(true);
+        SpawnFlag(team, new Vector3(endLocation.X, WorldMap.Instance.GetHeight(endLocation), endLocation.Z));
 
-        ReleaseAllUnits(team);
-        
+        if (leaders[index].GetType() == typeof(House))
+        {
+            House house = (House)leaders[index];
+            house.ReleaseLeader();
+        }
+
         if (leaders[index] == null)
         {
+            ReleaseUnitsFromAllHouses(team);
+
             foreach (Unit unit in activeUnits[index])
             {
                 List<WorldLocation> path = Pathfinding.FindPath(new(unit.Position.x, unit.Position.z), endLocation);
@@ -541,37 +556,43 @@ public class GameController : NetworkBehaviour
             if (path != null && path.Count > 0)
                 leader.MoveUnit(path);
 
+            ReleaseUnitsFromAllHouses(team);
+
+            leader.IsFollowed = true;
+
             foreach (Unit unit in activeUnits[index])
-            {
                 if (!unit.IsLeader)
-                {
-                    WorldLocation? next = Pathfinding.FollowUnit(new(unit.Position.x, unit.Position.z), new(leader.Position.x, leader.Position.z));
-                    
-                    if (next != null)
-                        unit.MoveUnit(new List<WorldLocation> { next.Value });
-                }
-            }
+                    unit.FollowUnit(leader);
         }
+    }
+
+    private void SpawnFlag(Teams team, Vector3 location)
+    {
+        int index = (int)team - 1;
+        flags[index] = Instantiate(FlagPrefabs[index], location, Quaternion.identity);
+        flags[index].GetComponent<NetworkObject>().Spawn(destroyWithScene: true);
     }
 
     public void RemoveFlag(Teams team)
     {
         int index = (int)team - 1;
-        flags[index].transform.position = new Vector3(0, 0, 0);
-        flags[index].SetActive(false);
-
-        EndFollow(team);
+        flags[index].GetComponent<NetworkObject>().Despawn();
+        flags[index] = null;
     }
 
-    private void EndFollow(Teams team)
+    public void EndFollow(Teams team)
     {
         int index = (int)team - 1;
 
         foreach (Unit unit in activeUnits[index])
-            unit.EndFollow();
+            if (!unit.IsLeader)
+                unit.EndFollow();
+
+        Unit leader = (Unit)leaders[index];
+        leader.IsFollowed = false;
     }
 
-    private void ReleaseAllUnits(Teams team)
+    private void ReleaseUnitsFromAllHouses(Teams team)
     {
         foreach (House house in activeHouses[(int)team - 1])
             house.ReleaseAllUnits();
@@ -613,6 +634,7 @@ public class GameController : NetworkBehaviour
         }
 
         WorldMap.Instance.UpdateMapRegion(targets, decrease: true);
+        AdjustUnitHeights();
     }
 
     #endregion
@@ -674,4 +696,11 @@ public class GameController : NetworkBehaviour
     }
 
     #endregion
+
+
+    [ClientRpc]
+    public void AddManaClientRpc(int manaGain, ClientRpcParams clientRpcParams = default)
+    {
+        PlayerController.Instance.AddMana(manaGain);
+    }
 }

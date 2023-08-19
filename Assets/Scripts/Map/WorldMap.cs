@@ -58,6 +58,7 @@ public class WorldMap : NetworkBehaviour
     public Vector3 Position { get => transform.position; }
     public const int CHUNK_NUMBER = 5;
     public const int WIDTH = CHUNK_NUMBER * Chunk.WIDTH;
+    public const int TILE_NUMBER = CHUNK_NUMBER * Chunk.TILE_NUMBER;
 
     private readonly Chunk[,] chunkMap = new Chunk[CHUNK_NUMBER, CHUNK_NUMBER];
     private HashSet<(int, int)> modifiedChunks = new();
@@ -66,13 +67,6 @@ public class WorldMap : NetworkBehaviour
     public int MapSeed;
     public Material WorldMaterial;
 
-
-    public bool IsSpaceAccessible(WorldLocation globalVertexCoord)
-    {
-        (int chunk_x, int chunk_z) = GetChunkIndex(globalVertexCoord.X, globalVertexCoord.Z);
-        (int local_x, int local_z) = LocalCoordsFromGlobal(globalVertexCoord.X, globalVertexCoord.Z);
-        return chunkMap[chunk_z, chunk_x].IsSpaceAccessible(local_x, local_z);
-    }
 
 
     #region Chunks
@@ -155,13 +149,34 @@ public class WorldMap : NetworkBehaviour
 
 
 
-    #region Natural Formations
+    #region Space Accessibility
 
-    public void SetFormationAtVertex(WorldLocation globalVertexCoord, NaturalFormation formation)
+    public bool IsSpaceUnderwater(WorldLocation globalVertexCoord)
     {
         (int chunk_x, int chunk_z) = GetChunkIndex(globalVertexCoord.X, globalVertexCoord.Z);
         (int local_x, int local_z) = LocalCoordsFromGlobal(globalVertexCoord.X, globalVertexCoord.Z);
-        chunkMap[chunk_z, chunk_x].SetFormationAtVertex(local_x, local_z, formation);
+        return chunkMap[chunk_z, chunk_x].IsSpaceUnderwater(local_x, local_z);
+    }
+
+    public bool IsSpaceForest(WorldLocation globalVertexCoord)
+    {
+        (int chunk_x, int chunk_z) = GetChunkIndex(globalVertexCoord.X, globalVertexCoord.Z);
+        (int local_x, int local_z) = LocalCoordsFromGlobal(globalVertexCoord.X, globalVertexCoord.Z);
+        return chunkMap[chunk_z, chunk_x].IsSpaceForest(local_x, local_z);
+    }
+
+    public bool IsSpaceTree(WorldLocation globalVertexCoord)
+    {
+        (int chunk_x, int chunk_z) = GetChunkIndex(globalVertexCoord.X, globalVertexCoord.Z);
+        (int local_x, int local_z) = LocalCoordsFromGlobal(globalVertexCoord.X, globalVertexCoord.Z);
+        return chunkMap[chunk_z, chunk_x].IsSpaceTree(local_x, local_z);
+    }
+
+    public bool IsSpaceRock(WorldLocation globalVertexCoord)
+    {
+        (int chunk_x, int chunk_z) = GetChunkIndex(globalVertexCoord.X, globalVertexCoord.Z);
+        (int local_x, int local_z) = LocalCoordsFromGlobal(globalVertexCoord.X, globalVertexCoord.Z);
+        return chunkMap[chunk_z, chunk_x].IsSpaceRock(local_x, local_z);
     }
 
     public bool IsSpaceSwamp(WorldLocation globalVertexCoord)
@@ -169,6 +184,26 @@ public class WorldMap : NetworkBehaviour
         (int chunk_x, int chunk_z) = GetChunkIndex(globalVertexCoord.X, globalVertexCoord.Z);
         (int local_x, int local_z) = LocalCoordsFromGlobal(globalVertexCoord.X, globalVertexCoord.Z);
         return chunkMap[chunk_z, chunk_x].IsSpaceSwamp(local_x, local_z);
+    }
+
+    public bool IsSpaceAccessible(WorldLocation globalVertexCoord)
+    {
+        (int chunk_x, int chunk_z) = GetChunkIndex(globalVertexCoord.X, globalVertexCoord.Z);
+        (int local_x, int local_z) = LocalCoordsFromGlobal(globalVertexCoord.X, globalVertexCoord.Z);
+        return !chunkMap[chunk_z, chunk_x].IsSpaceUnderwater(local_x, local_z) && !chunkMap[chunk_z, chunk_x].IsSpaceForest(local_x, local_z);
+    }
+
+    #endregion
+
+
+
+    #region Natural Formations
+
+    public void SetFormationAtVertex(WorldLocation globalVertexCoord, NaturalFormation formation)
+    {
+        (int chunk_x, int chunk_z) = GetChunkIndex(globalVertexCoord.X, globalVertexCoord.Z);
+        (int local_x, int local_z) = LocalCoordsFromGlobal(globalVertexCoord.X, globalVertexCoord.Z);
+        chunkMap[chunk_z, chunk_x].SetFormationAtVertex(local_x, local_z, formation);
     }
 
     public void DestroyUnderwaterFormations()
@@ -217,8 +252,6 @@ public class WorldMap : NetworkBehaviour
     {
         foreach (WorldLocation target in targets)
             UpdateVertex(target, decrease);
-
-        GameController.Instance.AdjustUnitHeightsServerRpc();
 
         SynchronizeHeights();
     }

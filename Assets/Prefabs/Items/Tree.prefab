@@ -94,7 +94,6 @@ GameObject:
   - component: {fileID: 6683531810576895493}
   - component: {fileID: 543946346510570000}
   - component: {fileID: 3755269618373835577}
-  - component: {fileID: 2186399490695118389}
   - component: {fileID: 5027797913680804622}
   m_Layer: 8
   m_Name: Tree
@@ -148,19 +147,6 @@ MonoBehaviour:
   AlwaysReplicateAsRoot: 0
   DontDestroyWithOwner: 0
   AutoObjectParentSync: 1
---- !u!65 &2186399490695118389
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4129105199172733369}
-  m_Material: {fileID: 0}
-  m_IsTrigger: 0
-  m_Enabled: 1
-  serializedVersion: 2
-  m_Size: {x: 2, y: 2, z: 2}
-  m_Center: {x: 0, y: 0, z: 0}
 --- !u!114 &5027797913680804622
 MonoBehaviour:
   m_ObjectHideFlags: 0

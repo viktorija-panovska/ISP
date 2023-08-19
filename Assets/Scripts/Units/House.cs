@@ -12,6 +12,7 @@ public interface IHouseType
     public int MaxHealth { get; }
     public int HealthRegenPerUnit { get; }
     public int ManaGain { get; }
+    public int UnitReleaseWait { get; }
     public IUnitType UnitType { get; }
 }
 
@@ -22,6 +23,7 @@ public struct DestroyedHouse : IHouseType
     public int MaxHealth => 0;
     public int HealthRegenPerUnit => 0;
     public int ManaGain => 0;
+    public int UnitReleaseWait => 0;
     public IUnitType UnitType => null;
 }
 
@@ -32,6 +34,7 @@ public struct Hut : IHouseType
     public int MaxHealth => 5;
     public int HealthRegenPerUnit => 2;
     public int ManaGain => 10;
+    public int UnitReleaseWait => 10;
     public IUnitType UnitType => new HutUnit();
 }
 
@@ -40,52 +43,30 @@ public class House : NetworkBehaviour, IPlayerObject
 {
     public IHouseType HouseType { get; private set; }
     public bool IsDestroyed { get; private set; }
-    public Teams Team { get; private set; }
-    public List<WorldLocation> OccupiedVertices { get; private set; }
-    public bool ContainsLeader { get; private set; }
+    public List<WorldLocation> Vertices { get; private set; }
 
+    public Teams Team { get; private set; }
     public int Health { get; private set; }
     public int UnitsInHouse { get; private set; }
+    public bool ContainsLeader { get; private set; }
 
     public Slider HealthBar;
     public Image Fill;
     public GameObject LeaderMarker;
 
-    private bool maxUnitsReached = false;
-    private const int UNIT_RELEASE_WAIT = 10;
-
-    private const int MAX_ATTACKING_UNITS = 4;
-    private HashSet<Unit> attackingUnits = new();
+    private Dictionary<WorldLocation, Unit> attackingUnits = new();
     private bool IsUnderAttack { get => attackingUnits.Count > 0; }
 
 
-    public void Initialize(IHouseType houseType, Teams team, List<WorldLocation> occupiedVertices)
+
+    public void Initialize(IHouseType houseType, Teams team, List<WorldLocation> vertices)
     {
         HouseType = houseType;
         IsDestroyed = houseType.GetType() == typeof(DestroyedHouse);
 
         Team = team;
-        OccupiedVertices = occupiedVertices;
+        Vertices = vertices;
         Health = HouseType.MaxHealth;
-    }
-
-
-    public void MakeLeader()
-    {
-        ContainsLeader = true;
-        SetLeaderMarkerClientRpc(true);
-    }
-
-    public void RemoveLeader()
-    {
-        ContainsLeader = false;
-        SetLeaderMarkerClientRpc(false);
-    }
-
-    [ClientRpc]
-    public void SetLeaderMarkerClientRpc(bool active)
-    {
-        LeaderMarker.SetActive(active);
     }
 
 
@@ -147,122 +128,157 @@ public class House : NetworkBehaviour, IPlayerObject
 
 
 
-    #region Unit Interaction
+    #region Units
 
-    public bool IsEnterable(Unit unit) => Team == unit.Team && UnitsInHouse < HouseType.MaxCapacity && !IsUnderAttack;
-
-    public bool IsAttackable(Teams otherTeam) 
-        => !IsDestroyed && ((Team == Teams.Red && otherTeam == Teams.Blue) || (Team == Teams.Blue && otherTeam == Teams.Red)) && attackingUnits.Count <= MAX_ATTACKING_UNITS;
-
-    public WorldLocation GetClosestVertex(Vector3 unitPosition)
-    {
-        WorldLocation? position = null;
-        float distance = float.MaxValue;
-
-        foreach (WorldLocation vertex in OccupiedVertices)
-        {
-            float d = Vector3.Distance(unitPosition, new(vertex.X, WorldMap.Instance.GetHeight(vertex), vertex.Z));
-
-            if (d < distance)
-            {
-                position = vertex;
-                distance = d;
-            }
-        }
-
-        return position.Value;
-    }
-
-    #endregion
-
-
-
-    #region Unit
+    public bool CanUnitEnter(Unit unit) => Team == unit.Team && UnitsInHouse < HouseType.MaxCapacity && !IsUnderAttack && unit.OriginHouse != this;
 
     public void AddUnit()
     {
         UnitsInHouse++;
 
-        //if (UnitsInHouse == 1)
-        //    StartCoroutine(ReleaseNewUnits());
-
+        // Regenerate house health.
         if (Health + HouseType.HealthRegenPerUnit <= HouseType.MaxHealth)
             Health += HouseType.HealthRegenPerUnit;
         else if (Health < HouseType.MaxHealth)
             Health += HouseType.MaxHealth - Health;
 
         UpdateHealthBarClientRpc(HouseType.MaxHealth, Health, Team);
+
+        // If this is the first unit in the house, start producing new units.
+        if (UnitsInHouse == 1)
+            StartCoroutine(ReleaseNewUnits());
     }
 
     private IEnumerator ReleaseNewUnits()
     {
-        while (!IsUnderAttack && UnitsInHouse > 0 && !maxUnitsReached)
+        while (true)
         {
-            yield return new WaitForSeconds(UNIT_RELEASE_WAIT);
-            GameController.Instance.SpawnUnit(OccupiedVertices[Random.Range(0, OccupiedVertices.Count - 1)], this, true);
-        }
-    }
+            yield return new WaitForSeconds(HouseType.UnitReleaseWait);
 
-    public void StopReleasingUnits()
-    {
-        maxUnitsReached = true;
+            if (IsUnderAttack || UnitsInHouse == 0 || GameController.Instance.AreMaxUnitsReached(Team))
+                break;
+
+            ReleaseUnit(newUnit: true);
+        }
     }
 
     public void ReleaseAllUnits()
     {
-        for (int i =  0; i < UnitsInHouse; ++i)
-            GameController.Instance.SpawnUnit(OccupiedVertices[Random.Range(0, OccupiedVertices.Count - 1)], this, false);
-
-        UnitsInHouse = 0;
+        for (int i = 0; i < UnitsInHouse; ++i)
+            ReleaseUnit(newUnit: false);
     }
 
-    public void ReleaseLeader()
+    private void ReleaseUnit(bool newUnit)
     {
-        GameController.Instance.SpawnUnit(OccupiedVertices[Random.Range(0, OccupiedVertices.Count - 1)], this, false);
+        bool isLeader = false;
 
-        UnitsInHouse = 0;
+        if (!newUnit)
+            UnitsInHouse--;
+
+        // The first unit to leave the house will be the leader.
+        if (!newUnit && ContainsLeader)
+        {
+            RemoveLeader();
+            isLeader = true;
+        }
+
+        // Spawns unit.
+        GameController.Instance.SpawnUnit(HouseType.UnitType, Team, Vertices[Random.Range(0, Vertices.Count - 1)], newUnit ? this : null, isLeader);
+
+        // Only new units give mana.
+        if (newUnit)
+        {
+            GameController.Instance.AddManaClientRpc(HouseType.UnitType.ManaGain, new ClientRpcParams
+            {
+                Send = new ClientRpcSendParams
+                {
+                    TargetClientIds = new ulong[] { (ulong)Team - 1 }
+                }
+            });
+        }
     }
-    
+
     #endregion
 
 
 
     #region Battle
 
+    public bool IsAttackable(Teams otherTeam)
+        => !IsDestroyed && ((Team == Teams.Red && otherTeam == Teams.Blue) || (Team == Teams.Blue && otherTeam == Teams.Red)) && attackingUnits.Count <= Vertices.Count;
+
+    public List<WorldLocation> GetAttackableVertices()
+    {
+        List<WorldLocation> available = new();
+
+        foreach (WorldLocation vertex in Vertices)
+            if (!attackingUnits.ContainsKey(vertex))
+                available.Add(vertex);
+
+        return available;
+    }
+
     public void TakeDamage(int damage, Unit attacker)
     {
-        if (!attackingUnits.Contains(attacker))
-            attackingUnits.Add(attacker);
+        if (!attackingUnits.ContainsKey(attacker.Location))
+            attackingUnits.Add(attacker.Location, attacker);
 
         Health -= damage;
         UpdateHealthBarClientRpc(HouseType.MaxHealth, Health, Team);
 
         if (Health <= 0)
         {
-            OnDestroyHouse(true);
+            DestroyHouse(true);
             return;
         }
 
         if (UnitsInHouse > 0)
-        {
-            GameController.Instance.SpawnUnit(OccupiedVertices[Random.Range(0, OccupiedVertices.Count - 1)], this, newUnit: false);
-            UnitsInHouse--;
-        }
+            ReleaseUnit(newUnit: false);
     }
 
-    public virtual void OnDestroyHouse(bool spawnDestroyedHouse)
+    public void DestroyHouse(bool spawnDestroyedHouse)
     {
+        ReleaseAllUnits();
         GameController.Instance.DestroyHouse(this, spawnDestroyedHouse, attackingUnits);
-
         attackingUnits = new();
     }
 
     public void EndAttack(Unit attacker)
     {
-        attackingUnits.Remove(attacker);
+        attackingUnits.Remove(attacker.Location);
 
-        if (!IsUnderAttack && UnitsInHouse > 0 && !maxUnitsReached)
+        if (!IsUnderAttack && UnitsInHouse > 0 && !GameController.Instance.AreMaxUnitsReached(Team))
             StartCoroutine(ReleaseNewUnits());
+    }
+
+    #endregion
+
+
+
+    #region Leader
+
+    public void MakeLeader()
+    {
+        ContainsLeader = true;
+        SetLeaderMarkerClientRpc(true);
+    }
+
+    private void RemoveLeader()
+    {
+        ContainsLeader = false;
+        SetLeaderMarkerClientRpc(false);
+    }
+
+    [ClientRpc]
+    public void SetLeaderMarkerClientRpc(bool active)
+    {
+        LeaderMarker.SetActive(active);
+    }
+
+    public void ReleaseLeader()
+    {
+        ReleaseUnit(newUnit: false);
+        RemoveLeader();
     }
 
     #endregion

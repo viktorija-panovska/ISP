@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using Unity.Netcode;
 using UnityEngine.UI;
-
+using System;
 
 public interface IUnitType
 {
@@ -35,14 +35,19 @@ public class Unit : NetworkBehaviour, IPlayerObject
 {
     public IUnitType UnitType { get; private set; }
     public int Health { get; private set; }
-    public bool IsFighting { get; private set; }
     public bool IsLeader { get; private set; }
     public bool IsKnight { get; private set; }
+
+    public bool IsFighting { get; private set; }
+    public bool IsFollowed { get; set; }
+
+    public House OriginHouse { get; private set; }
 
     private UnitMovementHandler MovementHandler { get => GetComponent<UnitMovementHandler>(); }
 
     public Vector3 Position { get => gameObject.transform.position; private set => gameObject.transform.position = value; }
     public WorldLocation Location { get => new(Position.x, Position.z); }
+    public float HalfHeight { get => GetComponent<MeshRenderer>().bounds.extents.y; }
 
     public Teams Team;
     public Slider HealthBar;
@@ -51,12 +56,14 @@ public class Unit : NetworkBehaviour, IPlayerObject
     public GameObject KnightMarker;
 
 
-
-    public void Initialize(IUnitType unitType, bool isLeader)
+    public void Initialize(IUnitType unitType, House originHouse, bool isLeader)
     {
         UnitType = unitType;
+        OriginHouse = originHouse;
         Health = UnitType.MaxHealth;
         IsLeader = isLeader;
+
+        MovementHandler.Initialize();
     }
 
 
@@ -78,12 +85,6 @@ public class Unit : NetworkBehaviour, IPlayerObject
                 GameController.Instance.AttackUnit(this, otherUnit);
             }
         }
-    }
-
-
-    public void KillUnit()
-    {
-        GameController.Instance.DespawnUnit(this, true);
     }
 
 
@@ -183,13 +184,15 @@ public class Unit : NetworkBehaviour, IPlayerObject
             float heightDifference = Mathf.Abs(endHeight - startHeight);
             float totalDistance = new Vector2(MovementHandler.EndLocation.X - MovementHandler.StartLocation.X, MovementHandler.EndLocation.Z - MovementHandler.StartLocation.Z).magnitude;
 
-            float distance = startHeight < endHeight 
+            float distance = startHeight < endHeight
                 ? new Vector2(Position.x - MovementHandler.StartLocation.X, Position.z - MovementHandler.StartLocation.Z).magnitude
                 : new Vector2(MovementHandler.EndLocation.X - Position.x, MovementHandler.EndLocation.Z - Position.z).magnitude;
 
             float height = heightDifference * distance / totalDistance;
 
-            Position = new Vector3(Position.x, startHeight < endHeight ? startHeight + height + GetComponent<MeshRenderer>().bounds.extents.y : endHeight + height + GetComponent<MeshRenderer>().bounds.extents.y, Position.z);
+            height = startHeight < endHeight ? startHeight + height : endHeight + height;
+
+            Position = new Vector3(Position.x, height + HalfHeight, Position.z);
         }
     }
 
@@ -198,9 +201,14 @@ public class Unit : NetworkBehaviour, IPlayerObject
         MovementHandler.SetPath(path, isGuided: true);
     }
 
+    public void FollowUnit(Unit unit)
+    {
+        MovementHandler.SetFollowingUnit(unit);
+    }
+
     public void EndFollow()
     {
-        MovementHandler.EndPath();
+        MovementHandler.EndFollow();
     }
 
     #endregion
@@ -208,12 +216,12 @@ public class Unit : NetworkBehaviour, IPlayerObject
 
     #region House interaction
 
-    public virtual void OnEnterHouse()
+    public virtual void EnterHouse()
     {
         GameController.Instance.EnterHouse(this, WorldMap.Instance.GetHouseAtVertex(Location));
     }
 
-    public virtual void OnAttackHouse()
+    public virtual void AttackHouse()
     {
         House house = WorldMap.Instance.GetHouseAtVertex(Location);
         GameController.Instance.AttackHouse(this, house);
@@ -241,6 +249,11 @@ public class Unit : NetworkBehaviour, IPlayerObject
         Health -= damage;
 
         UpdateHealthBarClientRpc(UnitType.MaxHealth, Health);
+    }
+
+    public void KillUnit()
+    {
+        GameController.Instance.DespawnUnit(this, true);
     }
 
     #endregion
