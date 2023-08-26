@@ -1,8 +1,7 @@
- using UnityEngine;
+using UnityEngine;
 using System.Collections.Generic;
 using Unity.Netcode;
 using UnityEngine.UI;
-using System;
 
 public interface IUnitType
 {
@@ -29,31 +28,40 @@ public struct HutUnit : IUnitType
 }
 
 
+public enum UnitStates
+{
+    Settle,
+    Battle
+}
+
+
 
 [RequireComponent(typeof(NetworkObject), typeof(UnitMovementHandler))]
 public class Unit : NetworkBehaviour, IPlayerObject
 {
+    private UnitMovementHandler MovementHandler { get => GetComponent<UnitMovementHandler>(); }
+    public float HalfHeight { get => GetComponent<MeshRenderer>().bounds.extents.y; }
+
     public IUnitType UnitType { get; private set; }
+    public UnitStates UnitState { get; private set; }
+
     public int Health { get; private set; }
     public bool IsLeader { get; private set; }
-    public bool IsKnight { get; private set; }
-
     public bool IsFighting { get; private set; }
     public bool IsFollowed { get; set; }
-
     public House OriginHouse { get; private set; }
-
-    private UnitMovementHandler MovementHandler { get => GetComponent<UnitMovementHandler>(); }
+    public Unit ChasedBy { get; set; }
 
     public Vector3 Position { get => gameObject.transform.position; private set => gameObject.transform.position = value; }
     public WorldLocation Location { get => new(Position.x, Position.z); }
-    public float HalfHeight { get => GetComponent<MeshRenderer>().bounds.extents.y; }
+    public WorldLocation NextLocation { get => MovementHandler.EndLocation; }
 
     public Teams Team;
     public Slider HealthBar;
     public GameObject LeaderMarker;
     public GameObject BattleDetector;
     public GameObject KnightMarker;
+
 
 
     public void Initialize(IUnitType unitType, House originHouse, bool isLeader)
@@ -63,33 +71,26 @@ public class Unit : NetworkBehaviour, IPlayerObject
         Health = UnitType.MaxHealth;
         IsLeader = isLeader;
 
+        UnitState = UnitStates.Settle;
+
         MovementHandler.Initialize();
     }
 
 
-    public void OnTriggerEnter(Collider other)
+    #region Change Unit Type
+
+    public void MakeSettleUnit()
     {
-        if (other.gameObject.layer == LayerMask.NameToLayer("Swamp"))
-            KillUnit();
-
-        if (Team != Teams.Red || IsFighting) return;
-
-        if (other.gameObject.layer == LayerMask.NameToLayer("Unit"))
-        {
-            var otherUnit = other.gameObject.GetComponent<Unit>();
-
-            if (Team != otherUnit.Team && !otherUnit.IsFighting)
-            {
-                StartBattle();
-                otherUnit.StartBattle();
-                GameController.Instance.AttackUnit(this, otherUnit);
-            }
-        }
+        UnitState = UnitStates.Settle;
+        BattleDetector.SetActive(false);
     }
 
+    public void MakeBattleUnit()
+    {
+        UnitState = UnitStates.Battle;
+        BattleDetector.SetActive(true);
+    }
 
-
-    #region Change Unit Type
 
     public void MakeLeader()
     {
@@ -106,8 +107,7 @@ public class Unit : NetworkBehaviour, IPlayerObject
 
     public void MakeKnight()
     {
-        IsKnight = true;
-        BattleDetector.SetActive(true);
+        MakeBattleUnit();
         SetKnightMarkerClientRpc(true);
     }
 
@@ -141,7 +141,7 @@ public class Unit : NetworkBehaviour, IPlayerObject
             {
                 TargetClientIds = new ulong[] { parameters.Receive.SenderClientId }
             }
-        });        
+        });
     }
 
     [ClientRpc]
@@ -196,7 +196,7 @@ public class Unit : NetworkBehaviour, IPlayerObject
         }
     }
 
-    public void MoveUnit(List<WorldLocation> path)
+    public void MoveAlongPath(List<WorldLocation> path)
     {
         MovementHandler.SetPath(path, isGuided: true);
     }

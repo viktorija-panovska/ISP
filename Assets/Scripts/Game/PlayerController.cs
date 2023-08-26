@@ -1,4 +1,3 @@
-using System;
 using Unity.Netcode;
 using UnityEngine;
 
@@ -27,13 +26,13 @@ public class PlayerController : NetworkBehaviour
     public GameObject GameHUDPrefab;
 
     private CameraController cameraController;
-    private Camera playerCamera;
     private GameHUD hud;
 
     private bool isGamePaused = false;
     private Teams team = Teams.None;
     private Powers activePower = Powers.MoldTerrain;
 
+    public Camera PlayerCamera { get; private set; }
     public int Mana { get; private set; }
 
 
@@ -49,7 +48,7 @@ public class PlayerController : NetworkBehaviour
         // Set camera controller
         cameraController = Instantiate(CameraControllerPrefab).GetComponent<CameraController>();
         cameraController.SetStart(OwnerClientId);
-        playerCamera = cameraController.MainCamera;
+        PlayerCamera = cameraController.MainCamera;
 
         // Set HUD
         GameObject HUD = Instantiate(GameHUDPrefab);
@@ -76,6 +75,8 @@ public class PlayerController : NetworkBehaviour
             activePower = Powers.Crusade;
         if (Input.GetKeyDown(KeyCode.Alpha6))
             activePower = Powers.Flood;
+        if (Input.GetKeyDown(KeyCode.Alpha7))
+            activePower = Powers.Armageddon;
 
         if (GameController.Instance.PowerCost[(int)activePower] > Mana)
             activePower = Powers.MoldTerrain;
@@ -104,6 +105,10 @@ public class PlayerController : NetworkBehaviour
 
             case Powers.Flood:
                 CreateFlood();
+                break;
+
+            case Powers.Armageddon:
+                StartArmageddon();
                 break;
         }
     }
@@ -163,7 +168,7 @@ public class PlayerController : NetworkBehaviour
         int index = (int)Powers.MoldTerrain;
         hud.SwitchMarker(index);
 
-        if (Physics.Raycast(playerCamera.ScreenPointToRay(Input.mousePosition), out RaycastHit hitInfo, Mathf.Infinity))
+        if (Physics.Raycast(PlayerCamera.ScreenPointToRay(Input.mousePosition), out RaycastHit hitInfo, Mathf.Infinity))
         {
             Vector3 hitPoint = hitInfo.point;
 
@@ -191,7 +196,7 @@ public class PlayerController : NetworkBehaviour
         int index = (int)Powers.GuideFollowers;
         hud.SwitchMarker(index);
 
-        if (Physics.Raycast(playerCamera.ScreenPointToRay(Input.mousePosition), out RaycastHit hitInfo, Mathf.Infinity))
+        if (Physics.Raycast(PlayerCamera.ScreenPointToRay(Input.mousePosition), out RaycastHit hitInfo, Mathf.Infinity))
         {
             Vector3 hitPoint = hitInfo.point;
 
@@ -222,7 +227,7 @@ public class PlayerController : NetworkBehaviour
         int index = (int)Powers.Earthquake;
         hud.SwitchMarker(index);
 
-        if (Physics.Raycast(playerCamera.ScreenPointToRay(Input.mousePosition), out RaycastHit hitInfo, Mathf.Infinity))
+        if (Physics.Raycast(PlayerCamera.ScreenPointToRay(Input.mousePosition), out RaycastHit hitInfo, Mathf.Infinity))
         {
             Vector3 hitPoint = hitInfo.point;
 
@@ -251,7 +256,7 @@ public class PlayerController : NetworkBehaviour
         int index = (int)Powers.Swamp;
         hud.SwitchMarker(index);
 
-        if (Physics.Raycast(playerCamera.ScreenPointToRay(Input.mousePosition), out RaycastHit hitInfo, Mathf.Infinity))
+        if (Physics.Raycast(PlayerCamera.ScreenPointToRay(Input.mousePosition), out RaycastHit hitInfo, Mathf.Infinity))
         {
             Vector3 hitPoint = hitInfo.point;
 
@@ -291,6 +296,14 @@ public class PlayerController : NetworkBehaviour
     {
         GameController.Instance.IncreaseWaterLevelServerRpc();
         RemoveMana(GameController.Instance.PowerCost[(int)Powers.Flood]);
+        activePower = Powers.MoldTerrain;
+    }
+
+
+    private void StartArmageddon()
+    {
+        GameController.Instance.StartArmageddonServerRpc();
+        RemoveMana(GameController.Instance.PowerCost[(int)Powers.Armageddon]);
         activePower = Powers.MoldTerrain;
     }
 }

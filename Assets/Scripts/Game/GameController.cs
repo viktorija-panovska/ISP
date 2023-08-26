@@ -2,7 +2,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using Unity.Mathematics;
 using Unity.Netcode;
 using UnityEngine;
 
@@ -91,8 +90,8 @@ public class GameController : NetworkBehaviour
     public int WaterLevel { get; private set; }
 
     // Civilization
-    private const int STARTING_UNITS = 2;
-    private const int MAX_UNITS_PER_PLAYER = 5;
+    private const int STARTING_UNITS = 1;
+    private const int MAX_UNITS_PER_PLAYER = 1;
     private readonly List<Unit>[] activeUnits = { new(), new() };
     private readonly int[] units = { 0, 0 };
     private readonly IPlayerObject[] leaders = new IPlayerObject[2];
@@ -105,6 +104,7 @@ public class GameController : NetworkBehaviour
 
     public const int EARTHQUAKE_RANGE = 3;
     private readonly GameObject[] flags = new GameObject[2];
+
 
 
 
@@ -199,13 +199,13 @@ public class GameController : NetworkBehaviour
                         }
                     }
 
-                    if (availableSpots.Count > 0)
+                    if (availableSpots.Count > 10)
                         return availableSpots;
                 }
             }
         }
 
-        return null;
+        return availableSpots.Count > 0 ? availableSpots : null;
     }
 
     /// <summary>
@@ -283,7 +283,7 @@ public class GameController : NetworkBehaviour
 
     #region Units
 
-    public void SpawnUnit(IUnitType unitType, Teams team, WorldLocation spawnLocation, House originHouse = null, bool isLeader = false)
+    public void SpawnUnit(IUnitType unitType, Teams team, WorldLocation spawnLocation, House originHouse = null, bool newUnit = true, bool isLeader = false)
     {
         int playerId = (int)team - 1;
 
@@ -301,7 +301,9 @@ public class GameController : NetworkBehaviour
         unit.Initialize(unitType, originHouse, isLeader);
         
         activeUnits[playerId].Add(unit);
-        units[playerId]++;
+
+        if (newUnit)
+            units[playerId]++;
 
         if (isLeader)
         {
@@ -314,14 +316,18 @@ public class GameController : NetworkBehaviour
     {
         if (isDead)
         {
+            Debug.Log("IsDead");
             units[(int)unit.Team - 1]--;
 
             if (unit.IsLeader)
                 leaders[(int)unit.Team - 1] = null;
         }
 
-        if (unit.IsLeader && unit.IsFollowed)
-            EndFollow(unit.Team);
+        if (unit.IsFollowed)
+            EndFollowForAll(unit.Team);
+
+        if (unit.ChasedBy != null)
+            unit.ChasedBy.EndFollow();
 
         activeUnits[(int)unit.Team - 1].Remove(unit);
         unit.gameObject.GetComponent<NetworkObject>().Despawn();
@@ -336,7 +342,7 @@ public class GameController : NetworkBehaviour
 
     public bool HasLeader(Teams team) => leaders[(int)team - 1] != null;
 
-    public bool AreMaxUnitsReached(Teams teams) => units[(int)teams - 1] == MAX_UNITS_PER_PLAYER;
+    public bool AreMaxUnitsReached(Teams teams) => units[(int)teams - 1] >= MAX_UNITS_PER_PLAYER;
 
     #endregion
 
@@ -346,18 +352,23 @@ public class GameController : NetworkBehaviour
 
     public void SpawnHouse(List<WorldLocation> vertices, Teams team)
     {
-        // TODO: calculate the type of house
-
-        SpawnHouse(new Hut(), vertices, team);
-    }
-
-    private void SpawnHouse(IHouseType houseType, List<WorldLocation> vertices, Teams team = Teams.None)
-    {
         WorldLocation? rootVertex = null;
 
         foreach (WorldLocation vertex in vertices)
             if (rootVertex == null || vertex.X < rootVertex.Value.X || (vertex.X == rootVertex.Value.X && vertex.Z < rootVertex.Value.Z))
                 rootVertex = vertex;
+
+        SpawnHouse(House.GetHouseType(House.CountSurroundingFlatSpaces(rootVertex.Value)), vertices, rootVertex, team);
+    }
+
+    private void SpawnHouse(IHouseType houseType, List<WorldLocation> vertices, WorldLocation? rootVertex = null, Teams team = Teams.None)
+    {
+        if (rootVertex == null)
+        {
+            foreach (WorldLocation vertex in vertices)
+                if (rootVertex == null || vertex.X < rootVertex.Value.X || (vertex.X == rootVertex.Value.X && vertex.Z < rootVertex.Value.Z))
+                    rootVertex = vertex;
+        }
 
         GameObject housePrefab = HousePrefabs[houseType.HousePrefab];
 
@@ -426,6 +437,13 @@ public class GameController : NetworkBehaviour
         house.gameObject.GetComponent<NetworkObject>().Despawn();
     }
 
+    private void UpdateHouses()
+    {
+        foreach (List<House> houseList in activeHouses)
+            foreach (House house in houseList)
+                house.UpdateType();
+    }
+
     #endregion
 
 
@@ -439,8 +457,13 @@ public class GameController : NetworkBehaviour
 
     private IEnumerator HitUnit(Unit red, Unit blue)
     {
-        while (red.Health > 0 && blue.Health > 0)
+        while (true)
         {
+            yield return new WaitForSeconds(2);
+
+            if (red.Health <= 0 || blue.Health <= 0)
+                break;
+
             int redSpeed = UnityEngine.Random.Range(1, 21) + red.UnitType.Speed;
             int blueSpeed = UnityEngine.Random.Range(1, 21) + blue.UnitType.Speed;
 
@@ -454,8 +477,6 @@ public class GameController : NetworkBehaviour
                 if (Kill(blue, red))
                     break;
             }
-
-            yield return new WaitForSeconds(2);
         }
     }
 
@@ -491,10 +512,14 @@ public class GameController : NetworkBehaviour
 
     private IEnumerator HitHouse(Unit unit, House house)
     {
-        while (house.Health > 0 && unit.Health > 0 && !unit.IsFighting)
+        while (true)
         {
-            house.TakeDamage(unit.UnitType.Strength, unit);
             yield return new WaitForSeconds(2);
+
+            if (house.Health <= 0 || unit.Health <= 0 || unit.IsFighting)
+                break;
+
+            house.TakeDamage(unit.UnitType.Strength, unit);
         }
 
         if (unit.Health <= 0 || unit.IsFighting)
@@ -512,6 +537,7 @@ public class GameController : NetworkBehaviour
     {
         WorldMap.Instance.UpdateMapRegion(new List<WorldLocation> { location }, decrease);
         AdjustUnitHeights();
+        UpdateHouses();
     }
 
     #endregion
@@ -545,7 +571,7 @@ public class GameController : NetworkBehaviour
                 List<WorldLocation> path = Pathfinding.FindPath(new(unit.Position.x, unit.Position.z), endLocation);
 
                 if (path != null && path.Count > 0)
-                    unit.MoveUnit(path);
+                    unit.MoveAlongPath(path);
             }
         }
         else
@@ -554,7 +580,7 @@ public class GameController : NetworkBehaviour
             List<WorldLocation> path = Pathfinding.FindPath(new(leader.Position.x, leader.Position.z), endLocation);
 
             if (path != null && path.Count > 0)
-                leader.MoveUnit(path);
+                leader.MoveAlongPath(path);
 
             ReleaseUnitsFromAllHouses(team);
 
@@ -580,7 +606,7 @@ public class GameController : NetworkBehaviour
         flags[index] = null;
     }
 
-    public void EndFollow(Teams team)
+    public void EndFollowForAll(Teams team)
     {
         int index = (int)team - 1;
 
@@ -696,6 +722,25 @@ public class GameController : NetworkBehaviour
     }
 
     #endregion
+
+
+
+    #region Armageddon
+
+    [ServerRpc(RequireOwnership = false)]
+    public void StartArmageddonServerRpc()
+    {
+        foreach (var houseList in activeHouses)
+            foreach (House house in houseList)
+                house.ReleaseAllUnits();
+
+        foreach (var unitList in activeUnits)
+            foreach (Unit unit in unitList)
+                unit.MakeBattleUnit();
+    }
+
+    #endregion
+
 
 
     [ClientRpc]

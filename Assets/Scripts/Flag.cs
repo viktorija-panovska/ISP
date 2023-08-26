@@ -18,7 +18,7 @@ public class Flag : MonoBehaviour
 
             GameController.Instance.RemoveFlag(Team);
 
-            GameController.Instance.EndFollow(Team);
+            GameController.Instance.EndFollowForAll(Team);
         }
     }
 }

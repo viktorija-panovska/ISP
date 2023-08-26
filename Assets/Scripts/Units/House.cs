@@ -5,6 +5,7 @@ using Unity.Netcode;
 using UnityEngine.UI;
 
 
+
 public interface IHouseType
 {
     public int HousePrefab { get; }
@@ -18,25 +19,81 @@ public interface IHouseType
 
 public struct DestroyedHouse : IHouseType
 {
-    public int HousePrefab => 0;
-    public int MaxCapacity => 0;
-    public int MaxHealth => 0;
-    public int HealthRegenPerUnit => 0;
-    public int ManaGain => 0;
-    public int UnitReleaseWait => 0;
-    public IUnitType UnitType => null;
+    public readonly int HousePrefab => 0;
+    public readonly int MaxCapacity => 0;
+    public readonly int MaxHealth => 0;
+    public readonly int HealthRegenPerUnit => 0;
+    public readonly int ManaGain => 0;
+    public readonly int UnitReleaseWait => 0;
+    public readonly IUnitType UnitType => null;
+}
+
+public struct Tent : IHouseType
+{
+    public readonly int HousePrefab => 1;
+    public readonly int MaxCapacity => 2;
+    public readonly int MaxHealth => 5;
+    public readonly int HealthRegenPerUnit => 2;
+    public readonly int ManaGain => 10;
+    public readonly int UnitReleaseWait => 10;
+    public readonly IUnitType UnitType => new HutUnit();
 }
 
 public struct Hut : IHouseType
 {
-    public int HousePrefab => 1;
-    public int MaxCapacity => 2;
-    public int MaxHealth => 5;
-    public int HealthRegenPerUnit => 2;
-    public int ManaGain => 10;
-    public int UnitReleaseWait => 10;
-    public IUnitType UnitType => new HutUnit();
+    public readonly int HousePrefab => 1;
+    public readonly int MaxCapacity => 2;
+    public readonly int MaxHealth => 5;
+    public readonly int HealthRegenPerUnit => 2;
+    public readonly int ManaGain => 10;
+    public readonly int UnitReleaseWait => 10;
+    public readonly IUnitType UnitType => new HutUnit();
 }
+
+public struct WoodHouse : IHouseType
+{
+    public readonly int HousePrefab => 1;
+    public readonly int MaxCapacity => 2;
+    public readonly int MaxHealth => 5;
+    public readonly int HealthRegenPerUnit => 2;
+    public readonly int ManaGain => 10;
+    public readonly int UnitReleaseWait => 10;
+    public readonly IUnitType UnitType => new HutUnit();
+}
+
+public struct StoneHouse : IHouseType
+{
+    public readonly int HousePrefab => 1;
+    public readonly int MaxCapacity => 2;
+    public readonly int MaxHealth => 5;
+    public readonly int HealthRegenPerUnit => 2;
+    public readonly int ManaGain => 10;
+    public readonly int UnitReleaseWait => 10;
+    public readonly IUnitType UnitType => new HutUnit();
+}
+
+public struct Fortress : IHouseType
+{
+    public readonly int HousePrefab => 1;
+    public readonly int MaxCapacity => 2;
+    public readonly int MaxHealth => 5;
+    public readonly int HealthRegenPerUnit => 2;
+    public readonly int ManaGain => 10;
+    public readonly int UnitReleaseWait => 10;
+    public readonly IUnitType UnitType => new HutUnit();
+}
+
+public struct City : IHouseType
+{
+    public readonly int HousePrefab => 1;
+    public readonly int MaxCapacity => 2;
+    public readonly int MaxHealth => 5;
+    public readonly int HealthRegenPerUnit => 2;
+    public readonly int ManaGain => 10;
+    public readonly int UnitReleaseWait => 10;
+    public readonly IUnitType UnitType => new HutUnit();
+}
+
 
 
 public class House : NetworkBehaviour, IPlayerObject
@@ -68,6 +125,89 @@ public class House : NetworkBehaviour, IPlayerObject
         Vertices = vertices;
         Health = HouseType.MaxHealth;
     }
+
+
+    #region House Type
+
+    // in 5x5 area
+    public static int CountSurroundingFlatSpaces(WorldLocation center)
+    {
+        int nearbyHouses = 1;
+
+        bool IsTileFlat(WorldLocation start)
+        {
+            int occupiedVertices = 0;
+
+            for (int z = 0; z <= 1; ++z)
+            {
+                for (int x = 0; x <= 1; ++x)
+                {
+                    WorldLocation vertex = new(start.X + x * Chunk.TILE_WIDTH, start.Z + z * Chunk.TILE_WIDTH);
+
+                    if (!vertex.IsInBounds() || WorldMap.Instance.GetHeight(start) != WorldMap.Instance.GetHeight(vertex) ||
+                        !WorldMap.Instance.IsSpaceAccessible(vertex) || WorldMap.Instance.IsSpaceSwamp(vertex))
+                        return false;
+
+                    if (WorldMap.Instance.IsOccupied(vertex))
+                        occupiedVertices++;
+                }
+            }
+
+            if (occupiedVertices == 4)
+            {
+                nearbyHouses++;
+                WorldMap.Instance.GetHouseAtVertex(start).UpdateType();
+                return false;
+            }
+
+            return true;
+        }
+
+        int flatTiles = 0;
+
+        for (int z = -2; z <= 2; ++z)
+        {
+            for (int x = -2; x <= 2; ++x)
+            {
+                if ((x, z) == (0, 0))
+                    continue;
+
+                if (IsTileFlat(new(center.X + x * Chunk.TILE_WIDTH, center.Z + z * Chunk.TILE_WIDTH)))
+                    flatTiles++;
+            }
+        }
+
+        return Mathf.FloorToInt(flatTiles / nearbyHouses);
+    }
+
+    public static IHouseType GetHouseType(int flatSpaces)
+    {
+        int houseIndex = Mathf.FloorToInt((flatSpaces + 1) / 5);
+
+        return houseIndex switch
+        {
+            0 => new Tent(),
+            1 => new Hut(),
+            2 => new WoodHouse(),
+            3 => new StoneHouse(),
+            4 => new Fortress(),
+            5 => new City(),
+            _ => new DestroyedHouse(),
+        };
+    }
+
+    public void UpdateType()
+    {
+        WorldLocation? rootVertex = null;
+
+        foreach (WorldLocation vertex in Vertices)
+            if (rootVertex == null || vertex.X < rootVertex.Value.X || (vertex.X == rootVertex.Value.X && vertex.Z < rootVertex.Value.Z))
+                rootVertex = vertex;
+
+        HouseType = GetHouseType(CountSurroundingFlatSpaces(rootVertex.Value));
+    }
+
+    #endregion
 
 
 
@@ -183,7 +323,7 @@ public class House : NetworkBehaviour, IPlayerObject
         }
 
         // Spawns unit.
-        GameController.Instance.SpawnUnit(HouseType.UnitType, Team, Vertices[Random.Range(0, Vertices.Count - 1)], newUnit ? this : null, isLeader);
+        GameController.Instance.SpawnUnit(HouseType.UnitType, Team, Vertices[Random.Range(0, Vertices.Count - 1)], newUnit ? this : null, newUnit, isLeader);
 
         // Only new units give mana.
         if (newUnit)

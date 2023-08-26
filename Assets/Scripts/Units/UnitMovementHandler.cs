@@ -13,11 +13,13 @@ public enum MoveState
     Stop
 }
 
+
 public class UnitMovementHandler : NetworkBehaviour
 {
     private Unit Unit { get => GetComponent<Unit>(); }
 
     private Vector3 Position { get => gameObject.transform.position; set => gameObject.transform.position = value; }
+    private Quaternion Rotation { get => gameObject.transform.rotation; set => gameObject.transform.rotation = value; }
     private WorldLocation Location { get => new(Position.x, Position.z); }
 
     private const float MOVE_SPEED = 2f;
@@ -25,7 +27,7 @@ public class UnitMovementHandler : NetworkBehaviour
 
     private bool isGuided = false;
 
-    private readonly (int x, int z)[] directions = new (int, int)[] { (-1, 1), (0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (-1, -1), (-1, 0) };
+    private readonly (int x, int z)[] directions = new (int, int)[] { (0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (-1, -1), (-1, 0), (-1, 1) };
 
 
     // Following path
@@ -37,7 +39,7 @@ public class UnitMovementHandler : NetworkBehaviour
     public WorldLocation StartLocation { get; private set; }
     public WorldLocation EndLocation { get => pathTarget ?? StartLocation; }
 
-    private Unit followingUnit;
+    public Unit TargetUnit { get; private set; }
 
 
     // Roaming
@@ -69,7 +71,7 @@ public class UnitMovementHandler : NetworkBehaviour
 
         if (path != null || pathTarget != null)
             FollowPath();
-        else if (followingUnit != null)
+        else if (TargetUnit != null)
             FollowUnit();
         else
             Roam();
@@ -180,6 +182,7 @@ public class UnitMovementHandler : NetworkBehaviour
             Mathf.Abs(Position.z - targetPosition.z) > POSITION_ERROR)
         {
             Position = Vector3.Lerp(Position, targetPosition, MOVE_SPEED * Time.deltaTime);
+            Rotation = Quaternion.LookRotation(new Vector3(targetPosition.x, 0, targetPosition.z) - new Vector3(Position.x, 0, Position.z), Vector3.up);
             return true;
         }
         return false;
@@ -194,7 +197,10 @@ public class UnitMovementHandler : NetworkBehaviour
     {
         WorldLocation currentLocation = new(Position.x, Position.z);
 
-        List<WorldLocation> vertices = FindFreeSpaceOrHouse(currentLocation);
+        List<WorldLocation> vertices = null;
+        
+        if (Unit.UnitState == UnitStates.Settle)
+            vertices = FindFreeSpaceOrHouse(currentLocation);
 
         if (vertices == null)
         {
@@ -245,6 +251,20 @@ public class UnitMovementHandler : NetworkBehaviour
 
         if (roamDirection == (0, 0))
             AddValidDirections(directions);
+        else if (Unit.UnitState == UnitStates.Battle)
+        {
+            AddValidDirections(new (int, int)[] {
+                directions[Helpers.NextArrayIndex(0, Unit.Team == Teams.Red ? 1 : -1, directions.Length)],
+                directions[Helpers.NextArrayIndex(0, Unit.Team == Teams.Red ? 2 : -2, directions.Length)],
+                directions[Helpers.NextArrayIndex(0, Unit.Team == Teams.Red ? 3 : -3, directions.Length)],
+                directions[0], directions[4] });
+
+            if (availableDirections.Count == 0)
+                AddValidDirections(new (int, int)[] {
+                directions[Helpers.NextArrayIndex(0, Unit.Team == Teams.Red ? -1 : 1, directions.Length)],
+                directions[Helpers.NextArrayIndex(0, Unit.Team == Teams.Red ? -2 : 2, directions.Length)],
+                directions[Helpers.NextArrayIndex(0, Unit.Team == Teams.Red ? -3 : 3, directions.Length)]});
+        }
         else
         {
             int currentDirection = Array.IndexOf(directions, roamDirection);
@@ -510,13 +530,16 @@ public class UnitMovementHandler : NetworkBehaviour
 
     public void SetFollowingUnit(Unit unit)
     {
-        followingUnit = unit;
+        TargetUnit = unit;
         isGuided = true;
     }
 
     private void FollowUnit()
     {
-        WorldLocation? path = Pathfinding.FollowUnit(Unit.Location, followingUnit.Location);
+        if (Unit.UnitState == UnitStates.Battle && TargetUnit.IsFighting)
+            EndFollow();
+
+        WorldLocation? path = Pathfinding.FollowUnit(Unit.Location, TargetUnit.Location);
 
         if (path != null)
             SetPath(new() { path.Value });
@@ -524,7 +547,7 @@ public class UnitMovementHandler : NetworkBehaviour
 
     public void EndFollow()
     {
-        followingUnit = null;
+        TargetUnit = null;
         isGuided = false;
     }
 

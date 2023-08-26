@@ -1,7 +1,7 @@
-using System.Collections.Generic;
 using UnityEngine;
+using System.Collections.Generic;
 
-public class BattleDetector : MonoBehaviour
+public class UnitEnemyDetector : MonoBehaviour
 {
     public Unit Unit;
     private GameObject target;
@@ -13,16 +13,13 @@ public class BattleDetector : MonoBehaviour
 
         if (other.gameObject.layer == LayerMask.NameToLayer("Unit"))
         {
-            var otherUnit = other.gameObject.GetComponent<Unit>();
-            
-            if (Unit.Team != otherUnit.Team && !otherUnit.IsFighting)
+            var otherUnit = other.GetComponentInParent<Unit>();
+
+            if (Unit.Team != otherUnit.Team && !otherUnit.IsFighting && otherUnit.ChasedBy == null)
             {
-                target = other.gameObject;
-
-                WorldLocation? next = Pathfinding.FollowUnit(new(Unit.Position.x, Unit.Position.z), new(otherUnit.Position.x, otherUnit.Position.z));
-
-                if (next != null)
-                    Unit.MoveUnit(new List<WorldLocation> { next.Value });
+                otherUnit.ChasedBy = Unit;
+                target = otherUnit.gameObject;
+                Unit.FollowUnit(otherUnit);
             }
         }
 
@@ -39,7 +36,7 @@ public class BattleDetector : MonoBehaviour
                 List<WorldLocation> path = Pathfinding.FindPath(new WorldLocation(Unit.Position.x, Unit.Position.z), position);
 
                 if (path != null && path.Count > 0)
-                    Unit.MoveUnit(path);
+                    Unit.MoveAlongPath(path);
             }
         }
     }
