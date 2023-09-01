@@ -125,7 +125,7 @@ GameObject:
   - component: {fileID: 9157513579880496236}
   - component: {fileID: 7045340662914901698}
   - component: {fileID: 6907788212990350184}
-  - component: {fileID: -8057516098335038396}
+  - component: {fileID: 941492468900620570}
   m_Layer: 0
   m_Name: DestroyedHouse
   m_TagString: Untagged
@@ -215,7 +215,7 @@ MonoBehaviour:
   AlwaysReplicateAsRoot: 0
   DontDestroyWithOwner: 0
   AutoObjectParentSync: 1
---- !u!114 &-8057516098335038396
+--- !u!114 &941492468900620570
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -224,11 +224,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 2958902495337925058}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1e2a20ad7cb646d4fbee10d6d4a5ce9f, type: 3}
+  m_Script: {fileID: 11500000, guid: f961ab94f966f1d498ee5796f71ca801, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  HealthBar: {fileID: 564489515740490204}
-  Fill: {fileID: 7109080029432516806}
 --- !u!1 &4244903870342029317
 GameObject:
   m_ObjectHideFlags: 0

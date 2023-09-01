@@ -275,10 +275,10 @@ GameObject:
   m_Component:
   - component: {fileID: 7566373658511427658}
   - component: {fileID: 5025113152812772960}
-  - component: {fileID: 8476409890696036328}
-  - component: {fileID: 4879853796011759092}
-  - component: {fileID: 2651398114892138494}
+  - component: {fileID: 1006740511177706171}
+  - component: {fileID: 4048964985568170533}
   - component: {fileID: 4356391194417125182}
+  - component: {fileID: 2651398114892138494}
   m_Layer: 7
   m_Name: House
   m_TagString: Untagged
@@ -318,7 +318,7 @@ MonoBehaviour:
   AlwaysReplicateAsRoot: 0
   DontDestroyWithOwner: 0
   AutoObjectParentSync: 1
---- !u!33 &8476409890696036328
+--- !u!33 &1006740511177706171
 MeshFilter:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -326,7 +326,7 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3435573214129474652}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
---- !u!23 &4879853796011759092
+--- !u!23 &4048964985568170533
 MeshRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -368,21 +368,6 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &2651398114892138494
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3435573214129474652}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1e2a20ad7cb646d4fbee10d6d4a5ce9f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  HealthBar: {fileID: 963801196063003493}
-  Fill: {fileID: 9197906121697523148}
-  LeaderMarker: {fileID: 3040884800902197518}
 --- !u!65 &4356391194417125182
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -396,6 +381,35 @@ BoxCollider:
   serializedVersion: 2
   m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &2651398114892138494
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3435573214129474652}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1e2a20ad7cb646d4fbee10d6d4a5ce9f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  HouseMeshes:
+  - {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+  - {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+  - {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+  - {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+  - {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+  - {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+  HouseMaterials:
+  - {fileID: 2100000, guid: 563d08a9dbb01ba488d870a80c126b43, type: 2}
+  - {fileID: 2100000, guid: 1226068b76f476f45ac8fd001953da44, type: 2}
+  - {fileID: 2100000, guid: 2cdf49dd8ff5ada40a41d31e77474350, type: 2}
+  - {fileID: 2100000, guid: 2cdf49dd8ff5ada40a41d31e77474350, type: 2}
+  - {fileID: 2100000, guid: 2cdf49dd8ff5ada40a41d31e77474350, type: 2}
+  - {fileID: 2100000, guid: 563d08a9dbb01ba488d870a80c126b43, type: 2}
+  HealthBar: {fileID: 963801196063003493}
+  Fill: {fileID: 9197906121697523148}
+  LeaderMarker: {fileID: 3040884800902197518}
 --- !u!1 &7825948508522091219
 GameObject:
   m_ObjectHideFlags: 0

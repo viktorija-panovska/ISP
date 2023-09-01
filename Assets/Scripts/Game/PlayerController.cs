@@ -4,16 +4,6 @@ using UnityEngine;
 
 public interface IPlayerObject
 {
-    void MakeLeader();
-
-    [ClientRpc]
-    void SetLeaderMarkerClientRpc(bool active);
-
-    void OnMouseEnter();
-    void OnMouseExit();
-
-    [ServerRpc]
-    void ToggleHealthBarServerRpc(bool show, ServerRpcParams parameters = default);
 }
 
 

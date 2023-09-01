@@ -71,7 +71,7 @@ public class Chunk
     private readonly List<int>[,] vertices = new List<int>[TILE_NUMBER + 1, TILE_NUMBER + 1];
     private readonly List<int>[,] centers = new List<int>[TILE_NUMBER, TILE_NUMBER];
 
-    private readonly House[,] houseAtVertex = new House[TILE_NUMBER + 1, TILE_NUMBER + 1];
+    private readonly IHouse[,] houseAtVertex = new IHouse[TILE_NUMBER + 1, TILE_NUMBER + 1];
     private readonly Dictionary<(int x, int z), NaturalFormation> formations = new();
 
 
@@ -146,13 +146,13 @@ public class Chunk
 
     #region Houses
 
-    public void SetHouseAtVertex(int x, int z, House house)
+    public void SetHouseAtVertex(int x, int z, IHouse house)
     {
         (int x_i, int z_i) = CoordsToIndices(x, z);
         houseAtVertex[z_i, x_i] = house;
     }
 
-    public House GetHouseAtVertex(int x, int z)
+    public IHouse GetHouseAtVertex(int x, int z)
     {
         (int x_i, int z_i) = CoordsToIndices(x, z);
         return houseAtVertex[z_i, x_i];

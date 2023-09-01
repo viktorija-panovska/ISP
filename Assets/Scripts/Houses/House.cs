@@ -5,10 +5,9 @@ using Unity.Netcode;
 using UnityEngine.UI;
 
 
-
 public interface IHouseType
 {
-    public int HousePrefab { get; }
+    public int Type { get; }
     public int MaxCapacity { get; }
     public int MaxHealth { get; }
     public int HealthRegenPerUnit { get; }
@@ -17,20 +16,9 @@ public interface IHouseType
     public IUnitType UnitType { get; }
 }
 
-public struct DestroyedHouse : IHouseType
-{
-    public readonly int HousePrefab => 0;
-    public readonly int MaxCapacity => 0;
-    public readonly int MaxHealth => 0;
-    public readonly int HealthRegenPerUnit => 0;
-    public readonly int ManaGain => 0;
-    public readonly int UnitReleaseWait => 0;
-    public readonly IUnitType UnitType => null;
-}
-
 public struct Tent : IHouseType
 {
-    public readonly int HousePrefab => 1;
+    public readonly int Type => 0;
     public readonly int MaxCapacity => 2;
     public readonly int MaxHealth => 5;
     public readonly int HealthRegenPerUnit => 2;
@@ -41,7 +29,7 @@ public struct Tent : IHouseType
 
 public struct Hut : IHouseType
 {
-    public readonly int HousePrefab => 1;
+    public readonly int Type => 1;
     public readonly int MaxCapacity => 2;
     public readonly int MaxHealth => 5;
     public readonly int HealthRegenPerUnit => 2;
@@ -52,7 +40,7 @@ public struct Hut : IHouseType
 
 public struct WoodHouse : IHouseType
 {
-    public readonly int HousePrefab => 1;
+    public readonly int Type => 2;
     public readonly int MaxCapacity => 2;
     public readonly int MaxHealth => 5;
     public readonly int HealthRegenPerUnit => 2;
@@ -63,7 +51,7 @@ public struct WoodHouse : IHouseType
 
 public struct StoneHouse : IHouseType
 {
-    public readonly int HousePrefab => 1;
+    public readonly int Type => 3;
     public readonly int MaxCapacity => 2;
     public readonly int MaxHealth => 5;
     public readonly int HealthRegenPerUnit => 2;
@@ -74,7 +62,7 @@ public struct StoneHouse : IHouseType
 
 public struct Fortress : IHouseType
 {
-    public readonly int HousePrefab => 1;
+    public readonly int Type => 4;
     public readonly int MaxCapacity => 2;
     public readonly int MaxHealth => 5;
     public readonly int HealthRegenPerUnit => 2;
@@ -85,7 +73,7 @@ public struct Fortress : IHouseType
 
 public struct City : IHouseType
 {
-    public readonly int HousePrefab => 1;
+    public readonly int Type => 5;
     public readonly int MaxCapacity => 2;
     public readonly int MaxHealth => 5;
     public readonly int HealthRegenPerUnit => 2;
@@ -95,12 +83,25 @@ public struct City : IHouseType
 }
 
 
-
-public class House : NetworkBehaviour, IPlayerObject
+public interface IHouse : IPlayerObject
 {
+    public List<WorldLocation> Vertices { get; }
+    public void DestroyHouse(bool spawnDestroyedHouse);
+}
+
+
+public class House : NetworkBehaviour, IHouse
+{
+    private MeshFilter Filter { get => GetComponent<MeshFilter>(); }
+    private MeshRenderer Renderer { get => GetComponent<MeshRenderer>(); }
+    private BoxCollider Collider { get => GetComponent<BoxCollider>(); }
+
+    public Mesh[] HouseMeshes;
+    public Material[] HouseMaterials;
+
     public IHouseType HouseType { get; private set; }
-    public bool IsDestroyed { get; private set; }
     public List<WorldLocation> Vertices { get; private set; }
+    private WorldLocation rootVertex;
 
     public Teams Team { get; private set; }
     public int Health { get; private set; }
@@ -111,20 +112,20 @@ public class House : NetworkBehaviour, IPlayerObject
     public Image Fill;
     public GameObject LeaderMarker;
 
-    private Dictionary<WorldLocation, Unit> attackingUnits = new();
-    private bool IsUnderAttack { get => attackingUnits.Count > 0; }
+    public Dictionary<WorldLocation, Unit> AttackingUnits { get; private set; } = new();
+    private bool IsUnderAttack { get => AttackingUnits.Count > 0; }
 
 
 
-    public void Initialize(IHouseType houseType, Teams team, List<WorldLocation> vertices)
+    public void Initialize(List<WorldLocation> vertices, WorldLocation rootVertex, Teams team)
     {
-        HouseType = houseType;
-        IsDestroyed = houseType.GetType() == typeof(DestroyedHouse);
-
-        Team = team;
         Vertices = vertices;
-        Health = HouseType.MaxHealth;
+        this.rootVertex = rootVertex;
+        Team = team;
+
+        UpdateType();
     }
+
 
 
     #region House Type
@@ -155,8 +156,15 @@ public class House : NetworkBehaviour, IPlayerObject
 
             if (occupiedVertices == 4)
             {
+                IHouse ihouse = WorldMap.Instance.GetHouseAtVertex(start);
+
+                if (ihouse.GetType() == typeof(DestroyedHouse))
+                    return false;
+
                 nearbyHouses++;
-                WorldMap.Instance.GetHouseAtVertex(start).UpdateType();
+
+                House house = (House)ihouse;
+                house.UpdateType();
                 return false;
             }
 
@@ -165,16 +173,40 @@ public class House : NetworkBehaviour, IPlayerObject
 
         int flatTiles = 0;
 
-        for (int z = -2; z <= 2; ++z)
-        {
-            for (int x = -2; x <= 2; ++x)
-            {
-                if ((x, z) == (0, 0))
-                    continue;
+        // null - space has not been checked
+        // true - space is flat
+        // false - space is not flat
+        bool?[,] checkedSpaces = new bool?[5, 5];
+        checkedSpaces[2, 2] = true;
 
-                if (IsTileFlat(new(center.X + x * Chunk.TILE_WIDTH, center.Z + z * Chunk.TILE_WIDTH)))
-                    flatTiles++;
+        List<(int, int)> spacesToCheck = new();
+        spacesToCheck.AddRange(new (int, int)[]{ (1, 0), (0, 1), (-1, 0), (0, -1) });
+
+        for (int i = 0; i < spacesToCheck.Count; ++i)
+        {
+            (int x, int z) = spacesToCheck[i];
+
+            if (checkedSpaces[2 + x, 2 + z] != null)
+                continue;
+
+            if (IsTileFlat(new(center.X + x * Chunk.TILE_WIDTH, center.Z + z * Chunk.TILE_WIDTH)))
+            {
+                flatTiles++;
+                checkedSpaces[2 + x, 2 + z] = true;
+
+                if (x == 0 && Mathf.Abs(z) == 1)
+                    spacesToCheck.AddRange(new (int, int)[] { (x, z + z), (x - 1, z), (x + 1, z) });
+                else if (Mathf.Abs(x) == 1 && z == 0)
+                    spacesToCheck.AddRange(new (int, int)[] { (x + x, z), (x, z - 1), (x, z + 1) });
+                else if (Mathf.Abs(x) == 1 && Mathf.Abs(z) == 1)
+                    spacesToCheck.AddRange(new (int, int)[] { (x + x, z), (x, z + z) });
+                else if (Mathf.Abs(x) == 2 && Mathf.Abs(z) != 2)
+                    spacesToCheck.AddRange(new (int, int)[] { (x, z - 1), (x, z + 1) });
+                else if (Mathf.Abs(x) != 2 && Mathf.Abs(z) == 2)
+                    spacesToCheck.AddRange(new (int, int)[] { (x - 1, z), (x + 1, z) });
             }
+            else
+                checkedSpaces[2 + x, 2 + z] = false;
         }
 
         return Mathf.FloorToInt(flatTiles / nearbyHouses);
@@ -192,19 +224,44 @@ public class House : NetworkBehaviour, IPlayerObject
             3 => new StoneHouse(),
             4 => new Fortress(),
             5 => new City(),
-            _ => new DestroyedHouse(),
+            _ => new Tent()
         };
     }
 
     public void UpdateType()
     {
-        WorldLocation? rootVertex = null;
+        IHouseType newHouseType = GetHouseType(CountSurroundingFlatSpaces(rootVertex));
 
-        foreach (WorldLocation vertex in Vertices)
-            if (rootVertex == null || vertex.X < rootVertex.Value.X || (vertex.X == rootVertex.Value.X && vertex.Z < rootVertex.Value.Z))
-                rootVertex = vertex;
+        if (HouseType == null || newHouseType.Type != HouseType.Type)
+        {
+            if (HouseType != null && HouseType.GetType() == typeof(City))
+            {
+                Vertices = new()
+                {
+                    new WorldLocation(rootVertex.X + Chunk.TILE_WIDTH, rootVertex.Z + Chunk.TILE_WIDTH),
+                    new WorldLocation(rootVertex.X + 2 * Chunk.TILE_WIDTH, rootVertex.Z + Chunk.TILE_WIDTH),
+                    new WorldLocation(rootVertex.X + Chunk.TILE_WIDTH, rootVertex.Z + 2 * Chunk.TILE_WIDTH),
+                    new WorldLocation(rootVertex.X + 2 * Chunk.TILE_WIDTH, rootVertex.Z + 2 * Chunk.TILE_WIDTH)
+                };
 
-        HouseType = GetHouseType(CountSurroundingFlatSpaces(rootVertex.Value));
+                Collider.size = new Vector3(1, 1, 1);
+            }
+
+            if (newHouseType.GetType() == typeof(City))
+            {
+                Vertices = new();
+                for (int z = -1; z <= 2; ++z)
+                    for (int x = -1; x <= 2; ++x)
+                        Vertices.Add(new WorldLocation(rootVertex.X + x * Chunk.TILE_WIDTH, rootVertex.Z + z * Chunk.TILE_WIDTH));
+
+                Collider.size = new Vector3(2, 1, 2);
+            }
+
+            HouseType = newHouseType;
+            Health = HouseType.MaxHealth;
+            Filter.mesh = HouseMeshes[HouseType.Type];
+            Renderer.material = HouseMaterials[HouseType.Type];
+        }
     }
 
     #endregion
@@ -215,14 +272,12 @@ public class House : NetworkBehaviour, IPlayerObject
 
     public void OnMouseEnter()
     {
-        if (!IsDestroyed)
-            ToggleHealthBarServerRpc(show: true);
+        ToggleHealthBarServerRpc(show: true);
     }
 
     public void OnMouseExit()
     {
-        if (!IsDestroyed)
-            ToggleHealthBarServerRpc(show: false);
+        ToggleHealthBarServerRpc(show: false);
     }
 
 
@@ -345,14 +400,14 @@ public class House : NetworkBehaviour, IPlayerObject
     #region Battle
 
     public bool IsAttackable(Teams otherTeam)
-        => !IsDestroyed && ((Team == Teams.Red && otherTeam == Teams.Blue) || (Team == Teams.Blue && otherTeam == Teams.Red)) && attackingUnits.Count <= Vertices.Count;
+        => ((Team == Teams.Red && otherTeam == Teams.Blue) || (Team == Teams.Blue && otherTeam == Teams.Red)) && AttackingUnits.Count <= Vertices.Count;
 
     public List<WorldLocation> GetAttackableVertices()
     {
         List<WorldLocation> available = new();
 
         foreach (WorldLocation vertex in Vertices)
-            if (!attackingUnits.ContainsKey(vertex))
+            if (!AttackingUnits.ContainsKey(vertex))
                 available.Add(vertex);
 
         return available;
@@ -360,8 +415,8 @@ public class House : NetworkBehaviour, IPlayerObject
 
     public void TakeDamage(int damage, Unit attacker)
     {
-        if (!attackingUnits.ContainsKey(attacker.Location))
-            attackingUnits.Add(attacker.Location, attacker);
+        if (!AttackingUnits.ContainsKey(attacker.Location))
+            AttackingUnits.Add(attacker.Location, attacker);
 
         Health -= damage;
         UpdateHealthBarClientRpc(HouseType.MaxHealth, Health, Team);
@@ -379,13 +434,13 @@ public class House : NetworkBehaviour, IPlayerObject
     public void DestroyHouse(bool spawnDestroyedHouse)
     {
         ReleaseAllUnits();
-        GameController.Instance.DestroyHouse(this, spawnDestroyedHouse, attackingUnits);
-        attackingUnits = new();
+        GameController.Instance.DestroyHouse(this, spawnDestroyedHouse);
+        AttackingUnits = new();
     }
 
     public void EndAttack(Unit attacker)
     {
-        attackingUnits.Remove(attacker.Location);
+        AttackingUnits.Remove(attacker.Location);
 
         if (!IsUnderAttack && UnitsInHouse > 0 && !GameController.Instance.AreMaxUnitsReached(Team))
             StartCoroutine(ReleaseNewUnits());

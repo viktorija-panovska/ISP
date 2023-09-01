@@ -129,14 +129,14 @@ public class WorldMap : NetworkBehaviour
 
     #region Houses
 
-    public void SetHouseAtVertex(WorldLocation globalVertexCoord, House house)
+    public void SetHouseAtVertex(WorldLocation globalVertexCoord, IHouse house)
     {
         (int chunk_x, int chunk_z) = GetChunkIndex(globalVertexCoord.X, globalVertexCoord.Z);
         (int local_x, int local_z) = LocalCoordsFromGlobal(globalVertexCoord.X, globalVertexCoord.Z);
         chunkMap[chunk_z, chunk_x].SetHouseAtVertex(local_x, local_z, house);
     }
 
-    public House GetHouseAtVertex(WorldLocation globalVertexCoord)
+    public IHouse GetHouseAtVertex(WorldLocation globalVertexCoord)
     {
         (int chunk_x, int chunk_z) = GetChunkIndex(globalVertexCoord.X, globalVertexCoord.Z);
         (int local_x, int local_z) = LocalCoordsFromGlobal(globalVertexCoord.X, globalVertexCoord.Z);
@@ -144,6 +144,10 @@ public class WorldMap : NetworkBehaviour
     }
 
     public bool IsOccupied(WorldLocation vertex) => GetHouseAtVertex(vertex) != null;
+
+    public bool IsSpaceDestroyedHouse(WorldLocation vertex) => GetHouseAtVertex(vertex).GetType() == typeof(DestroyedHouse);
+
+    public bool IsSpaceActiveHouse(WorldLocation vertex) => GetHouseAtVertex(vertex).GetType() == typeof(House);
 
     #endregion
 

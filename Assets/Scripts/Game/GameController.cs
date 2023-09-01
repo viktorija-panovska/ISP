@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using Unity.Netcode;
+using Unity.VisualScripting;
 using UnityEngine;
 
 
@@ -77,8 +78,9 @@ public class GameController : NetworkBehaviour
     // Prefabs
     public GameObject WorldMapPrefab;
     public GameObject PlayerControllerPrefab;
-    public GameObject[] HousePrefabs;
     public GameObject[] UnitPrefabs;
+    public GameObject DestroyedHousePrefab;
+    public GameObject HousePrefab;
     public GameObject[] FlagPrefabs;
     public GameObject SwampPrefab;
     public GameObject[] ForestPrefabs;
@@ -316,7 +318,6 @@ public class GameController : NetworkBehaviour
     {
         if (isDead)
         {
-            Debug.Log("IsDead");
             units[(int)unit.Team - 1]--;
 
             if (unit.IsLeader)
@@ -350,48 +351,36 @@ public class GameController : NetworkBehaviour
 
     #region Houses
 
-    public void SpawnHouse(List<WorldLocation> vertices, Teams team)
+    public void SpawnHouse(List<WorldLocation> vertices, Teams team = Teams.None, bool isDestroyedHouse = false)
     {
+        GameObject prefab = isDestroyedHouse ? DestroyedHousePrefab : HousePrefab;
+
         WorldLocation? rootVertex = null;
 
         foreach (WorldLocation vertex in vertices)
             if (rootVertex == null || vertex.X < rootVertex.Value.X || (vertex.X == rootVertex.Value.X && vertex.Z < rootVertex.Value.Z))
                 rootVertex = vertex;
 
-        SpawnHouse(House.GetHouseType(House.CountSurroundingFlatSpaces(rootVertex.Value)), vertices, rootVertex, team);
-    }
-
-    private void SpawnHouse(IHouseType houseType, List<WorldLocation> vertices, WorldLocation? rootVertex = null, Teams team = Teams.None)
-    {
-        if (rootVertex == null)
-        {
-            foreach (WorldLocation vertex in vertices)
-                if (rootVertex == null || vertex.X < rootVertex.Value.X || (vertex.X == rootVertex.Value.X && vertex.Z < rootVertex.Value.Z))
-                    rootVertex = vertex;
-        }
-
-        GameObject housePrefab = HousePrefabs[houseType.HousePrefab];
-
         GameObject houseObject = Instantiate(
-            housePrefab,
+            prefab,
             new Vector3(
-                rootVertex.Value.X + housePrefab.GetComponent<MeshRenderer>().bounds.extents.x + 2.5f,
-                WorldMap.Instance.GetHeight(rootVertex.Value) + housePrefab.GetComponent<MeshRenderer>().bounds.extents.y,
-                rootVertex.Value.Z + housePrefab.GetComponent<MeshRenderer>().bounds.extents.z + 2.5f),
+                rootVertex.Value.X + prefab.GetComponent<MeshRenderer>().bounds.extents.x + 2.5f,
+                WorldMap.Instance.GetHeight(rootVertex.Value) + prefab.GetComponent<MeshRenderer>().bounds.extents.y,
+                rootVertex.Value.Z + prefab.GetComponent<MeshRenderer>().bounds.extents.z + 2.5f),
             Quaternion.identity);
 
         houseObject.GetComponent<NetworkObject>().Spawn(destroyWithScene: true);
 
-        House house = houseObject.GetComponent<House>();
-        house.Initialize(houseType, team, vertices);
-
         foreach (WorldLocation vertex in vertices)
-            WorldMap.Instance.SetHouseAtVertex(vertex, house);
+            WorldMap.Instance.SetHouseAtVertex(vertex, houseObject.GetComponent<IHouse>());
 
-        if (!house.IsDestroyed)
+        if (!isDestroyedHouse)
         {
+            House house = houseObject.GetComponent<House>();
+            house.Initialize(vertices, rootVertex.Value, team);
+
             activeHouses[(int)team - 1].Add(house);
-            AddManaClientRpc(houseType.ManaGain, new ClientRpcParams
+            AddManaClientRpc(house.HouseType.ManaGain, new ClientRpcParams
             {
                 Send = new ClientRpcSendParams
                 {
@@ -399,6 +388,13 @@ public class GameController : NetworkBehaviour
                 }
             });
         }
+        else
+        {
+            DestroyedHouse destroyedHouse = houseObject.GetComponent<DestroyedHouse>();
+            destroyedHouse.Initialize(vertices);
+        }
+
+        
     }
 
     public void EnterHouse(Unit unit, House house)
@@ -414,27 +410,38 @@ public class GameController : NetworkBehaviour
         DespawnUnit(unit, false);
     }
 
-    public void DestroyHouse(House house, bool spawnDestroyedHouse, Dictionary<WorldLocation, Unit> attackingUnits = null)
+    public void DestroyHouse(IHouse house, bool spawnDestroyedHouse)
     {
-        if (attackingUnits != null)
-        {
-            foreach (Unit unit in attackingUnits.Values)
-            {
-                StopCoroutine(HitHouse(unit, house));
-                unit.GetComponent<UnitMovementHandler>().Resume();
-            }
-        }
+        GameObject houseObject;
 
-        if (!house.IsDestroyed)
-            activeHouses[(int)house.Team - 1].Remove(house);
+        if (house.GetType() == typeof(House))
+        {
+            House activeHouse = (House)house;
+
+            if (activeHouse.AttackingUnits.Count > 0)
+            {
+                foreach (Unit unit in activeHouse.AttackingUnits.Values)
+                {
+                    StopCoroutine(HitHouse(unit, activeHouse));
+                    unit.GetComponent<UnitMovementHandler>().Resume();
+                }
+            }
+
+            activeHouses[(int)activeHouse.Team - 1].Remove(activeHouse);
+            houseObject = activeHouse.gameObject;
+        }
+        else
+        {
+            houseObject = ((DestroyedHouse)house).gameObject;
+        }
 
         foreach (WorldLocation vertex in house.Vertices)
             WorldMap.Instance.SetHouseAtVertex(vertex, null);
 
         if (spawnDestroyedHouse)
-            SpawnHouse(new DestroyedHouse(), house.Vertices);
+            SpawnHouse(house.Vertices, isDestroyedHouse: true);
 
-        house.gameObject.GetComponent<NetworkObject>().Despawn();
+        houseObject.GetComponent<NetworkObject>().Despawn();
     }
 
     private void UpdateHouses()
@@ -672,7 +679,7 @@ public class GameController : NetworkBehaviour
     [ServerRpc(RequireOwnership = false)]
     public void SpawnSwampServerRpc(WorldLocation location)
     {
-        House house = WorldMap.Instance.GetHouseAtVertex(location);
+        IHouse house = WorldMap.Instance.GetHouseAtVertex(location);
         if (house != null)
             DestroyHouse(house, false);
 

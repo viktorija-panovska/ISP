@@ -153,7 +153,7 @@ public class UnitMovementHandler : NetworkBehaviour
 
                             if (moveState == MoveState.FoundEnemyHouse)
                             {
-                                House house = WorldMap.Instance.GetHouseAtVertex(houseVertices[0]);
+                                House house = (House)WorldMap.Instance.GetHouseAtVertex(houseVertices[0]);
                                 SetPath(Pathfinding.FindPath(Location, Helpers.GetClosestVertex(Position, house.GetAttackableVertices()).location));
                             }
                             else
@@ -220,7 +220,7 @@ public class UnitMovementHandler : NetworkBehaviour
 
             if (moveState == MoveState.FoundEnemyHouse)
             {
-                House house = WorldMap.Instance.GetHouseAtVertex(houseVertices[0]);
+                House house = (House)WorldMap.Instance.GetHouseAtVertex(houseVertices[0]);
                 SetPath(Pathfinding.FindPath(currentLocation, Helpers.GetClosestVertex(Position, house.GetAttackableVertices()).location));
             }
             else
@@ -469,7 +469,7 @@ public class UnitMovementHandler : NetworkBehaviour
         if (WorldMap.Instance.IsOccupied(start))
         {
             occupiedVertices.Add(start);
-            if (WorldMap.Instance.GetHouseAtVertex(start).CanUnitEnter(Unit))
+            if (WorldMap.Instance.IsSpaceActiveHouse(start) && ((House)WorldMap.Instance.GetHouseAtVertex(start)).CanUnitEnter(Unit))
                 isEnterable = true;
         }
         else
@@ -506,7 +506,7 @@ public class UnitMovementHandler : NetworkBehaviour
                 moveState = MoveState.FoundFriendlyHouse;
                 return occupiedVertices;
             }
-            else if (WorldMap.Instance.GetHouseAtVertex(start).IsAttackable(Unit.Team))
+            else if (WorldMap.Instance.IsSpaceActiveHouse(start) && ((House)WorldMap.Instance.GetHouseAtVertex(start)).IsAttackable(Unit.Team))
             {
                 moveState = MoveState.FoundEnemyHouse;
                 return occupiedVertices;
@@ -596,10 +596,12 @@ public class UnitMovementHandler : NetworkBehaviour
     }
 
     private bool IsFriendlyHouse()
-        => WorldMap.Instance.IsOccupied(houseVertices[0]) && WorldMap.Instance.GetHouseAtVertex(houseVertices[0]).CanUnitEnter(Unit);
+        => WorldMap.Instance.IsSpaceActiveHouse(houseVertices[0]) && 
+           ((House)WorldMap.Instance.GetHouseAtVertex(houseVertices[0])).CanUnitEnter(Unit);
 
     private bool IsEnemyHouse()
-        => WorldMap.Instance.IsOccupied(houseVertices[0]) && WorldMap.Instance.GetHouseAtVertex(houseVertices[0]).IsAttackable(Unit.Team);
+        => WorldMap.Instance.IsSpaceActiveHouse(houseVertices[0]) && 
+           ((House)WorldMap.Instance.GetHouseAtVertex(houseVertices[0])).IsAttackable(Unit.Team);
 
     #endregion
 }

@@ -218,12 +218,12 @@ public class Unit : NetworkBehaviour, IPlayerObject
 
     public virtual void EnterHouse()
     {
-        GameController.Instance.EnterHouse(this, WorldMap.Instance.GetHouseAtVertex(Location));
+        GameController.Instance.EnterHouse(this, (House)WorldMap.Instance.GetHouseAtVertex(Location));
     }
 
     public virtual void AttackHouse()
     {
-        House house = WorldMap.Instance.GetHouseAtVertex(Location);
+        House house = (House)WorldMap.Instance.GetHouseAtVertex(Location);
         GameController.Instance.AttackHouse(this, house);
     }
 
