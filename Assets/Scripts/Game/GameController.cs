@@ -3,7 +3,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using Unity.Netcode;
-using Unity.VisualScripting;
 using UnityEngine;
 
 
@@ -291,10 +290,7 @@ public class GameController : NetworkBehaviour
 
         GameObject unitObject = Instantiate(
             UnitPrefabs[playerId + 1],
-            new Vector3(
-                spawnLocation.X,
-                WorldMap.Instance.GetHeight(spawnLocation) + UnitPrefabs[playerId + 1].GetComponent<MeshRenderer>().bounds.extents.y,
-                spawnLocation.Z),
+            new Vector3(spawnLocation.X, WorldMap.Instance.GetHeight(spawnLocation), spawnLocation.Z),
             Quaternion.identity);
 
         unitObject.GetComponent<NetworkObject>().Spawn(destroyWithScene: true);
@@ -348,7 +344,7 @@ public class GameController : NetworkBehaviour
     #endregion
 
 
-
+    
     #region Houses
 
     public void SpawnHouse(List<WorldLocation> vertices, Teams team = Teams.None, bool isDestroyedHouse = false)
@@ -363,10 +359,7 @@ public class GameController : NetworkBehaviour
 
         GameObject houseObject = Instantiate(
             prefab,
-            new Vector3(
-                rootVertex.Value.X + prefab.GetComponent<MeshRenderer>().bounds.extents.x + 2.5f,
-                WorldMap.Instance.GetHeight(rootVertex.Value) + prefab.GetComponent<MeshRenderer>().bounds.extents.y,
-                rootVertex.Value.Z + prefab.GetComponent<MeshRenderer>().bounds.extents.z + 2.5f),
+            new Vector3(rootVertex.Value.X, WorldMap.Instance.GetHeight(rootVertex.Value), rootVertex.Value.Z),
             Quaternion.identity);
 
         houseObject.GetComponent<NetworkObject>().Spawn(destroyWithScene: true);
@@ -393,8 +386,6 @@ public class GameController : NetworkBehaviour
             DestroyedHouse destroyedHouse = houseObject.GetComponent<DestroyedHouse>();
             destroyedHouse.Initialize(vertices);
         }
-
-        
     }
 
     public void EnterHouse(Unit unit, House house)

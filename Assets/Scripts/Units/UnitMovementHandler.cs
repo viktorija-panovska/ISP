@@ -18,10 +18,6 @@ public class UnitMovementHandler : NetworkBehaviour
 {
     private Unit Unit { get => GetComponent<Unit>(); }
 
-    private Vector3 Position { get => gameObject.transform.position; set => gameObject.transform.position = value; }
-    private Quaternion Rotation { get => gameObject.transform.rotation; set => gameObject.transform.rotation = value; }
-    private WorldLocation Location { get => new(Position.x, Position.z); }
-
     private const float MOVE_SPEED = 2f;
     private const float POSITION_ERROR = 0.5f;
 
@@ -57,8 +53,8 @@ public class UnitMovementHandler : NetworkBehaviour
 
     public void Initialize()
     {
-        StartLocation = new WorldLocation(Position.x, Position.z);
-        roamDirection = ChooseRoamDirection(new WorldLocation(Position.x, Position.z));
+        StartLocation = new WorldLocation(Unit.Position.x, Unit.Position.z);
+        roamDirection = ChooseRoamDirection(new WorldLocation(Unit.Position.x, Unit.Position.z));
         ChooseNewRoamTarget(StartLocation);
     }
 
@@ -109,7 +105,7 @@ public class UnitMovementHandler : NetworkBehaviour
                 return;
 
             pathTarget = path[targetIndex];
-            StartLocation = new(Position.x, Position.z, isCenter: intermediateStep);
+            StartLocation = new(Unit.Position.x, Unit.Position.z, isCenter: intermediateStep);
 
             if (!intermediateStep && StartLocation.X != pathTarget.Value.X && StartLocation.Z != pathTarget.Value.Z)
             {
@@ -142,11 +138,11 @@ public class UnitMovementHandler : NetworkBehaviour
                                       moveState == MoveState.FoundFriendlyHouse && !IsFriendlyHouse() ||
                                       moveState == MoveState.FoundEnemyHouse && !IsEnemyHouse();
 
-                    List<WorldLocation> vertices = FindFreeSpaceOrHouse(Location);
+                    List<WorldLocation> vertices = FindFreeSpaceOrHouse(Unit.Location);
                     if (vertices != null && houseVertices != null)
                     {
-                        (WorldLocation location, float distance) newClosest = Helpers.GetClosestVertex(Position, vertices);
-                        (WorldLocation l, float distance) oldClosest = Helpers.GetClosestVertex(Position, houseVertices);
+                        (WorldLocation location, float distance) newClosest = Helpers.GetClosestVertex(Unit.Position, vertices);
+                        (WorldLocation l, float distance) oldClosest = Helpers.GetClosestVertex(Unit.Position, houseVertices);
                         if (isGoalGone || newClosest.distance < oldClosest.distance)
                         {
                             houseVertices = vertices;
@@ -154,11 +150,11 @@ public class UnitMovementHandler : NetworkBehaviour
                             if (moveState == MoveState.FoundEnemyHouse)
                             {
                                 House house = (House)WorldMap.Instance.GetHouseAtVertex(houseVertices[0]);
-                                SetPath(Pathfinding.FindPath(Location, Helpers.GetClosestVertex(Position, house.GetAttackableVertices()).location));
+                                SetPath(Pathfinding.FindPath(Unit.Location, Helpers.GetClosestVertex(Unit.Position, house.GetAttackableVertices()).location));
                             }
                             else
                             {
-                                SetPath(Pathfinding.FindPath(Location, newClosest.location));
+                                SetPath(Pathfinding.FindPath(Unit.Location, newClosest.location));
                             }
                         }
                     }
@@ -175,14 +171,14 @@ public class UnitMovementHandler : NetworkBehaviour
 
     private bool MoveToTarget(WorldLocation target)
     {
-        Vector3 targetPosition = new(target.X, WorldMap.Instance.GetHeight(target) + Unit.HalfHeight, target.Z);
+        Vector3 targetPosition = new(target.X, WorldMap.Instance.GetHeight(target), target.Z);
 
-        if (Mathf.Abs(Position.x - targetPosition.x) > POSITION_ERROR ||
-            Mathf.Abs(Position.y - targetPosition.y) > POSITION_ERROR ||
-            Mathf.Abs(Position.z - targetPosition.z) > POSITION_ERROR)
+        if (Mathf.Abs(Unit.Position.x - targetPosition.x) > POSITION_ERROR ||
+            Mathf.Abs(Unit.Position.y - targetPosition.y) > POSITION_ERROR ||
+            Mathf.Abs(Unit.Position.z - targetPosition.z) > POSITION_ERROR)
         {
-            Position = Vector3.Lerp(Position, targetPosition, MOVE_SPEED * Time.deltaTime);
-            Rotation = Quaternion.LookRotation(new Vector3(targetPosition.x, 0, targetPosition.z) - new Vector3(Position.x, 0, Position.z), Vector3.up);
+            Unit.Position = Vector3.Lerp(Unit.Position, targetPosition, MOVE_SPEED * Time.deltaTime);
+            Unit.Rotation = Quaternion.LookRotation(new Vector3(targetPosition.x, 0, targetPosition.z) - new Vector3(Unit.Position.x, 0, Unit.Position.z), Vector3.up);
             return true;
         }
         return false;
@@ -195,7 +191,7 @@ public class UnitMovementHandler : NetworkBehaviour
 
     private void Roam()
     {
-        WorldLocation currentLocation = new(Position.x, Position.z);
+        WorldLocation currentLocation = new(Unit.Position.x, Unit.Position.z);
 
         List<WorldLocation> vertices = null;
         
@@ -221,11 +217,11 @@ public class UnitMovementHandler : NetworkBehaviour
             if (moveState == MoveState.FoundEnemyHouse)
             {
                 House house = (House)WorldMap.Instance.GetHouseAtVertex(houseVertices[0]);
-                SetPath(Pathfinding.FindPath(currentLocation, Helpers.GetClosestVertex(Position, house.GetAttackableVertices()).location));
+                SetPath(Pathfinding.FindPath(currentLocation, Helpers.GetClosestVertex(Unit.Position, house.GetAttackableVertices()).location));
             }
             else
             {
-                SetPath(Pathfinding.FindPath(currentLocation, Helpers.GetClosestVertex(Position, houseVertices).location));
+                SetPath(Pathfinding.FindPath(currentLocation, Helpers.GetClosestVertex(Unit.Position, houseVertices).location));
             }
         }
     }

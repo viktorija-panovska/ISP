@@ -15,6 +15,6 @@ public class DestroyedHouse : MonoBehaviour, IHouse
 
     public void DestroyHouse(bool spawnDestroyedHouse)
     {
-        GameController.Instance.DestroyHouse(this, true);
+        GameController.Instance.DestroyHouse(this, false);
     }
 }

@@ -422,7 +422,7 @@ public class Chunk
         }
 
         if (houseAtVertex[z, x] != null)
-            houseAtVertex[z, x].DestroyHouse(false);
+            GameController.Instance.DestroyHouse(houseAtVertex[z, x], spawnDestroyedHouse: false);
 
         if (formations.ContainsKey((x, z)))
         {

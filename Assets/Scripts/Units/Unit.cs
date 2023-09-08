@@ -13,18 +13,18 @@ public interface IUnitType
 
 public struct BaseUnit : IUnitType
 {
-    public int MaxHealth => 5;
-    public int Strength => 2;
-    public int Speed => 1;
-    public int ManaGain => 10;
+    public readonly int MaxHealth => 5;
+    public readonly int Strength => 2;
+    public readonly int Speed => 1;
+    public readonly int ManaGain => 10;
 }
 
 public struct HutUnit : IUnitType
 {
-    public int MaxHealth => 10;
-    public int Strength => 2;
-    public int Speed => 1;
-    public int ManaGain => 2;
+    public readonly int MaxHealth => 10;
+    public readonly int Strength => 2;
+    public readonly int Speed => 1;
+    public readonly int ManaGain => 2;
 }
 
 
@@ -39,8 +39,8 @@ public enum UnitStates
 [RequireComponent(typeof(NetworkObject), typeof(UnitMovementHandler))]
 public class Unit : NetworkBehaviour, IPlayerObject
 {
+    public GameObject UnitObject;
     private UnitMovementHandler MovementHandler { get => GetComponent<UnitMovementHandler>(); }
-    public float HalfHeight { get => GetComponent<MeshRenderer>().bounds.extents.y; }
 
     public IUnitType UnitType { get; private set; }
     public UnitStates UnitState { get; private set; }
@@ -52,7 +52,8 @@ public class Unit : NetworkBehaviour, IPlayerObject
     public House OriginHouse { get; private set; }
     public Unit ChasedBy { get; set; }
 
-    public Vector3 Position { get => gameObject.transform.position; private set => gameObject.transform.position = value; }
+    public Vector3 Position { get => gameObject.transform.position; set => gameObject.transform.position = value; }
+    public Quaternion Rotation { get => UnitObject.transform.rotation; set => UnitObject.transform.rotation = value; }
     public WorldLocation Location { get => new(Position.x, Position.z); }
     public WorldLocation NextLocation { get => MovementHandler.EndLocation; }
 
@@ -192,7 +193,7 @@ public class Unit : NetworkBehaviour, IPlayerObject
 
             height = startHeight < endHeight ? startHeight + height : endHeight + height;
 
-            Position = new Vector3(Position.x, height + HalfHeight, Position.z);
+            Position = new Vector3(Position.x, height, Position.z);
         }
     }
 

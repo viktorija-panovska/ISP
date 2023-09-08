@@ -92,14 +92,11 @@ public interface IHouse : IPlayerObject
 
 public class House : NetworkBehaviour, IHouse
 {
-    private MeshFilter Filter { get => GetComponent<MeshFilter>(); }
-    private MeshRenderer Renderer { get => GetComponent<MeshRenderer>(); }
     private BoxCollider Collider { get => GetComponent<BoxCollider>(); }
 
-    public Mesh[] HouseMeshes;
-    public Material[] HouseMaterials;
+    public GameObject[] HouseObjects;
 
-    public IHouseType HouseType { get; private set; }
+    public IHouseType HouseType { get; private set; } = new Tent();
     public List<WorldLocation> Vertices { get; private set; }
     private WorldLocation rootVertex;
 
@@ -114,6 +111,8 @@ public class House : NetworkBehaviour, IHouse
 
     public Dictionary<WorldLocation, Unit> AttackingUnits { get; private set; } = new();
     private bool IsUnderAttack { get => AttackingUnits.Count > 0; }
+
+    private List<House> housesInRegion = new();
 
 
 
@@ -130,8 +129,58 @@ public class House : NetworkBehaviour, IHouse
 
     #region House Type
 
+    public void UpdateType(List<House> foundHouses = null)
+    {
+        IHouseType newHouseType = GetHouseType(CountSurroundingFlatSpaces(rootVertex));
+
+        if (newHouseType.Type != HouseType.Type)
+        {
+            HouseObjects[HouseType.Type].SetActive(false);
+
+            if (HouseType != null && HouseType.GetType() == typeof(City))
+            {
+                Vertices = new()
+                {
+                    new WorldLocation(rootVertex.X + Chunk.TILE_WIDTH, rootVertex.Z + Chunk.TILE_WIDTH),
+                    new WorldLocation(rootVertex.X + 2 * Chunk.TILE_WIDTH, rootVertex.Z + Chunk.TILE_WIDTH),
+                    new WorldLocation(rootVertex.X + Chunk.TILE_WIDTH, rootVertex.Z + 2 * Chunk.TILE_WIDTH),
+                    new WorldLocation(rootVertex.X + 2 * Chunk.TILE_WIDTH, rootVertex.Z + 2 * Chunk.TILE_WIDTH)
+                };
+
+                Collider.size = new Vector3(1, 1, 1);
+            }
+
+            if (newHouseType.GetType() == typeof(City))
+            {
+                Vertices = new();
+                for (int z = -1; z <= 2; ++z)
+                    for (int x = -1; x <= 2; ++x)
+                        Vertices.Add(new WorldLocation(rootVertex.X + x * Chunk.TILE_WIDTH, rootVertex.Z + z * Chunk.TILE_WIDTH));
+
+                Collider.size = new Vector3(2, 1, 2);
+            }
+
+            HouseType = newHouseType;
+            Health = HouseType.MaxHealth;
+            HouseObjects[HouseType.Type].SetActive(true);
+
+            List<House> newFoundHouses = new() { this };
+
+            if (foundHouses != null)
+                newFoundHouses.AddRange(foundHouses);
+
+            newFoundHouses.AddRange(housesInRegion);
+
+            foreach (House house in housesInRegion)
+                if (house != this && !foundHouses.Contains(house))
+                    house.UpdateType(newFoundHouses);
+
+            housesInRegion = new();
+        }
+    }
+
     // in 5x5 area
-    public static int CountSurroundingFlatSpaces(WorldLocation center)
+    private int CountSurroundingFlatSpaces(WorldLocation center)
     {
         int nearbyHouses = 1;
 
@@ -163,8 +212,7 @@ public class House : NetworkBehaviour, IHouse
 
                 nearbyHouses++;
 
-                House house = (House)ihouse;
-                house.UpdateType();
+                housesInRegion.Add((House)ihouse);
                 return false;
             }
 
@@ -176,6 +224,7 @@ public class House : NetworkBehaviour, IHouse
         // null - space has not been checked
         // true - space is flat
         // false - space is not flat
+
         bool?[,] checkedSpaces = new bool?[5, 5];
         checkedSpaces[2, 2] = true;
 
@@ -212,7 +261,7 @@ public class House : NetworkBehaviour, IHouse
         return Mathf.FloorToInt(flatTiles / nearbyHouses);
     }
 
-    public static IHouseType GetHouseType(int flatSpaces)
+    private IHouseType GetHouseType(int flatSpaces)
     {
         int houseIndex = Mathf.FloorToInt((flatSpaces + 1) / 5);
 
@@ -226,42 +275,6 @@ public class House : NetworkBehaviour, IHouse
             5 => new City(),
             _ => new Tent()
         };
-    }
-
-    public void UpdateType()
-    {
-        IHouseType newHouseType = GetHouseType(CountSurroundingFlatSpaces(rootVertex));
-
-        if (HouseType == null || newHouseType.Type != HouseType.Type)
-        {
-            if (HouseType != null && HouseType.GetType() == typeof(City))
-            {
-                Vertices = new()
-                {
-                    new WorldLocation(rootVertex.X + Chunk.TILE_WIDTH, rootVertex.Z + Chunk.TILE_WIDTH),
-                    new WorldLocation(rootVertex.X + 2 * Chunk.TILE_WIDTH, rootVertex.Z + Chunk.TILE_WIDTH),
-                    new WorldLocation(rootVertex.X + Chunk.TILE_WIDTH, rootVertex.Z + 2 * Chunk.TILE_WIDTH),
-                    new WorldLocation(rootVertex.X + 2 * Chunk.TILE_WIDTH, rootVertex.Z + 2 * Chunk.TILE_WIDTH)
-                };
-
-                Collider.size = new Vector3(1, 1, 1);
-            }
-
-            if (newHouseType.GetType() == typeof(City))
-            {
-                Vertices = new();
-                for (int z = -1; z <= 2; ++z)
-                    for (int x = -1; x <= 2; ++x)
-                        Vertices.Add(new WorldLocation(rootVertex.X + x * Chunk.TILE_WIDTH, rootVertex.Z + z * Chunk.TILE_WIDTH));
-
-                Collider.size = new Vector3(2, 1, 2);
-            }
-
-            HouseType = newHouseType;
-            Health = HouseType.MaxHealth;
-            Filter.mesh = HouseMeshes[HouseType.Type];
-            Renderer.material = HouseMaterials[HouseType.Type];
-        }
     }
 
     #endregion
