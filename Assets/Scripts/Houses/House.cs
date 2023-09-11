@@ -96,6 +96,7 @@ public class House : NetworkBehaviour, IHouse
 
     public GameObject[] HouseObjects;
 
+    public WorldLocation Location { get => new(gameObject.transform.position.x, gameObject.transform.position.z); }
     public IHouseType HouseType { get; private set; } = new Tent();
     public List<WorldLocation> Vertices { get; private set; }
     private WorldLocation rootVertex;

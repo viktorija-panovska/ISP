@@ -1,4 +1,5 @@
 using Unity.Netcode;
+using Unity.VisualScripting.FullSerializer;
 using UnityEngine;
 
 
@@ -37,7 +38,6 @@ public class PlayerController : NetworkBehaviour
 
         // Set camera controller
         cameraController = Instantiate(CameraControllerPrefab).GetComponent<CameraController>();
-        cameraController.SetStart(OwnerClientId);
         PlayerCamera = cameraController.MainCamera;
 
         // Set HUD
@@ -52,6 +52,11 @@ public class PlayerController : NetworkBehaviour
         if (!IsOwner) return;
 
         if (isGamePaused) return;
+
+        if (Input.GetKeyDown(KeyCode.L))
+            GameController.Instance.SnapToLeaderServerRpc();
+        if (Input.GetKeyDown(KeyCode.K))
+            GameController.Instance.SnapToKnightServerRpc();
 
         if (Input.GetKeyDown(KeyCode.Alpha1))
             activePower = Powers.MoldTerrain;
@@ -139,6 +144,13 @@ public class PlayerController : NetworkBehaviour
         hud.UpdateManaBar(Mana);
 
 
+    }
+
+
+
+    public void SetCameraLocation(WorldLocation location)
+    {
+        cameraController.SetLocation(location);
     }
 
     public void SwitchCameras(bool isMapCamera)

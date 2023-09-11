@@ -44,13 +44,11 @@ public class CameraController : MonoBehaviour
 
     public void Update()
     {
-        if (!isMapCamera && (ChangePosition(mainCameraRig, (0,0), (0,0), MOVEMENT_SPEED) || ChangeZoom()))
+        if (!isMapCamera && (ChangePosition(mainCameraRig, (100, WorldMap.WIDTH - 100), (100, WorldMap.WIDTH - 100), MOVEMENT_SPEED) || ChangeZoom()))
             RedrawMap(mainCameraRig.transform.position, MainCameraDimensions, MainCameraDimensions.width);
 
-        if (isMapCamera && ChangePosition(mapCameraRig, 
-            (MapCameraDimensions.width / 2, WorldMap.WIDTH - (MapCameraDimensions.width / 2)), 
-            (MapCameraDimensions.height / 2, WorldMap.WIDTH - (MapCameraDimensions.height / 2)), 
-            MAP_SPEED))
+        if (isMapCamera && ChangePosition(mapCameraRig, (MapCameraDimensions.width / 2, WorldMap.WIDTH - (MapCameraDimensions.width / 2)), 
+            (MapCameraDimensions.height / 2, WorldMap.WIDTH - (MapCameraDimensions.height / 2)), MAP_SPEED))
             RedrawMap(mapCameraRig.transform.position, MapCameraDimensions, MapCameraDimensions.width);
 
         if (isMapCamera && Input.GetKey(KeyCode.Space))
@@ -61,13 +59,9 @@ public class CameraController : MonoBehaviour
 
     #region Setup
 
-    public void SetStart(ulong owner)
+    public void SetLocation(WorldLocation location)
     {
-        if (owner == 0)
-            mainCameraRig.transform.position = new Vector3(0, mainCameraRig.transform.position.y, 0);
-
-        if (owner == 1)
-            mainCameraRig.transform.position = new Vector3(WorldMap.WIDTH, mainCameraRig.transform.position.y, WorldMap.WIDTH);
+        mainCameraRig.transform.position = new Vector3(location.X, mainCameraRig.transform.position.y, location.Z);
     }
 
     public void SetGameHUD(GameHUD gameHUD)
@@ -94,11 +88,8 @@ public class CameraController : MonoBehaviour
         if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow))
             newPosition += (transform.right * -speed);
 
-        if (horizontal_bounds != (0,0) && vertical_bounds != (0,0))
-        {
-            newPosition.x = Mathf.Clamp(newPosition.x, horizontal_bounds.min, horizontal_bounds.max);
-            newPosition.z = Mathf.Clamp(newPosition.z, vertical_bounds.min, vertical_bounds.max);
-        }
+        newPosition.x = Mathf.Clamp(newPosition.x, horizontal_bounds.min, horizontal_bounds.max);
+        newPosition.z = Mathf.Clamp(newPosition.z, vertical_bounds.min, vertical_bounds.max);
 
         if (newPosition != rig.transform.position)
         {

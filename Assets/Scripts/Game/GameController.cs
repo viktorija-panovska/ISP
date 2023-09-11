@@ -84,6 +84,7 @@ public class GameController : NetworkBehaviour
     public GameObject SwampPrefab;
     public GameObject[] ForestPrefabs;
     public GameObject WaterPlanePrefab;
+    public GameObject FramePrefab;
 
     // Environment
     private readonly int[] forestDensity = { 4, 1 };
@@ -96,6 +97,8 @@ public class GameController : NetworkBehaviour
     private readonly List<Unit>[] activeUnits = { new(), new() };
     private readonly int[] units = { 0, 0 };
     private readonly IPlayerObject[] leaders = new IPlayerObject[2];
+    private readonly List<Unit>[] knights = { new(), new() };
+    private readonly int[] lastKnight = new int[2];
     private readonly List<House>[] activeHouses = { new(), new() };
 
     // Powers
@@ -122,6 +125,7 @@ public class GameController : NetworkBehaviour
             SpawnStarterUnits();
         }
 
+        SpawnFrame();
         SetupPlayerControllersServerRpc();
     }
 
@@ -209,6 +213,17 @@ public class GameController : NetworkBehaviour
         return availableSpots.Count > 0 ? availableSpots : null;
     }
 
+    private void SpawnFrame()
+    {
+        GameObject frameObject = Instantiate(FramePrefab);
+        frameObject.transform.position = WorldMap.CHUNK_NUMBER * frameObject.transform.position;
+
+        frameObject.transform.localScale = new Vector3(
+            WorldMap.CHUNK_NUMBER * frameObject.transform.localScale.x, 
+            frameObject.transform.localScale.y, 
+            WorldMap.CHUNK_NUMBER * frameObject.transform.localScale.z);
+    }
+
     /// <summary>
     /// Creates a player controller for each user, which will serve as the player object.
     /// </summary>
@@ -216,8 +231,19 @@ public class GameController : NetworkBehaviour
     [ServerRpc(RequireOwnership = false)]
     private void SetupPlayerControllersServerRpc(ServerRpcParams serverRpcParams = default)
     {
-        GameObject playerController = Instantiate(PlayerControllerPrefab);
-        playerController.GetComponent<NetworkObject>().SpawnAsPlayerObject(serverRpcParams.Receive.SenderClientId, destroyWithScene: true);
+        ulong playerId = serverRpcParams.Receive.SenderClientId;
+
+        GameObject playerControllerObject = Instantiate(PlayerControllerPrefab);
+        playerControllerObject.GetComponent<NetworkObject>().SpawnAsPlayerObject(playerId, destroyWithScene: true);
+
+        PlayerController playerController = playerControllerObject.GetComponent<PlayerController>();
+
+        IPlayerObject leaderObject = leaders[playerId];
+
+        SetCameraLocationClientRpc(
+            leaderObject == null ? activeUnits[playerId][UnityEngine.Random.Range(0, activeUnits[playerId].Count)].Location : ((Unit)leaderObject).Location, 
+            new ClientRpcParams { Send = new ClientRpcSendParams { TargetClientIds = new ulong[] { playerId } } }
+        );
     }
 
     #endregion
@@ -698,6 +724,7 @@ public class GameController : NetworkBehaviour
 
         Unit leader = (Unit)leaders[index];
         leader.MakeKnight();
+        knights[index].Add(leader);
         leaders[index] = null;
     }
 
@@ -741,9 +768,60 @@ public class GameController : NetworkBehaviour
 
 
 
+    #region Player
+
     [ClientRpc]
     public void AddManaClientRpc(int manaGain, ClientRpcParams clientRpcParams = default)
     {
         PlayerController.Instance.AddMana(manaGain);
     }
+
+    [ClientRpc]
+    public void SetCameraLocationClientRpc(WorldLocation location, ClientRpcParams clientRpcParams = default)
+    {
+        PlayerController.Instance.SetCameraLocation(location);
+    }
+
+    [ServerRpc(RequireOwnership = false)]
+    public void SnapToLeaderServerRpc(ServerRpcParams serverRpcParams = default)
+    {
+        ulong playerId = serverRpcParams.Receive.SenderClientId;
+
+        IPlayerObject leaderObject = leaders[playerId];
+        WorldLocation location;
+
+        if (leaderObject == null)
+            return;
+
+        if (leaderObject.GetType() == typeof(Unit))
+            location = ((Unit)leaderObject).Location;
+        else
+            location = ((House)leaderObject).Location;
+
+        SetCameraLocationClientRpc(location, new ClientRpcParams
+        {
+            Send = new ClientRpcSendParams
+            {
+                TargetClientIds = new ulong[] { playerId }
+            }
+        });
+    }
+
+    [ServerRpc(RequireOwnership = false)]
+    public void SnapToKnightServerRpc(ServerRpcParams serverRpcParams = default)
+    {
+        ulong playerId = serverRpcParams.Receive.SenderClientId;
+
+        SetCameraLocationClientRpc(knights[playerId][lastKnight[playerId]].Location, new ClientRpcParams
+        {
+            Send = new ClientRpcSendParams
+            {
+                TargetClientIds = new ulong[] { playerId }
+            }
+        });
+
+        lastKnight[playerId] = Helpers.Modulo(lastKnight[playerId] + 1, knights[playerId].Count + 1);
+    }
+
+    #endregion
 }
