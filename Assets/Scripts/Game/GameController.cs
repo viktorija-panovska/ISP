@@ -72,7 +72,7 @@ public struct WorldLocation : INetworkSerializable, IEquatable<WorldLocation>
 [RequireComponent(typeof(NetworkObject))]
 public class GameController : NetworkBehaviour
 {
-    public static GameController Instance;
+    public static GameController Instance { get; private set; }
 
     // Prefabs
     public GameObject WorldMapPrefab;
@@ -104,7 +104,8 @@ public class GameController : NetworkBehaviour
     // Powers
     public const int MIN_MANA = 0;
     public const int MAX_MANA = 100;
-    public readonly int[] PowerCost = { 0, 0, 0, 0, 0, 0, 0 };
+    public readonly int[] PowerActivateLevel = { 0, 13, 30, 45, 62, 78, 92 };
+    public readonly int[] PowerCost = { 0, 10, 20, 30, 40, 50, 92 };
 
     public const int EARTHQUAKE_RANGE = 3;
     private readonly GameObject[] flags = new GameObject[2];
@@ -116,10 +117,16 @@ public class GameController : NetworkBehaviour
 
     public override void OnNetworkSpawn()
     {
-        Instance = this;
+        if (Instance == null)
+            Instance = this;
+        else
+        {
+            Destroy(gameObject);
+            return;
+        }
 
         if (IsServer) 
-        { 
+        {
             SpawnMap();
             PopulateMap();
             SpawnStarterUnits();
@@ -127,11 +134,33 @@ public class GameController : NetworkBehaviour
 
         SpawnFrame();
         SetupPlayerControllersServerRpc();
+
+        if (IsServer)
+            StartUnitMovement();
     }
 
-    /// <summary>
-    /// Creates map object and water plane object and spawns them on the network.
-    /// </summary>
+    [ServerRpc(RequireOwnership = false)]
+    private void SetupPlayerControllersServerRpc(ServerRpcParams serverRpcParams = default)
+    {
+        ulong playerId = serverRpcParams.Receive.SenderClientId;
+
+        GameObject playerControllerObject0 = Instantiate(PlayerControllerPrefab);
+        playerControllerObject0.GetComponent<NetworkObject>().SpawnAsPlayerObject(playerId, destroyWithScene: true);
+
+        IPlayerObject leaderObject = leaders[playerId];
+
+        SetCameraControllerClientRpc(
+            leaderObject == null ? activeUnits[playerId][UnityEngine.Random.Range(0, activeUnits[playerId].Count)].Location : ((Unit)leaderObject).Location,
+            new ClientRpcParams
+            {
+                Send = new ClientRpcSendParams
+                {
+                    TargetClientIds = new ulong[] { playerId }
+                }
+            }
+        );
+    }
+
     private void SpawnMap()
     {
         GameObject worldMapObject = Instantiate(WorldMapPrefab);
@@ -149,10 +178,6 @@ public class GameController : NetworkBehaviour
         waterPlane.GetComponent<NetworkObject>().Spawn(destroyWithScene: true);
     }
 
-    /// <summary>
-    /// Creates STARTING_UNITS amount of units for each team, in random locations in a given area, and spawns them on the network.
-    /// Selects a leader for each team from the spawned units.
-    /// </summary>
     private void SpawnStarterUnits()
     {
         List<WorldLocation> occupiedSpots = new();
@@ -169,6 +194,7 @@ public class GameController : NetworkBehaviour
                 availableSpots.Remove(location);
                 occupiedSpots.Add(location);
                 SpawnUnit(new BaseUnit(), i == 0 ? Teams.Red : Teams.Blue, location, isLeader: j == leader);
+                activeUnits[i][j].StopMovement();
             }
         }
     }
@@ -224,26 +250,17 @@ public class GameController : NetworkBehaviour
             WorldMap.CHUNK_NUMBER * frameObject.transform.localScale.z);
     }
 
-    /// <summary>
-    /// Creates a player controller for each user, which will serve as the player object.
-    /// </summary>
-    /// <param name="serverRpcParams">Holds the client ID</param>
-    [ServerRpc(RequireOwnership = false)]
-    private void SetupPlayerControllersServerRpc(ServerRpcParams serverRpcParams = default)
+    [ClientRpc]
+    private void SetCameraControllerClientRpc(WorldLocation cameraStart, ClientRpcParams clientRpcParams = default)
     {
-        ulong playerId = serverRpcParams.Receive.SenderClientId;
+        PlayerController.Instance.SetupCameraController(cameraStart);
+    }
 
-        GameObject playerControllerObject = Instantiate(PlayerControllerPrefab);
-        playerControllerObject.GetComponent<NetworkObject>().SpawnAsPlayerObject(playerId, destroyWithScene: true);
-
-        PlayerController playerController = playerControllerObject.GetComponent<PlayerController>();
-
-        IPlayerObject leaderObject = leaders[playerId];
-
-        SetCameraLocationClientRpc(
-            leaderObject == null ? activeUnits[playerId][UnityEngine.Random.Range(0, activeUnits[playerId].Count)].Location : ((Unit)leaderObject).Location, 
-            new ClientRpcParams { Send = new ClientRpcSendParams { TargetClientIds = new ulong[] { playerId } } }
-        );
+    private void StartUnitMovement()
+    {
+        foreach (List<Unit> unitList in activeUnits)
+            foreach (Unit unit in unitList)
+                unit.ResumeMovement();
     }
 
     #endregion
@@ -312,7 +329,10 @@ public class GameController : NetworkBehaviour
 
     public void SpawnUnit(IUnitType unitType, Teams team, WorldLocation spawnLocation, House originHouse = null, bool newUnit = true, bool isLeader = false)
     {
-        int playerId = (int)team - 1;
+        if (WorldMap.Instance.GetHeight(spawnLocation) <= WaterLevel)
+            return;
+
+        ulong playerId = (ulong)team - 1;
 
         GameObject unitObject = Instantiate(
             UnitPrefabs[playerId + 1],
@@ -323,7 +343,7 @@ public class GameController : NetworkBehaviour
 
         Unit unit = unitObject.GetComponent<Unit>();
         unit.Initialize(unitType, originHouse, isLeader);
-        
+
         activeUnits[playerId].Add(unit);
 
         if (newUnit)
@@ -334,16 +354,32 @@ public class GameController : NetworkBehaviour
             leaders[playerId] = unit;
             unit.MakeLeader();
         }
+
+        if (originHouse != null)
+        {
+            AddManaClientRpc(unitType.ManaGain, new ClientRpcParams
+            {
+                Send = new ClientRpcSendParams
+                {
+                    TargetClientIds = new ulong[] { playerId }
+                }
+            });
+        }
     }
 
     public void DespawnUnit(Unit unit, bool isDead = true)
     {
+        int playerId = (int)unit.Team - 1;
+
         if (isDead)
         {
-            units[(int)unit.Team - 1]--;
+            units[playerId]--;
 
             if (unit.IsLeader)
-                leaders[(int)unit.Team - 1] = null;
+                leaders[playerId] = null;
+
+            if (unit.IsKnight)
+                knights[playerId].Remove(unit);
         }
 
         if (unit.IsFollowed)
@@ -364,6 +400,8 @@ public class GameController : NetworkBehaviour
     }
 
     public bool HasLeader(Teams team) => leaders[(int)team - 1] != null;
+
+    public bool HasKnight(Teams team) => knights[(int)team - 1].Count > 0;
 
     public bool AreMaxUnitsReached(Teams teams) => units[(int)teams - 1] >= MAX_UNITS_PER_PLAYER;
 
@@ -446,6 +484,14 @@ public class GameController : NetworkBehaviour
 
             activeHouses[(int)activeHouse.Team - 1].Remove(activeHouse);
             houseObject = activeHouse.gameObject;
+
+            RemoveManaClientRpc(activeHouse.HouseType.ManaGain, new ClientRpcParams
+            {
+                Send = new ClientRpcSendParams
+                {
+                    TargetClientIds = new ulong[] { (ulong)activeHouse.Team - 1 }
+                }
+            });
         }
         else
         {
@@ -744,6 +790,19 @@ public class GameController : NetworkBehaviour
         waterPlane.transform.position = new(waterPlane.transform.position.x, waterPlane.transform.position.y + Chunk.STEP_HEIGHT, waterPlane.transform.position.z);
 
         WorldMap.Instance.DestroyUnderwaterFormations();
+
+        // Destroy houses that are now underwater
+        foreach (List<House> houseList in activeHouses)
+            foreach (House house in houseList)
+                if (house.Height <= WaterLevel)
+                    house.DestroyHouse(spawnDestroyedHouse: false);
+
+
+        // Destroy units that fall into the water
+        foreach (List<Unit> unitList in activeUnits)
+            foreach (Unit unit in unitList)
+                if (unit.Height <= WaterLevel)
+                    DespawnUnit(unit);
     }
 
     #endregion
@@ -771,9 +830,15 @@ public class GameController : NetworkBehaviour
     #region Player
 
     [ClientRpc]
-    public void AddManaClientRpc(int manaGain, ClientRpcParams clientRpcParams = default)
+    public void AddManaClientRpc(float manaGain, ClientRpcParams clientRpcParams = default)
     {
         PlayerController.Instance.AddMana(manaGain);
+    }
+
+    [ClientRpc]
+    public void RemoveManaClientRpc(float manaGain, ClientRpcParams clientRpcParams = default)
+    {
+        PlayerController.Instance.RemoveMana(manaGain);
     }
 
     [ClientRpc]

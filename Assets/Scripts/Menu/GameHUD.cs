@@ -1,4 +1,5 @@
-using UnityEditor;
+using System.Collections;
+using System.Diagnostics;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -9,15 +10,17 @@ public class GameHUD : MonoBehaviour
 
     public GameObject SettingsMenuContainer;
 
+    public GameObject HUDMenuContainer;
     public Slider ManaBar;
     public Image[] PowerIconCovers;
+    public Image LeaderIconFlash;
+    public Image KnightIconFlash;
 
     public GameObject MapContainer;
+    public Image MapCursor;
     private bool mapToggled = false;
 
-    public Image MapCursor;
     private const double CLICKER_ERROR = 0.2;
-
     public GameObject[] MarkerPrefabs = new GameObject[4];
     private readonly GameObject[] markers = new GameObject[4];
 
@@ -63,8 +66,6 @@ public class GameHUD : MonoBehaviour
     #endregion
 
 
-
-
     private void Update()
     {
         if (controller == null) return;
@@ -76,9 +77,14 @@ public class GameHUD : MonoBehaviour
             ToggleMap();
     }
 
+
+
+    #region Settings Menu
+
     private void PauseGame()
     {
         controller.PauseGame();
+        HUDMenuContainer.SetActive(false);
         SettingsMenuContainer.SetActive(true);
     }
 
@@ -90,9 +96,15 @@ public class GameHUD : MonoBehaviour
     public void CloseMenu()
     {
         controller.ResumeGame();
-        SettingsMenuContainer.gameObject.SetActive(false);
+        SettingsMenuContainer.SetActive(false);
+        HUDMenuContainer.SetActive(true);
     }
 
+    #endregion
+
+
+
+    #region GameHUD
 
     public bool IsClickable(RaycastHit hitInfo)
         => hitInfo.collider.gameObject.layer != LayerMask.NameToLayer("Water") &&
@@ -101,29 +113,48 @@ public class GameHUD : MonoBehaviour
            Mathf.Abs(Mathf.Round(hitInfo.point.z / Chunk.TILE_WIDTH) - hitInfo.point.z / Chunk.TILE_WIDTH) < CLICKER_ERROR;
 
 
-    public void UpdateManaBar(int mana)
+    public void UpdateManaBar(float mana)
     {
         ManaBar.value = mana;
 
-        for (int i = 0; i <= Mathf.FloorToInt(ManaBar.value / 15); ++i)
+        for (int i = 0; i <= GameController.Instance.PowerActivateLevel.Length; ++i)
+        {
+            if (GameController.Instance.PowerActivateLevel[i] > mana)
+                break;
+
             PowerIconCovers[i].gameObject.SetActive(false);
+        }
     }
 
+
+    public void FlashLeaderIcon()
+    {
+        StartCoroutine(Helpers.FlashImage(LeaderIconFlash));
+    }
+
+    public void FlashKnightIcon()
+    {
+        StartCoroutine(Helpers.FlashImage(KnightIconFlash));
+    }
+
+
+    #endregion
+
+
+    
+    #region Map Menu
 
     public void ToggleMap()
     {
         mapToggled = !mapToggled;
-        ManaBar.gameObject.SetActive(!mapToggled);
+        HUDMenuContainer.SetActive(!mapToggled);
         MapContainer.SetActive(mapToggled);
         controller.SwitchCameras(mapToggled);
-
 
         if (mapToggled)
             SetMapCursor();
         else
-        {
             ResetCursor();
-        }
     }
 
     public void SetMapCursor()
@@ -139,6 +170,11 @@ public class GameHUD : MonoBehaviour
         Cursor.SetCursor(null, Vector2.zero, CursorMode.Auto);
     }
 
+    #endregion
+
+
+
+    #region Markers
 
     public void SwitchMarker(int index)
     {
@@ -159,4 +195,6 @@ public class GameHUD : MonoBehaviour
         markers[index].GetComponent<MeshRenderer>().material.color = grayTransparent;
         markers[index].transform.position = new Vector3(position.x, changeHeight ? position.y : Chunk.MAX_HEIGHT, position.z);
     }
+
+    #endregion
 }

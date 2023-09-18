@@ -1,5 +1,8 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
+
 
 public class Helpers
 {
@@ -29,4 +32,12 @@ public class Helpers
 
         return (closest.Value, distance);
     }
+
+    public static IEnumerator FlashImage(Image image)
+    {
+        image.gameObject.SetActive(true);
+        yield return new WaitForSeconds(0.5f);
+        image.gameObject.SetActive(false);
+    }
+
 }

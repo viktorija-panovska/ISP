@@ -1,13 +1,13 @@
 {
   "dependencies": {
-    "com.unity.ai.navigation": {
-      "version": "1.0.0-exp.4",
+    "com.community.netcode.transport.facepunch": {
+      "version": "https://github.com/Unity-Technologies/multiplayer-community-contributions.git?path=/Transports/com.community.netcode.transport.facepunch",
       "depth": 0,
-      "source": "registry",
+      "source": "git",
       "dependencies": {
-        "com.unity.modules.ai": "1.0.0"
+        "com.unity.netcode.gameobjects": "1.0.0-pre.4"
       },
-      "url": "https://packages.unity.com"
+      "hash": "b2265b5a650ccc1c4ea4526351839b1c6e3263e0"
     },
     "com.unity.burst": {
       "version": "1.6.6",
@@ -42,15 +42,6 @@
       "depth": 1,
       "source": "registry",
       "dependencies": {},
-      "url": "https://packages.unity.com"
-    },
-    "com.unity.ide.rider": {
-      "version": "3.0.15",
-      "depth": 0,
-      "source": "registry",
-      "dependencies": {
-        "com.unity.ext.nunit": "1.0.6"
-      },
       "url": "https://packages.unity.com"
     },
     "com.unity.ide.visualstudio": {

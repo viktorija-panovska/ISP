@@ -128,12 +128,8 @@ public class CameraController : MonoBehaviour
 
     private void RedrawMap(Vector3 center, (float width, float height) dimensions, float viewDistance)
     {
-        float topZ = center.z - (dimensions.height / 2);
-        float bottomZ = center.z + (dimensions.height / 2);
-        float leftX = center.x - (dimensions.width / 2);
-        float rightX = center.x + (dimensions.width / 2);
+        Debug.Log($"Dimensions: {dimensions}");
 
-        //if (topZ % viewDistance == 0 || bottomZ % viewDistance == 0 || leftX % viewDistance == 0 || rightX % viewDistance == 0)
         DrawVisibleMap(center, viewDistance);
     }
 

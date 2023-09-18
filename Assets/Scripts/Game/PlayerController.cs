@@ -1,5 +1,4 @@
 using Unity.Netcode;
-using Unity.VisualScripting.FullSerializer;
 using UnityEngine;
 
 
@@ -24,7 +23,7 @@ public class PlayerController : NetworkBehaviour
     private Powers activePower = Powers.MoldTerrain;
 
     public Camera PlayerCamera { get; private set; }
-    public int Mana { get; private set; }
+    public float Mana { get; private set; }
 
 
 
@@ -32,31 +31,51 @@ public class PlayerController : NetworkBehaviour
     {
         if (!IsOwner) return;
 
-        Instance = this;
+        if (Instance == null)
+            Instance = this;
+        else
+        {
+            Destroy(gameObject);
+            return;
+        }
 
         team = OwnerClientId == 0 ? Teams.Red : Teams.Blue;
-
-        // Set camera controller
-        cameraController = Instantiate(CameraControllerPrefab).GetComponent<CameraController>();
-        PlayerCamera = cameraController.MainCamera;
 
         // Set HUD
         GameObject HUD = Instantiate(GameHUDPrefab);
         hud = HUD.GetComponent<GameHUD>();
         hud.SetController(this);
+    }
+    
+    public void SetupCameraController(WorldLocation cameraStart)
+    {
+        cameraController = Instantiate(CameraControllerPrefab).GetComponent<CameraController>();
+        PlayerCamera = cameraController.MainCamera;
         cameraController.SetGameHUD(hud);
     }
+
 
     private void Update()
     {
         if (!IsOwner) return;
 
-        if (isGamePaused) return;
+        if (isGamePaused || cameraController == null) return;
 
         if (Input.GetKeyDown(KeyCode.L))
-            GameController.Instance.SnapToLeaderServerRpc();
+        {
+            if (GameController.Instance.HasLeader(team))
+                GameController.Instance.SnapToLeaderServerRpc();
+            else
+                hud.FlashLeaderIcon();
+        }
+
         if (Input.GetKeyDown(KeyCode.K))
-            GameController.Instance.SnapToKnightServerRpc();
+        {
+            if (GameController.Instance.HasKnight(team))
+                GameController.Instance.SnapToKnightServerRpc();
+            else
+                hud.FlashKnightIcon();
+        }
 
         if (Input.GetKeyDown(KeyCode.Alpha1))
             activePower = Powers.MoldTerrain;
@@ -73,7 +92,7 @@ public class PlayerController : NetworkBehaviour
         if (Input.GetKeyDown(KeyCode.Alpha7))
             activePower = Powers.Armageddon;
 
-        if (GameController.Instance.PowerCost[(int)activePower] > Mana)
+        if (GameController.Instance.PowerActivateLevel[(int)activePower] > Mana)
             activePower = Powers.MoldTerrain;
 
         switch (activePower)
@@ -120,7 +139,7 @@ public class PlayerController : NetworkBehaviour
 
 
 
-    public void AddMana(int manaGain)
+    public void AddMana(float manaGain)
     {
         if (Mana == GameController.MAX_MANA)
             return;
@@ -132,7 +151,7 @@ public class PlayerController : NetworkBehaviour
         hud.UpdateManaBar(Mana);
     }
 
-    private void RemoveMana(int manaLoss)
+    public void RemoveMana(float manaLoss)
     {
         if (Mana == GameController.MIN_MANA)
             return;
@@ -164,6 +183,8 @@ public class PlayerController : NetworkBehaviour
     }
 
 
+
+    #region Powers
 
     private void MoldTerrain()
     {
@@ -308,4 +329,6 @@ public class PlayerController : NetworkBehaviour
         RemoveMana(GameController.Instance.PowerCost[(int)Powers.Armageddon]);
         activePower = Powers.MoldTerrain;
     }
+
+    #endregion
 }

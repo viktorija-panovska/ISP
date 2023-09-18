@@ -19,67 +19,67 @@ public interface IHouseType
 public struct Tent : IHouseType
 {
     public readonly int Type => 0;
-    public readonly int MaxCapacity => 2;
-    public readonly int MaxHealth => 5;
-    public readonly int HealthRegenPerUnit => 2;
-    public readonly int ManaGain => 10;
+    public readonly int MaxCapacity => 1;
+    public readonly int MaxHealth => 10;
+    public readonly int HealthRegenPerUnit => 5;
+    public readonly int ManaGain => 1;
     public readonly int UnitReleaseWait => 10;
-    public readonly IUnitType UnitType => new HutUnit();
+    public readonly IUnitType UnitType => new TentUnit();
 }
 
 public struct Hut : IHouseType
 {
     public readonly int Type => 1;
     public readonly int MaxCapacity => 2;
-    public readonly int MaxHealth => 5;
-    public readonly int HealthRegenPerUnit => 2;
-    public readonly int ManaGain => 10;
-    public readonly int UnitReleaseWait => 10;
+    public readonly int MaxHealth => 15;
+    public readonly int HealthRegenPerUnit => 6;
+    public readonly int ManaGain => 2;
+    public readonly int UnitReleaseWait => 9;
     public readonly IUnitType UnitType => new HutUnit();
 }
 
 public struct WoodHouse : IHouseType
 {
     public readonly int Type => 2;
-    public readonly int MaxCapacity => 2;
-    public readonly int MaxHealth => 5;
-    public readonly int HealthRegenPerUnit => 2;
-    public readonly int ManaGain => 10;
-    public readonly int UnitReleaseWait => 10;
-    public readonly IUnitType UnitType => new HutUnit();
+    public readonly int MaxCapacity => 5;
+    public readonly int MaxHealth => 20;
+    public readonly int HealthRegenPerUnit => 4;
+    public readonly int ManaGain => 4;
+    public readonly int UnitReleaseWait => 8;
+    public readonly IUnitType UnitType => new WoodHouseUnit();
 }
 
 public struct StoneHouse : IHouseType
 {
     public readonly int Type => 3;
-    public readonly int MaxCapacity => 2;
-    public readonly int MaxHealth => 5;
-    public readonly int HealthRegenPerUnit => 2;
-    public readonly int ManaGain => 10;
-    public readonly int UnitReleaseWait => 10;
-    public readonly IUnitType UnitType => new HutUnit();
+    public readonly int MaxCapacity => 10;
+    public readonly int MaxHealth => 30;
+    public readonly int HealthRegenPerUnit => 3;
+    public readonly int ManaGain => 6;
+    public readonly int UnitReleaseWait => 7;
+    public readonly IUnitType UnitType => new StoneHouseUnit();
 }
 
 public struct Fortress : IHouseType
 {
     public readonly int Type => 4;
-    public readonly int MaxCapacity => 2;
-    public readonly int MaxHealth => 5;
+    public readonly int MaxCapacity => 15;
+    public readonly int MaxHealth => 40;
     public readonly int HealthRegenPerUnit => 2;
-    public readonly int ManaGain => 10;
-    public readonly int UnitReleaseWait => 10;
-    public readonly IUnitType UnitType => new HutUnit();
+    public readonly int ManaGain => 8;
+    public readonly int UnitReleaseWait => 6;
+    public readonly IUnitType UnitType => new FortressUnit();
 }
 
 public struct City : IHouseType
 {
     public readonly int Type => 5;
-    public readonly int MaxCapacity => 2;
-    public readonly int MaxHealth => 5;
+    public readonly int MaxCapacity => 25;
+    public readonly int MaxHealth => 50;
     public readonly int HealthRegenPerUnit => 2;
     public readonly int ManaGain => 10;
-    public readonly int UnitReleaseWait => 10;
-    public readonly IUnitType UnitType => new HutUnit();
+    public readonly int UnitReleaseWait => 5;
+    public readonly IUnitType UnitType => new CityUnit();
 }
 
 
@@ -97,6 +97,7 @@ public class House : NetworkBehaviour, IHouse
     public GameObject[] HouseObjects;
 
     public WorldLocation Location { get => new(gameObject.transform.position.x, gameObject.transform.position.z); }
+    public float Height { get => WorldMap.Instance.GetHeight(rootVertex); }
     public IHouseType HouseType { get; private set; } = new Tent();
     public List<WorldLocation> Vertices { get; private set; }
     private WorldLocation rootVertex;
@@ -353,8 +354,8 @@ public class House : NetworkBehaviour, IHouse
 
         UpdateHealthBarClientRpc(HouseType.MaxHealth, Health, Team);
 
-        // If this is the first unit in the house, start producing new units.
-        if (UnitsInHouse == 1)
+        // If the house is filled, start producing units
+        if (UnitsInHouse == HouseType.MaxCapacity)
             StartCoroutine(ReleaseNewUnits());
     }
 
@@ -364,7 +365,7 @@ public class House : NetworkBehaviour, IHouse
         {
             yield return new WaitForSeconds(HouseType.UnitReleaseWait);
 
-            if (IsUnderAttack || UnitsInHouse == 0 || GameController.Instance.AreMaxUnitsReached(Team))
+            if (IsUnderAttack || UnitsInHouse < HouseType.MaxCapacity || GameController.Instance.AreMaxUnitsReached(Team))
                 break;
 
             ReleaseUnit(newUnit: true);
@@ -393,18 +394,6 @@ public class House : NetworkBehaviour, IHouse
 
         // Spawns unit.
         GameController.Instance.SpawnUnit(HouseType.UnitType, Team, Vertices[Random.Range(0, Vertices.Count - 1)], newUnit ? this : null, newUnit, isLeader);
-
-        // Only new units give mana.
-        if (newUnit)
-        {
-            GameController.Instance.AddManaClientRpc(HouseType.UnitType.ManaGain, new ClientRpcParams
-            {
-                Send = new ClientRpcSendParams
-                {
-                    TargetClientIds = new ulong[] { (ulong)Team - 1 }
-                }
-            });
-        }
     }
 
     #endregion
