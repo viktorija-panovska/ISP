@@ -59,7 +59,7 @@ public class MainMenuUI : MonoBehaviour
             return;
 
         PlayerPrefs.SetString("PlayerName", nameInputField.text);
-        ClientConnectionManager.Instance.StartClient(passwordInputField.text);
+        ConnectionManager.Instance.StartClient(passwordInputField.text);
     }
 
     public void ExitGame()

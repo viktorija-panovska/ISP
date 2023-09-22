@@ -51,17 +51,21 @@ public class LobbyUI : NetworkBehaviour
         base.OnDestroy();
 
         lobbyPlayers.OnListChanged -= RefreshPlayerCards;
+
+        if (NetworkManager.Singleton == null)
+            return;
+
         NetworkManager.Singleton.OnClientConnectedCallback -= OnClientConnected;
         NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnected;
     }
 
 
-    // ----- Start Network ----- //
+
+    #region Network
 
     public override void OnNetworkSpawn()
     {
-        if (IsClient)
-            lobbyPlayers.OnListChanged += RefreshPlayerCards;
+        lobbyPlayers.OnListChanged += RefreshPlayerCards;
 
         if (IsServer)
         {
@@ -74,13 +78,13 @@ public class LobbyUI : NetworkBehaviour
             foreach (NetworkClient client in NetworkManager.Singleton.ConnectedClientsList)
                 OnClientConnected(client.ClientId);
 
-            password.text = "PASSWORD: " + ServerConnectionManager.Instance.GetServerPassword();
+            password.text = "PASSWORD: " + ConnectionManager.Instance.GetServerPassword();
         }
     }
 
     private void OnClientConnected(ulong clientId)
     {
-        var playerData = ServerConnectionManager.Instance.GetPlayerData(clientId);
+        var playerData = ConnectionManager.Instance.GetPlayerData(clientId);
 
         if (!playerData.HasValue)
             return;
@@ -90,7 +94,6 @@ public class LobbyUI : NetworkBehaviour
 
     private void OnClientDisconnected(ulong clientId)
     {
-        Debug.Log("Lobby");
         for (int i = 0; i < lobbyPlayers.Count; ++i)
         {
             if (lobbyPlayers[i].ClientId == clientId)
@@ -101,9 +104,11 @@ public class LobbyUI : NetworkBehaviour
         }
     }
 
+    #endregion
 
 
-    // ----- Player Cards ----- //
+
+    #region Player Cards
 
     private void RefreshPlayerCards(NetworkListEvent<LobbyPlayerState> lobbyState)
     {
@@ -168,13 +173,15 @@ public class LobbyUI : NetworkBehaviour
         }
     }
 
+    #endregion
 
 
-    // ----- Lobby Buttons ----- //
+
+    #region Lobby
 
     public void LeaveLobby()
     {
-        ConnectionManager.Instance.RequestDisconnect();
+        ConnectionManager.Instance.Disconnect();
     }
 
     public void StartGame()
@@ -188,7 +195,7 @@ public class LobbyUI : NetworkBehaviour
         if (serverRpcParams.Receive.SenderClientId != NetworkManager.Singleton.LocalClientId)
             return;
 
-        ServerConnectionManager.Instance.StartGame();
+        ConnectionManager.Instance.StartGame();
     }
 
     private bool ArePlayersReady()
@@ -212,9 +219,11 @@ public class LobbyUI : NetworkBehaviour
         {
             if (lobbyCards[i] == card)
             {
-                ServerConnectionManager.Instance.KickClient(lobbyPlayers[i].ClientId);
+                ConnectionManager.Instance.KickClient(lobbyPlayers[i].ClientId);
                 return;
             }
         }        
     }
+
+    #endregion
 }

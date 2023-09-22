@@ -90,7 +90,7 @@ public class GameHUD : MonoBehaviour
 
     public void LeaveGame()
     {
-        ConnectionManager.Instance.RequestDisconnect();
+        ConnectionManager.Instance.Disconnect();
     }
 
     public void CloseMenu()

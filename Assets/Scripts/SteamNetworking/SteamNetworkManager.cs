@@ -1,18 +1,17 @@
 using Netcode.Transports.Facepunch;
 using Steamworks;
 using Steamworks.Data;
-using UnityEngine.SceneManagement;
 using UnityEngine;
 using Unity.Netcode;
 using System;
-
-
+using UnityEngine.SceneManagement;
 
 public class SteamNetworkManager : MonoBehaviour
 {
     public static SteamNetworkManager Instance { get; private set; }
     
     private FacepunchTransport NetworkTransport { get => GetComponent<FacepunchTransport>(); }
+
     private Lobby? currentLobby = null;
 
     // Lobby specs
@@ -41,29 +40,28 @@ public class SteamNetworkManager : MonoBehaviour
     private void Start()
     {
         SteamMatchmaking.OnLobbyCreated += OnLobbyCreated;
-        //SteamMatchmaking.OnLobbyEntered += OnLobbyEntered;
-        //SteamMatchmaking.OnLobbyMemberJoined += OnLobbyMemberJoined;
-        //SteamMatchmaking.OnLobbyMemberLeave += OnLobbyMemberLeave;
+        SteamMatchmaking.OnLobbyEntered += OnLobbyEntered;
+        SteamMatchmaking.OnLobbyMemberJoined += OnLobbyMemberJoined;
     }
 
     private void OnDestroy()
     {
         SteamMatchmaking.OnLobbyCreated -= OnLobbyCreated;
-        //SteamMatchmaking.OnLobbyEntered -= OnLobbyEntered;
-        //SteamMatchmaking.OnLobbyMemberJoined -= OnLobbyMemberJoined;
-        //SteamMatchmaking.OnLobbyMemberLeave -= OnLobbyMemberLeave;
-
-        if (NetworkManager.Singleton == null)
-            return;
-
-        NetworkManager.Singleton.OnServerStarted -= OnServerStarted;
-        NetworkManager.Singleton.OnClientConnectedCallback -= OnClientConnected;
-        NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnect;
+        SteamMatchmaking.OnLobbyEntered -= OnLobbyEntered;
+        SteamMatchmaking.OnLobbyMemberJoined -= OnLobbyMemberJoined;
     }
 
     private void OnApplicationQuit()
     {
+        Disconnect();
+    }
 
+    private void Disconnect()
+    {
+        if (NetworkManager.Singleton == null)
+            return;
+
+        NetworkManager.Singleton.Shutdown();
     }
 
 
@@ -75,12 +73,6 @@ public class SteamNetworkManager : MonoBehaviour
         this.serverName = serverName;
         this.password = password;
         this.mapSeed = mapSeed;
-
-        NetworkManager.Singleton.OnServerStarted += OnServerStarted;
-        NetworkManager.Singleton.OnClientConnectedCallback += OnClientConnected;
-        NetworkManager.Singleton.OnClientDisconnectCallback += OnClientDisconnect;
-
-        NetworkManager.Singleton.StartHost();
 
         currentLobby = await SteamMatchmaking.CreateLobbyAsync(MAX_PLAYERS);
     }
@@ -97,25 +89,41 @@ public class SteamNetworkManager : MonoBehaviour
 
         lobby.SetPublic();
         lobby.SetJoinable(true);
+
+        NetworkManager.Singleton.StartHost();
     }
 
-    private void OnServerStarted()
+    #endregion
+
+
+
+    #region Joining
+
+    public async void JoinGame(SteamId lobbyId)
     {
-        if (!NetworkManager.Singleton.IsHost) return;
+        Debug.Log("Join Game");
+        await SteamMatchmaking.JoinLobbyAsync(lobbyId);
+    }
+
+    private async void OnLobbyMemberJoined(Lobby lobby, Friend friend)
+    {
+        Debug.Log("OnLobbyMemberJoined");
+        await SteamMatchmaking.JoinLobbyAsync(lobby.Id);
+    }
+
+    private void OnLobbyEntered(Lobby lobby)
+    {
+        Debug.Log("OnLobbyEntered");
+        Debug.Log($"Name: {lobby.GetData("name")}\n");
+        Debug.Log($"Password: {lobby.GetData("password")}\n");
+        Debug.Log($"MapSeed: {lobby.GetData("mapSeed")}\n");
+        Debug.Log($"Owner: {lobby.Owner.Name}");
 
         NetworkManager.Singleton.SceneManager.LoadScene("Lobby", LoadSceneMode.Single);
-    }
 
-    private void OnClientConnected(ulong obj)
-    {
         if (NetworkManager.Singleton.IsHost) return;
 
-        throw new NotImplementedException();
-    }
-
-    private void OnClientDisconnect(ulong obj)
-    {
-        throw new NotImplementedException();
+        NetworkManager.Singleton.StartClient();
     }
 
     #endregion

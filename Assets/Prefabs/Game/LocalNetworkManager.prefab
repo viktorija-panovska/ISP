@@ -11,8 +11,6 @@ GameObject:
   - component: {fileID: 7998213988190657676}
   - component: {fileID: 7998213988190657715}
   - component: {fileID: 7998213988190657677}
-  - component: {fileID: 7998213988190657672}
-  - component: {fileID: 7998213988190657679}
   - component: {fileID: 7998213988190657678}
   m_Layer: 0
   m_Name: LocalNetworkManager
@@ -163,30 +161,6 @@ MonoBehaviour:
     PacketDelayMS: 0
     PacketJitterMS: 0
     PacketDropRate: 0
---- !u!114 &7998213988190657672
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7998213988190657714}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: afbed016d8d930e438fb72ae5602eb77, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
---- !u!114 &7998213988190657679
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7998213988190657714}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3451369def18e374aa5b13ebcfa748ab, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!114 &7998213988190657678
 MonoBehaviour:
   m_ObjectHideFlags: 0
