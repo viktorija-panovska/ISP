@@ -10,7 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 8824095751763024235}
   - component: {fileID: 8066189498987490531}
-  m_Layer: 0
+  m_Layer: 2
   m_Name: MainCamera
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -84,7 +84,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 8803771717922106430}
-  m_Layer: 0
+  m_Layer: 2
   m_Name: MainCameraRig
   m_TagString: Untagged
   m_Icon: {fileID: 0}

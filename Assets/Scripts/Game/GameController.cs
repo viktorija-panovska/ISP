@@ -125,6 +125,8 @@ public class GameController : NetworkBehaviour
             return;
         }
 
+        Time.timeScale = 1f;
+
         if (IsServer) 
         {
             SpawnMap();
@@ -133,19 +135,19 @@ public class GameController : NetworkBehaviour
         }
 
         SpawnFrame();
-        SetupPlayerControllersServerRpc();
+        SetupPlayerControllerServerRpc();
 
         if (IsServer)
             StartUnitMovement();
     }
 
     [ServerRpc(RequireOwnership = false)]
-    private void SetupPlayerControllersServerRpc(ServerRpcParams serverRpcParams = default)
+    private void SetupPlayerControllerServerRpc(ServerRpcParams serverRpcParams = default)
     {
         ulong playerId = serverRpcParams.Receive.SenderClientId;
 
-        GameObject playerControllerObject0 = Instantiate(PlayerControllerPrefab);
-        playerControllerObject0.GetComponent<NetworkObject>().SpawnAsPlayerObject(playerId, destroyWithScene: true);
+        GameObject playerControllerObject = Instantiate(PlayerControllerPrefab);
+        playerControllerObject.GetComponent<NetworkObject>().SpawnAsPlayerObject(playerId, destroyWithScene: true);
 
         IPlayerObject leaderObject = leaders[playerId];
 
@@ -342,7 +344,7 @@ public class GameController : NetworkBehaviour
         unitObject.GetComponent<NetworkObject>().Spawn(destroyWithScene: true);
 
         Unit unit = unitObject.GetComponent<Unit>();
-        unit.Initialize(unitType, originHouse, isLeader);
+        unit.Initialize(unitType, team, originHouse, isLeader);
 
         activeUnits[playerId].Add(unit);
 
@@ -390,6 +392,9 @@ public class GameController : NetworkBehaviour
 
         activeUnits[(int)unit.Team - 1].Remove(unit);
         unit.gameObject.GetComponent<NetworkObject>().Despawn();
+
+        if (activeUnits[(int)unit.Team - 1].Count == 0)
+            EndGame(unit.Team);
     }
 
     private void AdjustUnitHeights()
@@ -889,4 +894,11 @@ public class GameController : NetworkBehaviour
     }
 
     #endregion
+
+
+    
+    private void EndGame(Teams losingTeam)
+    {
+        
+    }
 }

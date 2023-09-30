@@ -3,18 +3,21 @@ using Steamworks;
 using Steamworks.Data;
 using UnityEngine;
 using Unity.Netcode;
-using System;
 using UnityEngine.SceneManagement;
+using System.Collections.Generic;
+
 
 public class SteamNetworkManager : MonoBehaviour
 {
     public static SteamNetworkManager Instance { get; private set; }
-    
-    private FacepunchTransport NetworkTransport { get => GetComponent<FacepunchTransport>(); }
 
+    private const uint STEAM_APP_ID = 480;
+    private List<Lobby> activeLobbies;
+    private bool gameInProgress;
+
+    // Lobby
     private Lobby? currentLobby = null;
 
-    // Lobby specs
     private const int MAX_PLAYERS = 2;
     private const int MAX_CONNECTION_PAYLOAD = 1024;
 
@@ -27,7 +30,23 @@ public class SteamNetworkManager : MonoBehaviour
     private void Awake()
     {
         if (Instance == null)
+        {
             Instance = this;
+
+            try
+            {
+                SteamClient.Init(STEAM_APP_ID, true);
+
+                if (!SteamClient.IsValid)
+                {
+                    Debug.Log("Steam client not valid");
+                    throw new System.Exception();
+                }
+
+                activeLobbies = new List<Lobby>();
+            }
+            catch (System.Exception e) { Debug.Log($"Error connecting to Steam: {e}"); }
+        }
         else
         {
             Destroy(gameObject);
@@ -85,8 +104,6 @@ public class SteamNetworkManager : MonoBehaviour
         lobby.SetData("password", password);
         lobby.SetData("mapSeed", mapSeed);
 
-        name = password = mapSeed = "";
-
         lobby.SetPublic();
         lobby.SetJoinable(true);
 
@@ -105,10 +122,9 @@ public class SteamNetworkManager : MonoBehaviour
         await SteamMatchmaking.JoinLobbyAsync(lobbyId);
     }
 
-    private async void OnLobbyMemberJoined(Lobby lobby, Friend friend)
+    private void OnLobbyMemberJoined(Lobby lobby, Friend friend)
     {
         Debug.Log("OnLobbyMemberJoined");
-        await SteamMatchmaking.JoinLobbyAsync(lobby.Id);
     }
 
     private void OnLobbyEntered(Lobby lobby)
@@ -125,6 +141,30 @@ public class SteamNetworkManager : MonoBehaviour
 
         NetworkManager.Singleton.StartClient();
     }
+
+
+    public List<Lobby> GetActiveLobbies()
+    {
+        RequestLobbies();
+
+        if (activeLobbies.Count > 0)
+            return activeLobbies;
+
+        return null;
+    }
+
+    private async void RequestLobbies()
+    {
+        activeLobbies.Clear();
+        Lobby[] lobbies = await SteamMatchmaking.LobbyList.WithMaxResults(10).RequestAsync();
+
+        Debug.Log("Lobbies");
+
+        if (lobbies != null)
+            foreach (Lobby lobby in lobbies)
+                activeLobbies.Add(lobby);
+    }
+
 
     #endregion
 }

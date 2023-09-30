@@ -17,19 +17,19 @@ public class Chunk
             triangles = new int[(width - 1) * (height - 1) * 6];
         }
 
-        public void AddVertex(int index, Vector3 vertex)
+        public readonly void AddVertex(int index, Vector3 vertex)
         {
             vertices[index] = vertex;
         }
 
-        public void AddTriangle(int index, int a, int b, int c)
+        public readonly void AddTriangle(int index, int a, int b, int c)
         {
             triangles[index] = a;
             triangles[index + 1] = b;
             triangles[index + 2] = c;
         }
 
-        public void AddUV(int index, Vector2 uv)
+        public readonly void AddUV(int index, Vector2 uv)
         {
             uvs[index] = uv;
         }
@@ -102,6 +102,10 @@ public class Chunk
 
         foreach (((int, int) _, var formation) in formations)
             formation.gameObject.SetActive(isVisible);
+
+        for (int i = 0; i < houseAtVertex.GetLength(0); ++i)
+            for (int j = 0; j < houseAtVertex.GetLength(1); ++j)
+                houseAtVertex[i, j]?.Object.SetActive(isVisible);
     }
 
     public float DistanceFromPoint(Vector3 point) => Mathf.Sqrt(chunkBounds.SqrDistance(point));
@@ -421,8 +425,7 @@ public class Chunk
                 meshData.vertices[v].y += STEP_HEIGHT;
         }
 
-        if (houseAtVertex[z, x] != null)
-            houseAtVertex[z, x].DestroyHouse(spawnDestroyedHouse: false);
+        houseAtVertex[z, x]?.DestroyHouse(spawnDestroyedHouse: false);
 
         if (formations.ContainsKey((x, z)))
         {

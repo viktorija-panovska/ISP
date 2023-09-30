@@ -19,11 +19,14 @@ public class PlayerController : NetworkBehaviour
     private GameHUD hud;
 
     private bool isGamePaused = false;
-    private Teams team = Teams.None;
     private Powers activePower = Powers.MoldTerrain;
+    private bool canModifyTerrain = false;
 
+    public Teams Team { get; private set; }
     public Camera PlayerCamera { get; private set; }
     public float Mana { get; private set; }
+
+    private int objectsInView;
 
 
 
@@ -39,21 +42,13 @@ public class PlayerController : NetworkBehaviour
             return;
         }
 
-        team = OwnerClientId == 0 ? Teams.Red : Teams.Blue;
+        Team = OwnerClientId == 0 ? Teams.Red : Teams.Blue;
 
         // Set HUD
         GameObject HUD = Instantiate(GameHUDPrefab);
         hud = HUD.GetComponent<GameHUD>();
         hud.SetController(this);
     }
-    
-    public void SetupCameraController(WorldLocation cameraStart)
-    {
-        cameraController = Instantiate(CameraControllerPrefab).GetComponent<CameraController>();
-        PlayerCamera = cameraController.MainCamera;
-        cameraController.SetGameHUD(hud);
-    }
-
 
     private void Update()
     {
@@ -63,7 +58,7 @@ public class PlayerController : NetworkBehaviour
 
         if (Input.GetKeyDown(KeyCode.L))
         {
-            if (GameController.Instance.HasLeader(team))
+            if (GameController.Instance.HasLeader(Team))
                 GameController.Instance.SnapToLeaderServerRpc();
             else
                 hud.FlashLeaderIcon();
@@ -71,7 +66,7 @@ public class PlayerController : NetworkBehaviour
 
         if (Input.GetKeyDown(KeyCode.K))
         {
-            if (GameController.Instance.HasKnight(team))
+            if (GameController.Instance.HasKnight(Team))
                 GameController.Instance.SnapToKnightServerRpc();
             else
                 hud.FlashKnightIcon();
@@ -139,6 +134,46 @@ public class PlayerController : NetworkBehaviour
 
 
 
+    #region Camera Controller
+
+    public void SetupCameraController(WorldLocation cameraStart)
+    {
+        cameraController = Instantiate(CameraControllerPrefab).GetComponent<CameraController>();
+        PlayerCamera = cameraController.MainCamera;
+        cameraController.SetGameHUD(hud);
+        SetCameraLocation(cameraStart);
+    }
+
+    public void SetCameraLocation(WorldLocation location)
+    {
+        cameraController.SetLocation(location);
+    }
+
+    public void SwitchCameras(bool isMapCamera)
+    {
+        if (isMapCamera)
+            PauseGame();
+        else
+            ResumeGame();
+
+        cameraController.SwitchCameras(isMapCamera);
+    }
+
+
+    public void IsObjectVisible(Bounds bounds)
+    {
+        Plane[] planes = GeometryUtility.CalculateFrustumPlanes(cameraController.MainCamera);
+
+        if (GeometryUtility.TestPlanesAABB(planes, bounds))
+            canModifyTerrain = true;
+
+        Debug.Log(canModifyTerrain);
+    }
+
+    #endregion
+
+
+
     public void AddMana(float manaGain)
     {
         if (Mana == GameController.MAX_MANA)
@@ -166,22 +201,9 @@ public class PlayerController : NetworkBehaviour
     }
 
 
+    public void AddObjectInView() => objectsInView++;
 
-    public void SetCameraLocation(WorldLocation location)
-    {
-        cameraController.SetLocation(location);
-    }
-
-    public void SwitchCameras(bool isMapCamera)
-    {
-        if (isMapCamera)
-            PauseGame();
-        else
-            ResumeGame();
-
-        cameraController.SwitchCameras(isMapCamera);
-    }
-
+    public void RemoveObjectFromView() => objectsInView--;
 
 
     #region Powers
@@ -195,7 +217,7 @@ public class PlayerController : NetworkBehaviour
         {
             Vector3 hitPoint = hitInfo.point;
 
-            if (hud.IsClickable(hitInfo))
+            if (hud.IsClickable(hitInfo) && objectsInView > 0)
             {
                 WorldLocation location = new(hitPoint.x, hitPoint.z);
 
@@ -231,7 +253,7 @@ public class PlayerController : NetworkBehaviour
                 if (Input.GetMouseButtonDown(0))
                 {
                     RemoveMana(GameController.Instance.PowerCost[index]);
-                    GameController.Instance.MoveUnitsServerRpc(team, location);
+                    GameController.Instance.MoveUnitsServerRpc(Team, location);
 
                     activePower = Powers.MoldTerrain;
                     hud.SwitchMarker(0);
@@ -305,10 +327,10 @@ public class PlayerController : NetworkBehaviour
 
     private void SendKnight()
     {
-        if (GameController.Instance.HasLeader(team))
+        if (GameController.Instance.HasLeader(Team))
         {
             RemoveMana(GameController.Instance.PowerCost[(int)Powers.Crusade]);
-            GameController.Instance.SendKnightServerRpc(team);
+            GameController.Instance.SendKnightServerRpc(Team);
         }
 
         activePower = Powers.MoldTerrain;

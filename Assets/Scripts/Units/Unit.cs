@@ -2,7 +2,6 @@ using UnityEngine;
 using System.Collections.Generic;
 using Unity.Netcode;
 using UnityEngine.UI;
-using System;
 
 
 public interface IUnitType
@@ -101,7 +100,7 @@ public class Unit : NetworkBehaviour, IPlayerObject
     public float Height { get => WorldMap.Instance.GetHeight(Location); }
     public WorldLocation NextLocation { get => MovementHandler.EndLocation; }
 
-    public Teams Team;
+    public Teams Team { get; private set; }
     public Slider HealthBar;
     public GameObject LeaderMarker;
     public GameObject BattleDetector;
@@ -109,9 +108,10 @@ public class Unit : NetworkBehaviour, IPlayerObject
 
 
 
-    public void Initialize(IUnitType unitType, House originHouse, bool isLeader)
+    public void Initialize(IUnitType unitType, Teams team, House originHouse, bool isLeader)
     {
         UnitType = unitType;
+        Team = team;
         OriginHouse = originHouse;
         Health = UnitType.MaxHealth;
         IsLeader = isLeader;

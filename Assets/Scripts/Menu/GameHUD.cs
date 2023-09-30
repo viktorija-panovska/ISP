@@ -50,7 +50,8 @@ public class GameHUD : MonoBehaviour
 
         ManaBar.minValue = GameController.MIN_MANA;
         ManaBar.maxValue = GameController.MAX_MANA;
-        ManaBar.value = ManaBar.minValue;
+
+        UpdateManaBar(ManaBar.minValue);
     }
 
     private void OnDestroy()

@@ -1,7 +1,7 @@
-using UnityEngine;
+using Unity.Netcode;
 
 
-public class SteamLobby : MonoBehaviour
+public class SteamLobby : NetworkBehaviour
 {
-    
+
 }

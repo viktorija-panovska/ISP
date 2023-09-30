@@ -4,6 +4,7 @@ using UnityEngine;
 
 public class DestroyedHouse : MonoBehaviour, IHouse
 {
+    public GameObject Object { get => gameObject; }
     public List<WorldLocation> Vertices { get; private set; }
 
 

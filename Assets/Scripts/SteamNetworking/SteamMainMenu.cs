@@ -1,11 +1,13 @@
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
-using Steamworks;
+
 
 
 public class SteamMainMenu : MonoBehaviour
 {
+    public static SteamMainMenu Instance { get; private set; }
+
     public Image BackgroundImage;
 
     public GameObject MainMenuContainer;
@@ -24,6 +26,24 @@ public class SteamMainMenu : MonoBehaviour
     public Button CreateGameButton;
 
 
+    // JOIN
+    public GameObject LobbyScrollView;
+    public GameObject LobbyEntryPrefab;
+
+    private LobbyEntry selectedLobby;
+
+
+    public void Awake()
+    {
+        if (Instance == null)
+            Instance = this;
+        else
+        {
+            Destroy(gameObject);
+            return;
+        }
+    }
+
     private void Start()
     {
         openMenuContainer = MainMenuContainer;
@@ -35,7 +55,8 @@ public class SteamMainMenu : MonoBehaviour
     }
 
 
-    // ---- SWITCHING MENUS ---- //
+
+    #region Switching Menus
 
     public void OpenMainMenu()
     {
@@ -60,6 +81,8 @@ public class SteamMainMenu : MonoBehaviour
         JoinGameContainer.SetActive(true);
         BackgroundImage.gameObject.SetActive(false);
         openMenuContainer = JoinGameContainer;
+
+        FillLobbyList();
     }
 
     private void ResetHostMenu()
@@ -69,9 +92,11 @@ public class SteamMainMenu : MonoBehaviour
         MapSeedInputField.text = "";
     }
 
+    #endregion
 
 
-    //// ------ STARTING GAME ----- //
+
+    #region Connection
 
     public void HostGame()
     {
@@ -84,14 +109,33 @@ public class SteamMainMenu : MonoBehaviour
         SteamNetworkManager.Instance.StartHost(ServerNameInputField.text, PasswordInputField.text, MapSeedInputField.text);
     }
 
+    public void JoinGame()
+    {
+        ConnectionManager.Instance.StartClient(selectedLobby.LobbyId.ToString());
+        selectedLobby = null;
+    }
 
-    //public void JoinGame()
-    //{
-    //    if (nameInputField.text == "" || passwordInputField.text == "")
-    //        return;
+    private void FillLobbyList()
+    {
+        foreach (Steamworks.Data.Lobby lobby in SteamNetworkManager.Instance.GetActiveLobbies())
+        {
+            GameObject entryObject = Instantiate(LobbyEntryPrefab);
+            LobbyEntry entry = entryObject.GetComponent<LobbyEntry>();
 
-    //    PlayerPrefs.SetString("PlayerName", nameInputField.text);
-    //    ClientConnectionManager.Instance.StartClient(passwordInputField.text);
-    //}
+            entry.Setup(lobby.Id, lobby.GetData("name"), lobby.GetData("password"), lobby.GetData("mapSeed"), lobby.Owner);
+            entryObject.transform.SetParent(LobbyScrollView.transform);
+        }
+    }
 
+    public void SelectEntry(LobbyEntry entry)
+    {
+        selectedLobby = entry;
+    }
+
+    public void DeselectEntry()
+    {
+        selectedLobby = null;
+    }
+
+    #endregion
 }

@@ -156,7 +156,6 @@ public class LobbyUI : NetworkBehaviour
     [ServerRpc(RequireOwnership = false)]
     private void ReadyServerRpc(ServerRpcParams serverRpcParams = default)
     {
-
         for (int i = 0; i < lobbyPlayers.Count; i++)
         {
             if (lobbyPlayers[i].ClientId == serverRpcParams.Receive.SenderClientId)

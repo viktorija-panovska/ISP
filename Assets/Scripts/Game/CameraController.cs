@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 
-public class CameraController : MonoBehaviour
+public class CameraController : MonoBehaviour 
 {
     private GameHUD gameHUD;
     private List<(int, int)> lastVisibleChunks = new();
@@ -25,8 +25,10 @@ public class CameraController : MonoBehaviour
     public Camera MainCamera { get => mainCameraRig.GetComponentInChildren<Camera>(); }
     public Camera MapCamera { get => mapCameraRig.GetComponentInChildren<Camera>(); }
 
-    private (float width, float height) MainCameraDimensions { get => (MainCamera.pixelWidth, MainCamera.pixelHeight); }
-    private (float width, float height) MapCameraDimensions { get => (2 * MapCamera.orthographicSize * MapCamera.aspect, 2 * MapCamera.orthographicSize); }
+    private (float width, float height) mainCameraDimensions;
+    private (float width, float height) mapCameraDimensions;
+
+    private Vector3[] screenCorners;
 
     private bool isMapCamera;
 
@@ -37,19 +39,31 @@ public class CameraController : MonoBehaviour
         mainCameraRig = Instantiate(MainCameraRigPrefab);
         mapCameraRig = Instantiate(MapCameraRigPrefab);
 
-        mapCameraRig.transform.position = new Vector3(MapCameraDimensions.width / 2, mapCameraRig.transform.position.y, MapCameraDimensions.height / 2);
+        mapCameraDimensions = (2 * MapCamera.orthographicSize * MapCamera.aspect, 2 * MapCamera.orthographicSize);
+        mapCameraRig.transform.position = new Vector3(mapCameraDimensions.width / 2, mapCameraRig.transform.position.y, mapCameraDimensions.height / 2);
 
-        DrawVisibleMap(mainCameraRig.transform.position, MainCameraDimensions.width);
+        screenCorners = new Vector3[] {
+            new Vector3(0, 0), new Vector3(0, MainCamera.pixelHeight),
+            new Vector3(MainCamera.pixelWidth, 0), new Vector3(MainCamera.pixelWidth, MainCamera.pixelHeight)
+        };
     }
+
 
     public void Update()
     {
-        if (!isMapCamera && (ChangePosition(mainCameraRig, (100, WorldMap.WIDTH - 100), (100, WorldMap.WIDTH - 100), MOVEMENT_SPEED) || ChangeZoom()))
-            RedrawMap(mainCameraRig.transform.position, MainCameraDimensions, MainCameraDimensions.width);
+        if (mainCameraDimensions == (0, 0))
+        {
+            ComputeViewBorders();
+            RedrawMap(mainCameraRig.transform.position, mainCameraDimensions);
+            return;
+        }
 
-        if (isMapCamera && ChangePosition(mapCameraRig, (MapCameraDimensions.width / 2, WorldMap.WIDTH - (MapCameraDimensions.width / 2)), 
-            (MapCameraDimensions.height / 2, WorldMap.WIDTH - (MapCameraDimensions.height / 2)), MAP_SPEED))
-            RedrawMap(mapCameraRig.transform.position, MapCameraDimensions, MapCameraDimensions.width);
+        if (!isMapCamera && (ChangePosition(mainCameraRig, (100, WorldMap.WIDTH - 100), (100, WorldMap.WIDTH - 100), MOVEMENT_SPEED) || ChangeZoom()))
+            RedrawMap(mainCameraRig.transform.position, mainCameraDimensions);
+
+        if (isMapCamera && ChangePosition(mapCameraRig, (mapCameraDimensions.width / 2, WorldMap.WIDTH - (mapCameraDimensions.width / 2)),
+            (mapCameraDimensions.height / 2, WorldMap.WIDTH - (mapCameraDimensions.height / 2)), MAP_SPEED))
+            RedrawMap(mapCameraRig.transform.position, mapCameraDimensions);
 
         if (isMapCamera && Input.GetKey(KeyCode.Space))
             TeleportToLocation(mapCameraRig.transform.position);
@@ -62,12 +76,10 @@ public class CameraController : MonoBehaviour
     public void SetLocation(WorldLocation location)
     {
         mainCameraRig.transform.position = new Vector3(location.X, mainCameraRig.transform.position.y, location.Z);
+        RedrawMap(mainCameraRig.transform.position, mainCameraDimensions);
     }
 
-    public void SetGameHUD(GameHUD gameHUD)
-    {
-        this.gameHUD = gameHUD;
-    }
+    public void SetGameHUD(GameHUD gameHUD) => this.gameHUD = gameHUD;
 
     #endregion
 
@@ -114,6 +126,7 @@ public class CameraController : MonoBehaviour
         {
             newZoom = new Vector3(newZoom.x, Mathf.Clamp(newZoom.y, MIN_ZOOM, MAX_ZOOM), Mathf.Clamp(newZoom.z, -MAX_ZOOM, -MIN_ZOOM));
             MainCamera.transform.localPosition = Vector3.Lerp(MainCamera.transform.localPosition, newZoom, Time.deltaTime * ZOOM_TIME);
+            ComputeViewBorders();
             return true;
         }
 
@@ -126,42 +139,44 @@ public class CameraController : MonoBehaviour
 
     #region Map
 
-    private void RedrawMap(Vector3 center, (float width, float height) dimensions, float viewDistance)
+    private void ComputeViewBorders()
     {
-        Debug.Log($"Dimensions: {dimensions}");
+        Vector3[] viewCorners = new Vector3[4];
 
-        DrawVisibleMap(center, viewDistance);
+        for (int i = 0; i < screenCorners.Length; ++i)
+            if (Physics.Raycast(MainCamera.ScreenPointToRay(screenCorners[i]), out RaycastHit hitInfo, Mathf.Infinity))
+                viewCorners[i] = hitInfo.point;
+
+        mainCameraDimensions = (Mathf.Abs(viewCorners[1].x - viewCorners[3].x), Mathf.Abs(viewCorners[0].z - viewCorners[1].z));
     }
 
-    private void DrawVisibleMap(Vector3 cameraPosition, float viewDistance)
-    {
-        int chunksVisible = Mathf.CeilToInt(viewDistance / Chunk.WIDTH);
 
+    private void RedrawMap(Vector3 cameraPosition, (float width, float height) viewDimensions)
+    {
+        float chunksVisibleX = Mathf.CeilToInt(viewDimensions.width / Chunk.WIDTH);
+        float chunksVisibleZ = Mathf.CeilToInt(viewDimensions.height / Chunk.WIDTH);
+
+        // Reset last visible chunks
         foreach ((int x, int z) in lastVisibleChunks)
             WorldMap.Instance.GetChunk(x, z).SetVisibility(false);
-
         lastVisibleChunks = new();
 
         (int chunk_x, int chunk_z) = WorldMap.Instance.GetChunkIndex(cameraPosition.x, cameraPosition.z);
-  
-        int offset = Mathf.FloorToInt(chunksVisible / 2);
 
-        for (int zOffset = -offset; zOffset <= offset; ++zOffset)
+        int offsetX = Mathf.CeilToInt(chunksVisibleX / 2);
+        int offsetZ = Mathf.CeilToInt(chunksVisibleZ / 2);
+
+        for (int zOffset = -offsetZ; zOffset <= offsetZ; ++zOffset)
         {
-            for (int xOffset = -offset; xOffset <= offset; ++xOffset)
+            for (int xOffset = -offsetX; xOffset <= offsetX; ++xOffset)
             {
                 (int x, int z) newChunk = (chunk_x + xOffset, chunk_z + zOffset);
 
-                if (newChunk.x >= 0 && newChunk.z >= 0 &&
-                    newChunk.x < WorldMap.CHUNK_NUMBER && newChunk.z < WorldMap.CHUNK_NUMBER)
+                if (newChunk.x >= 0 && newChunk.z >= 0 && newChunk.x < WorldMap.CHUNK_NUMBER && newChunk.z < WorldMap.CHUNK_NUMBER)
                 {
                     Chunk chunk = WorldMap.Instance.GetChunk(newChunk.x, newChunk.z);
-
-                    if (chunk.DistanceFromPoint(cameraPosition) <= viewDistance)
-                    {
-                        chunk.SetVisibility(true);
-                        lastVisibleChunks.Add(newChunk);
-                    }
+                    chunk.SetVisibility(true);
+                    lastVisibleChunks.Add(newChunk);
                 }
             }
         }
@@ -180,11 +195,11 @@ public class CameraController : MonoBehaviour
         if (isMapCamera)
         {
             mapCameraRig.transform.position = mainCameraRig.transform.position;
-            RedrawMap(mapCameraRig.transform.position, MapCameraDimensions, MapCameraDimensions.width);
+            RedrawMap(mapCameraRig.transform.position, mapCameraDimensions);
         }
         else
         {
-            RedrawMap(mainCameraRig.transform.position, MainCameraDimensions, MainCameraDimensions.width);
+            RedrawMap(mainCameraRig.transform.position, mainCameraDimensions);
         }
     }
 

@@ -39,5 +39,4 @@ public class Helpers
         yield return new WaitForSeconds(0.5f);
         image.gameObject.SetActive(false);
     }
-
 }

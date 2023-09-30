@@ -85,6 +85,7 @@ public struct City : IHouseType
 
 public interface IHouse : IPlayerObject
 {
+    public GameObject Object { get; }
     public List<WorldLocation> Vertices { get; }
     public void DestroyHouse(bool spawnDestroyedHouse);
 }
@@ -94,6 +95,7 @@ public class House : NetworkBehaviour, IHouse
 {
     private BoxCollider Collider { get => GetComponent<BoxCollider>(); }
 
+    public GameObject Object { get => gameObject; }
     public GameObject[] HouseObjects;
 
     public WorldLocation Location { get => new(gameObject.transform.position.x, gameObject.transform.position.z); }
@@ -126,7 +128,6 @@ public class House : NetworkBehaviour, IHouse
 
         UpdateType();
     }
-
 
 
     #region House Type

@@ -197,7 +197,7 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 8473515068984248994}
   m_HandleRect: {fileID: 7570183315697763324}
   m_Direction: 2
-  m_Value: 0
+  m_Value: 1
   m_Size: 1
   m_NumberOfSteps: 0
   m_OnValueChanged:
@@ -967,6 +967,8 @@ MonoBehaviour:
   MapSeedInputField: {fileID: 5894373841825003932}
   EmptyFieldWarning: {fileID: 6447855664226249074}
   CreateGameButton: {fileID: 2085921026790687590}
+  LobbyScrollView: {fileID: 7047614105934452440}
+  LobbyEntryPrefab: {fileID: 606450699740323588, guid: 1f123c49e1ea54444abc7153982ccab2, type: 3}
 --- !u!1 &2085921026750786397
 GameObject:
   m_ObjectHideFlags: 0
@@ -3249,7 +3251,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: -22, y: -430.70447}
+  m_SizeDelta: {x: -22, y: -406.6501}
   m_Pivot: {x: 0, y: 1}
 --- !u!114 &616186332908986187
 MonoBehaviour:
@@ -3846,7 +3848,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 0.00012990634, y: 0}
+  m_AnchoredPosition: {x: 1.4422988, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0, y: 1}
 --- !u!1 &7304989100873464531
