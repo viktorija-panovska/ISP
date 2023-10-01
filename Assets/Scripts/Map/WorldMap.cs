@@ -56,7 +56,7 @@ public class WorldMap : NetworkBehaviour
     public static WorldMap Instance { get; private set; }
 
     public Vector3 Position { get => transform.position; }
-    public const int CHUNK_NUMBER = 5;
+    public const int CHUNK_NUMBER = 1;
     public const int WIDTH = CHUNK_NUMBER * Chunk.WIDTH;
     public const int TILE_NUMBER = CHUNK_NUMBER * Chunk.TILE_NUMBER;
 
@@ -217,6 +217,13 @@ public class WorldMap : NetworkBehaviour
                 chunkMap[z, x].DestroyUnderwaterFormations();
     }
 
+    public void DestroyAllFormations()
+    {
+        for (int z = 0; z < CHUNK_NUMBER; ++z)
+            for (int x = 0; x < CHUNK_NUMBER; ++x)
+                chunkMap[z, x].DestroyAllFormations();
+    }
+
     #endregion
 
 
@@ -225,13 +232,7 @@ public class WorldMap : NetworkBehaviour
 
     public override void OnNetworkSpawn()
     {
-        if (Instance == null)
-            Instance = this;
-        else
-        {
-            Destroy(gameObject);
-            return;
-        }
+        Instance = this;
 
         NoiseGenerator.Initialize(MapSeed);
         GenerateWorldMap();
@@ -329,6 +330,7 @@ public class WorldMap : NetworkBehaviour
             chunkMap[chunk.z, chunk.x].SetVertexHeightAtPoint(local.x, local.z, update.Height);
         }
     }
-    
+
     #endregion
+
 }

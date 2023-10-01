@@ -20,13 +20,12 @@ public class PlayerController : NetworkBehaviour
 
     private bool isGamePaused = false;
     private Powers activePower = Powers.MoldTerrain;
-    private bool canModifyTerrain = false;
 
     public Teams Team { get; private set; }
     public Camera PlayerCamera { get; private set; }
     public float Mana { get; private set; }
 
-    private int objectsInView;
+    private int objectsInView =1;
 
 
 
@@ -132,6 +131,23 @@ public class PlayerController : NetworkBehaviour
         isGamePaused = false;
     }
 
+    public void EndGame(Teams winner)
+    {
+        PauseGame();
+        hud.OpenEndGameMenu(winner);
+    }
+
+    public void RestartGame(WorldLocation cameraStart)
+    {
+        activePower = Powers.MoldTerrain;
+        Mana = 0;
+        objectsInView = 1;
+
+        cameraController.ResetCamera(cameraStart);
+        hud.ResetHUD();
+
+        ResumeGame();
+    }
 
 
     #region Camera Controller
@@ -157,17 +173,6 @@ public class PlayerController : NetworkBehaviour
             ResumeGame();
 
         cameraController.SwitchCameras(isMapCamera);
-    }
-
-
-    public void IsObjectVisible(Bounds bounds)
-    {
-        Plane[] planes = GeometryUtility.CalculateFrustumPlanes(cameraController.MainCamera);
-
-        if (GeometryUtility.TestPlanesAABB(planes, bounds))
-            canModifyTerrain = true;
-
-        Debug.Log(canModifyTerrain);
     }
 
     #endregion
@@ -204,6 +209,7 @@ public class PlayerController : NetworkBehaviour
     public void AddObjectInView() => objectsInView++;
 
     public void RemoveObjectFromView() => objectsInView--;
+
 
 
     #region Powers

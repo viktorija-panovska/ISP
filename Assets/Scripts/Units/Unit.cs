@@ -166,8 +166,8 @@ public class Unit : NetworkBehaviour, IPlayerObject
 
     #endregion
 
-
     #region Health Bar
+
     public void OnMouseEnter()
     {
         ToggleHealthBarServerRpc(show: true);
@@ -214,8 +214,8 @@ public class Unit : NetworkBehaviour, IPlayerObject
             HealthBar.value = currentHealth;
         }
     }
-    #endregion
 
+    #endregion
 
     #region Movement
 

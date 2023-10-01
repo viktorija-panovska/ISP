@@ -100,7 +100,7 @@ public class House : NetworkBehaviour, IHouse
 
     public WorldLocation Location { get => new(gameObject.transform.position.x, gameObject.transform.position.z); }
     public float Height { get => WorldMap.Instance.GetHeight(rootVertex); }
-    public IHouseType HouseType { get; private set; } = new Tent();
+    public IHouseType HouseType { get; private set; } = null;
     public List<WorldLocation> Vertices { get; private set; }
     private WorldLocation rootVertex;
 
@@ -136,9 +136,10 @@ public class House : NetworkBehaviour, IHouse
     {
         IHouseType newHouseType = GetHouseType(CountSurroundingFlatSpaces(rootVertex));
 
-        if (newHouseType.Type != HouseType.Type)
+        if (HouseType == null || newHouseType.Type != HouseType.Type)
         {
-            HouseObjects[HouseType.Type].SetActive(false);
+            if (HouseType != null)
+                HouseObjects[HouseType.Type].SetActive(false);
 
             if (HouseType != null && HouseType.GetType() == typeof(City))
             {

@@ -4,8 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Unity.Netcode;
 using UnityEngine;
-
-
+using UnityEngine.UI;
 
 public enum Teams
 {
@@ -94,12 +93,12 @@ public class GameController : NetworkBehaviour
     // Civilization
     private const int STARTING_UNITS = 1;
     private const int MAX_UNITS_PER_PLAYER = 1;
-    private readonly List<Unit>[] activeUnits = { new(), new() };
-    private readonly int[] units = { 0, 0 };
-    private readonly IPlayerObject[] leaders = new IPlayerObject[2];
-    private readonly List<Unit>[] knights = { new(), new() };
-    private readonly int[] lastKnight = new int[2];
-    private readonly List<House>[] activeHouses = { new(), new() };
+    private List<Unit>[] activeUnits = { new(), new() };
+    private int[] units = { 0, 0 };
+    private IPlayerObject[] leaders = new IPlayerObject[2];
+    private List<Unit>[] knights = { new(), new() };
+    private int[] lastKnight = new int[2];
+    private List<House>[] activeHouses = { new(), new() };
 
     // Powers
     public const int MIN_MANA = 0;
@@ -125,13 +124,12 @@ public class GameController : NetworkBehaviour
             return;
         }
 
-        Time.timeScale = 1f;
-
         if (IsServer) 
         {
             SpawnMap();
             PopulateMap();
             SpawnStarterUnits();
+            SpawnWater();
         }
 
         SpawnFrame();
@@ -167,7 +165,10 @@ public class GameController : NetworkBehaviour
     {
         GameObject worldMapObject = Instantiate(WorldMapPrefab);
         worldMapObject.GetComponent<NetworkObject>().Spawn(destroyWithScene: true);
+    }
 
+    private void SpawnWater()
+    {
         waterPlane = Instantiate(WaterPlanePrefab);
         waterPlane.transform.position = new(WorldMap.WIDTH / 2, waterPlane.transform.position.y, WorldMap.WIDTH / 2);
 
@@ -369,7 +370,7 @@ public class GameController : NetworkBehaviour
         }
     }
 
-    public void DespawnUnit(Unit unit, bool isDead = true)
+    public void DespawnUnit(Unit unit, bool isDead = true, bool removeUnit = true)
     {
         int playerId = (int)unit.Team - 1;
 
@@ -390,10 +391,12 @@ public class GameController : NetworkBehaviour
         if (unit.ChasedBy != null)
             unit.ChasedBy.EndFollow();
 
-        activeUnits[(int)unit.Team - 1].Remove(unit);
+        if (removeUnit)
+            activeUnits[(int)unit.Team - 1].Remove(unit);
+
         unit.gameObject.GetComponent<NetworkObject>().Despawn();
 
-        if (activeUnits[(int)unit.Team - 1].Count == 0)
+        if (units[(int)unit.Team - 1] == 0)
             EndGame(unit.Team);
     }
 
@@ -470,7 +473,7 @@ public class GameController : NetworkBehaviour
         DespawnUnit(unit, false);
     }
 
-    public void DestroyHouse(IHouse house, bool spawnDestroyedHouse)
+    public void DestroyHouse(IHouse house, bool spawnDestroyedHouse, bool removeHouse = true)
     {
         GameObject houseObject;
 
@@ -487,7 +490,9 @@ public class GameController : NetworkBehaviour
                 }
             }
 
-            activeHouses[(int)activeHouse.Team - 1].Remove(activeHouse);
+            if (removeHouse)
+                activeHouses[(int)activeHouse.Team - 1].Remove(activeHouse);
+    
             houseObject = activeHouse.gameObject;
 
             RemoveManaClientRpc(activeHouse.HouseType.ManaGain, new ClientRpcParams
@@ -677,6 +682,11 @@ public class GameController : NetworkBehaviour
     public void RemoveFlag(Teams team)
     {
         int index = (int)team - 1;
+        RemoveFlag(index);
+    }
+
+    private void RemoveFlag(int index)
+    {
         flags[index].GetComponent<NetworkObject>().Despawn();
         flags[index] = null;
     }
@@ -896,9 +906,80 @@ public class GameController : NetworkBehaviour
     #endregion
 
 
-    
-    private void EndGame(Teams losingTeam)
+
+    #region End Game
+
+    private void EndGame(Teams loser)
     {
-        
+        Time.timeScale = 0f;
+        EndGameClientRpc(loser == Teams.Red ? Teams.Blue : Teams.Red);
     }
+
+    [ClientRpc]
+    private void EndGameClientRpc(Teams winner)
+    {
+        PlayerController.Instance.EndGame(winner);
+    }
+
+
+    [ServerRpc(RequireOwnership = false)]
+    public void ResetGameServerRpc()
+    {
+        // Despawn
+        foreach (var unitList in activeUnits)
+            foreach (var unit in unitList)
+                DespawnUnit(unit, removeUnit: false);
+
+        foreach (var houseList in activeHouses)
+            foreach (var house in houseList)
+                DestroyHouse(house, false, removeHouse: false);
+
+        activeUnits = new List<Unit>[2] { new List<Unit>(), new List<Unit>() };
+        units = new int[] { 0, 0 };
+        leaders = new IPlayerObject[2];
+        knights = new List<Unit>[2] { new List<Unit>(), new List<Unit>() };
+        lastKnight = new int[2];
+        activeHouses = new List<House>[2] { new List<House>(), new List<House>() };
+
+        for (int i = 0; i < 2; ++i)
+            if (flags[i] != null)
+                RemoveFlag(i);
+
+        WorldMap.Instance.DestroyAllFormations();
+        WorldMap.Instance.GetComponent<NetworkObject>().Despawn();
+
+
+        // Respawn
+        SpawnMap();
+        PopulateMap();
+        SpawnStarterUnits();
+
+        // Restart
+        for (int playerId = 0; playerId < 2; ++playerId)
+        {
+            IPlayerObject leaderObject = leaders[playerId];
+
+            RestartGameClientRpc(
+                leaderObject == null ? activeUnits[playerId][UnityEngine.Random.Range(0, activeUnits[playerId].Count)].Location : ((Unit)leaderObject).Location,
+                new ClientRpcParams
+                {
+                    Send = new ClientRpcSendParams
+                    {
+                        TargetClientIds = new ulong[] { (ulong)playerId }
+                    }
+                }
+            );
+        }
+
+        Time.timeScale = 1f;
+        StartUnitMovement();
+    }
+
+    [ClientRpc]
+    private void RestartGameClientRpc(WorldLocation cameraStart, ClientRpcParams clientRpcParams = default)
+    {
+        PlayerController.Instance.RestartGame(cameraStart);
+    }
+
+    #endregion
 }

@@ -215,6 +215,12 @@ public class Chunk
         }
     }
 
+    public void DestroyAllFormations()
+    {
+        foreach ((int x, int z) in formations.Keys)
+            GameController.Instance.DestroyFormation(formations[(x, z)].gameObject);
+    }
+
     #endregion
 
 

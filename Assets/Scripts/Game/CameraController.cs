@@ -70,6 +70,16 @@ public class CameraController : MonoBehaviour
     }
 
 
+    public void ResetCamera(WorldLocation cameraStart)
+    {
+        if (isMapCamera)
+            SwitchCameras(false);
+
+        SetLocation(cameraStart);
+
+        // reset zoom
+    }
+
 
     #region Setup
 
