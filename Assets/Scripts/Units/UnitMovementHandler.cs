@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using TMPro;
 using Unity.Netcode;
 using UnityEngine;
 
@@ -56,6 +57,8 @@ public class UnitMovementHandler : NetworkBehaviour
         StartLocation = new WorldLocation(Unit.Position.x, Unit.Position.z);
         roamDirection = ChooseRoamDirection(new WorldLocation(Unit.Position.x, Unit.Position.z));
         ChooseNewRoamTarget(StartLocation);
+
+        Resume();
     }
 
     private void Update()
@@ -77,11 +80,15 @@ public class UnitMovementHandler : NetworkBehaviour
     {
         lastMoveState = moveState;
         moveState = MoveState.Stop;
+
+        Unit.PlayIdleAnimation();
     }
 
     public void Resume()
     {
         moveState = moveState != MoveState.Stop ? lastMoveState : MoveState.Free;
+
+        Unit.PlayWalkAnimation();
     }
 
 
@@ -105,6 +112,7 @@ public class UnitMovementHandler : NetworkBehaviour
                 return;
 
             pathTarget = path[targetIndex];
+            Unit.Rotation = Quaternion.LookRotation(new Vector3(pathTarget.Value.X, 0, pathTarget.Value.Z) - new Vector3(Unit.Position.x, 0, Unit.Position.z), Vector3.up);
             StartLocation = new(Unit.Position.x, Unit.Position.z, isCenter: intermediateStep);
 
             if (!intermediateStep && StartLocation.X != pathTarget.Value.X && StartLocation.Z != pathTarget.Value.Z)
@@ -178,7 +186,6 @@ public class UnitMovementHandler : NetworkBehaviour
             Mathf.Abs(Unit.Position.z - targetPosition.z) > POSITION_ERROR)
         {
             Unit.Position = Vector3.Lerp(Unit.Position, targetPosition, MOVE_SPEED * Time.deltaTime);
-            Unit.Rotation = Quaternion.LookRotation(new Vector3(targetPosition.x, 0, targetPosition.z) - new Vector3(Unit.Position.x, 0, Unit.Position.z), Vector3.up);
             return true;
         }
         return false;
@@ -237,8 +244,7 @@ public class UnitMovementHandler : NetworkBehaviour
                 WorldLocation location = new(currentLocation.X + dx * Chunk.TILE_WIDTH, currentLocation.Z + dz * Chunk.TILE_WIDTH);
 
                 if (!location.IsInBounds() || !WorldMap.Instance.IsSpaceAccessible(location) || 
-                    (WorldMap.Instance.IsOccupied(currentLocation) && WorldMap.Instance.IsOccupied(location) &&
-                     WorldMap.Instance.GetHouseAtVertex(currentLocation) == WorldMap.Instance.GetHouseAtVertex(location)))
+                    (WorldMap.Instance.IsOccupied(currentLocation) && WorldMap.Instance.IsOccupied(location) && Mathf.Abs(dx) == Mathf.Abs(dz)))
                     continue;
 
                 availableDirections.Add((dx, dz));
@@ -293,8 +299,7 @@ public class UnitMovementHandler : NetworkBehaviour
         WorldLocation targetLocation = new(target.x, target.z);
 
         if (!targetLocation.IsInBounds() || !WorldMap.Instance.IsSpaceAccessible(targetLocation) ||
-            (WorldMap.Instance.IsOccupied(currentLocation) && WorldMap.Instance.IsOccupied(targetLocation) &&
-             WorldMap.Instance.GetHouseAtVertex(currentLocation) == WorldMap.Instance.GetHouseAtVertex(targetLocation)))
+            (WorldMap.Instance.IsOccupied(currentLocation) && WorldMap.Instance.IsOccupied(targetLocation) && Mathf.Abs(roamDirection.x) == Mathf.Abs(roamDirection.z)))
         {
             stepsTaken = 0;
             roamDirection = ChooseRoamDirection(currentLocation);
@@ -485,7 +490,7 @@ public class UnitMovementHandler : NetworkBehaviour
         {
             WorldLocation vertex = new(start.X + x * Chunk.TILE_WIDTH, start.Z + z * Chunk.TILE_WIDTH);
 
-            if (!vertex.IsInBounds() || WorldMap.Instance.GetHeight(start) != WorldMap.Instance.GetHeight(vertex) ||
+            if (vertex.Equals(start) || !vertex.IsInBounds() || WorldMap.Instance.GetHeight(start) != WorldMap.Instance.GetHeight(vertex) ||
                 !WorldMap.Instance.IsSpaceAccessible(vertex) || WorldMap.Instance.IsSpaceSwamp(vertex))
                 return null;
 
@@ -559,20 +564,20 @@ public class UnitMovementHandler : NetworkBehaviour
 
         if (moveState == MoveState.FoundFlatSpace && IsStillFree())
         {
-            moveState = MoveState.Stop;
+            Stop();
             GameController.Instance.SpawnHouse(houseVertices, Unit.Team);
             Unit.EnterHouse();
             return;
         }
         else if (moveState == MoveState.FoundFriendlyHouse && IsFriendlyHouse())
         {
-            moveState = MoveState.Stop;
+            Stop();
             Unit.EnterHouse();
             return;
         }
         else if (moveState == MoveState.FoundEnemyHouse && IsEnemyHouse())
         {
-            moveState = MoveState.Stop;
+            Stop();
             Unit.AttackHouse();
             return;
         }

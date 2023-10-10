@@ -211,7 +211,6 @@ public class PlayerController : NetworkBehaviour
     public void RemoveObjectFromView() => objectsInView--;
 
 
-
     #region Powers
 
     private void MoldTerrain()
@@ -223,7 +222,7 @@ public class PlayerController : NetworkBehaviour
         {
             Vector3 hitPoint = hitInfo.point;
 
-            if (hud.IsClickable(hitInfo) && objectsInView > 0)
+            if (hud.IsClickable(hitPoint) && objectsInView > 0)
             {
                 WorldLocation location = new(hitPoint.x, hitPoint.z);
 
@@ -251,7 +250,7 @@ public class PlayerController : NetworkBehaviour
         {
             Vector3 hitPoint = hitInfo.point;
 
-            if (hud.IsClickable(hitInfo))
+            if (hud.IsClickable(hitPoint))
             {
                 WorldLocation location = new(hitPoint.x, hitPoint.z);
                 hud.HighlightMarker(location, index, true);
@@ -282,7 +281,7 @@ public class PlayerController : NetworkBehaviour
         {
             Vector3 hitPoint = hitInfo.point;
 
-            if (hud.IsClickable(hitInfo))
+            if (hud.IsClickable(hitPoint))
             {
                 WorldLocation location = new(hitPoint.x, hitPoint.z);
                 hud.HighlightMarker(location, index, false);
@@ -311,7 +310,7 @@ public class PlayerController : NetworkBehaviour
         {
             Vector3 hitPoint = hitInfo.point;
 
-            if (hud.IsClickable(hitInfo))
+            if (hud.IsClickable(hitPoint))
             {
                 WorldLocation location = new(hitPoint.x, hitPoint.z);
                 hud.HighlightMarker(location, index, true);

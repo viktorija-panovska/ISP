@@ -54,7 +54,7 @@ public class NaturalFormation : MonoBehaviour
     {
         int newHeight = WorldMap.Instance.GetHeight(new(Position.x, Position.z));
 
-        if (newHeight == GameController.Instance.WaterLevel)
+        if (newHeight == GameController.Instance.WaterLevel.Value)
             return true;
 
         if (newHeight != height && !FormationType.DestroyOnlyAtBottom)

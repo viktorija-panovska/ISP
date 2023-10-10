@@ -6,6 +6,7 @@ public class UnitEnemyDetector : MonoBehaviour
     public Unit Unit;
     private GameObject target;
 
+
     private void OnTriggerEnter(Collider other)
     {
         if (target && Vector3.Distance(Unit.Position, target.transform.position) <= Vector3.Distance(Unit.Position, other.gameObject.transform.position))

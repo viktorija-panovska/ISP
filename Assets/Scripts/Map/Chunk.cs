@@ -185,7 +185,7 @@ public class Chunk
     public bool IsSpaceUnderwater(int x, int z)
     {
         (int x, int z) index = CoordsToIndices(x, z);
-        return GetVertexHeightAtIndex(index.x, index.z) <= GameController.Instance.WaterLevel;
+        return GetVertexHeightAtIndex(index.x, index.z) <= GameController.Instance.WaterLevel.Value;
     }
 
     #endregion
@@ -205,7 +205,7 @@ public class Chunk
         List<(int x, int z)> underwater = new();
 
         foreach ((int x, int z) key in formations.Keys)
-            if (GetVertexHeightAtIndex(key.x, key.z) <= GameController.Instance.WaterLevel)
+            if (GetVertexHeightAtIndex(key.x, key.z) <= GameController.Instance.WaterLevel.Value)
                 underwater.Add(key);
 
         foreach ((int x, int z) in underwater)

@@ -145,9 +145,17 @@ public class WorldMap : NetworkBehaviour
 
     public bool IsOccupied(WorldLocation vertex) => GetHouseAtVertex(vertex) != null;
 
-    public bool IsSpaceDestroyedHouse(WorldLocation vertex) => GetHouseAtVertex(vertex).GetType() == typeof(DestroyedHouse);
+    public bool IsSpaceDestroyedHouse(WorldLocation vertex)
+    {
+        IHouse house = GetHouseAtVertex(vertex);
+        return house != null && house.GetType() == typeof(DestroyedHouse);
+    }
 
-    public bool IsSpaceActiveHouse(WorldLocation vertex) => GetHouseAtVertex(vertex).GetType() == typeof(House);
+    public bool IsSpaceActiveHouse(WorldLocation vertex)
+    {
+        IHouse house = GetHouseAtVertex(vertex);
+        return house != null && house.GetType() == typeof(House);
+    }
 
     #endregion
 

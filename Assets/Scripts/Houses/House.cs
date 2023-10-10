@@ -176,7 +176,7 @@ public class House : NetworkBehaviour, IHouse
             newFoundHouses.AddRange(housesInRegion);
 
             foreach (House house in housesInRegion)
-                if (house != this && !foundHouses.Contains(house))
+                if (house != this && foundHouses != null && !foundHouses.Contains(house))
                     house.UpdateType(newFoundHouses);
 
             housesInRegion = new();
@@ -277,7 +277,7 @@ public class House : NetworkBehaviour, IHouse
             3 => new StoneHouse(),
             4 => new Fortress(),
             5 => new City(),
-            _ => new Tent()
+            _ => null
         };
     }
 
@@ -418,13 +418,15 @@ public class House : NetworkBehaviour, IHouse
         return available;
     }
 
-    public void TakeDamage(int damage, Unit attacker)
+    public void AddAttacker(Unit attacker)
     {
         if (!AttackingUnits.ContainsKey(attacker.Location))
             AttackingUnits.Add(attacker.Location, attacker);
+    }
 
+    public void TakeDamage(int damage)
+    {
         Health -= damage;
-        UpdateHealthBarClientRpc(HouseType.MaxHealth, Health, Team);
 
         if (Health <= 0)
         {
@@ -432,15 +434,26 @@ public class House : NetworkBehaviour, IHouse
             return;
         }
 
+        UpdateHealthBarClientRpc(HouseType.MaxHealth, Health, Team);
+
         if (UnitsInHouse > 0)
             ReleaseUnit(newUnit: false);
     }
 
     public void DestroyHouse(bool spawnDestroyedHouse)
     {
+        Debug.Log("DestroyHouse");
+
+        foreach ((_, Unit unit) in AttackingUnits)
+        {
+            Debug.Log("Stop");
+            StopCoroutine(GameController.Instance.HitHouse(unit, this));
+            unit.ResumeMovement();
+        }
+        AttackingUnits = new();
+
         ReleaseAllUnits();
         GameController.Instance.DestroyHouse(this, spawnDestroyedHouse);
-        AttackingUnits = new();
     }
 
     public void EndAttack(Unit attacker)

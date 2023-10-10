@@ -107,6 +107,13 @@ public class Unit : NetworkBehaviour, IPlayerObject
     public GameObject KnightMarker;
 
 
+    // Animation
+    private Animator Animator { get => GetComponentInChildren<Animator>(); }
+    private const string IDLE_STATE = "Idle";
+    private const string WALK_STATE = "Walk";
+    private const string ATTACK_STATE = "Attack";
+    private const string SWORD_STATE = "SwordAttack";
+
 
     public void Initialize(IUnitType unitType, Teams team, House originHouse, bool isLeader)
     {
@@ -120,6 +127,7 @@ public class Unit : NetworkBehaviour, IPlayerObject
 
         MovementHandler.Initialize();
     }
+
 
 
     #region Change Unit Type
@@ -166,18 +174,8 @@ public class Unit : NetworkBehaviour, IPlayerObject
 
     #endregion
 
+
     #region Health Bar
-
-    public void OnMouseEnter()
-    {
-        ToggleHealthBarServerRpc(show: true);
-    }
-
-    public void OnMouseExit()
-    {
-        ToggleHealthBarServerRpc(show: false);
-    }
-
 
     [ServerRpc(RequireOwnership = false)]
     public void ToggleHealthBarServerRpc(bool show, ServerRpcParams parameters = default)
@@ -217,6 +215,7 @@ public class Unit : NetworkBehaviour, IPlayerObject
 
     #endregion
 
+
     #region Movement
 
     public void UpdateHeight()
@@ -241,7 +240,10 @@ public class Unit : NetworkBehaviour, IPlayerObject
             height = startHeight < endHeight ? startHeight + height : endHeight + height;
         }
 
-        Position = new Vector3(Position.x, height, Position.z);
+        if (height <= GameController.Instance.WaterLevel.Value)
+            KillUnit();
+        else
+            Position = new Vector3(Position.x, height, Position.z);
     }
 
     public void MoveAlongPath(List<WorldLocation> path)
@@ -269,6 +271,13 @@ public class Unit : NetworkBehaviour, IPlayerObject
         MovementHandler.Stop();
     }
 
+    private void LookAt(GameObject target)
+    {
+        var lookPos = target.transform.position - transform.position;
+        lookPos.y = 0;
+        transform.rotation = Quaternion.LookRotation(lookPos);
+    }
+
     #endregion
 
 
@@ -282,6 +291,7 @@ public class Unit : NetworkBehaviour, IPlayerObject
     public virtual void AttackHouse()
     {
         House house = (House)WorldMap.Instance.GetHouseAtVertex(Location);
+        LookAt(house.gameObject);
         GameController.Instance.AttackHouse(this, house);
     }
 
@@ -290,8 +300,10 @@ public class Unit : NetworkBehaviour, IPlayerObject
 
     #region Battle
 
-    public void StartBattle()
+    public void StartBattle(Unit otherUnit)
     {
+        LookAt(otherUnit.gameObject);
+
         IsFighting = true;
         MovementHandler.Stop();
     }
@@ -315,4 +327,23 @@ public class Unit : NetworkBehaviour, IPlayerObject
     }
 
     #endregion
+
+
+    #region Animation
+
+    public float GetCurrentAnimationLength() => Animator.GetCurrentAnimatorStateInfo(0).length;
+
+    private void ChangeAnimationState(string state)
+    {
+        Animator.Play(state);
+    }
+
+    public void PlayIdleAnimation() => ChangeAnimationState(IDLE_STATE);
+
+    public void PlayWalkAnimation() => ChangeAnimationState(WALK_STATE);
+
+    public void PlayAttackAnimation() => ChangeAnimationState(ATTACK_STATE);
+
+    #endregion
+
 }

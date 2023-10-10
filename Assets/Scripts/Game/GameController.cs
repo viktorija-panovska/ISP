@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Unity.Netcode;
 using UnityEngine;
-using UnityEngine.UI;
+
 
 public enum Teams
 {
@@ -56,7 +56,7 @@ public struct WorldLocation : INetworkSerializable, IEquatable<WorldLocation>
         return new(a.X + dx * (Chunk.TILE_WIDTH / 2), a.Z + dz * (Chunk.TILE_WIDTH / 2), isCenter: true);
     }
 
-    public bool Equals(WorldLocation other)
+    public readonly bool Equals(WorldLocation other)
         => X == other.X && Z == other.Z;
 
     public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
@@ -88,7 +88,8 @@ public class GameController : NetworkBehaviour
     // Environment
     private readonly int[] forestDensity = { 4, 1 };
     private GameObject waterPlane;
-    public int WaterLevel { get; private set; }
+    private GameObject frame;
+    public NetworkVariable<int> WaterLevel { get; private set; } = new(0);
 
     // Civilization
     private const int STARTING_UNITS = 1;
@@ -99,6 +100,8 @@ public class GameController : NetworkBehaviour
     private List<Unit>[] knights = { new(), new() };
     private int[] lastKnight = new int[2];
     private List<House>[] activeHouses = { new(), new() };
+    private delegate void UpdateUnitHeights();
+    private UpdateUnitHeights updateUnitHeights;
 
     // Powers
     public const int MIN_MANA = 0;
@@ -127,7 +130,7 @@ public class GameController : NetworkBehaviour
         if (IsServer) 
         {
             SpawnMap();
-            PopulateMap();
+            //PopulateMap();
             SpawnStarterUnits();
             SpawnWater();
         }
@@ -179,6 +182,8 @@ public class GameController : NetworkBehaviour
         waterPlane.transform.localScale = scale;
 
         waterPlane.GetComponent<NetworkObject>().Spawn(destroyWithScene: true);
+
+        WaterLevel.OnValueChanged += UpdateWaterLevel;
     }
 
     private void SpawnStarterUnits()
@@ -244,13 +249,13 @@ public class GameController : NetworkBehaviour
 
     private void SpawnFrame()
     {
-        GameObject frameObject = Instantiate(FramePrefab);
-        frameObject.transform.position = WorldMap.CHUNK_NUMBER * frameObject.transform.position;
+        frame = Instantiate(FramePrefab);
+        frame.transform.position = WorldMap.CHUNK_NUMBER * frame.transform.position;
 
-        frameObject.transform.localScale = new Vector3(
-            WorldMap.CHUNK_NUMBER * frameObject.transform.localScale.x, 
-            frameObject.transform.localScale.y, 
-            WorldMap.CHUNK_NUMBER * frameObject.transform.localScale.z);
+        frame.transform.localScale = new Vector3(
+            WorldMap.CHUNK_NUMBER * frame.transform.localScale.x,
+            frame.transform.localScale.y, 
+            WorldMap.CHUNK_NUMBER * frame.transform.localScale.z);
     }
 
     [ClientRpc]
@@ -272,10 +277,6 @@ public class GameController : NetworkBehaviour
 
     #region Map
 
-    /// <summary>
-    /// Randomly sets locations on the map to be populated by Tree objects or Rock objects.
-    /// Called only once right after the construction of the map.
-    /// </summary>
     private void PopulateMap()
     {
         for (int z = 0; z < WorldMap.WIDTH; z += Chunk.TILE_WIDTH)
@@ -305,23 +306,20 @@ public class GameController : NetworkBehaviour
         }
     }
 
-    /// <summary>
-    /// Changes the y transform position of an object of type NaturalFormation.
-    /// </summary>
-    /// <param name="height">The new y transform position of the object.</param>
-    /// <param name="formation">Game object of the formation.</param>
     public void MoveFormation(float height, GameObject formation)
     {
         formation.transform.position = new Vector3(formation.transform.position.x, height, formation.transform.position.z);
     }
 
-    /// <summary>
-    /// Destroys an object of type NaturalFormation and removes it from the network.
-    /// </summary>
-    /// <param name="formation">Game object of the formation.</param>
     public void DestroyFormation(GameObject formation)
     {
         formation.GetComponent<NetworkObject>().Despawn();
+    }
+
+    private void UpdateWaterLevel(int previousValue, int newValue)
+    {
+        waterPlane.transform.position = new(waterPlane.transform.position.x, newValue, waterPlane.transform.position.z);
+        frame.transform.position = new(frame.transform.position.x, newValue, frame.transform.position.z);
     }
 
     #endregion
@@ -332,7 +330,7 @@ public class GameController : NetworkBehaviour
 
     public void SpawnUnit(IUnitType unitType, Teams team, WorldLocation spawnLocation, House originHouse = null, bool newUnit = true, bool isLeader = false)
     {
-        if (WorldMap.Instance.GetHeight(spawnLocation) <= WaterLevel)
+        if (WorldMap.Instance.GetHeight(spawnLocation) <= WaterLevel.Value)
             return;
 
         ulong playerId = (ulong)team - 1;
@@ -346,6 +344,7 @@ public class GameController : NetworkBehaviour
 
         Unit unit = unitObject.GetComponent<Unit>();
         unit.Initialize(unitType, team, originHouse, isLeader);
+        updateUnitHeights += unit.UpdateHeight;
 
         activeUnits[playerId].Add(unit);
 
@@ -394,18 +393,13 @@ public class GameController : NetworkBehaviour
         if (removeUnit)
             activeUnits[(int)unit.Team - 1].Remove(unit);
 
+        updateUnitHeights -= unit.UpdateHeight;
         unit.gameObject.GetComponent<NetworkObject>().Despawn();
 
         if (units[(int)unit.Team - 1] == 0)
             EndGame(unit.Team);
     }
 
-    private void AdjustUnitHeights()
-    {
-        foreach (List<Unit> unitList in activeUnits)
-            foreach (Unit unit in unitList)
-                unit.UpdateHeight();
-    }
 
     public bool HasLeader(Teams team) => leaders[(int)team - 1] != null;
 
@@ -481,15 +475,6 @@ public class GameController : NetworkBehaviour
         {
             House activeHouse = (House)house;
 
-            if (activeHouse.AttackingUnits.Count > 0)
-            {
-                foreach (Unit unit in activeHouse.AttackingUnits.Values)
-                {
-                    StopCoroutine(HitHouse(unit, activeHouse));
-                    unit.GetComponent<UnitMovementHandler>().Resume();
-                }
-            }
-
             if (removeHouse)
                 activeHouses[(int)activeHouse.Team - 1].Remove(activeHouse);
     
@@ -562,6 +547,8 @@ public class GameController : NetworkBehaviour
 
     private bool Kill(Unit first, Unit second)
     {
+        first.PlayAttackAnimation();
+
         second.TakeDamage(first.UnitType.Strength);
 
         if (second.Health <= 0)
@@ -584,22 +571,24 @@ public class GameController : NetworkBehaviour
     }
 
 
-
     public void AttackHouse(Unit unit, House house)
     {
+        house.AddAttacker(unit);
         StartCoroutine(HitHouse(unit, house));
     }
 
-    private IEnumerator HitHouse(Unit unit, House house)
+    public IEnumerator HitHouse(Unit unit, House house)
     {
         while (true)
         {
             yield return new WaitForSeconds(2);
 
-            if (house.Health <= 0 || unit.Health <= 0 || unit.IsFighting)
+            if (house == null || house.Health <= 0 || unit.Health <= 0 || unit.IsFighting)
                 break;
 
-            house.TakeDamage(unit.UnitType.Strength, unit);
+            unit.PlayAttackAnimation();
+
+            house.TakeDamage(unit.UnitType.Strength);
         }
 
         if (unit.Health <= 0 || unit.IsFighting)
@@ -616,7 +605,7 @@ public class GameController : NetworkBehaviour
     public void UpdateMapServerRpc(WorldLocation location, bool decrease)
     {
         WorldMap.Instance.UpdateMapRegion(new List<WorldLocation> { location }, decrease);
-        AdjustUnitHeights();
+        updateUnitHeights.Invoke();
         UpdateHouses();
     }
 
@@ -745,7 +734,7 @@ public class GameController : NetworkBehaviour
         }
 
         WorldMap.Instance.UpdateMapRegion(targets, decrease: true);
-        AdjustUnitHeights();
+        updateUnitHeights.Invoke();
     }
 
     #endregion
@@ -798,25 +787,24 @@ public class GameController : NetworkBehaviour
     [ServerRpc(RequireOwnership = false)]
     public void IncreaseWaterLevelServerRpc()
     {
-        if (WaterLevel == Chunk.MAX_HEIGHT)
+        if (WaterLevel.Value == Chunk.MAX_HEIGHT)
             return;
 
-        WaterLevel += Chunk.STEP_HEIGHT;
-        waterPlane.transform.position = new(waterPlane.transform.position.x, waterPlane.transform.position.y + Chunk.STEP_HEIGHT, waterPlane.transform.position.z);
+        WaterLevel.Value += Chunk.STEP_HEIGHT;
 
         WorldMap.Instance.DestroyUnderwaterFormations();
 
         // Destroy houses that are now underwater
         foreach (List<House> houseList in activeHouses)
             foreach (House house in houseList)
-                if (house.Height <= WaterLevel)
+                if (house.Height <= WaterLevel.Value)
                     house.DestroyHouse(spawnDestroyedHouse: false);
 
 
         // Destroy units that fall into the water
         foreach (List<Unit> unitList in activeUnits)
             foreach (Unit unit in unitList)
-                if (unit.Height <= WaterLevel)
+                if (unit.Height <= WaterLevel.Value)
                     DespawnUnit(unit);
     }
 

@@ -139,11 +139,11 @@ public class GameHUD : MonoBehaviour
 
     #region GameHUD
 
-    public bool IsClickable(RaycastHit hitInfo)
-        => hitInfo.collider.gameObject.layer != LayerMask.NameToLayer("Water") &&
-           Mathf.Abs(Mathf.Round(hitInfo.point.x / Chunk.TILE_WIDTH) - hitInfo.point.x / Chunk.TILE_WIDTH) < CLICKER_ERROR &&
-           Mathf.Abs(Mathf.Round(hitInfo.point.y / Chunk.STEP_HEIGHT) - hitInfo.point.y / Chunk.STEP_HEIGHT) < CLICKER_ERROR &&
-           Mathf.Abs(Mathf.Round(hitInfo.point.z / Chunk.TILE_WIDTH) - hitInfo.point.z / Chunk.TILE_WIDTH) < CLICKER_ERROR;
+    public bool IsClickable(Vector3 hitPoint)
+        => Mathf.Abs(Mathf.Round(hitPoint.x / Chunk.TILE_WIDTH) - hitPoint.x / Chunk.TILE_WIDTH) < CLICKER_ERROR &&
+           Mathf.Abs(Mathf.Round(hitPoint.y / Chunk.STEP_HEIGHT) - hitPoint.y / Chunk.STEP_HEIGHT) < CLICKER_ERROR &&
+           Mathf.Abs(Mathf.Round(hitPoint.z / Chunk.TILE_WIDTH) - hitPoint.z / Chunk.TILE_WIDTH) < CLICKER_ERROR &&
+           hitPoint.y > GameController.Instance.WaterLevel.Value;
 
 
     public void UpdateManaBar(float mana)
