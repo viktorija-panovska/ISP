@@ -1,6 +1,9 @@
+using Steamworks;
+using System.Threading.Tasks;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using Lobby = Steamworks.Data.Lobby;
 
 
 
@@ -111,24 +114,34 @@ public class SteamMainMenu : MonoBehaviour
 
     public void JoinGame()
     {
-        ConnectionManager.Instance.StartClient(selectedLobby.LobbyId.ToString());
+        ConnectionManager.Instance.StartClient(selectedLobby.Id.ToString());
         selectedLobby = null;
     }
 
-    private void FillLobbyList()
+    private async void FillLobbyList()
     {
-        foreach (Steamworks.Data.Lobby lobby in SteamNetworkManager.Instance.GetActiveLobbies())
+        Task<Lobby[]> gettingLobbies = SteamNetworkManager.Instance.GetActiveLobbies();
+        Lobby[] lobbies = await gettingLobbies;
+
+        foreach (Lobby lobby in lobbies)
         {
+            //if (lobby.GetData("isISP") == "")
+            //    continue;
+
             GameObject entryObject = Instantiate(LobbyEntryPrefab);
             LobbyEntry entry = entryObject.GetComponent<LobbyEntry>();
 
-            entry.Setup(lobby.Id, lobby.GetData("name"), lobby.GetData("password"), lobby.GetData("mapSeed"), lobby.Owner);
+            entry.Setup(lobby.Id, lobby.GetData("name"), lobby.Owner.Name, lobby.GetData("password") != "");
             entryObject.transform.SetParent(LobbyScrollView.transform);
+            entryObject.transform.localScale = Vector3.one;
         }
     }
 
     public void SelectEntry(LobbyEntry entry)
     {
+        if (selectedLobby != null)
+            selectedLobby.Deselect();
+
         selectedLobby = entry;
     }
 

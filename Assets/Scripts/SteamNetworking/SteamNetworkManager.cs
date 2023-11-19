@@ -5,14 +5,13 @@ using UnityEngine;
 using Unity.Netcode;
 using UnityEngine.SceneManagement;
 using System.Collections.Generic;
-
+using System.Threading.Tasks;
 
 public class SteamNetworkManager : MonoBehaviour
 {
     public static SteamNetworkManager Instance { get; private set; }
 
     private const uint STEAM_APP_ID = 480;
-    private List<Lobby> activeLobbies;
     private bool gameInProgress;
 
     // Lobby
@@ -102,6 +101,7 @@ public class SteamNetworkManager : MonoBehaviour
     {
         if (result != Result.OK) return;
 
+        lobby.SetData("isISP", "yes");
         lobby.SetData("name", serverName);
         lobby.SetData("password", password);
         lobby.SetData("mapSeed", mapSeed);
@@ -145,28 +145,8 @@ public class SteamNetworkManager : MonoBehaviour
     }
 
 
-    public List<Lobby> GetActiveLobbies()
-    {
-        RequestLobbies();
-
-        if (activeLobbies.Count > 0)
-            return activeLobbies;
-
-        return null;
-    }
-
-    private async void RequestLobbies()
-    {
-        activeLobbies.Clear();
-        Lobby[] lobbies = await SteamMatchmaking.LobbyList.WithMaxResults(10).RequestAsync();
-
-        Debug.Log("Lobbies");
-
-        if (lobbies != null)
-            foreach (Lobby lobby in lobbies)
-                activeLobbies.Add(lobby);
-    }
-
+    public async Task<Lobby[]> GetActiveLobbies()
+        => await SteamMatchmaking.LobbyList.WithMaxResults(10).RequestAsync();
 
     #endregion
 }

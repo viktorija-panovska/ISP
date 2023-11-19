@@ -1,46 +1,55 @@
 using UnityEngine;
+using Image = UnityEngine.UI.Image;
+using TMPro;
 using Steamworks;
-using UnityEngine.UI;
 
-public class LobbyEntry : Toggle
+public class LobbyEntry : MonoBehaviour
 {
-    public SteamId LobbyId { get; private set; }
-    public string LobbyName { get; private set; }
-    public string Password { get; private set; }
-    public string MapSeed { get; private set; }
-    public Friend Owner { get; private set; }
+    public SteamId Id { get; private set; }
 
-    public Text Name;
-    public Image Icon;
+    public GameObject DeselectedBackground;
+    public GameObject SelectedBackground;
+    public TMP_Text ServerName;
+    public TMP_Text OwnerName;
     public Image Lock;
 
+    private bool isOn = false;
 
-    public void Setup(SteamId lobbyId, string lobbyName, string password, string mapSeed, Friend owner)
+
+    public void Setup(SteamId id, string serverName, string ownerName, bool hasPassword)
     {
-        LobbyId = lobbyId;
-        LobbyName = lobbyName;
-        Password = password;
-        MapSeed = mapSeed;
-        Owner = owner;
-
-        FillEntry();
+        Id = id;
+        ServerName.text = serverName;
+        OwnerName.text = ownerName;
+        Lock.gameObject.SetActive(hasPassword);        
     }
 
 
-    private void FillEntry()
+    public void OnSelected(bool _)
     {
-        Name.text = LobbyName;
-
-        if (Password != "")
-            Lock.gameObject.SetActive(true);
-    }
-
-
-    public void ClickEntry()
-    {
-        if (isOn)
+        if (!isOn)
+        {
             SteamMainMenu.Instance.SelectEntry(this);
+            Select();
+        }
         else
+        {
             SteamMainMenu.Instance.DeselectEntry();
+            Deselect();
+        }
+    }
+
+    public void Select()
+    {
+        DeselectedBackground.SetActive(false);
+        SelectedBackground.SetActive(true);
+        isOn = true;
+    }
+
+    public void Deselect()
+    {
+        SelectedBackground.SetActive(false);
+        DeselectedBackground.SetActive(true);
+        isOn = false;
     }
 }
