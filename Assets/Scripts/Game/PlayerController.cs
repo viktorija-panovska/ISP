@@ -152,11 +152,12 @@ public class PlayerController : NetworkBehaviour
 
     #region Camera Controller
 
-    public void SetupCameraController(WorldLocation cameraStart)
+    public void SetupCameraController(WorldLocation cameraStart, GameObject viewZone)
     {
         cameraController = Instantiate(CameraControllerPrefab).GetComponent<CameraController>();
         PlayerCamera = cameraController.MainCamera;
         cameraController.SetGameHUD(hud);
+        cameraController.SetViewZone(viewZone);
         SetCameraLocation(cameraStart);
     }
 

@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using Unity.Netcode;
+using Unity.VisualScripting.Dependencies.NCalc;
 using UnityEngine;
 
 
@@ -21,6 +23,7 @@ public class CameraController : MonoBehaviour
 
     private GameObject mainCameraRig;
     private GameObject mapCameraRig;
+    private GameObject viewZone;
 
     public Camera MainCamera { get => mainCameraRig.GetComponentInChildren<Camera>(); }
     public Camera MapCamera { get => mapCameraRig.GetComponentInChildren<Camera>(); }
@@ -28,6 +31,7 @@ public class CameraController : MonoBehaviour
     private (float width, float height) mainCameraDimensions;
     private (float width, float height) mapCameraDimensions;
 
+    // bottom left, bottom right, top left, top right
     private Vector3[] screenCorners;
 
     private bool isMapCamera;
@@ -46,6 +50,7 @@ public class CameraController : MonoBehaviour
             new Vector3(0, 0), new Vector3(0, MainCamera.pixelHeight),
             new Vector3(MainCamera.pixelWidth, 0), new Vector3(MainCamera.pixelWidth, MainCamera.pixelHeight)
         };
+
     }
 
 
@@ -81,6 +86,7 @@ public class CameraController : MonoBehaviour
     }
 
 
+
     #region Setup
 
     public void SetLocation(WorldLocation location)
@@ -90,6 +96,11 @@ public class CameraController : MonoBehaviour
     }
 
     public void SetGameHUD(GameHUD gameHUD) => this.gameHUD = gameHUD;
+
+    public void SetViewZone(GameObject viewZone)
+    {
+        this.viewZone = viewZone;
+    }
 
     #endregion
 
@@ -116,6 +127,7 @@ public class CameraController : MonoBehaviour
         if (newPosition != rig.transform.position)
         {
             rig.transform.position = Vector3.Lerp(rig.transform.position, newPosition, Time.deltaTime * MOVEMENT_TIME);
+            viewZone.transform.position = Vector3.Lerp(rig.transform.position, newPosition, Time.deltaTime * MOVEMENT_TIME);
             return true;
         }
 
@@ -158,6 +170,7 @@ public class CameraController : MonoBehaviour
                 viewCorners[i] = hitInfo.point;
 
         mainCameraDimensions = (Mathf.Abs(viewCorners[1].x - viewCorners[3].x), Mathf.Abs(viewCorners[0].z - viewCorners[1].z));
+        ResizeViewZone(viewCorners);
     }
 
 
@@ -192,6 +205,45 @@ public class CameraController : MonoBehaviour
         }
     }
     
+
+    private void ResizeViewZone(Vector3[] corners)
+    {
+        int height = Chunk.MAX_HEIGHT;
+        float centerBoxLength = 0;
+
+        BoxCollider[] colliders = viewZone.GetComponentsInChildren<BoxCollider>();
+
+        foreach (var collider in colliders)
+        {
+            float length = 0;
+            float width = Mathf.Abs(corners[0].z - corners[2].z);
+
+            //if (collider.name == "CenterBox")
+            //{
+            //    length = Mathf.Abs(corners[3].x - corners[2].x);
+            //    centerBoxLength = length;
+            //}
+            //else if (collider.name == "LeftBox")
+            //{
+            //    length = Mathf.Abs(corners[3].x - corners[0].x);
+            //    collider.transform.position = new Vector3(-(centerBoxLength / 2 + length / 2), 0, 0);
+            //}
+            //else if (collider.name == "RightBox")
+            //{
+            //    length = Mathf.Abs(corners[4].x - corners[1].x);
+            //    collider.transform.position = new Vector3(centerBoxLength / 2 + length / 2, 0, 0);
+            //}
+
+            Vector3 prevSize = collider.bounds.size;
+            Vector3 prevScale = collider.transform.localScale;
+            collider.transform.localScale = new Vector3(prevScale.x, height * prevScale.y / prevSize.y, prevScale.z);
+
+            if (Physics.Raycast(MainCamera.ScreenPointToRay(new Vector2(Screen.width / 2, Screen.width / 2)), out RaycastHit hitInfo, Mathf.Infinity))
+                collider.transform.position = hitInfo.point;
+                
+        }
+    }
+
     #endregion
 
 

@@ -84,6 +84,7 @@ public class GameController : NetworkBehaviour
     public GameObject[] ForestPrefabs;
     public GameObject WaterPlanePrefab;
     public GameObject FramePrefab;
+    public GameObject CameraViewZone;
 
     // Environment
     private readonly int[] forestDensity = { 4, 1 };
@@ -92,8 +93,8 @@ public class GameController : NetworkBehaviour
     public NetworkVariable<int> WaterLevel { get; private set; } = new(0);
 
     // Civilization
-    private const int STARTING_UNITS = 1;
-    private const int MAX_UNITS_PER_PLAYER = 1;
+    private const int STARTING_UNITS = 3;
+    private const int MAX_UNITS_PER_PLAYER = 5;
     private List<Unit>[] activeUnits = { new(), new() };
     private int[] units = { 0, 0 };
     private IPlayerObject[] leaders = new IPlayerObject[2];
@@ -130,7 +131,7 @@ public class GameController : NetworkBehaviour
         if (IsServer) 
         {
             SpawnMap();
-            //PopulateMap();
+            PopulateMap();
             SpawnStarterUnits();
             SpawnWater();
         }
@@ -150,10 +151,14 @@ public class GameController : NetworkBehaviour
         GameObject playerControllerObject = Instantiate(PlayerControllerPrefab);
         playerControllerObject.GetComponent<NetworkObject>().SpawnAsPlayerObject(playerId, destroyWithScene: true);
 
+        GameObject viewZoneObject = Instantiate(CameraViewZone);
+        viewZoneObject.GetComponent<NetworkObject>().SpawnWithOwnership(playerId, destroyWithScene: true);
+
         IPlayerObject leaderObject = leaders[playerId];
 
         SetCameraControllerClientRpc(
             leaderObject == null ? activeUnits[playerId][UnityEngine.Random.Range(0, activeUnits[playerId].Count)].Location : ((Unit)leaderObject).Location,
+            viewZoneObject.GetComponent<NetworkObject>().NetworkObjectId,
             new ClientRpcParams
             {
                 Send = new ClientRpcSendParams
@@ -259,9 +264,9 @@ public class GameController : NetworkBehaviour
     }
 
     [ClientRpc]
-    private void SetCameraControllerClientRpc(WorldLocation cameraStart, ClientRpcParams clientRpcParams = default)
+    private void SetCameraControllerClientRpc(WorldLocation cameraStart, ulong viewId, ClientRpcParams clientRpcParams = default)
     {
-        PlayerController.Instance.SetupCameraController(cameraStart);
+        PlayerController.Instance.SetupCameraController(cameraStart, GetNetworkObject(viewId).gameObject);
     }
 
     private void StartUnitMovement()

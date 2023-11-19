@@ -33,19 +33,21 @@ public class SteamNetworkManager : MonoBehaviour
         {
             Instance = this;
 
-            try
-            {
-                SteamClient.Init(STEAM_APP_ID, true);
+            //try
+            //{
+            //    SteamClient.Init(STEAM_APP_ID, true);
 
-                if (!SteamClient.IsValid)
-                {
-                    Debug.Log("Steam client not valid");
-                    throw new System.Exception();
-                }
+            //    if (!SteamClient.IsValid)
+            //    {
+            //        Debug.LogError("Steam client not valid");
+            //        throw new System.Exception();
+            //    }
 
-                activeLobbies = new List<Lobby>();
-            }
-            catch (System.Exception e) { Debug.Log($"Error connecting to Steam: {e}"); }
+            //    Debug.Log("Steam client valid");
+
+            //    activeLobbies = new List<Lobby>();
+            //}
+            //catch (System.Exception e) { Debug.Log($"Error connecting to Steam: {e}"); }
         }
         else
         {

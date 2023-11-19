@@ -80,7 +80,6 @@ public enum UnitStates
 [RequireComponent(typeof(NetworkObject), typeof(UnitMovementHandler))]
 public class Unit : NetworkBehaviour, IPlayerObject
 {
-    public GameObject UnitObject;
     private UnitMovementHandler MovementHandler { get => GetComponent<UnitMovementHandler>(); }
 
     public IUnitType UnitType { get; private set; }
@@ -95,7 +94,6 @@ public class Unit : NetworkBehaviour, IPlayerObject
     public Unit ChasedBy { get; set; }
 
     public Vector3 Position { get => gameObject.transform.position; set => gameObject.transform.position = value; }
-    public Quaternion Rotation { get => UnitObject.transform.rotation; set => UnitObject.transform.rotation = value; }
     public WorldLocation Location { get => new(Position.x, Position.z); }
     public float Height { get => WorldMap.Instance.GetHeight(Location); }
     public WorldLocation NextLocation { get => MovementHandler.EndLocation; }
@@ -177,6 +175,17 @@ public class Unit : NetworkBehaviour, IPlayerObject
 
     #region Health Bar
 
+    public void OnMouseEnter()
+    {
+        ToggleHealthBarServerRpc(show: true);
+    }
+
+    public void OnMouseExit()
+    {
+        ToggleHealthBarServerRpc(show: false);
+    }
+
+
     [ServerRpc(RequireOwnership = false)]
     public void ToggleHealthBarServerRpc(bool show, ServerRpcParams parameters = default)
     {
@@ -217,6 +226,11 @@ public class Unit : NetworkBehaviour, IPlayerObject
 
 
     #region Movement
+
+    public void Rotate(Vector3 lookPosition)
+    {
+        transform.rotation = Quaternion.LookRotation(lookPosition);
+    }
 
     public void UpdateHeight()
     {
@@ -275,7 +289,7 @@ public class Unit : NetworkBehaviour, IPlayerObject
     {
         var lookPos = target.transform.position - transform.position;
         lookPos.y = 0;
-        transform.rotation = Quaternion.LookRotation(lookPos);
+        Rotate(lookPos);
     }
 
     #endregion

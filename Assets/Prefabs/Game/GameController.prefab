@@ -65,7 +65,7 @@ MonoBehaviour:
   PlayerControllerPrefab: {fileID: 9219171105560015230, guid: f6cdb5dffe2edfe4a99ab2aa8f51eb68, type: 3}
   UnitPrefabs:
   - {fileID: 7508563087423339071, guid: ce1c6995d1299b742890f9975e90dd3a, type: 3}
-  - {fileID: 1359270074452477915, guid: c073c259110f72a479b45cc948ab0dde, type: 3}
+  - {fileID: 9107732617319379861, guid: fb550bad1c970ed4c9b4ceb3be5cb1b5, type: 3}
   - {fileID: 1359270074452477915, guid: d08e6ff7542b9f8408273ca6e41bb0de, type: 3}
   DestroyedHousePrefab: {fileID: 2958902495337925058, guid: 54cbdaa068e3a7344b060f5fd14c304d, type: 3}
   HousePrefab: {fileID: 3435573214129474652, guid: b7c76e4edb289ac42bc4cbef75e3ef48, type: 3}
@@ -78,3 +78,4 @@ MonoBehaviour:
   - {fileID: 6900855947707496703, guid: 68c27edebb799a2499522532b543c299, type: 3}
   WaterPlanePrefab: {fileID: 9118337200190746577, guid: 478531822a94fa248b9944e9e8cb07e3, type: 3}
   FramePrefab: {fileID: 1040051158377937810, guid: 5f8e031da703192459e95ccf57da912c, type: 3}
+  CameraViewZone: {fileID: 2877282582560764769, guid: 9914a8991f979c54f86d5ff6889228a8, type: 3}

@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using TMPro;
 using Unity.Netcode;
 using UnityEngine;
 
@@ -112,7 +111,8 @@ public class UnitMovementHandler : NetworkBehaviour
                 return;
 
             pathTarget = path[targetIndex];
-            Unit.Rotation = Quaternion.LookRotation(new Vector3(pathTarget.Value.X, 0, pathTarget.Value.Z) - new Vector3(Unit.Position.x, 0, Unit.Position.z), Vector3.up);
+            Unit.Rotate(new Vector3(pathTarget.Value.X, 0, pathTarget.Value.Z) - new Vector3(Unit.Position.x, 0, Unit.Position.z));
+
             StartLocation = new(Unit.Position.x, Unit.Position.z, isCenter: intermediateStep);
 
             if (!intermediateStep && StartLocation.X != pathTarget.Value.X && StartLocation.Z != pathTarget.Value.Z)

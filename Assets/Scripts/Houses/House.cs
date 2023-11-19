@@ -7,7 +7,7 @@ using UnityEngine.UI;
 
 public interface IHouseType
 {
-    public int Type { get; }
+    public string Name { get; }
     public int MaxCapacity { get; }
     public int MaxHealth { get; }
     public int HealthRegenPerUnit { get; }
@@ -18,29 +18,29 @@ public interface IHouseType
 
 public struct Tent : IHouseType
 {
-    public readonly int Type => 0;
+    public readonly string Name => "tent";
     public readonly int MaxCapacity => 1;
     public readonly int MaxHealth => 10;
     public readonly int HealthRegenPerUnit => 5;
     public readonly int ManaGain => 1;
-    public readonly int UnitReleaseWait => 10;
+    public readonly int UnitReleaseWait => 4;
     public readonly IUnitType UnitType => new TentUnit();
 }
 
 public struct Hut : IHouseType
 {
-    public readonly int Type => 1;
+    public readonly string Name => "hut";
     public readonly int MaxCapacity => 2;
     public readonly int MaxHealth => 15;
     public readonly int HealthRegenPerUnit => 6;
     public readonly int ManaGain => 2;
-    public readonly int UnitReleaseWait => 9;
+    public readonly int UnitReleaseWait => 6;
     public readonly IUnitType UnitType => new HutUnit();
 }
 
 public struct WoodHouse : IHouseType
 {
-    public readonly int Type => 2;
+    public readonly string Name => "wood_house";
     public readonly int MaxCapacity => 5;
     public readonly int MaxHealth => 20;
     public readonly int HealthRegenPerUnit => 4;
@@ -51,29 +51,29 @@ public struct WoodHouse : IHouseType
 
 public struct StoneHouse : IHouseType
 {
-    public readonly int Type => 3;
+    public readonly string Name => "stone_house";
     public readonly int MaxCapacity => 10;
     public readonly int MaxHealth => 30;
     public readonly int HealthRegenPerUnit => 3;
     public readonly int ManaGain => 6;
-    public readonly int UnitReleaseWait => 7;
+    public readonly int UnitReleaseWait => 10;
     public readonly IUnitType UnitType => new StoneHouseUnit();
 }
 
 public struct Fortress : IHouseType
 {
-    public readonly int Type => 4;
+    public readonly string Name => "fortress";
     public readonly int MaxCapacity => 15;
     public readonly int MaxHealth => 40;
     public readonly int HealthRegenPerUnit => 2;
     public readonly int ManaGain => 8;
-    public readonly int UnitReleaseWait => 6;
+    public readonly int UnitReleaseWait => 12;
     public readonly IUnitType UnitType => new FortressUnit();
 }
 
 public struct City : IHouseType
 {
-    public readonly int Type => 5;
+    public readonly string Name => "city";
     public readonly int MaxCapacity => 25;
     public readonly int MaxHealth => 50;
     public readonly int HealthRegenPerUnit => 2;
@@ -96,8 +96,6 @@ public class House : NetworkBehaviour, IHouse
     private BoxCollider Collider { get => GetComponent<BoxCollider>(); }
 
     public GameObject Object { get => gameObject; }
-    public GameObject[] HouseObjects;
-
     public WorldLocation Location { get => new(gameObject.transform.position.x, gameObject.transform.position.z); }
     public float Height { get => WorldMap.Instance.GetHeight(rootVertex); }
     public IHouseType HouseType { get; private set; } = null;
@@ -132,14 +130,33 @@ public class House : NetworkBehaviour, IHouse
 
     #region House Type
 
+    [ClientRpc]
+    private void SwitchHouseClientRpc(ulong networkId, string houseName, bool hide)
+    {
+        Transform[] children = GetNetworkObject(networkId).gameObject.GetComponentsInChildren<Transform>(includeInactive: true);
+
+        foreach (Transform child in children)
+        {
+            if (child.name == houseName)
+            {
+                child.gameObject.SetActive(!hide);
+                return;
+            }
+        }
+    }
+
+
     public void UpdateType(List<House> foundHouses = null)
     {
+        if (IsUnderAttack)
+            return;
+
         IHouseType newHouseType = GetHouseType(CountSurroundingFlatSpaces(rootVertex));
 
-        if (HouseType == null || newHouseType.Type != HouseType.Type)
+        if (HouseType == null || newHouseType.Name != HouseType.Name)
         {
             if (HouseType != null)
-                HouseObjects[HouseType.Type].SetActive(false);
+                SwitchHouseClientRpc(NetworkObjectId, HouseType.Name, true);
 
             if (HouseType != null && HouseType.GetType() == typeof(City))
             {
@@ -166,7 +183,7 @@ public class House : NetworkBehaviour, IHouse
 
             HouseType = newHouseType;
             Health = HouseType.MaxHealth;
-            HouseObjects[HouseType.Type].SetActive(true);
+            SwitchHouseClientRpc(NetworkObjectId, HouseType.Name, false);
 
             List<House> newFoundHouses = new() { this };
 
@@ -442,11 +459,8 @@ public class House : NetworkBehaviour, IHouse
 
     public void DestroyHouse(bool spawnDestroyedHouse)
     {
-        Debug.Log("DestroyHouse");
-
         foreach ((_, Unit unit) in AttackingUnits)
         {
-            Debug.Log("Stop");
             StopCoroutine(GameController.Instance.HitHouse(unit, this));
             unit.ResumeMovement();
         }
