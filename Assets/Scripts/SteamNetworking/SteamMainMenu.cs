@@ -1,4 +1,5 @@
 using Steamworks;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using TMPro;
 using UnityEngine;
@@ -33,6 +34,7 @@ public class SteamMainMenu : MonoBehaviour
     public GameObject LobbyScrollView;
     public GameObject LobbyEntryPrefab;
 
+    private List<GameObject> lobbyEntryList;
     private LobbyEntry selectedLobby;
 
 
@@ -50,6 +52,7 @@ public class SteamMainMenu : MonoBehaviour
     private void Start()
     {
         openMenuContainer = MainMenuContainer;
+        lobbyEntryList = new();
     }
 
     public void ExitGame()
@@ -114,26 +117,33 @@ public class SteamMainMenu : MonoBehaviour
 
     public void JoinGame()
     {
-        ConnectionManager.Instance.StartClient(selectedLobby.Id.ToString());
+        SteamNetworkManager.Instance.JoinLobby(selectedLobby.Id);
         selectedLobby = null;
     }
 
-    private async void FillLobbyList()
+    public async void FillLobbyList()
     {
+        foreach (GameObject lobbyEntry in lobbyEntryList)
+            Destroy(lobbyEntry);
+
+        lobbyEntryList = new();
+
         Task<Lobby[]> gettingLobbies = SteamNetworkManager.Instance.GetActiveLobbies();
         Lobby[] lobbies = await gettingLobbies;
 
         foreach (Lobby lobby in lobbies)
         {
-            //if (lobby.GetData("isISP") == "")
-            //    continue;
+            if (lobby.GetData("isISP") == "")
+                continue;
 
             GameObject entryObject = Instantiate(LobbyEntryPrefab);
             LobbyEntry entry = entryObject.GetComponent<LobbyEntry>();
 
-            entry.Setup(lobby.Id, lobby.GetData("name"), lobby.Owner.Name, lobby.GetData("password") != "");
+            entry.Setup(lobby.Id, lobby.GetData("name"), lobby.GetData("password") != "");
             entryObject.transform.SetParent(LobbyScrollView.transform);
             entryObject.transform.localScale = Vector3.one;
+
+            lobbyEntryList.Add(entryObject);
         }
     }
 

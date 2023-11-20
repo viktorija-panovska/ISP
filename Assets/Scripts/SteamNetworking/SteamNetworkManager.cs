@@ -15,7 +15,7 @@ public class SteamNetworkManager : MonoBehaviour
     private bool gameInProgress;
 
     // Lobby
-    private Lobby? currentLobby = null;
+    public Lobby? CurrentLobby { get; private set; }
 
     private const int MAX_PLAYERS = 2;
     private const int MAX_CONNECTION_PAYLOAD = 1024;
@@ -61,14 +61,12 @@ public class SteamNetworkManager : MonoBehaviour
     {
         SteamMatchmaking.OnLobbyCreated += OnLobbyCreated;
         SteamMatchmaking.OnLobbyEntered += OnLobbyEntered;
-        SteamMatchmaking.OnLobbyMemberJoined += OnLobbyMemberJoined;
     }
 
     private void OnDestroy()
     {
         SteamMatchmaking.OnLobbyCreated -= OnLobbyCreated;
         SteamMatchmaking.OnLobbyEntered -= OnLobbyEntered;
-        SteamMatchmaking.OnLobbyMemberJoined -= OnLobbyMemberJoined;
     }
 
     private void OnApplicationQuit()
@@ -94,12 +92,14 @@ public class SteamNetworkManager : MonoBehaviour
         this.password = password;
         this.mapSeed = mapSeed;
 
-        currentLobby = await SteamMatchmaking.CreateLobbyAsync(MAX_PLAYERS);
+        CurrentLobby = await SteamMatchmaking.CreateLobbyAsync(MAX_PLAYERS);
     }
 
     private void OnLobbyCreated(Result result, Lobby lobby)
     {
         if (result != Result.OK) return;
+
+        NetworkManager.Singleton.StartHost();
 
         lobby.SetData("isISP", "yes");
         lobby.SetData("name", serverName);
@@ -108,8 +108,6 @@ public class SteamNetworkManager : MonoBehaviour
 
         lobby.SetPublic();
         lobby.SetJoinable(true);
-
-        NetworkManager.Singleton.StartHost();
     }
 
     #endregion
@@ -118,32 +116,17 @@ public class SteamNetworkManager : MonoBehaviour
 
     #region Joining
 
-    public async void JoinGame(SteamId lobbyId)
+    public async void JoinLobby(SteamId lobbyId)
     {
-        Debug.Log("Join Game");
+        NetworkManager.Singleton.StartClient();
         await SteamMatchmaking.JoinLobbyAsync(lobbyId);
-    }
-
-    private void OnLobbyMemberJoined(Lobby lobby, Friend friend)
-    {
-        Debug.Log("OnLobbyMemberJoined");
     }
 
     private void OnLobbyEntered(Lobby lobby)
     {
-        Debug.Log("OnLobbyEntered");
-        Debug.Log($"Name: {lobby.GetData("name")}\n");
-        Debug.Log($"Password: {lobby.GetData("password")}\n");
-        Debug.Log($"MapSeed: {lobby.GetData("mapSeed")}\n");
-        Debug.Log($"Owner: {lobby.Owner.Name}");
-
         NetworkManager.Singleton.SceneManager.LoadScene("Lobby", LoadSceneMode.Single);
-
-        if (NetworkManager.Singleton.IsHost) return;
-
-        NetworkManager.Singleton.StartClient();
+        SteamLobby.Instance.AddPlayer(SteamClient.Name);
     }
-
 
     public async Task<Lobby[]> GetActiveLobbies()
         => await SteamMatchmaking.LobbyList.WithMaxResults(10).RequestAsync();

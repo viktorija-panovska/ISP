@@ -3,6 +3,7 @@ using Image = UnityEngine.UI.Image;
 using TMPro;
 using Steamworks;
 
+
 public class LobbyEntry : MonoBehaviour
 {
     public SteamId Id { get; private set; }
@@ -10,17 +11,15 @@ public class LobbyEntry : MonoBehaviour
     public GameObject DeselectedBackground;
     public GameObject SelectedBackground;
     public TMP_Text ServerName;
-    public TMP_Text OwnerName;
     public Image Lock;
 
     private bool isOn = false;
 
 
-    public void Setup(SteamId id, string serverName, string ownerName, bool hasPassword)
+    public void Setup(SteamId id, string serverName, bool hasPassword)
     {
         Id = id;
         ServerName.text = serverName;
-        OwnerName.text = ownerName;
         Lock.gameObject.SetActive(hasPassword);        
     }
 
