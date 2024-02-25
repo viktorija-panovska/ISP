@@ -71,6 +71,8 @@ public class Chunk
     private readonly List<int>[,] vertices = new List<int>[TILE_NUMBER + 1, TILE_NUMBER + 1];
     private readonly List<int>[,] centers = new List<int>[TILE_NUMBER, TILE_NUMBER];
 
+    private readonly Color32[] colorMap = new Color32[WIDTH * WIDTH];
+
     private readonly IHouse[,] houseAtVertex = new IHouse[TILE_NUMBER + 1, TILE_NUMBER + 1];
     private readonly Dictionary<(int x, int z), NaturalFormation> formations = new();
 
@@ -82,8 +84,8 @@ public class Chunk
     {
         gameObject = new GameObject();
         gameObject.AddComponent<MeshFilter>();
-        gameObject.AddComponent<MeshRenderer>();
         gameObject.AddComponent<MeshCollider>();
+        gameObject.AddComponent<MeshRenderer>();
 
         ChunkIndex = locationInMap;
         gameObject.transform.position = new Vector3(ChunkIndex.x * WIDTH, 0, ChunkIndex.z * WIDTH);
@@ -389,6 +391,8 @@ public class Chunk
 
     public void SetMesh()
     {
+        Debug.Log("Update mesh");
+
         Mesh mesh = new()
         {
             name = "Chunk Mesh",
@@ -401,6 +405,11 @@ public class Chunk
 
         gameObject.GetComponent<MeshFilter>().mesh = mesh;
         gameObject.GetComponent<MeshCollider>().sharedMesh = mesh;
+
+        Texture2D texture = new(WIDTH, WIDTH);
+        texture.SetPixels32(colorMap);
+        texture.Apply();
+        gameObject.GetComponent<MeshRenderer>().material.mainTexture = texture;
     }
 
     #endregion
@@ -513,6 +522,9 @@ public class Chunk
 
         foreach (var v in vertices[index.z, index.x])
             meshData.vertices[v].y = height;
+
+
+        //colorMap[index.x * (TILE_WIDTH + 1) + index.z] = WorldMap.Instance.GetColor(height);
 
         RecomputeCenters(index.x, index.z);
     }

@@ -133,7 +133,7 @@ public class GameController : NetworkBehaviour
             SpawnMap();
             PopulateMap();
             SpawnStarterUnits();
-            SpawnWater();
+            //SpawnWater();
         }
 
         SpawnFrame();

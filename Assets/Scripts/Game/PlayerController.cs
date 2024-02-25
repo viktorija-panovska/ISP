@@ -25,7 +25,7 @@ public class PlayerController : NetworkBehaviour
     public Camera PlayerCamera { get; private set; }
     public float Mana { get; private set; }
 
-    private int objectsInView =1;
+    private int objectsInView = 1;
 
 
 

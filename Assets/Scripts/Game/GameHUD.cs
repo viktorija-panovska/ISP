@@ -141,8 +141,8 @@ public class GameHUD : MonoBehaviour
 
     public bool IsClickable(Vector3 hitPoint)
         => Mathf.Abs(Mathf.Round(hitPoint.x / Chunk.TILE_WIDTH) - hitPoint.x / Chunk.TILE_WIDTH) < CLICKER_ERROR &&
-           Mathf.Abs(Mathf.Round(hitPoint.y / Chunk.STEP_HEIGHT) - hitPoint.y / Chunk.STEP_HEIGHT) < CLICKER_ERROR &&
            Mathf.Abs(Mathf.Round(hitPoint.z / Chunk.TILE_WIDTH) - hitPoint.z / Chunk.TILE_WIDTH) < CLICKER_ERROR &&
+           Mathf.Abs(Mathf.Round(hitPoint.y / Chunk.STEP_HEIGHT) - hitPoint.y / Chunk.STEP_HEIGHT) < CLICKER_ERROR &&
            hitPoint.y > GameController.Instance.WaterLevel.Value;
 
 

@@ -7,6 +7,7 @@ using Steamworks;
 public class LobbyEntry : MonoBehaviour
 {
     public SteamId Id { get; private set; }
+    public bool HasPassword { get; private set; }
 
     public GameObject DeselectedBackground;
     public GameObject SelectedBackground;
@@ -19,6 +20,8 @@ public class LobbyEntry : MonoBehaviour
     public void Setup(SteamId id, string serverName, bool hasPassword)
     {
         Id = id;
+        HasPassword = hasPassword;
+
         ServerName.text = serverName;
         Lock.gameObject.SetActive(hasPassword);        
     }

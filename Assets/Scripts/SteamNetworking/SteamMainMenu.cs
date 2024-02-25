@@ -17,12 +17,12 @@ public class SteamMainMenu : MonoBehaviour
     public GameObject MainMenuContainer;
     public GameObject HostGameContainer;
     public GameObject JoinGameContainer;
+    public GameObject PasswordContainer;
 
     private GameObject openMenuContainer;
 
 
     // HOST
-
     public TMP_InputField ServerNameInputField;
     public TMP_InputField PasswordInputField;
     public TMP_InputField MapSeedInputField;
@@ -117,7 +117,15 @@ public class SteamMainMenu : MonoBehaviour
 
     public void JoinGame()
     {
-        SteamNetworkManager.Instance.JoinLobby(selectedLobby.Id);
+        if (selectedLobby.HasPassword)
+            PasswordContainer.SetActive(true);
+        else
+            EnterLobby();
+    }
+
+    public void EnterLobby()
+    {
+        SteamNetworkManager.Instance.JoinLobby(selectedLobby.Id, "");
         selectedLobby = null;
     }
 

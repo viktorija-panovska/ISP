@@ -253,12 +253,19 @@ public class WorldMap : NetworkBehaviour
             for (int x = 0; x < CHUNK_NUMBER; ++x)
             {
                 Chunk chunk = new((x, z));
-                chunk.gameObject.GetComponent<MeshRenderer>().material = WorldMaterial;
                 chunk.SetMesh();
                 chunk.gameObject.transform.SetParent(transform);
                 chunkMap[z, x] = chunk;
             }
         }
+    }
+
+    public Color32 GetColor(int height)
+    {
+        if (height == 0)
+            return Color.blue;
+
+        return Color.green;
     }
 
     #endregion

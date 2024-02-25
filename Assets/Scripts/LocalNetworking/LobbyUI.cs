@@ -101,8 +101,8 @@ public class LobbyUI : NetworkBehaviour
         else
             card.isReadyToggle.GetComponent<Image>().color = Color.white;
 
-        if (NetworkManager.Singleton.IsHost && lobbyPlayerState.ClientId != NetworkManager.Singleton.LocalClientId)
-            card.kickPlayerButton.gameObject.SetActive(true);
+        //if (NetworkManager.Singleton.IsHost && lobbyPlayerState.ClientId != NetworkManager.Singleton.LocalClientId)
+        //    card.kickPlayerButton.gameObject.SetActive(true);
 
         card.waitingForPlayerPanel.SetActive(false);
     }
