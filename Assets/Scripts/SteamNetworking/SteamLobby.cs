@@ -49,15 +49,14 @@ public class SteamLobby : NetworkBehaviour
 
     private void Awake()
     {
-        if (Instance == null)
-            Instance = this;
-        else
+        if (Instance != null && Instance != this)
         {
             Destroy(gameObject);
             return;
         }
 
-        DontDestroyOnLoad(this);
+        Instance = this;
+        DontDestroyOnLoad(gameObject);
     }
 
     private void Start()
