@@ -26,7 +26,6 @@ public class SteamNetworkManager : MonoBehaviour
 
 
 
-
     private void Awake()
     {
         if (Instance == null)
@@ -51,11 +50,14 @@ public class SteamNetworkManager : MonoBehaviour
 
     private void OnDestroy()
     {
-        NetworkManager.Singleton.OnServerStarted -= OnServerStarted;
-        NetworkManager.Singleton.ConnectionApprovalCallback -= ConnectionApprovalCallback;
-
         SteamMatchmaking.OnLobbyCreated -= OnLobbyCreated;
         SteamMatchmaking.OnLobbyEntered -= OnLobbyEntered;
+
+        if (NetworkManager.Singleton == null)
+            return;
+
+        NetworkManager.Singleton.OnServerStarted -= OnServerStarted;
+        NetworkManager.Singleton.ConnectionApprovalCallback -= ConnectionApprovalCallback;
     }
 
 
@@ -96,26 +98,20 @@ public class SteamNetworkManager : MonoBehaviour
 
     private void ConnectionApprovalCallback(NetworkManager.ConnectionApprovalRequest request, NetworkManager.ConnectionApprovalResponse response)
     {
-        // If there is no password, there is no need to check anything
-        if (string.IsNullOrEmpty(CurrentLobby.Value.GetData("password")))
+        ulong clientId = request.ClientNetworkId;
+
+        // If there is no password, there is no need to check anything. Host can enter automatically
+        if (clientId == NetworkManager.ServerClientId || string.IsNullOrEmpty(CurrentLobby.Value.GetData("password")))
         {
             response.Approved = true;
             return;
         }
 
         byte[] connectionData = request.Payload;
-        ulong clientId = request.ClientNetworkId;
 
         if (connectionData.Length > MAX_CONNECTION_PAYLOAD)
         {
             response.Approved = false;
-            return;
-        }
-
-        // The host can enter automatically
-        if (clientId == NetworkManager.ServerClientId)
-        {
-            response.Approved = true;
             return;
         }
 
@@ -148,6 +144,7 @@ public class SteamNetworkManager : MonoBehaviour
 
     public async void JoinLobby(SteamId lobbyId, string password)
     {
+        NetworkManager.Singleton.GetComponent<FacepunchTransport>().targetSteamId = lobbyId;
         NetworkManager.Singleton.StartClient();
         await SteamMatchmaking.JoinLobbyAsync(lobbyId);
     }

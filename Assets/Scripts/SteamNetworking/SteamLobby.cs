@@ -1,9 +1,9 @@
 using System;
-using System.Diagnostics;
 using TMPro;
 using Unity.Collections;
 using Unity.Netcode;
 using UnityEngine.UI;
+using UnityEngine;
 
 
 public struct LobbyPlayerState : INetworkSerializable, IEquatable<LobbyPlayerState>
@@ -50,9 +50,7 @@ public class SteamLobby : NetworkBehaviour
     private void Awake()
     {
         if (Instance == null)
-        {
             Instance = this;
-        }
         else
         {
             Destroy(gameObject);
@@ -60,25 +58,27 @@ public class SteamLobby : NetworkBehaviour
         }
 
         DontDestroyOnLoad(this);
-
-        lobbyPlayers = new NetworkList<LobbyPlayerState>();
     }
 
     private void Start()
     {
+        lobbyPlayers = new NetworkList<LobbyPlayerState>();
         lobbyPlayers.OnListChanged += RefreshPlayerCards;
     }
 
-    private void OnDestroy()
+    public override void OnDestroy()
     {
+        base.OnDestroy();
+
         lobbyPlayers.OnListChanged -= RefreshPlayerCards;
+        lobbyPlayers.Dispose();
     }
 
 
 
     public override void OnNetworkSpawn()
     {
-        UnityEngine.Debug.Log("Network Spawn");
+        Debug.Log("Network Spawn");
 
         if (IsServer)
         {
@@ -98,7 +98,7 @@ public class SteamLobby : NetworkBehaviour
 
     public void AddPlayer(string name)
     {
-        UnityEngine.Debug.Log(name);
+        Debug.Log(name);
     }
 
 

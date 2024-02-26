@@ -1,7 +1,9 @@
-using UnityEngine;
-using Image = UnityEngine.UI.Image;
-using TMPro;
 using Steamworks;
+using TMPro;
+using UnityEngine;
+
+using Image = UnityEngine.UI.Image;
+
 
 
 public class LobbyEntry : MonoBehaviour

@@ -26,7 +26,7 @@ public class SteamMainMenu : MonoBehaviour
     public TMP_InputField ServerNameInputField;
     public TMP_InputField PasswordInputField;
     public TMP_InputField MapSeedInputField;
-    public Image EmptyFieldWarning;
+    public Image EmptyServerNameWarning;
     public Button CreateGameButton;
 
 
@@ -36,6 +36,9 @@ public class SteamMainMenu : MonoBehaviour
 
     private List<GameObject> lobbyEntryList;
     private LobbyEntry selectedLobby;
+
+    public TMP_InputField PasswordField;
+    public Image EmptyPasswordWarning;
 
 
     public void Awake()
@@ -108,7 +111,7 @@ public class SteamMainMenu : MonoBehaviour
     {
         if (ServerNameInputField.text == "")
         {
-            StartCoroutine(Helpers.FlashImage(EmptyFieldWarning));
+            StartCoroutine(Helpers.FlashImage(EmptyServerNameWarning));
             return;
         }
 
@@ -118,7 +121,7 @@ public class SteamMainMenu : MonoBehaviour
     public void JoinGame()
     {
         if (selectedLobby.HasPassword)
-            PasswordContainer.SetActive(true);
+            OpenPasswordWindow();
         else
             EnterLobby();
     }
@@ -128,6 +131,12 @@ public class SteamMainMenu : MonoBehaviour
         SteamNetworkManager.Instance.JoinLobby(selectedLobby.Id, "");
         selectedLobby = null;
     }
+
+    #endregion
+
+
+
+    #region Lobbies 
 
     public async void FillLobbyList()
     {
@@ -141,13 +150,13 @@ public class SteamMainMenu : MonoBehaviour
 
         foreach (Lobby lobby in lobbies)
         {
-            if (lobby.GetData("isISP") == "")
-                continue;
+            //if (lobby.GetData("isISP") == "")
+            //    continue;
 
             GameObject entryObject = Instantiate(LobbyEntryPrefab);
             LobbyEntry entry = entryObject.GetComponent<LobbyEntry>();
 
-            entry.Setup(lobby.Id, lobby.GetData("name"), lobby.GetData("password") != "");
+            entry.Setup(lobby.Id, "1", lobby.GetData("password") == "");
             entryObject.transform.SetParent(LobbyScrollView.transform);
             entryObject.transform.localScale = Vector3.one;
 
@@ -166,6 +175,33 @@ public class SteamMainMenu : MonoBehaviour
     public void DeselectEntry()
     {
         selectedLobby = null;
+    }
+
+    #endregion
+
+
+    #region Password Window
+
+    public void OpenPasswordWindow()
+    {
+        PasswordContainer.SetActive(true);
+    }
+
+    public void ClosePasswordWindow()
+    {
+        PasswordContainer.SetActive(false);
+    }
+
+    public void SubmitPassword()
+    {
+        if (PasswordField.text == "")
+        {
+            StartCoroutine(Helpers.FlashImage(EmptyPasswordWarning));
+            return;
+        }
+
+        ClosePasswordWindow();
+        EnterLobby();
     }
 
     #endregion

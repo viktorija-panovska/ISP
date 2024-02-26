@@ -273,9 +273,17 @@ PrefabInstance:
   m_Modification:
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: -2244378161283533934, guid: 91e6d0a106b422b4684760a5a94aabaf, type: 3}
+      propertyPath: NetworkConfig.NetworkPrefabs.Array.size
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -2244378161283533934, guid: 91e6d0a106b422b4684760a5a94aabaf, type: 3}
+      propertyPath: NetworkConfig.NetworkPrefabs.Array.data[0].Prefab
+      value: 
+      objectReference: {fileID: 6504094741920464983, guid: 5cdd940e19ba77044b77e04e082f2eba, type: 3}
     - target: {fileID: 6515360550317588203, guid: 91e6d0a106b422b4684760a5a94aabaf, type: 3}
       propertyPath: m_RootOrder
-      value: 4
+      value: 3
       objectReference: {fileID: 0}
     - target: {fileID: 6515360550317588203, guid: 91e6d0a106b422b4684760a5a94aabaf, type: 3}
       propertyPath: m_LocalPosition.x
@@ -323,7 +331,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 91e6d0a106b422b4684760a5a94aabaf, type: 3}
---- !u!1001 &1995409806
+--- !u!1001 &1404002726
 PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
@@ -336,7 +344,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2085921026746945004, guid: 65aac3ae1b9adb64ca49a837adc546e6, type: 3}
       propertyPath: m_RootOrder
-      value: 3
+      value: 4
       objectReference: {fileID: 0}
     - target: {fileID: 2085921026746945004, guid: 65aac3ae1b9adb64ca49a837adc546e6, type: 3}
       propertyPath: m_LocalPosition.x
