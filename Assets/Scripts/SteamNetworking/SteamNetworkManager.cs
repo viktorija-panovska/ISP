@@ -42,18 +42,12 @@ public class SteamNetworkManager : MonoBehaviour
     {
         SteamMatchmaking.OnLobbyCreated += OnLobbyCreated;
         SteamMatchmaking.OnLobbyEntered += OnLobbyEntered;
-        //SteamMatchmaking.OnLobbyMemberJoined += OnLobbyMemberJoined;
-        //SteamMatchmaking.OnLobbyMemberLeave += OnLobbyMemberLeave;
-        //SteamFriends.OnGameLobbyJoinRequested += OnGameLobbyJoinRequested;
     }
 
     private void OnDestroy()
     {
         SteamMatchmaking.OnLobbyCreated -= OnLobbyCreated;
         SteamMatchmaking.OnLobbyEntered -= OnLobbyEntered;
-        //SteamMatchmaking.OnLobbyMemberJoined -= OnLobbyMemberJoined;
-        //SteamMatchmaking.OnLobbyMemberLeave -= OnLobbyMemberLeave;
-        //SteamFriends.OnGameLobbyJoinRequested -= OnGameLobbyJoinRequested;
 
         if (NetworkManager.Singleton == null)
             return;
@@ -123,14 +117,12 @@ public class SteamNetworkManager : MonoBehaviour
     private void OnServerStarted()
     {
         if (!NetworkManager.Singleton.IsHost) return;
-        Debug.Log("OnServerStarted");
-        //LoadLobby();
+        LoadLobby();
     }
 
     private void OnLobbyCreated(Result result, Lobby lobby)
     {
         if (result != Result.OK) return;
-        Debug.Log("OnLobbyCreated");
 
         foreach ((string key, string value) in lobbyData)
             lobby.SetData(key, value);
