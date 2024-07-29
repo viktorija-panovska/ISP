@@ -8,6 +8,7 @@ using UnityEngine.UI;
 /// </summary>
 public class EndGameMenuController : MonoBehaviour
 {
+    [SerializeField] private Texture2D m_CursorTexture;
     [SerializeField] private CanvasGroup m_MenuCanvasGroup;
     [SerializeField] private GameObject m_RedFrame;
     [SerializeField] private GameObject m_BlueFrame;
@@ -54,6 +55,9 @@ public class EndGameMenuController : MonoBehaviour
     /// </summary>
     public async void ShowEndGameMenu()
     {
+        Cursor.SetCursor(m_CursorTexture, Vector2.zero, CursorMode.Auto);
+        Cursor.visible = true;
+
         Team winner = GameController.Instance.Winner;
         PlayerInfo? winnerInfo = GameData.Instance.GetPlayerInfoByTeam(winner);
 
@@ -77,6 +81,7 @@ public class EndGameMenuController : MonoBehaviour
     /// </summary>
     public void HideEndGameMenu()
     {
+        Cursor.visible = false;
         InterfaceUtils.FadeMenuOut(m_MenuCanvasGroup);
     }
 

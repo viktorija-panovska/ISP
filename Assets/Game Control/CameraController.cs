@@ -41,11 +41,6 @@ public class CameraController : MonoBehaviour
         m_Instance = this;
     }
 
-    private void Start()
-    {
-        UpdateVisibleTerrainChunks();
-    }
-
     private void Update()
     {
         if (m_Movement != Vector3.zero)
@@ -61,7 +56,7 @@ public class CameraController : MonoBehaviour
     #endregion
 
 
-    private void UpdateVisibleTerrainChunks()
+    public void UpdateVisibleTerrainChunks()
     {
         foreach (TerrainChunk chunk in m_VisibleTerrainChunks)
             chunk.SetVisibility(false);
@@ -123,7 +118,7 @@ public class CameraController : MonoBehaviour
 
     private void Move()
     {
-        Vector3 newPosition = m_FollowTarget.position + m_MovementSpeed * Time.deltaTime * m_Movement;
+        Vector3 newPosition = m_FollowTarget.position + Quaternion.Euler(0, m_FollowTarget.eulerAngles.y, 0) * m_Movement * m_MovementSpeed * Time.deltaTime;
         if (newPosition.x < 0 || newPosition.x > Terrain.Instance.UnitsPerSide ||
             newPosition.z < 0 || newPosition.z > Terrain.Instance.UnitsPerSide)
             return;

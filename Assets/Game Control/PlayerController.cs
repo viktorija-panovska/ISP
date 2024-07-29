@@ -175,12 +175,12 @@ public class PlayerController : MonoBehaviour
 
     private void SetNearestClickablePoint()
     {
+
         if (!Physics.Raycast(Camera.main.ScreenPointToRay(Mouse.current.position.ReadValue()), out RaycastHit hit) ||
             hit.point.x < 0 || hit.point.z < 0 || hit.point.x > Terrain.Instance.UnitsPerSide || hit.point.z > Terrain.Instance.UnitsPerSide)
         {
             m_NearestClickablePoint = null;
             SetHighlight(hit.point);
-
             return;
         }
 
@@ -188,7 +188,7 @@ public class PlayerController : MonoBehaviour
             Mathf.Abs(Mathf.Round(hit.point.x / Terrain.Instance.UnitsPerTile) - hit.point.x / Terrain.Instance.UnitsPerTile) < m_ClickerError &&
             Mathf.Abs(Mathf.Round(hit.point.z / Terrain.Instance.UnitsPerTile) - hit.point.z / Terrain.Instance.UnitsPerTile) < m_ClickerError &&
             Mathf.Abs(Mathf.Round(hit.point.y / Terrain.Instance.StepHeight) - hit.point.y / Terrain.Instance.StepHeight) < m_ClickerError)// &&
-            //hit.point.y > GameController.Instance.WaterLevel && (m_ActivePower != Power.MOLD_TERRAIN || CanSeeAllies()))
+            //hit.point.y > GameController.Instance.WaterLevel && (m_ActivePower != Power.MOLD_TERRAIN || CanSeeAllies())) 
             m_NearestClickablePoint = new MapPoint(hit.point.x, hit.point.z);
         else
             m_NearestClickablePoint = null;
@@ -244,13 +244,16 @@ public class PlayerController : MonoBehaviour
     {
         if (m_NearestClickablePoint.HasValue)
         {
-            m_Markers[m_ActiveMarkerIndex].transform.position = m_NearestClickablePoint.Value.ToVector3();
+            m_Markers[m_ActiveMarkerIndex].transform.position = new Vector3(
+                m_NearestClickablePoint.Value.X * Terrain.Instance.UnitsPerTile, 
+                position.y, 
+                m_NearestClickablePoint.Value.Z * Terrain.Instance.UnitsPerTile);
             m_Markers[m_ActiveMarkerIndex].GetComponent<MeshRenderer>().material.color = m_HighlightMarkerColor;
         }
         else
         {
             m_Markers[m_ActiveMarkerIndex].GetComponent<MeshRenderer>().material.color = m_GrayedOutMarkerColor;
-            m_Markers[m_ActiveMarkerIndex].transform.position = position;
+            m_Markers[m_ActiveMarkerIndex].transform.position = new Vector3(position.x, position.y < 0 ? 0 : position.y, position.z);
         }
     }
 

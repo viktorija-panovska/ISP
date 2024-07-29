@@ -5,8 +5,28 @@ using System.Text;
 using System.Threading.Tasks;
 using Unity.Netcode;
 using UnityEngine;
-
 using Random = System.Random;
+
+
+/// <summary>
+/// Scenes in the game.
+/// </summary>
+public enum Scene
+{
+    /// <summary>
+    /// The Main Menu scene
+    /// </summary>
+    MAIN_MENU,
+    /// <summary>
+    /// The Lobby scene
+    /// </summary>
+    LOBBY,
+    /// <summary>
+    /// The Game scene
+    /// </summary>
+    GAME_SCENE,
+    TEST
+}
 
 
 public class ConnectionManager : MonoBehaviour
@@ -91,7 +111,7 @@ public class ConnectionManager : MonoBehaviour
     public void StartHost(string lobbyName, string lobbyPassword, string mapSeed)
     {
         GameData.Instance.CurrentLobbyInfo = new LobbyInfo(lobbyName, lobbyPassword);
-        GameData.Instance.MapSeed = mapSeed.Length > 0 ? uint.Parse(mapSeed) : (uint)new Random().Next(0, int.MaxValue);
+        GameData.Instance.MapSeed = mapSeed.Length > 0 ? int.Parse(mapSeed) : new Random().Next(0, int.MaxValue);
 
         ScreenFader.Instance.OnFadeOutComplete += OnHostStartReady;
         ScreenFader.Instance.FadeOut();
@@ -251,4 +271,5 @@ public class ConnectionManager : MonoBehaviour
     }
 
     #endregion
+
 }

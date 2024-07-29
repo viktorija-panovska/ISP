@@ -2,30 +2,6 @@ using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-
-/// <summary>
-/// Scenes in the game.
-/// </summary>
-public enum Scene
-{
-    /// <summary>
-    /// The Main Menu scene
-    /// </summary>
-    MAIN_MENU,
-    /// <summary>
-    /// The Lobby scene
-    /// </summary>
-    LOBBY,
-    /// <summary>
-    /// The Game scene
-    /// </summary>
-    GAME_SCENE
-}
-
-
-/// <summary>
-/// This class contains methods for switching between scenes.
-/// </summary>
 [RequireComponent(typeof(NetworkObject))]
 public class SceneLoader : NetworkBehaviour
 {
@@ -33,10 +9,8 @@ public class SceneLoader : NetworkBehaviour
     /// <summary>
     /// Gets an instance of the class.
     /// </summary>
-    public static SceneLoader Instance { get =>  m_Instance; }
+    public static SceneLoader Instance { get => m_Instance; }
 
-
-    #region MonoBehavior
 
     private void Awake()
     {
@@ -46,8 +20,6 @@ public class SceneLoader : NetworkBehaviour
         m_Instance = this;
         DontDestroyOnLoad(gameObject);
     }
-
-    #endregion
 
 
     /// <summary>

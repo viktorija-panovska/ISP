@@ -1,20 +1,20 @@
 
 using UnityEngine;
 
-public static class NoiseGenerator
+public static class HeightMapGenerator
 {
-    private static int seed;
+    private static int m_Seed;
     private const float SCALE = 2f;
     private const int OCTAVES = 6;              // number of levels of detail
     private const float PERSISTENCE = 0.5f;     // how much each octave contributes to the overall shape (adjusts the amplitude) - in range 0..1
     private const float LACUNARITY = 2;         // how much detail is added or removed at each octave (adjusts frequency) - must be > 1
-    private static Vector2[] offsets;
+    private static Vector2[] m_Offsets;
 
 
     public static void Initialize(int mapSeed)
     {
-        seed = mapSeed;
-        offsets = GenerateNoiseOffsets();
+        m_Seed = mapSeed;
+        m_Offsets = GenerateNoiseOffsets();
     }
 
 
@@ -22,7 +22,7 @@ public static class NoiseGenerator
     {
         // to get different random maps every time, we need to sample from different random coordinates
         // we sample at differnet random coordinates for each octave
-        System.Random ranGen = new System.Random(seed);
+        System.Random ranGen = new(m_Seed);
         Vector2[] offsets = new Vector2[OCTAVES];
 
         for (int i = 0; i < OCTAVES; ++i)
@@ -48,8 +48,8 @@ public static class NoiseGenerator
         {
             // we cannot use the pixel coordinates(x, y) because the perlin noise always generates the same value at whole numbers
             // we also multiply by scale to not get an extremely zoomed in picture
-            float x = position.x / Chunk.WIDTH * SCALE + offsets[i].x;
-            float z = position.z / Chunk.WIDTH * SCALE + offsets[i].y;
+            float x = position.x / Terrain.Instance.UnitsPerChunk * SCALE + m_Offsets[i].x;
+            float z = position.z / Terrain.Instance.UnitsPerChunk * SCALE + m_Offsets[i].y;
 
             // increase the noise by the perlin value of each octave
             // the higher the frequency, the further apart the sample points will be, so the elevation will change more rapidly
@@ -69,8 +69,8 @@ public static class NoiseGenerator
 
     public static float GetFalloffAtPosition(Vector3 position)
     {
-        float dx = 2 * position.x / WorldMap.WIDTH - 1;
-        float dz = 2 * position.z / WorldMap.WIDTH - 1;
+        float dx = 2 * position.x / Terrain.Instance.UnitsPerSide - 1;
+        float dz = 2 * position.z / Terrain.Instance.UnitsPerSide - 1;
 
         return (1 - (1 - (dx * dx)) * (1 - (dz * dz)));
     }

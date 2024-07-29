@@ -1,24 +1,19 @@
 using System;
 using System.Collections.Generic;
-using Unity.Netcode;
 using UnityEngine;
 
 
-public struct MapPoint : INetworkSerializable, IEquatable<MapPoint>
+public readonly struct MapPoint : IEquatable<MapPoint>
 {
-    private int m_X;
-    private int m_Z;
+    private readonly int m_X;
+    private readonly int m_Z;
 
     public readonly int X { get => m_X; }
     public readonly int Y { get => Terrain.Instance.GetChunkByIndex(m_TouchingChunks[0]).GetVertexHeight(this); }
     public readonly int Z { get => m_Z; }
 
-    private readonly  (int x, int z) m_PointInMap;
-    public readonly (int X, int Z) PointInMap { get => m_PointInMap; }
-
     private readonly (int x, int z)[] m_TouchingChunks;
     public readonly (int X, int Z)[] TouchingChunks { get => m_TouchingChunks; }
-
 
 
     public MapPoint(float x, float z) 
@@ -27,19 +22,19 @@ public struct MapPoint : INetworkSerializable, IEquatable<MapPoint>
 
     public MapPoint(int x, int z)
     {
-        m_X = x * Terrain.Instance.UnitsPerTile;
-        m_Z = z * Terrain.Instance.UnitsPerTile;
-
-        m_PointInMap = (x, z);
+        m_X = x;
+        m_Z = z;
 
         (int x, int z) mainChunk = (
-            x == Terrain.Instance.TilesPerSide ? Terrain.Instance.ChunksPerSide - 1 : x / Terrain.Instance.TilesPerChunk,
-            z == Terrain.Instance.TilesPerSide ? Terrain.Instance.ChunksPerSide - 1 : z / Terrain.Instance.TilesPerChunk
+            m_X == Terrain.Instance.TilesPerSide ? Terrain.Instance.ChunksPerSide - 1 : m_X / Terrain.Instance.TilesPerChunk,
+            m_Z == Terrain.Instance.TilesPerSide ? Terrain.Instance.ChunksPerSide - 1 : m_Z / Terrain.Instance.TilesPerChunk
         );
 
         List<(int x, int z)> chunks = new() { mainChunk };
 
-        (int x, int z) pointInChunk = Terrain.Instance.GetChunkByIndex(chunks[0]).GetPointInChunk((x, z));
+        Debug.Log($"{x} {z} {Terrain.Instance.GetChunkByIndex(chunks[0])}");
+
+        (int x, int z) pointInChunk = Terrain.Instance.GetChunkByIndex(chunks[0]).GetPointInChunk(x, z);
 
         // bottom left
         if (pointInChunk.x == 0 && mainChunk.x > 0 && pointInChunk.z == 0 && mainChunk.z > 0)
@@ -78,7 +73,7 @@ public struct MapPoint : INetworkSerializable, IEquatable<MapPoint>
 
     public override readonly string ToString() => $"MapPoint -> ({ToVector3()})";
 
-    public readonly Vector3 ToVector3() => new(m_X, Y, m_Z);
+    public readonly Vector3 ToVector3() => new(m_X, 0, m_Z);
 
     public readonly bool Equals(MapPoint other) => m_X == other.X && m_Z == other.Z;
 
@@ -88,23 +83,16 @@ public struct MapPoint : INetworkSerializable, IEquatable<MapPoint>
 
     public static bool operator ==(MapPoint a, MapPoint b) => a.Equals(b);
     public static bool operator !=(MapPoint a, MapPoint b) => !a.Equals(b);
-
-    public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
-    {
-        serializer.SerializeValue(ref m_X);
-        serializer.SerializeValue(ref m_Z);
-    }
 }
 
 
-[RequireComponent(typeof(NetworkObject))]
-public class Terrain : NetworkBehaviour
+public class Terrain : MonoBehaviour
 {
     [SerializeField] private int m_ChunksPerSide = 2;
     [SerializeField] private int m_TilesPerChunk = 5;
     [SerializeField] private int m_UnitsPerTile = 50;
     [SerializeField] private int m_MinHeight = 0;
-    [SerializeField] private int m_MaxHeight = 140;
+    [SerializeField] private int m_MaxSteps = 7;
     [SerializeField] private int m_StepHeight = 20;
 
     [SerializeField] private Material m_TerrainMaterial;
@@ -125,8 +113,9 @@ public class Terrain : NetworkBehaviour
     public int UnitsPerChunk { get => m_UnitsPerTile * m_TilesPerChunk; }
     public int UnitsPerTile { get => m_UnitsPerTile; }
 
+    public int MaxSteps { get => m_MaxSteps; }
     public int MinHeight { get => m_MinHeight; }
-    public int MaxHeight { get => m_MaxHeight; }
+    public int MaxHeight { get => m_MaxSteps * m_StepHeight; }
     public int StepHeight { get => m_StepHeight; }
 
     public Material TerrainMaterial { get => m_TerrainMaterial; }
@@ -147,12 +136,18 @@ public class Terrain : NetworkBehaviour
             Destroy(gameObject);
 
         m_Instance = this;
+    }
+
+    private void Start()
+    {
         m_ChunkMap = new TerrainChunk[m_ChunksPerSide, m_ChunksPerSide];
 
+        HeightMapGenerator.Initialize(GameData.Instance == null ? 0 : GameData.Instance.MapSeed);
         GenerateTerrain();
         GenerateTexture();
 
         Frame.Instance.SetupFrame();
+        CameraController.Instance.UpdateVisibleTerrainChunks();
     }
 
     #endregion
@@ -170,7 +165,7 @@ public class Terrain : NetworkBehaviour
     private void GenerateTexture()
     {
         m_TerrainMaterial.SetFloat("minHeight", m_MinHeight);
-        m_TerrainMaterial.SetFloat("maxHeight", m_MaxHeight);
+        m_TerrainMaterial.SetFloat("maxHeight", MaxHeight);
         m_TerrainMaterial.SetInt("waterLevel", m_WaterLevel);
         m_TerrainMaterial.SetInt("stepHeight", m_StepHeight);
     }
@@ -192,6 +187,9 @@ public class Terrain : NetworkBehaviour
 
     public bool IsIndexInBounds((int x, int z) index)
         => index.x >= 0 && index.x <= TilesPerSide && index.z >= 0 && index.z <= TilesPerSide;
+
+    public int GetHeightOfPointInChunk((int x, int z) chunk, (int x, int z) point)
+        => GetChunkByIndex(chunk).GetVertexHeight(point);
 
     #endregion
 

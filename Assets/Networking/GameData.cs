@@ -83,8 +83,8 @@ public class GameData : NetworkBehaviour
     private NetworkVariable<LobbyInfo> m_CurrentLobbyInfo;
     public LobbyInfo CurrentLobbyInfo { get => m_CurrentLobbyInfo.Value; set { m_CurrentLobbyInfo.Value = value; } }
 
-    private NetworkVariable<uint> m_MapSeed;
-    public uint MapSeed { get => m_MapSeed.Value; set { m_MapSeed.Value = value; } }
+    private NetworkVariable<int> m_MapSeed;
+    public int MapSeed { get => m_MapSeed.Value; set { m_MapSeed.Value = value; } }
 
     private NetworkList<PlayerInfo> m_PlayersInfo;
 

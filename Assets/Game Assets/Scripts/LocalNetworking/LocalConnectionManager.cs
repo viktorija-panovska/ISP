@@ -183,7 +183,6 @@ public class LocalConnectionManager : MonoBehaviour
         clientData.Add(clientGuid, new PlayerData(playerName, NetworkManager.Singleton.LocalClientId));
         clientIdToPlayerId.Add(NetworkManager.Singleton.LocalClientId, clientGuid);
 
-        Debug.Log("OnServerStart");
         GameData.Instance.AddPlayerInfo(new PlayerInfo(NetworkManager.Singleton.LocalClientId, SteamClient.SteamId.Value, Team.RED));
 
         SceneLoader.Instance.SwitchToScene(Scene.LOBBY);

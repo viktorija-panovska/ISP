@@ -79,6 +79,7 @@ public class TerrainChunk
 
         SetVisibility(false);
         m_MeshData = GenerateMeshData();
+        SetVertexHeights();
         SetMesh();
     }
 
@@ -135,13 +136,121 @@ public class TerrainChunk
         return meshData;
     }
 
+    private void SetVertexHeights()
+    {
+        if (ChunkIndex.X > 0)
+        {
+            for (int z = 0; z <= Terrain.Instance.TilesPerChunk; ++z)
+            {
+                int height = Terrain.Instance.GetHeightOfPointInChunk(
+                    (ChunkIndex.X - 1, ChunkIndex.Z),
+                    (ChunkIndex.X * Terrain.Instance.TilesPerChunk, z + ChunkIndex.Z * Terrain.Instance.TilesPerChunk)
+                );
+
+                foreach (int index in GetAllVertexIndicesAtPoint((0, z)))
+                    m_MeshData.Vertices[index].y = height;
+            }
+        }
+
+        if (ChunkIndex.Z > 0)
+        {
+            for (int x = 0; x <= Terrain.Instance.TilesPerChunk; ++x)
+            {
+                int height = Terrain.Instance.GetHeightOfPointInChunk(
+                    (ChunkIndex.X, ChunkIndex.Z - 1),
+                    (x + ChunkIndex.X * Terrain.Instance.TilesPerChunk, ChunkIndex.Z * Terrain.Instance.TilesPerChunk)
+                );
+
+                foreach (int index in GetAllVertexIndicesAtPoint((x, 0)))
+                    m_MeshData.Vertices[index].y = height;
+            }
+        }
+
+        for (int z = 0; z <= Terrain.Instance.TilesPerChunk; ++z)
+        {
+            for (int x = 0; x <= Terrain.Instance.TilesPerChunk; ++x)
+            {
+                if ((x == 0 && ChunkIndex.X > 0) || (z == 0 && ChunkIndex.Z > 0)) continue;
+
+                int height = CalculateVertexHeight(x, z, GetVertexIndex((x, z)));
+
+                foreach (int index in GetAllVertexIndicesAtPoint((x, z)))
+                    m_MeshData.Vertices[index].y = height;
+            }
+        }
+
+        // Set center height for each tile
+        for (int z = 0; z < Terrain.Instance.TilesPerChunk; ++z)
+        {
+            for (int x = 0; x < Terrain.Instance.TilesPerChunk; ++x)
+            {
+                int height = CalculateTileCenterHeight(x, z);
+
+                foreach (int index in GetAllTileCenterIncides(x, z))
+                    m_MeshData.Vertices[index].y = height;
+            }
+        }
+    }
+
+    private int CalculateVertexHeight(int x, int z, int vertexIndex)
+    {
+        int height = Mathf.FloorToInt(
+            HeightMapGenerator.GetPerlinAtPosition(ChunkPosition + m_MeshData.Vertices[vertexIndex]) * Terrain.Instance.MaxSteps
+        ) * Terrain.Instance.StepHeight;
+
+        // Vertex (0, 0) in chunk (0, 0)
+        if (x == 0 && z == 0)
+            return height;
+
+        // first row in chunk (0, 0)
+        if (z == 0 && ChunkIndex.X == 0)
+        {
+            int lastHeight = GetMeshHeightAtPoint((x - 1, z));
+            height = Mathf.Clamp(height, lastHeight - Terrain.Instance.StepHeight, lastHeight + Terrain.Instance.StepHeight);
+        }
+        else
+        {
+            List<(int, int)> directions = new(new (int, int)[] { (-1, -1), (-1, 0), (0, -1), (1, -1) });
+
+            if (x == 1 && ChunkIndex.X > 0)
+                directions.Add((-1, 1));
+
+            List<int> neighborHeights = new();
+
+            foreach ((int neighborX, int neighborZ) in directions)
+                if (x + neighborX >= 0 && x + neighborX <= Terrain.Instance.TilesPerChunk && 
+                    z + neighborZ >= 0 && z + neighborZ <= Terrain.Instance.TilesPerChunk)
+                    neighborHeights.Add(GetMeshHeightAtPoint((x + neighborX, z + neighborZ)));
+
+            if (neighborHeights.TrueForAll(EqualToFirst))
+                height = Mathf.Clamp(
+                    height, 
+                    Mathf.Max(0, neighborHeights[0] - Terrain.Instance.StepHeight), 
+                    Mathf.Min(neighborHeights[0] + Terrain.Instance.StepHeight, Terrain.Instance.MaxHeight));
+            else
+            {
+                int[] neighborHeightsArray = neighborHeights.ToArray();
+                int minHeight = Mathf.Min(neighborHeightsArray);
+                int maxHeight = Mathf.Max(neighborHeightsArray);
+
+                if (Mathf.Abs(minHeight - maxHeight) > Terrain.Instance.StepHeight)
+                    height = minHeight + Terrain.Instance.StepHeight;
+                else
+                    height = Mathf.Clamp(height, minHeight, maxHeight);
+            }
+            bool EqualToFirst(int x) => x == neighborHeights[0];
+        }
+
+        return height;
+    }
+
     private int CalculateTileCenterHeight(int x, int z)
     {
         int[] cornerHeights = new int[4];
         int i = 0;
         for (int zOffset = 0; zOffset <= 1; ++zOffset)
             for (int xOffset = 0; xOffset <= 1; ++xOffset)
-                cornerHeights[i++] = GetVertexHeight((x + xOffset, z + zOffset));
+                cornerHeights[i++] = GetMeshHeightAtPoint((x + xOffset, z + zOffset));
 
         if (cornerHeights[0] == cornerHeights[3] && cornerHeights[1] == cornerHeights[2])
             return Mathf.Max(cornerHeights);
@@ -155,14 +264,16 @@ public class TerrainChunk
 
     #region Get Mesh Info
 
-    public (int x, int z) GetPointInChunk((int x, int z) pointInMap)
-        => (pointInMap.x - m_ChunkIndex.x * Terrain.Instance.TilesPerChunk,
-            pointInMap.z - m_ChunkIndex.z * Terrain.Instance.TilesPerChunk);
+    public (int x, int z) GetPointInChunk(int x, int z)
+        => (x - m_ChunkIndex.x * Terrain.Instance.TilesPerChunk, z - m_ChunkIndex.z * Terrain.Instance.TilesPerChunk);
 
     public int GetVertexHeight(MapPoint point)
-        => GetVertexHeight(GetPointInChunk(point.PointInMap));
+        => GetVertexHeight((point.X, point.Z));
 
-    private int GetVertexHeight((int x, int z) point)
+    public int GetVertexHeight((int x, int z) point)
+        => GetMeshHeightAtPoint(GetPointInChunk(point.x, point.z));
+
+    private int GetMeshHeightAtPoint((int x, int z) point)
         => (int)m_MeshData.Vertices[GetVertexIndex(point)].y;
 
     private int GetVertexIndex((int x, int z) point)
@@ -239,7 +350,7 @@ public class TerrainChunk
 
     public void ChangePointHeight(MapPoint point, bool lower)
     {
-        (int x, int z) pointInChunk = GetPointInChunk(point.PointInMap);
+        (int x, int z) pointInChunk = GetPointInChunk(point.X, point.Z);
 
         List<int> vertices = GetAllVertexIndicesAtPoint(pointInChunk);
 
@@ -255,12 +366,13 @@ public class TerrainChunk
         {
             for (int xOffset = -1; xOffset <= 1; ++xOffset)
             {
-                if ((xOffset, zOffset) == (0, 0) || !Terrain.Instance.IsIndexInBounds((point.PointInMap.X + xOffset, point.PointInMap.Z + zOffset)))
+                if ((xOffset, zOffset) == (0, 0) || !Terrain.Instance.IsIndexInBounds((point.X + xOffset, point.Z + zOffset)))
                     continue;
 
-                MapPoint neighbor = new(point.PointInMap.X + xOffset, point.PointInMap.Z + zOffset);
+                MapPoint neighbor = new(point.X + xOffset, point.Z + zOffset);
 
-                if (Mathf.Abs(point.Y - neighbor.Y) > Terrain.Instance.StepHeight && IsPointInChunk(pointInChunk.x + xOffset, pointInChunk.z + zOffset))
+                if (Mathf.Abs(point.Y - neighbor.Y) > Terrain.Instance.StepHeight && 
+                    IsPointInChunk(pointInChunk.x + xOffset, pointInChunk.z + zOffset))
                     Terrain.Instance.ChangePointHeight(neighbor, lower);
             }
         }

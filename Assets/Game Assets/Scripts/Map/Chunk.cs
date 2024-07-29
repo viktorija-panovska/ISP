@@ -330,8 +330,7 @@ public class Chunk
 
     private int CalculateVertexHeight(int x, int z, int vertexIndex)
     {
-        int height = Mathf.FloorToInt(NoiseGenerator.GetPerlinAtPosition(ChunkPosition + meshData.vertices[vertexIndex]) * MAX_STEPS) * STEP_HEIGHT;
-
+        int height = Mathf.FloorToInt(HeightMapGenerator.GetPerlinAtPosition(ChunkPosition + meshData.vertices[vertexIndex]) * MAX_STEPS) * STEP_HEIGHT;
 
         // Vertex (0, 0) in chunk (0, 0)
         if (x == 0 && z == 0)

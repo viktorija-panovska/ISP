@@ -21,6 +21,9 @@ public enum Power
 [RequireComponent(typeof(NetworkObject))]
 public class GameController : NetworkBehaviour
 {
+    [SerializeField] private GameObject m_TerrainPrefab;
+
+
     private static GameController m_Instance;
     /// <summary>
     /// Gets an instance of the class.
@@ -53,6 +56,7 @@ public class GameController : NetworkBehaviour
     #endregion
 
 
+
     #region Powers
 
 
@@ -60,24 +64,22 @@ public class GameController : NetworkBehaviour
 
     public void MoldTerrain(MapPoint point, bool lower)
     {
-        UpdateMap(point, lower);
-        //if (IsHost)
-        //    UpdateMap(point, lower);
-        //else
-        //    UpdateMapServerRpc(point, lower);
+        MoldTerrainServerRpc(point.X, point.Z, lower);
     }
 
     [ServerRpc(RequireOwnership = false)]
-    private void UpdateMapServerRpc(MapPoint point, bool lower)
+    private void MoldTerrainServerRpc(int pointX, int pointZ, bool lower)
     {
-        UpdateMap(point, lower);
+        MoldTerrainClientRpc(pointX, pointZ, lower);
     }
 
-    private void UpdateMap(MapPoint point, bool lower)
+    [ClientRpc]
+    private void MoldTerrainClientRpc(int pointX, int pointZ, bool lower)
     {
-        Terrain.Instance.ModifyTerrain(point, lower);
-    }
+        Debug.Log(new MapPoint(pointX, pointZ));
 
+        //Terrain.Instance.ModifyTerrain(new MapPoint(pointX, pointZ), lower);
+    }
 
     #endregion
 

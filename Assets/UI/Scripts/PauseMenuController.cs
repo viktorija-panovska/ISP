@@ -8,6 +8,7 @@ using UnityEngine.UI;
 /// </summary>
 public class PauseMenuController : MonoBehaviour
 {
+    [SerializeField] private Texture2D m_CursorTexture;
     [SerializeField] private GameObject m_MenuCanvas;
     [SerializeField] private TMP_Text m_MapSeedField;
     [SerializeField] private Button[] m_Buttons;
@@ -54,6 +55,8 @@ public class PauseMenuController : MonoBehaviour
     public void ShowPauseMenu()
     {
         m_MenuCanvas.SetActive(true);
+        Cursor.SetCursor(m_CursorTexture, Vector2.zero, CursorMode.Auto);
+        Cursor.visible = true;
     }
 
     /// <summary>
@@ -62,6 +65,7 @@ public class PauseMenuController : MonoBehaviour
     public void HidePauseMenu()
     {
         m_MenuCanvas.SetActive(false);
+        Cursor.visible = false;
     }
 
     #endregion
