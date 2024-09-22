@@ -50,7 +50,5 @@ public class ScreenFader : MonoBehaviour
     /// Fades screen in from black.
     /// </summary>
     public void FadeIn(float duration = 1f)
-    {
-        m_BlackScreen.DOFade(0, duration).OnComplete(() => m_BlackScreen.blocksRaycasts = false);
-    }
+        => m_BlackScreen.DOFade(0, duration).OnComplete(() => m_BlackScreen.blocksRaycasts = false);
 }

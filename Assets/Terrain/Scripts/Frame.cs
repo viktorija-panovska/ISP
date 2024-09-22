@@ -9,6 +9,8 @@ public class Frame : MonoBehaviour
     public static Frame Instance { get => m_Instance; }
 
 
+    #region MonoBehavior
+
     private void Awake()
     {
         if (m_Instance != null)
@@ -17,6 +19,12 @@ public class Frame : MonoBehaviour
         m_Instance = this;
     }
 
+    #endregion
+
+
+    /// <summary>
+    /// Sets the size and position of the frame.
+    /// </summary>
     public void SetupFrame()
     {
         float newSize = Terrain.Instance.UnitsPerSide * 2;

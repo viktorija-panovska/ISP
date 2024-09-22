@@ -2,6 +2,28 @@ using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
+
+/// <summary>
+/// Scenes in the game.
+/// </summary>
+public enum Scene
+{
+    /// <summary>
+    /// The Main Menu scene
+    /// </summary>
+    MAIN_MENU,
+    /// <summary>
+    /// The Lobby scene
+    /// </summary>
+    LOBBY,
+    /// <summary>
+    /// The Game scene
+    /// </summary>
+    GAME_SCENE
+}
+
+
+
 [RequireComponent(typeof(NetworkObject))]
 public class SceneLoader : NetworkBehaviour
 {

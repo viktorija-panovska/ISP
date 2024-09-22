@@ -8,27 +8,6 @@ using UnityEngine;
 using Random = System.Random;
 
 
-/// <summary>
-/// Scenes in the game.
-/// </summary>
-public enum Scene
-{
-    /// <summary>
-    /// The Main Menu scene
-    /// </summary>
-    MAIN_MENU,
-    /// <summary>
-    /// The Lobby scene
-    /// </summary>
-    LOBBY,
-    /// <summary>
-    /// The Game scene
-    /// </summary>
-    GAME_SCENE,
-    TEST
-}
-
-
 public class ConnectionManager : MonoBehaviour
 {
     public bool Local = true; // TODO: Remove - for testing only

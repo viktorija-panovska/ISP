@@ -19,12 +19,23 @@ public class CameraController : MonoBehaviour
     public static CameraController Instance { get => m_Instance; }
 
     private Vector3 m_Movement;
+    /// <summary>
+    /// Gets and sets the movement vector of the camera.
+    /// </summary>
     public Vector3 Movement { get => m_Movement; set { m_Movement = new Vector3(value.x, 0, value.y).normalized; } }
 
-    private int m_RotationDirection;        // -1 counter clockwise, 1 clockwise, 0 no rotation
-    public int IsRotating { get => m_RotationDirection; set => m_RotationDirection = value; }
+    private int m_RotationDirection;
+    /// <summary>
+    /// Gets and sets an integer representing the direction of rotation of the camera, with 0 being no rotation, 
+    /// 1 being clockwise rotation, and -1 being counter-clockwise rotation
+    /// </summary>
+    public int RotationDirection { get => m_RotationDirection; set => m_RotationDirection = value; }
 
     private int m_ZoomDirection;            // -1 zoom in, 1 zoom out, 0 no zoom
+    /// <summary>
+    /// Gets and sets an integer representing the direction of the zoom of the camera, with 0 beinng no zoom,
+    /// 1 being zoom out, and -1 being zoom in.
+    /// </summary>
     public int ZoomDirection { get => m_ZoomDirection; set => m_ZoomDirection = Mathf.Clamp(value, -1, 1); }
 
     private List<TerrainChunk> m_VisibleTerrainChunks = new();
@@ -56,6 +67,10 @@ public class CameraController : MonoBehaviour
     #endregion
 
 
+    /// <summary>
+    /// Finds the terrain chunks which are at least partially captured by the player camera and makes them visible,
+    /// making the rest of the terrain chunks invisible.
+    /// </summary>
     public void UpdateVisibleTerrainChunks()
     {
         foreach (TerrainChunk chunk in m_VisibleTerrainChunks)
@@ -69,7 +84,7 @@ public class CameraController : MonoBehaviour
         // bottom left
         if (Physics.Raycast(Camera.main.ViewportPointToRay(new Vector3(0, 0, 0)), out hit))
         {
-            (int x, int z) = Terrain.Instance.GetClosestChunkIndex(hit.point);
+            (int x, int z) = Terrain.Instance.GetChunkIndex(hit.point);
             leftIndex = Mathf.Min(leftIndex, x);
             bottomIndex = Mathf.Min(bottomIndex, z);
         }
@@ -77,7 +92,7 @@ public class CameraController : MonoBehaviour
         // top right
         if (Physics.Raycast(Camera.main.ViewportPointToRay(new Vector3(1, 1, 0)), out hit))
         {
-            (int x, int z) = Terrain.Instance.GetClosestChunkIndex(hit.point);
+            (int x, int z) = Terrain.Instance.GetChunkIndex(hit.point);
             rightIndex = Mathf.Max(rightIndex, x);
             topIndex = Mathf.Max(rightIndex, z);
         }
@@ -85,7 +100,7 @@ public class CameraController : MonoBehaviour
         // bottom right
         if (Physics.Raycast(Camera.main.ViewportPointToRay(new Vector3(1, 0, 0)), out hit))
         {
-            (int x, int z) = Terrain.Instance.GetClosestChunkIndex(hit.point);
+            (int x, int z) = Terrain.Instance.GetChunkIndex(hit.point);
             rightIndex = Mathf.Max(rightIndex, x);
             bottomIndex = Mathf.Min(bottomIndex, z);
         }
@@ -93,7 +108,7 @@ public class CameraController : MonoBehaviour
         // top left
         if (Physics.Raycast(Camera.main.ViewportPointToRay(new Vector3(0, 1, 0)), out hit))
         {
-            (int x, int z) = Terrain.Instance.GetClosestChunkIndex(hit.point);
+            (int x, int z) = Terrain.Instance.GetChunkIndex(hit.point);
             leftIndex = Mathf.Min(leftIndex, x);
             topIndex = Mathf.Max(topIndex, z);
         }

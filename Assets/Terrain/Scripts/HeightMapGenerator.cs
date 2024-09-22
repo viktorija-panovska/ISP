@@ -48,8 +48,8 @@ public static class HeightMapGenerator
         {
             // we cannot use the pixel coordinates(x, y) because the perlin noise always generates the same value at whole numbers
             // we also multiply by scale to not get an extremely zoomed in picture
-            float x = position.x / Terrain.Instance.UnitsPerChunk * SCALE + m_Offsets[i].x;
-            float z = position.z / Terrain.Instance.UnitsPerChunk * SCALE + m_Offsets[i].y;
+            float x = position.x / Terrain.Instance.UnitsPerChunkSide * SCALE + m_Offsets[i].x;
+            float z = position.z / Terrain.Instance.UnitsPerChunkSide * SCALE + m_Offsets[i].y;
 
             // increase the noise by the perlin value of each octave
             // the higher the frequency, the further apart the sample points will be, so the elevation will change more rapidly

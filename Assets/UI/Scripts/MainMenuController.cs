@@ -64,10 +64,8 @@ public class MainMenuController : MonoBehaviour
     /// <summary>
     /// Switches from any screen to the main menu screen.
     /// </summary>
-    public void SwitchToMainScreen() 
-    { 
-        SwitchScreens(m_MainScreen); 
-    }
+    public void SwitchToMainScreen()
+        => SwitchScreens(m_MainScreen); 
 
     /// <summary>
     /// Switches from any screen to the lobby creation screen.
@@ -155,9 +153,7 @@ public class MainMenuController : MonoBehaviour
     /// Replaces the displayed list of active lobbies with a more recent list of active lobbies.
     /// </summary>
     public void RefreshLobbyList()
-    {
-        FillLobbyList();
-    }
+        => FillLobbyList();
 
     /// <summary>
     /// Deselects the previously selected lobby entry and selects a new one.

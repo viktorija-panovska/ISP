@@ -14,9 +14,7 @@ public static class InterfaceUtils
     /// </summary>
     /// <param name="image">Image to be animated</param>
     public static void FlashWrong(UnityEngine.UI.Image image)
-    {
-        image.DOColor(new Color(255, 0, 0, 145), 0.5f).SetLoops(2, LoopType.Yoyo);
-    }
+        => image.DOColor(new Color(255, 0, 0, 145), 0.5f).SetLoops(2, LoopType.Yoyo);
 
     /// <summary>
     /// Smoothly transitions the color of an image from it's current color to a new color.
@@ -25,9 +23,7 @@ public static class InterfaceUtils
     /// <param name="newColor">The final color of the image.</param>
     /// <param name="duration">The time until the final color is reached.</param>
     public static void SwitchColor(UnityEngine.UI.Image image, Color newColor, float duration = 0.25f)
-    {
-        image.DOColor(newColor, duration);
-    }
+        => image.DOColor(newColor, duration);
 
     /// <summary>
     /// Fades the opacity of the canvas to full opacity.
@@ -35,9 +31,7 @@ public static class InterfaceUtils
     /// <param name="canvas">The canvas to be faded.</param>
     /// <param name="duration">The time until full opacity.</param>
     public static void FadeMenuIn(CanvasGroup canvas, float duration = 1f)
-    {
-        canvas.DOFade(1, duration).OnComplete(() => canvas.interactable = true);
-    }
+        => canvas.DOFade(1, duration).OnComplete(() => canvas.interactable = true);
 
     /// <summary>
     /// Fades the opacity of the canvas to full transparency.
@@ -45,9 +39,7 @@ public static class InterfaceUtils
     /// <param name="canvas">The canvas to be faded.</param>
     /// <param name="duration">The time until full transparency.</param>
     public static void FadeMenuOut(CanvasGroup canvas, float duration = 1f)
-    {
-        canvas.DOFade(0, duration).OnComplete(() => canvas.interactable = false);
-    }
+        => canvas.DOFade(0, duration).OnComplete(() => canvas.interactable = false);
 
     /// <summary>
     /// Gets a texture of the player's Steam avatar image.

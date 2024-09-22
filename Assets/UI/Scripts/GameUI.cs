@@ -9,6 +9,8 @@ public class GameUI : MonoBehaviour
     public static GameUI Instance { get => m_Instance; }
 
 
+    #region MonoBehavior
+
     private void Awake()
     {
         if (m_Instance != null)
@@ -18,4 +20,6 @@ public class GameUI : MonoBehaviour
 
         //Cursor.visible = false;
     }
+
+    #endregion
 }

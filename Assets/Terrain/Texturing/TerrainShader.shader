@@ -5,7 +5,7 @@ Shader "Custom/TerrainShader"
         _TextureScale("Texture scale", float) = 5
         _WaterTexture ("Water texture", 2D) = "" {}
         _LandTexture ("Land texture", 2D) = "" {}
-
+        _SandTexture ("Sand texture", 2D) = "" {}
     }
         SubShader
     {
@@ -19,6 +19,7 @@ Shader "Custom/TerrainShader"
         float _TextureScale;
         sampler2D _WaterTexture;
         sampler2D _LandTexture;
+        sampler2D _SandTexture;
 
         float minHeight;
         float maxHeight;
@@ -35,8 +36,10 @@ Shader "Custom/TerrainShader"
         {
             float3 scaledWorldPos = IN.worldPos / _TextureScale;
 
-            if (IN.worldPos.y > waterLevel)
+            if (IN.worldPos.y >= waterLevel + 10)
                 o.Albedo = tex2D(_LandTexture, scaledWorldPos.xz);
+            else if (IN.worldPos.y > waterLevel + 3 && IN.worldPos.y < waterLevel + 10)
+                o.Albedo = tex2D(_SandTexture, scaledWorldPos.xz);
             else 
                 o.Albedo = tex2D(_WaterTexture, scaledWorldPos.xz);
         }

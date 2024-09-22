@@ -60,10 +60,7 @@ public class AudioController : MonoBehaviour
 
         m_Instance = this;
         DontDestroyOnLoad(gameObject);
-    }
 
-    private void Start()
-    {
         m_AudioSource = GetComponent<AudioSource>();
     }
 

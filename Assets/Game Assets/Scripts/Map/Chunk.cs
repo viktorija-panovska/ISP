@@ -390,8 +390,6 @@ public class Chunk
 
     public void SetMesh()
     {
-        Debug.Log("Update mesh");
-
         Mesh mesh = new()
         {
             name = "Chunk Mesh",

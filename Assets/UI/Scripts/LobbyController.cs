@@ -153,9 +153,7 @@ public class LobbyController : NetworkBehaviour
 
     [ServerRpc(RequireOwnership = false)]
     private void ToggleIsBluePlayerReadyServerRpc()
-    {
-        m_IsClientReady.Value = !m_IsClientReady.Value;
-    }
+        => m_IsClientReady.Value = !m_IsClientReady.Value;
 
     private void OnBluePlayerReady(bool _, bool __)
     {
@@ -175,9 +173,7 @@ public class LobbyController : NetworkBehaviour
     /// Calls the <see cref="ConnectionManager"/> to disconnect the player from the game.
     /// </summary>
     public void LeaveGame()
-    {
-        ConnectionManager.Instance.Disconnect();
-    }
+        => ConnectionManager.Instance.Disconnect();
 
     /// <summary>
     /// Forcibly disconnects the client from the game, if called by the host.

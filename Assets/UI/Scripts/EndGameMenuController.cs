@@ -94,9 +94,7 @@ public class EndGameMenuController : MonoBehaviour
     /// Calls the <see cref="ConnectionManager"/> to disconnect the player from the game.
     /// </summary>
     public void BackToMenu()
-    {
-        ConnectionManager.Instance.Disconnect();
-    }
+        => ConnectionManager.Instance.Disconnect();
 
     #endregion
 
@@ -107,9 +105,7 @@ public class EndGameMenuController : MonoBehaviour
     /// Calls the <see cref="AudioController"/> to play the button click sound.
     /// </summary>
     public void PlayButtonSound()
-    {
-        AudioController.Instance.PlaySound(SoundType.MENU_BUTTON);
-    }
+        => AudioController.Instance.PlaySound(SoundType.MENU_BUTTON);
 
     #endregion
 }
