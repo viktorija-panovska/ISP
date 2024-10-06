@@ -184,19 +184,6 @@ public class House : NetworkBehaviour, IHouse
             HouseType = newHouseType;
             Health = HouseType.MaxHealth;
             SwitchHouseClientRpc(NetworkObjectId, HouseType.Name, false);
-
-            List<House> newFoundHouses = new() { this };
-
-            if (foundHouses != null)
-                newFoundHouses.AddRange(foundHouses);
-
-            newFoundHouses.AddRange(housesInRegion);
-
-            foreach (House house in housesInRegion)
-                if (house != this && foundHouses != null && !foundHouses.Contains(house))
-                    house.UpdateType(newFoundHouses);
-
-            housesInRegion = new();
         }
     }
 

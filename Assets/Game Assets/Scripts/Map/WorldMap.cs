@@ -242,7 +242,7 @@ public class WorldMap : NetworkBehaviour
     {
         Instance = this;
 
-        HeightMapGenerator.Initialize(MapSeed);
+        //HeightMapGenerator.Initialize(MapSeed);
         GenerateWorldMap();
     }
 

@@ -1,6 +1,13 @@
 using Unity.Netcode;
 using UnityEngine;
 
+public enum Team
+{
+    RED,
+    BLUE,
+    NONE
+}
+
 public class Flag : MonoBehaviour
 {
     public Team Team;

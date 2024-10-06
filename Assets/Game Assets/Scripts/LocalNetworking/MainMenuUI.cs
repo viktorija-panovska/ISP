@@ -50,7 +50,7 @@ public class MainMenuUI : MonoBehaviour
             return;
 
         PlayerPrefs.SetString("PlayerName", nameInputField.text);
-        LocalConnectionManager.Instance.StartHost(passwordInputField.text);
+        //LocalConnectionManager.Instance.StartHost(passwordInputField.text);
     }
 
     public void JoinGame()
@@ -59,7 +59,7 @@ public class MainMenuUI : MonoBehaviour
             return;
 
         PlayerPrefs.SetString("PlayerName", nameInputField.text);
-        LocalConnectionManager.Instance.StartClient(passwordInputField.text);
+        //LocalConnectionManager.Instance.StartClient(passwordInputField.text);
     }
 
     public void ExitGame()

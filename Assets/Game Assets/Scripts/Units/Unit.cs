@@ -76,7 +76,6 @@ public enum UnitStates
 }
 
 
-
 [RequireComponent(typeof(NetworkObject), typeof(UnitMovementHandler))]
 public class Unit : NetworkBehaviour, IPlayerObject
 {

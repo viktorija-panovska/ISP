@@ -104,7 +104,7 @@ public class GameHUD : MonoBehaviour
 
     public void LeaveGame()
     {
-        LocalConnectionManager.Instance.Disconnect();
+        //LocalConnectionManager.Instance.Disconnect();
     }
 
     public void CloseMenu()
