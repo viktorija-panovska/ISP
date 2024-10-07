@@ -19,6 +19,6 @@ public class CameraObjectDetector : MonoBehaviour
 
 
     public bool IsTeamMember(GameObject other)
-        => (other.layer == LayerMask.NameToLayer("Unit") && other.GetComponent<Unit>().Team == OldPlayerController.Instance.Team) ||
+        => (other.layer == LayerMask.NameToLayer("Unit") && other.GetComponent<OldUnit>().Team == OldPlayerController.Instance.Team) ||
            (other.layer == LayerMask.NameToLayer("House") && other.GetComponent<House>().Team == OldPlayerController.Instance.Team);
 }

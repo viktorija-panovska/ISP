@@ -17,9 +17,7 @@ namespace Populous
         [SerializeField] private Color[] m_FlagColors;
         [SerializeField] private GameObject[] m_LeaderSigns;
 
-
-        private Team m_Team;
-        public Team Team 
+        public new Team Team 
         { 
             get => m_Team; 
             set { 
@@ -31,7 +29,7 @@ namespace Populous
         private int m_CurrentSettlementIndex;
         private SettlementData m_CurrentSettlementData;
 
-        private int m_Health = 1;
+        private int m_Health;
         private int m_UnitsInHouse;
         private bool m_ContainsLeader;
 

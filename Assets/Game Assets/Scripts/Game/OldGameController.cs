@@ -76,10 +76,10 @@ public class OldGameController : NetworkBehaviour
     // Civilization
     private const int STARTING_UNITS = 3;
     private const int MAX_UNITS_PER_PLAYER = 5;
-    private List<Unit>[] activeUnits = { new(), new() };
+    private List<OldUnit>[] activeUnits = { new(), new() };
     private int[] units = { 0, 0 };
     private IPlayerObject[] leaders = new IPlayerObject[2];
-    private List<Unit>[] knights = { new(), new() };
+    private List<OldUnit>[] knights = { new(), new() };
     private int[] lastKnight = new int[2];
     private List<House>[] activeHouses = { new(), new() };
     private delegate void UpdateUnitHeights();
@@ -138,7 +138,7 @@ public class OldGameController : NetworkBehaviour
         IPlayerObject leaderObject = leaders[playerId];
 
         SetCameraControllerClientRpc(
-            leaderObject == null ? activeUnits[playerId][UnityEngine.Random.Range(0, activeUnits[playerId].Count)].Location : ((Unit)leaderObject).Location,
+            leaderObject == null ? activeUnits[playerId][UnityEngine.Random.Range(0, activeUnits[playerId].Count)].Location : ((OldUnit)leaderObject).Location,
             viewZoneObject.GetComponent<NetworkObject>().NetworkObjectId,
             new ClientRpcParams
             {
@@ -252,8 +252,8 @@ public class OldGameController : NetworkBehaviour
 
     private void StartUnitMovement()
     {
-        foreach (List<Unit> unitList in activeUnits)
-            foreach (Unit unit in unitList)
+        foreach (List<OldUnit> unitList in activeUnits)
+            foreach (OldUnit unit in unitList)
                 unit.ResumeMovement();
     }
 
@@ -328,7 +328,7 @@ public class OldGameController : NetworkBehaviour
 
         unitObject.GetComponent<NetworkObject>().Spawn(destroyWithScene: true);
 
-        Unit unit = unitObject.GetComponent<Unit>();
+        OldUnit unit = unitObject.GetComponent<OldUnit>();
         unit.Initialize(unitType, team, originHouse, isLeader);
         updateUnitHeights += unit.UpdateHeight;
 
@@ -355,7 +355,7 @@ public class OldGameController : NetworkBehaviour
         }
     }
 
-    public void DespawnUnit(Unit unit, bool isDead = true, bool removeUnit = true)
+    public void DespawnUnit(OldUnit unit, bool isDead = true, bool removeUnit = true)
     {
         int playerId = (int)unit.Team - 1;
 
@@ -440,7 +440,7 @@ public class OldGameController : NetworkBehaviour
         }
     }
 
-    public void EnterHouse(Unit unit, House house)
+    public void EnterHouse(OldUnit unit, House house)
     {
         house.AddUnit();
 
@@ -501,12 +501,12 @@ public class OldGameController : NetworkBehaviour
 
     #region Combat
 
-    public void AttackUnit(Unit red, Unit blue)
+    public void AttackUnit(OldUnit red, OldUnit blue)
     {
         StartCoroutine(HitUnit(red, blue));
     }
 
-    private IEnumerator HitUnit(Unit red, Unit blue)
+    private IEnumerator HitUnit(OldUnit red, OldUnit blue)
     {
         while (true)
         {
@@ -531,7 +531,7 @@ public class OldGameController : NetworkBehaviour
         }
     }
 
-    private bool Kill(Unit first, Unit second)
+    private bool Kill(OldUnit first, OldUnit second)
     {
         first.PlayAttackAnimation();
 
@@ -557,13 +557,13 @@ public class OldGameController : NetworkBehaviour
     }
 
 
-    public void AttackHouse(Unit unit, House house)
+    public void AttackHouse(OldUnit unit, House house)
     {
         house.AddAttacker(unit);
         StartCoroutine(HitHouse(unit, house));
     }
 
-    public IEnumerator HitHouse(Unit unit, House house)
+    public IEnumerator HitHouse(OldUnit unit, House house)
     {
         while (true)
         {
@@ -621,27 +621,27 @@ public class OldGameController : NetworkBehaviour
         {
             ReleaseUnitsFromAllHouses(team);
 
-            foreach (Unit unit in activeUnits[index])
+            foreach (OldUnit unit in activeUnits[index])
             {
-                List<WorldLocation> path = Pathfinding.FindPath(new(unit.Position.x, unit.Position.z), endLocation);
+                //List<WorldLocation> path = Pathfinding.FindPath(new(unit.Position.x, unit.Position.z), endLocation);
 
-                if (path != null && path.Count > 0)
-                    unit.MoveAlongPath(path);
+                //if (path != null && path.Count > 0)
+                //    unit.MoveAlongPath(path);
             }
         }
         else
         {
-            Unit leader = (Unit)leaders[index];
-            List<WorldLocation> path = Pathfinding.FindPath(new(leader.Position.x, leader.Position.z), endLocation);
+            OldUnit leader = (OldUnit)leaders[index];
+            //List<WorldLocation> path = Pathfinding.FindPath(new(leader.Position.x, leader.Position.z), endLocation);
 
-            if (path != null && path.Count > 0)
-                leader.MoveAlongPath(path);
+            //if (path != null && path.Count > 0)
+            //    leader.MoveAlongPath(path);
 
             ReleaseUnitsFromAllHouses(team);
 
             leader.IsFollowed = true;
 
-            foreach (Unit unit in activeUnits[index])
+            foreach (OldUnit unit in activeUnits[index])
                 if (!unit.IsLeader)
                     unit.FollowUnit(leader);
         }
@@ -670,11 +670,11 @@ public class OldGameController : NetworkBehaviour
     {
         int index = (int)team - 1;
 
-        foreach (Unit unit in activeUnits[index])
+        foreach (OldUnit unit in activeUnits[index])
             if (!unit.IsLeader)
                 unit.EndFollow();
 
-        Unit leader = (Unit)leaders[index];
+        OldUnit leader = (OldUnit)leaders[index];
         leader.IsFollowed = false;
     }
 
@@ -758,7 +758,7 @@ public class OldGameController : NetworkBehaviour
             house.ReleaseLeader();
         }
 
-        Unit leader = (Unit)leaders[index];
+        OldUnit leader = (OldUnit)leaders[index];
         leader.MakeKnight();
         knights[index].Add(leader);
         leaders[index] = null;
@@ -788,8 +788,8 @@ public class OldGameController : NetworkBehaviour
 
 
         // Destroy units that fall into the water
-        foreach (List<Unit> unitList in activeUnits)
-            foreach (Unit unit in unitList)
+        foreach (List<OldUnit> unitList in activeUnits)
+            foreach (OldUnit unit in unitList)
                 if (unit.Height <= WaterLevel.Value)
                     DespawnUnit(unit);
     }
@@ -808,7 +808,7 @@ public class OldGameController : NetworkBehaviour
                 house.ReleaseAllUnits();
 
         foreach (var unitList in activeUnits)
-            foreach (Unit unit in unitList)
+            foreach (OldUnit unit in unitList)
                 unit.MakeBattleUnit();
     }
 
@@ -847,8 +847,8 @@ public class OldGameController : NetworkBehaviour
         if (leaderObject == null)
             return;
 
-        if (leaderObject.GetType() == typeof(Unit))
-            location = ((Unit)leaderObject).Location;
+        if (leaderObject.GetType() == typeof(OldUnit))
+            location = ((OldUnit)leaderObject).Location;
         else
             location = ((House)leaderObject).Location;
 
@@ -908,10 +908,10 @@ public class OldGameController : NetworkBehaviour
             foreach (var house in houseList)
                 DestroyHouse(house, false, removeHouse: false);
 
-        activeUnits = new List<Unit>[2] { new List<Unit>(), new List<Unit>() };
+        activeUnits = new List<OldUnit>[2] { new List<OldUnit>(), new List<OldUnit>() };
         units = new int[] { 0, 0 };
         leaders = new IPlayerObject[2];
-        knights = new List<Unit>[2] { new List<Unit>(), new List<Unit>() };
+        knights = new List<OldUnit>[2] { new List<OldUnit>(), new List<OldUnit>() };
         lastKnight = new int[2];
         activeHouses = new List<House>[2] { new List<House>(), new List<House>() };
 
@@ -934,7 +934,7 @@ public class OldGameController : NetworkBehaviour
             IPlayerObject leaderObject = leaders[playerId];
 
             RestartGameClientRpc(
-                leaderObject == null ? activeUnits[playerId][UnityEngine.Random.Range(0, activeUnits[playerId].Count)].Location : ((Unit)leaderObject).Location,
+                leaderObject == null ? activeUnits[playerId][UnityEngine.Random.Range(0, activeUnits[playerId].Count)].Location : ((OldUnit)leaderObject).Location,
                 new ClientRpcParams
                 {
                     Send = new ClientRpcSendParams

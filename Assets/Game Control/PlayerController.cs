@@ -21,6 +21,8 @@ namespace Populous
         /// </summary>
         public static PlayerController Instance { get => m_Instance; }
 
+        private Team m_Team;
+
         private bool m_IsPaused;
         /// <summary>
         /// Gets a value indicating whether the game is paused.
@@ -56,6 +58,8 @@ namespace Populous
 
         private void Start()
         {
+            m_Team = GameController.Instance.IsPlayerHosting ? Team.RED : Team.BLUE;
+
             GameUtils.ResizeGameObject(m_Markers[(int)Power.EARTHQUAKE], 2 * GameController.Instance.EarthquakeRadius * Terrain.Instance.UnitsPerTileSide);
             GameUtils.ResizeGameObject(m_Markers[(int)Power.SWAMP], 2 * GameController.Instance.SwampRadius * Terrain.Instance.UnitsPerTileSide);
             GameUtils.ResizeGameObject(m_Markers[(int)Power.VOLCANO], 2 * GameController.Instance.VolcanoRadius * Terrain.Instance.UnitsPerTileSide);
@@ -224,7 +228,7 @@ namespace Populous
                     break;
 
                 case Power.GUIDE_FOLLOWERS:
-                    GameController.Instance.CreateHouse(m_NearestClickablePoint.Value);
+                    GameController.Instance.GuideFollowersServerRpc(m_NearestClickablePoint.Value, m_Team);
                     break;
 
                 case Power.EARTHQUAKE:

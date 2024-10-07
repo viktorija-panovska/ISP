@@ -16,7 +16,7 @@ public enum MoveState
 
 public class UnitMovementHandler : NetworkBehaviour
 {
-    private Unit Unit { get => GetComponent<Unit>(); }
+    private OldUnit Unit { get => GetComponent<OldUnit>(); }
 
     private const float MOVE_SPEED = 2f;
     private const float POSITION_ERROR = 0.5f;
@@ -35,7 +35,7 @@ public class UnitMovementHandler : NetworkBehaviour
     public WorldLocation StartLocation { get; private set; }
     public WorldLocation EndLocation { get => pathTarget ?? StartLocation; }
 
-    public Unit TargetUnit { get; private set; }
+    public OldUnit TargetUnit { get; private set; }
 
 
     // Roaming
@@ -158,11 +158,11 @@ public class UnitMovementHandler : NetworkBehaviour
                             if (moveState == MoveState.FoundEnemyHouse)
                             {
                                 House house = (House)WorldMap.Instance.GetHouseAtVertex(houseVertices[0]);
-                                SetPath(Pathfinding.FindPath(Unit.Location, Helpers.GetClosestVertex(Unit.Position, house.GetAttackableVertices()).location));
+                                //SetPath(Pathfinding.FindPath(Unit.Location, Helpers.GetClosestVertex(Unit.Position, house.GetAttackableVertices()).location));
                             }
                             else
                             {
-                                SetPath(Pathfinding.FindPath(Unit.Location, newClosest.location));
+                                //SetPath(Pathfinding.FindPath(Unit.Location, newClosest.location));
                             }
                         }
                     }
@@ -224,11 +224,11 @@ public class UnitMovementHandler : NetworkBehaviour
             if (moveState == MoveState.FoundEnemyHouse)
             {
                 House house = (House)WorldMap.Instance.GetHouseAtVertex(houseVertices[0]);
-                SetPath(Pathfinding.FindPath(currentLocation, Helpers.GetClosestVertex(Unit.Position, house.GetAttackableVertices()).location));
+                //SetPath(Pathfinding.FindPath(currentLocation, Helpers.GetClosestVertex(Unit.Position, house.GetAttackableVertices()).location));
             }
             else
             {
-                SetPath(Pathfinding.FindPath(currentLocation, Helpers.GetClosestVertex(Unit.Position, houseVertices).location));
+                //SetPath(Pathfinding.FindPath(currentLocation, Helpers.GetClosestVertex(Unit.Position, houseVertices).location));
             }
         }
     }
@@ -529,7 +529,7 @@ public class UnitMovementHandler : NetworkBehaviour
 
     #region Following Unit
 
-    public void SetFollowingUnit(Unit unit)
+    public void SetFollowingUnit(OldUnit unit)
     {
         TargetUnit = unit;
         isGuided = true;
@@ -540,10 +540,10 @@ public class UnitMovementHandler : NetworkBehaviour
         if (Unit.UnitState == UnitStates.Battle && TargetUnit.IsFighting)
             EndFollow();
 
-        WorldLocation? path = Pathfinding.FollowUnit(Unit.Location, TargetUnit.Location);
+        //WorldLocation? path = Pathfinding.FollowUnit(Unit.Location, TargetUnit.Location);
 
-        if (path != null)
-            SetPath(new() { path.Value });
+        //if (path != null)
+        //    SetPath(new() { path.Value });
     }
 
     public void EndFollow()

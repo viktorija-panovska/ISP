@@ -12,7 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4added1129af2244caff0c6412c7fe2e, type: 3}
   m_Name: TentUnit
   m_EditorClassIdentifier: 
-  m_MaxHealth: 0
-  m_Strength: 0
-  m_Speed: 0
-  m_ManaGain: 0
+  m_Origin: 0
+  m_MaxHealth: 1
+  m_Strength: 1
+  m_Speed: 1
+  m_ManaGain: 1

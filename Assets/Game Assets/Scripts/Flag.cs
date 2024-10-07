@@ -16,7 +16,7 @@ public class Flag : MonoBehaviour
     {
         if (other.gameObject.layer == LayerMask.NameToLayer("Unit"))
         {
-            Unit unit = other.gameObject.GetComponent<Unit>();
+            OldUnit unit = other.gameObject.GetComponent<OldUnit>();
 
             if (unit.Team != Team)
                 return;

@@ -7,10 +7,6 @@ namespace Populous
     public class Field : Structure
     {
         private readonly HashSet<Settlement> m_SettlementsServed = new();
-
-        private Team m_Team;
-        public Team Team { get => m_Team; set => m_Team = value; }
-
         public Action OnFieldDestroyed;
 
 

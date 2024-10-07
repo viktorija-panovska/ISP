@@ -111,7 +111,7 @@ public class House : NetworkBehaviour, IHouse
     public Image Fill;
     public GameObject LeaderMarker;
 
-    public Dictionary<WorldLocation, Unit> AttackingUnits { get; private set; } = new();
+    public Dictionary<WorldLocation, OldUnit> AttackingUnits { get; private set; } = new();
     private bool IsUnderAttack { get => AttackingUnits.Count > 0; }
 
     private List<House> housesInRegion = new();
@@ -346,7 +346,7 @@ public class House : NetworkBehaviour, IHouse
 
     #region Units
 
-    public bool CanUnitEnter(Unit unit) => Team == unit.Team && UnitsInHouse < HouseType.MaxCapacity && !IsUnderAttack && unit.OriginHouse != this;
+    public bool CanUnitEnter(OldUnit unit) => Team == unit.Team && UnitsInHouse < HouseType.MaxCapacity && !IsUnderAttack && unit.OriginHouse != this;
 
     public void AddUnit()
     {
@@ -422,7 +422,7 @@ public class House : NetworkBehaviour, IHouse
         return available;
     }
 
-    public void AddAttacker(Unit attacker)
+    public void AddAttacker(OldUnit attacker)
     {
         if (!AttackingUnits.ContainsKey(attacker.Location))
             AttackingUnits.Add(attacker.Location, attacker);
@@ -446,7 +446,7 @@ public class House : NetworkBehaviour, IHouse
 
     public void DestroyHouse(bool spawnDestroyedHouse)
     {
-        foreach ((_, Unit unit) in AttackingUnits)
+        foreach ((_, OldUnit unit) in AttackingUnits)
         {
             StopCoroutine(OldGameController.Instance.HitHouse(unit, this));
             unit.ResumeMovement();
@@ -457,7 +457,7 @@ public class House : NetworkBehaviour, IHouse
         OldGameController.Instance.DestroyHouse(this, spawnDestroyedHouse);
     }
 
-    public void EndAttack(Unit attacker)
+    public void EndAttack(OldUnit attacker)
     {
         AttackingUnits.Remove(attacker.Location);
 

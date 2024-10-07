@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 public class UnitEnemyDetector : MonoBehaviour
 {
-    public Unit Unit;
+    public OldUnit Unit;
     private GameObject target;
 
 
@@ -14,7 +14,7 @@ public class UnitEnemyDetector : MonoBehaviour
 
         if (other.gameObject.layer == LayerMask.NameToLayer("Unit"))
         {
-            var otherUnit = other.GetComponentInParent<Unit>();
+            var otherUnit = other.GetComponentInParent<OldUnit>();
 
             if (Unit.Team != otherUnit.Team && !otherUnit.IsFighting && otherUnit.ChasedBy == null)
             {
@@ -34,10 +34,10 @@ public class UnitEnemyDetector : MonoBehaviour
 
                 WorldLocation position = Helpers.GetClosestVertex(Unit.Position, house.Vertices).location;
 
-                List<WorldLocation> path = Pathfinding.FindPath(new WorldLocation(Unit.Position.x, Unit.Position.z), position);
+                //List<WorldLocation> path = Pathfinding.FindPath(new WorldLocation(Unit.Position.x, Unit.Position.z), position);
 
-                if (path != null && path.Count > 0)
-                    Unit.MoveAlongPath(path);
+                //if (path != null && path.Count > 0)
+                //    Unit.MoveAlongPath(path);
             }
         }
     }

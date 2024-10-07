@@ -21,6 +21,9 @@ namespace Populous
         /// </summary>
         public (int x, int z) OccupiedTile { get => m_OccupiedTile; set { m_OccupiedTile = value; } }
 
+        protected Team m_Team;
+        public Team Team { get => m_Team; set => m_Team = value; }
+
 
         public virtual void Cleanup()
         {}

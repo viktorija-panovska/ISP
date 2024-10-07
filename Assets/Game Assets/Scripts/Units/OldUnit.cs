@@ -77,7 +77,7 @@ public enum UnitStates
 
 
 [RequireComponent(typeof(NetworkObject), typeof(UnitMovementHandler))]
-public class Unit : NetworkBehaviour, IPlayerObject
+public class OldUnit : NetworkBehaviour, IPlayerObject
 {
     private UnitMovementHandler MovementHandler { get => GetComponent<UnitMovementHandler>(); }
 
@@ -90,7 +90,7 @@ public class Unit : NetworkBehaviour, IPlayerObject
     public bool IsFighting { get; private set; }
     public bool IsFollowed { get; set; }
     public House OriginHouse { get; private set; }
-    public Unit ChasedBy { get; set; }
+    public OldUnit ChasedBy { get; set; }
 
     public Vector3 Position { get => gameObject.transform.position; set => gameObject.transform.position = value; }
     public WorldLocation Location { get => new(Position.x, Position.z); }
@@ -264,7 +264,7 @@ public class Unit : NetworkBehaviour, IPlayerObject
         MovementHandler.SetPath(path, isGuided: true);
     }
 
-    public void FollowUnit(Unit unit)
+    public void FollowUnit(OldUnit unit)
     {
         MovementHandler.SetFollowingUnit(unit);
     }
@@ -313,7 +313,7 @@ public class Unit : NetworkBehaviour, IPlayerObject
 
     #region Battle
 
-    public void StartBattle(Unit otherUnit)
+    public void StartBattle(OldUnit otherUnit)
     {
         LookAt(otherUnit.gameObject);
 

@@ -176,14 +176,6 @@ namespace Populous
         [Header("Terrain Material")]
         [SerializeField] private Material m_TerrainMaterial;
 
-        [Header("Trees and Rocks Properties")]
-        [SerializeField, Range(0, 1)] private float m_TreeDensity;
-        [SerializeField, Range(0, 1)] private float m_WhiteRockDensity;
-        [SerializeField, Range(0, 1)] private float m_BlackRockDensity;
-        [SerializeField] private GameObject m_TreePrefab;
-        [SerializeField] private GameObject m_WhiteRockPrefab;
-        [SerializeField] private GameObject m_BlackRockPrefab;
-
 
         private static Terrain m_Instance;
         /// <summary>
@@ -256,21 +248,8 @@ namespace Populous
                 Destroy(gameObject);
 
             m_Instance = this;
-        }
 
-        private void Start()
-        {
             m_ChunkMap = new TerrainChunk[m_ChunksPerSide, m_ChunksPerSide];
-
-            HeightMapGenerator.Initialize(GameData.Instance == null ? 0 : GameData.Instance.MapSeed);
-            GenerateTerrain();
-            GenerateTexture();
-
-            Frame.Instance.SetupFrame();
-            Water.Instance.SetupWater();
-            CameraController.Instance.UpdateVisibleTerrainChunks();
-
-            //PlaceTreesAndRocks(m_TreeDensity, m_WhiteRockDensity, m_BlackRockDensity);
         }
 
         #endregion
@@ -278,6 +257,17 @@ namespace Populous
 
 
         #region Terrain Generation
+
+        public void CreateTerrain()
+        {
+            HeightMapGenerator.Initialize(GameData.Instance == null ? 0 : GameData.Instance.MapSeed);
+            GenerateTerrain();
+            GenerateTexture();
+
+            Frame.Instance.SetupFrame();
+            Water.Instance.SetupWater();
+            CameraController.Instance.UpdateVisibleTerrainChunks();
+        }
 
         private void GenerateTerrain()
         {
@@ -294,38 +284,7 @@ namespace Populous
             m_TerrainMaterial.SetInt("stepHeight", m_StepHeight);
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="treeDensity"></param>
-        /// <param name="whiteRockDensity"></param>
-        /// <param name="blackRockDensity"></param>
-        public void PlaceTreesAndRocks(float treeDensity, float whiteRockDensity, float blackRockDensity)
-        {
-            if (!GameController.Instance.IsPlayerHosting) return;
 
-            Random random = new(GameData.Instance == null ? 0 : GameData.Instance.MapSeed);
-
-            for (int z = 0; z < TilesPerSide; ++z)
-            {
-                for (int x = 0; x < TilesPerSide; ++x)
-                {
-                    if (IsTileOccupied((x, z)) || IsTileUnderwater((x, z)))
-                        continue;
-
-                    List<MapPoint> occupiedPoints = GetTilePoints((x, z));
-
-                    double randomValue = random.NextDouble();
-
-                    if (randomValue < whiteRockDensity)
-                        GameController.Instance.SpawnStructure(m_WhiteRockPrefab, (x, z), occupiedPoints);
-                    else if (randomValue < blackRockDensity)
-                        GameController.Instance.SpawnStructure(m_BlackRockPrefab, (x, z), occupiedPoints);
-                    else if (randomValue < treeDensity)
-                        GameController.Instance.SpawnStructure(m_TreePrefab, (x, z), occupiedPoints);
-                }
-            }
-        }
 
         #endregion
 
@@ -343,6 +302,8 @@ namespace Populous
         {
             m_ModifiedChunks = new();
             ChangePointHeight(point, lower);
+
+            GameController.Instance.OnTerrainMoved?.Invoke();
 
             foreach ((int, int) chunkIndex in m_ModifiedChunks)
                 GetChunkByIndex(chunkIndex).SetMesh();
