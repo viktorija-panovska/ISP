@@ -29,6 +29,7 @@ namespace Populous
         /// </summary>
         public bool IsPaused { get => m_IsPaused; }
 
+
         private float m_Manna;
         /// <summary>
         /// Gets the amount of manna the player currently has.
@@ -43,6 +44,8 @@ namespace Populous
 
         private int m_ActiveMarkerIndex = 0;
         private MapPoint? m_NearestClickablePoint = null;
+
+        private UnitState m_ActiveUnitState = UnitState.SETTLE;
 
 
 
@@ -132,87 +135,6 @@ namespace Populous
         }
 
         /// <summary>
-        /// Handles the <b>MoldTerrainSelected</b> input action.
-        /// </summary>
-        /// <param name="context">Details about the input action which triggered this event.</param>
-        public void OnMoldTerrainSelected(InputAction.CallbackContext context)
-        {
-            if (!context.performed) return;
-            SwitchActivePower(Power.MOLD_TERRAIN);
-        }
-
-        /// <summary>
-        /// Handles the <b>GuideFollowersSelected</b> input action.
-        /// </summary>
-        /// <param name="context">Details about the input action which triggered this event.</param>
-        public void OnGuideFollowersSelected(InputAction.CallbackContext context)
-        {
-            if (!context.performed) return;
-            SwitchActivePower(Power.GUIDE_FOLLOWERS);
-        }
-
-        /// <summary>
-        /// Handles the <b>EarthquakeSelected</b> input action.
-        /// </summary>
-        /// <param name="context">Details about the input action which triggered this event.</param>
-        public void OnEarthquakeSelected(InputAction.CallbackContext context)
-        {
-            if (!context.performed) return;
-            SwitchActivePower(Power.EARTHQUAKE);
-        }
-
-        /// <summary>
-        /// Handles the <b>SwampSelected</b> input action.
-        /// </summary>
-        /// <param name="context">Details about the input action which triggered this event.</param>
-        public void OnSwampSelected(InputAction.CallbackContext context)
-        {
-            if (!context.performed) return;
-            SwitchActivePower(Power.SWAMP);
-        }
-
-        /// <summary>
-        /// Handles the <b>KnightSelected</b> input action.
-        /// </summary>
-        /// <param name="context">Details about the input action which triggered this event.</param>
-        public void OnKnightSelected(InputAction.CallbackContext context)
-        {
-            if (!context.performed) return;
-            SwitchActivePower(Power.KNIGHT);
-        }
-
-        /// <summary>
-        /// Handles the <b>VolcanoSelected</b> input action.
-        /// </summary>
-        /// <param name="context">Details about the input action which triggered this event.</param>
-        public void OnVolcanoSelected(InputAction.CallbackContext context)
-        {
-            if (!context.performed) return;
-            SwitchActivePower(Power.VOLCANO);
-        }
-
-        /// <summary>
-        /// Handles the <b>FloodSelected</b> input action.
-        /// </summary>
-        /// <param name="context">Details about the input action which triggered this event.</param>
-        public void OnFloodSelected(InputAction.CallbackContext context)
-        {
-            if (!context.performed) return;
-            SwitchActivePower(Power.FLOOD);
-            GameController.Instance.FloodServerRpc();
-        }
-
-        /// <summary>
-        /// Handles the <b>ArmagheddonSelected</b> input action.
-        /// </summary>
-        /// <param name="context">Details about the input action which triggered this event.</param>
-        public void OnArmagheddonSelected(InputAction.CallbackContext context)
-        {
-            if (!context.performed) return;
-            SwitchActivePower(Power.ARMAGHEDDON);
-        }
-
-        /// <summary>
         /// Handles the <b>LeftClick</b> input action.
         /// </summary>
         /// <param name="context">Details about the input action which triggered this event.</param>
@@ -228,7 +150,7 @@ namespace Populous
                     break;
 
                 case Power.GUIDE_FOLLOWERS:
-                    GameController.Instance.GuideFollowersServerRpc(m_NearestClickablePoint.Value, m_Team);
+                    GameController.Instance.MoveFlag/*ServerRpc*/(m_NearestClickablePoint.Value, m_Team);
                     break;
 
                 case Power.EARTHQUAKE:
@@ -313,9 +235,9 @@ namespace Populous
             if (m_NearestClickablePoint.HasValue)
             {
                 m_Markers[m_ActiveMarkerIndex].transform.position = new Vector3(
-                    m_NearestClickablePoint.Value.X * Terrain.Instance.UnitsPerTileSide,
+                    m_NearestClickablePoint.Value.TileX * Terrain.Instance.UnitsPerTileSide,
                     m_NearestClickablePoint.Value.Y + 5,
-                    m_NearestClickablePoint.Value.Z * Terrain.Instance.UnitsPerTileSide);
+                    m_NearestClickablePoint.Value.TileZ * Terrain.Instance.UnitsPerTileSide);
                 m_Markers[m_ActiveMarkerIndex].GetComponent<MeshRenderer>().material.color = m_HighlightMarkerColor;
             }
             else
@@ -352,6 +274,161 @@ namespace Populous
         private void UseManna()
         {
 
+        }
+
+        /// <summary>
+        /// Handles the <b>MoldTerrainSelected</b> input action.
+        /// </summary>
+        /// <param name="context">Details about the input action which triggered this event.</param>
+        public void OnMoldTerrainSelected(InputAction.CallbackContext context)
+        {
+            if (!context.performed) return;
+            SwitchActivePower(Power.MOLD_TERRAIN);
+        }
+
+        /// <summary>
+        /// Handles the <b>GuideFollowersSelected</b> input action.
+        /// </summary>
+        /// <param name="context">Details about the input action which triggered this event.</param>
+        public void OnGuideFollowersSelected(InputAction.CallbackContext context)
+        {
+            if (!context.performed) return;
+            SwitchActivePower(Power.GUIDE_FOLLOWERS);
+        }
+
+        /// <summary>
+        /// Handles the <b>EarthquakeSelected</b> input action.
+        /// </summary>
+        /// <param name="context">Details about the input action which triggered this event.</param>
+        public void OnEarthquakeSelected(InputAction.CallbackContext context)
+        {
+            if (!context.performed) return;
+            SwitchActivePower(Power.EARTHQUAKE);
+        }
+
+        /// <summary>
+        /// Handles the <b>SwampSelected</b> input action.
+        /// </summary>
+        /// <param name="context">Details about the input action which triggered this event.</param>
+        public void OnSwampSelected(InputAction.CallbackContext context)
+        {
+            if (!context.performed) return;
+            SwitchActivePower(Power.SWAMP);
+        }
+
+        /// <summary>
+        /// Handles the <b>KnightSelected</b> input action.
+        /// </summary>
+        /// <param name="context">Details about the input action which triggered this event.</param>
+        public void OnKnightSelected(InputAction.CallbackContext context)
+        {
+            if (!context.performed) return;
+            SwitchActivePower(Power.KNIGHT);
+
+            GameController.Instance.CreateKnight(m_Team);
+        }
+
+        /// <summary>
+        /// Handles the <b>VolcanoSelected</b> input action.
+        /// </summary>
+        /// <param name="context">Details about the input action which triggered this event.</param>
+        public void OnVolcanoSelected(InputAction.CallbackContext context)
+        {
+            if (!context.performed) return;
+            SwitchActivePower(Power.VOLCANO);
+        }
+
+        /// <summary>
+        /// Handles the <b>FloodSelected</b> input action.
+        /// </summary>
+        /// <param name="context">Details about the input action which triggered this event.</param>
+        public void OnFloodSelected(InputAction.CallbackContext context)
+        {
+            if (!context.performed) return;
+            SwitchActivePower(Power.FLOOD);
+            GameController.Instance.FloodServerRpc();
+        }
+
+        /// <summary>
+        /// Handles the <b>ArmagheddonSelected</b> input action.
+        /// </summary>
+        /// <param name="context">Details about the input action which triggered this event.</param>
+        public void OnArmagheddonSelected(InputAction.CallbackContext context)
+        {
+            if (!context.performed) return;
+            SwitchActivePower(Power.ARMAGHEDDON);
+        }
+
+        #endregion
+
+
+
+        #region Influence Behaviors
+
+        public void OnGoToFlagSelected(InputAction.CallbackContext context)
+        {
+            if (!context.performed || m_ActiveUnitState == UnitState.GO_TO_FLAG) return;
+            SwitchState(UnitState.GO_TO_FLAG);
+        }
+
+        public void OnSettleSelected(InputAction.CallbackContext context)
+        {
+            if (!context.performed || m_ActiveUnitState == UnitState.SETTLE) return;
+            SwitchState(UnitState.SETTLE);
+        }
+
+        public void OnGatherSelected(InputAction.CallbackContext context)
+        {
+            if (!context.performed || m_ActiveUnitState == UnitState.GATHER) return;
+            SwitchState(UnitState.GATHER);
+        }
+
+        public void OnBattleSelected(InputAction.CallbackContext context)
+        {
+            if (!context.performed || m_ActiveUnitState == UnitState.BATTLE) return;
+            SwitchState(UnitState.BATTLE);
+        }
+
+        private void SwitchState(UnitState state)
+        {
+            m_ActiveUnitState = state;
+            UnitManager.Instance.UnitStateChange/*ServerRpc*/(m_ActiveUnitState, m_Team);
+        }
+
+        #endregion
+
+
+
+        #region Zoom
+
+        public void OnShowLeader(InputAction.CallbackContext context)
+        {
+            if (!context.performed) return;
+            GameController.Instance.ShowLeaderServerRpc(m_Team);
+        }
+
+        public void OnShowFlag(InputAction.CallbackContext context)
+        {
+            if (!context.performed) return;
+            GameController.Instance.ShowFlagServerRpc(m_Team);
+        }
+
+        public void OnShowKnights(InputAction.CallbackContext context)
+        {
+            if (!context.performed) return;
+            GameController.Instance.ShowKnightsServerRpc(m_Team);
+        }
+
+        public void OnShowSettlements(InputAction.CallbackContext context)
+        {
+            if (!context.performed) return;
+            GameController.Instance.ShowSettlementsServerRpc(m_Team);
+        }
+
+        public void OnShowBattles(InputAction.CallbackContext context)
+        {
+            if (!context.performed) return;
+            GameController.Instance.ShowBattlesServerRpc();
         }
 
         #endregion

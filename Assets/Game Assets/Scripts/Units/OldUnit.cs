@@ -76,10 +76,10 @@ public enum UnitStates
 }
 
 
-[RequireComponent(typeof(NetworkObject), typeof(UnitMovementHandler))]
+[RequireComponent(typeof(NetworkObject), typeof(OldUnitMovementHandler))]
 public class OldUnit : NetworkBehaviour, IPlayerObject
 {
-    private UnitMovementHandler MovementHandler { get => GetComponent<UnitMovementHandler>(); }
+    private OldUnitMovementHandler MovementHandler { get => GetComponent<OldUnitMovementHandler>(); }
 
     public IUnitType UnitType { get; private set; }
     public UnitStates UnitState { get; private set; }

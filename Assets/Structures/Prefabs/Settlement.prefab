@@ -354,7 +354,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d405f600ccc48a041b234905abf78e46, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_DrownToDestroy: 0
+  m_DestroyState: 1
   m_SettlementObjects:
   - {fileID: 2145721895016335166}
   - {fileID: 9175907684013792421}

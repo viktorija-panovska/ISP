@@ -72,7 +72,7 @@ namespace Populous
             if (ShouldDestroyStructure())
             {
                 OnStructureDestroyed?.Invoke(this);
-                GameController.Instance.DespawnStructure(gameObject);
+                StructureManager.Instance.DespawnStructure(gameObject);
             }
             else
             {
@@ -159,7 +159,7 @@ namespace Populous
                             field = (Field)structure;
 
                         if (field == null)
-                            field = GameController.Instance.SpawnField(neighborTile, Team);
+                            field = StructureManager.Instance.SpawnField(neighborTile, Team);
 
                         if (!field.IsServingSettlement(this))
                         {
@@ -211,7 +211,7 @@ namespace Populous
                         }
 
                         if (structureType == typeof(Tree))
-                            GameController.Instance.DespawnStructure(structure.gameObject);
+                            StructureManager.Instance.DespawnStructure(structure.gameObject);
 
                         if (structureType == typeof(Field))
                             field = (Field)structure;
@@ -220,7 +220,7 @@ namespace Populous
                     fields++;
 
                     if (field == null)
-                        field = GameController.Instance.SpawnField(neighborTile, Team);
+                        field = StructureManager.Instance.SpawnField(neighborTile, Team);
 
                     if (!field.IsServingSettlement(this))
                     {

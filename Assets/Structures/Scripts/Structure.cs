@@ -7,7 +7,15 @@ namespace Populous
 {
     public class Structure : NetworkBehaviour
     {
-        [SerializeField] protected bool m_DrownToDestroy = false;
+        protected enum DestroyState
+        {
+            NONE,
+            LOWER,
+            WATER
+        }
+
+
+        [SerializeField] protected DestroyState m_DestroyState;
 
         protected Dictionary<MapPoint, int> m_OccupiedPointHeights = new();
         /// <summary>
@@ -34,7 +42,7 @@ namespace Populous
         public virtual void ReactToTerrainChange()
         {
             if (ShouldDestroyStructure())
-                GameController.Instance.DespawnStructure(gameObject);
+                StructureManager.Instance.DespawnStructure(gameObject);
         }
 
         protected bool ShouldDestroyStructure()
@@ -44,32 +52,33 @@ namespace Populous
 
             foreach ((MapPoint point, int height) in m_OccupiedPointHeights)
             {
-                if (m_DrownToDestroy && point.Y > Terrain.Instance.WaterLevel)
+                if (m_DestroyState == DestroyState.WATER && point.Y > Terrain.Instance.WaterLevel)
                     isTileUnderwater = false;
 
                 if (point.Y != height || point.Y <= Terrain.Instance.WaterLevel)
                 {
-                    if (!m_DrownToDestroy)
+                    if (m_DestroyState == DestroyState.LOWER)
                         return true;
                     else
                         hasHeightChanged = true;
                 }
             }
 
-            if (!m_DrownToDestroy)
+            if (m_DestroyState == DestroyState.LOWER)
                 return false;
 
-            if (isTileUnderwater)
+            if (m_DestroyState == DestroyState.WATER && isTileUnderwater)
                 return true;
 
             if (hasHeightChanged)
-                transform.position = new Vector3(
-                    transform.position.x,
-                    Terrain.Instance.GetTileCenterHeight(m_OccupiedTile),
-                    transform.position.z
-                );
+                SetHeightClientRpc(GetType() == typeof(Flag) ? Terrain.Instance.GetPointHeight(m_OccupiedTile) : Terrain.Instance.GetTileCenterHeight(m_OccupiedTile));
 
             return false;
         }
+
+
+        [ClientRpc]
+        private void SetHeightClientRpc(float height) => transform.position = new Vector3(transform.position.x, height, transform.position.z);
+
     }
 }

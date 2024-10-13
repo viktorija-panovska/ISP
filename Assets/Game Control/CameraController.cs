@@ -1,10 +1,11 @@
 using Cinemachine;
 using System.Collections.Generic;
+using Unity.Netcode;
 using UnityEngine;
 
 namespace Populous
 {
-    public class CameraController : MonoBehaviour
+    public class CameraController : NetworkBehaviour
     {
         [SerializeField] private CinemachineVirtualCamera m_VirtualCamera;
         [SerializeField] private Transform m_FollowTarget;
@@ -165,5 +166,12 @@ namespace Populous
         }
 
         #endregion
+
+        [ClientRpc]
+        public void LookAtClientRpc(Vector3 position, ClientRpcParams clientRpcParams = default)
+        {
+            m_FollowTarget.transform.position = new Vector3(position.x, 0, position.z);
+            UpdateVisibleTerrainChunks();
+        }
     }
 }

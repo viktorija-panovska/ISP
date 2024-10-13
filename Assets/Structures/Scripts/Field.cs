@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using UnityEngine;
+
 
 namespace Populous
 {
@@ -26,7 +26,7 @@ namespace Populous
             m_SettlementsServed.Remove(settlement);
 
             if (m_SettlementsServed.Count == 0)
-                GameController.Instance.DespawnStructure(gameObject);
+                StructureManager.Instance.DespawnStructure(gameObject);
         }
 
         public bool IsServingSettlement(Settlement settlement) => m_SettlementsServed.Contains(settlement);

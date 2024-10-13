@@ -8,7 +8,7 @@ public enum Team
     NONE
 }
 
-public class Flag : MonoBehaviour
+public class OldFlag : MonoBehaviour
 {
     public Team Team;
 

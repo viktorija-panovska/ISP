@@ -10,7 +10,6 @@ GameObject:
   m_Component:
   - component: {fileID: 6683531810576895493}
   - component: {fileID: 668264597443835840}
-  - component: {fileID: 4860401230213827968}
   - component: {fileID: 4812332853089367033}
   m_Layer: 8
   m_Name: Tree
@@ -51,32 +50,6 @@ MonoBehaviour:
   AlwaysReplicateAsRoot: 0
   DontDestroyWithOwner: 0
   AutoObjectParentSync: 1
---- !u!114 &4860401230213827968
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4129105199172733369}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e96cb6065543e43c4a752faaa1468eb1, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  SyncPositionX: 0
-  SyncPositionY: 1
-  SyncPositionZ: 0
-  SyncRotAngleX: 0
-  SyncRotAngleY: 0
-  SyncRotAngleZ: 0
-  SyncScaleX: 0
-  SyncScaleY: 0
-  SyncScaleZ: 0
-  PositionThreshold: 0.001
-  RotAngleThreshold: 0.01
-  ScaleThreshold: 0.01
-  InLocalSpace: 0
-  Interpolate: 1
 --- !u!114 &4812332853089367033
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -89,7 +62,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1e54a79372e3b8c418b23775ffa892ba, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_DrownToDestroy: 1
+  m_DestroyState: 2
 --- !u!1001 &2583028345305821497
 PrefabInstance:
   m_ObjectHideFlags: 0

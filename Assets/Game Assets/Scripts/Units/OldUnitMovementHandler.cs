@@ -14,7 +14,7 @@ public enum MoveState
 }
 
 
-public class UnitMovementHandler : NetworkBehaviour
+public class OldUnitMovementHandler : NetworkBehaviour
 {
     private OldUnit Unit { get => GetComponent<OldUnit>(); }
 

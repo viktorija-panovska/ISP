@@ -127,4 +127,4 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b5d2365c9b6c63041b3598483c3e81fa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_DrownToDestroy: 0
+  m_DestroyState: 1

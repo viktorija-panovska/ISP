@@ -99,13 +99,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d405f600ccc48a041b234905abf78e46, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_DrownToDestroy: 0
+  m_DestroyState: 1
   m_SettlementObjects: []
   m_SettlementData: []
   m_SettlementObjectOffset: 5
-  m_HealthBar: {fileID: 0}
-  m_HealthBarFill: {fileID: 0}
-  m_LeaderMarker: {fileID: 0}
+  m_Flag: {fileID: 0}
+  m_FlagColors: []
+  m_LeaderSigns: []
 --- !u!114 &6465482720144728474
 MonoBehaviour:
   m_ObjectHideFlags: 0

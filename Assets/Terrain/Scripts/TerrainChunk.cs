@@ -1,7 +1,4 @@
 using System.Collections.Generic;
-using System.Drawing;
-using System.Linq;
-using Unity.VisualScripting.Antlr3.Runtime.Misc;
 using UnityEngine;
 
 namespace Populous
@@ -313,7 +310,7 @@ namespace Populous
         /// <param name="steps"></param>
         public void ChangeHeights(MapPoint point, bool lower, int steps = 1)
         {
-            (int x, int z) pointInChunk = GetPointInChunk((point.X, point.Z));
+            (int x, int z) pointInChunk = GetPointInChunk((point.TileX, point.TileZ));
 
             List<int> vertices = GetAllVertexIndicesAtPoint(pointInChunk);
 
@@ -334,7 +331,7 @@ namespace Populous
                         tile.z < 0 || tile.z >= Terrain.Instance.TilesPerChunkSide)
                         continue;
 
-                    Structure structure = GetStructureOccupyingTile(point.X + x, point.Z + z);
+                    Structure structure = GetStructureOccupyingTile(point.TileX + x, point.TileZ + z);
                     if (structure != null)
                         structure.ReactToTerrainChange();
                 }
@@ -345,10 +342,11 @@ namespace Populous
             {
                 for (int xOffset = -1; xOffset <= 1; ++xOffset)
                 {
-                    if ((xOffset, zOffset) == (0, 0) || !Terrain.Instance.IsPointInBounds((point.X + xOffset, point.Z + zOffset)))
+                    MapPoint neighbor = new(point.TileX + xOffset, point.TileZ + zOffset);
+
+                    if ((xOffset, zOffset) == (0, 0) || !Terrain.Instance.IsPointInBounds(new(point.TileX + xOffset, point.TileZ + zOffset)))
                         continue;
 
-                    MapPoint neighbor = new(point.X + xOffset, point.Z + zOffset);
 
                     if (Mathf.Abs(point.Y - neighbor.Y) > Terrain.Instance.StepHeight && IsPointInChunk(pointInChunk.x + xOffset, pointInChunk.z + zOffset))
                         Terrain.Instance.ChangePointHeight(neighbor, lower);
@@ -361,7 +359,7 @@ namespace Populous
 
         public void SetVertexHeight(MapPoint point, int height)
         {
-            (int x, int z) pointInChunk = GetPointInChunk((point.X, point.Z));
+            (int x, int z) pointInChunk = GetPointInChunk((point.TileX, point.TileZ));
 
             List<int> vertices = GetAllVertexIndicesAtPoint(pointInChunk);
 

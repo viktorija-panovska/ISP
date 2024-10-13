@@ -55,8 +55,8 @@ namespace Populous
             {
                 Vector2 current = GetNodeWithLowestFCost(nodes, openList);
 
-                if (nodes[current].Location.X == end.X &&
-                    nodes[current].Location.Z == end.Z)
+                if (nodes[current].Location.TileX == end.TileX &&
+                    nodes[current].Location.TileZ == end.TileZ)
                     return GetPath(nodes[current]);
 
                 openList.Remove(current);
@@ -86,7 +86,7 @@ namespace Populous
         }
 
 
-        private static Vector2 GetKey(MapPoint location) => new(location.X, location.Z);
+        private static Vector2 GetKey(MapPoint location) => new(location.TileX, location.TileZ);
 
 
         private static Vector2 GetNodeWithLowestFCost(Dictionary<Vector2, PathNode> allNodes, List<Vector2> openList)
@@ -109,14 +109,18 @@ namespace Populous
             {
                 for (int xOffset = -1; xOffset <= 1; ++xOffset)
                 {
-                    float x = currentNode.Location.X + (xOffset * Chunk.TILE_WIDTH);
-                    float z = currentNode.Location.Z + (zOffset * Chunk.TILE_WIDTH);
+                    if ((xOffset, zOffset) == (0, 0)) continue;
+
+                    int x = currentNode.Location.TileX + xOffset;
+                    int z = currentNode.Location.TileZ + zOffset;
+
+
+                    if (x < 0 || x > Terrain.Instance.TilesPerSide || z < 0 || z > Terrain.Instance.TilesPerSide)
+                        continue;
 
                     MapPoint newLocation = new(x, z);
 
-                    if (x < 0 || x > Terrain.Instance.UnitsPerSide || z < 0 || z > Terrain.Instance.UnitsPerSide ||
-                        Terrain.Instance.IsTileOccupied((newLocation.X, newLocation.Z)) ||
-                        Mathf.Abs(currentNode.Location.Y - newLocation.Y) > Terrain.Instance.StepHeight)
+                    if (!newLocation.IsOnEdge && Terrain.Instance.IsCrossingStructure(currentNode.Location, newLocation))
                         continue;
 
                     Vector2 key = GetKey(newLocation);
@@ -134,8 +138,8 @@ namespace Populous
 
         private static float GetDistanceCost(MapPoint start, MapPoint end)
         {
-            float x = Mathf.Abs(start.X - end.X);
-            float z = Mathf.Abs(start.Z - end.Z);
+            float x = Mathf.Abs(start.TileX - end.TileX);
+            float z = Mathf.Abs(start.TileZ - end.TileZ);
 
             return DIAGONAL_COST * Mathf.Min(x, z) + STRAIGHT_COST * Mathf.Abs(x - z);
         }
@@ -143,8 +147,7 @@ namespace Populous
 
         private static List<MapPoint> GetPath(PathNode endNode)
         {
-            List<MapPoint> path = new();
-            path.Add(endNode.Location);
+            List<MapPoint> path = new() { endNode.Location };
 
             PathNode currentNode = endNode;
             while (currentNode.PrevNode != null)
@@ -168,21 +171,22 @@ namespace Populous
             {
                 for (int xOffset = -1; xOffset <= 1; ++xOffset)
                 {
-                    float x = start.X + (xOffset * Terrain.Instance.UnitsPerTileSide);
-                    float z = start.Z + (zOffset * Terrain.Instance.UnitsPerTileSide);
+                    if ((xOffset, zOffset) == (0, 0)) continue;
 
-                    if (x < 0 || x > Terrain.Instance.UnitsPerSide ||
-                        z < 0 || z > Terrain.Instance.UnitsPerSide)
+                    int x = start.TileX + xOffset;
+                    int z = start.TileZ + zOffset;
+
+                    if (x < 0 || x > Terrain.Instance.TilesPerSide || z < 0 || z > Terrain.Instance.TilesPerSide)
                         continue;
 
                     MapPoint newLocation = new(x, z);
 
-                    if (Mathf.Abs(start.Y - newLocation.Y) > Terrain.Instance.StepHeight)
+                    if (!newLocation.IsOnEdge && Terrain.Instance.IsCrossingStructure(start, newLocation))
                         continue;
 
                     float cost = GetDistanceCost(newLocation, unit);
 
-                    if (cost < minCost)
+                    if (cost <= minCost)
                     {
                         minCost = cost;
                         next = newLocation;
