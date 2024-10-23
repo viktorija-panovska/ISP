@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using Unity.Netcode;
@@ -28,6 +29,7 @@ namespace Populous
 
         public Action<UnitState> OnRedStateChange;
         public Action<UnitState> OnBlueStateChange;
+        public Action<Unit> OnRemoveReferencesToUnit;
 
         private List<Vector2> m_BattlePositions = new();
 
@@ -57,6 +59,8 @@ namespace Populous
 
             Unit unit = unitObject.GetComponent<Unit>();
             GameController.Instance.OnTerrainMoved += unit.RecalculateHeight;
+            OnRemoveReferencesToUnit += unit.RemoveRefrencesToUnit;
+            StructureManager.Instance.OnRemoveReferencesToSettlement += unit.RemoveRefrencesToSettlement;
 
             if (team == Team.RED)
             {
@@ -77,21 +81,28 @@ namespace Populous
 
             //NetworkObject networkUnit = unitObject.GetComponent<NetworkObject>();
             //networkUnit.Spawn(true);
-            //ChangeUnitColorClientRpc(networkUnit.NetworkObjectId, m_UnitColors[(int)team]);
-
+            //SetupUnitClientRpc(networkUnit.NetworkObjectId, team, m_UnitColors[(int)team]);
             //unitObject.transform.parent = gameObject.transform;
+
+            unitObject.GetComponent<MeshRenderer>().material.color = m_UnitColors[(int)team];
             unitObject.name = $"{team} Unit";
+            unitObject.layer = team == Team.RED ? LayerMask.NameToLayer("Red Team") : LayerMask.NameToLayer("Blue Team");
 
             return unitObject;
         }
 
         [ClientRpc]
-        private void ChangeUnitColorClientRpc(ulong unitNetworkId, Color color)
-            => GetNetworkObject(unitNetworkId).GetComponent<MeshRenderer>().material.color = color;
+        private void SetupUnitClientRpc(ulong unitNetworkId, Team team, Color color)
+        {
+            GameObject unitObject = GetNetworkObject(unitNetworkId).gameObject;
+            unitObject.GetComponent<MeshRenderer>().material.color = color;
+            unitObject.name = $"{team} Unit";
+            unitObject.layer = team == Team.RED ? LayerMask.NameToLayer("Red Team") : LayerMask.NameToLayer("Blue Team");
+        }
 
         public void DespawnUnit(GameObject unitObject)
         {
-            if (!IsServer) return;
+            //if (!IsServer) return;
 
             Unit unit = unitObject.GetComponent<Unit>();
             GameController.Instance.OnTerrainMoved -= unit.RecalculateHeight;
@@ -102,12 +113,14 @@ namespace Populous
                 OnBlueStateChange -= unit.SwitchState;
 
             if (unit.IsLeader)
-                SetLeader(null, unit.Team);
+                RemoveLeader(unit.Team);
 
             if (unit.IsKnight)
                 DestroyKnight(unit.Team, unit);
 
-            unitObject.GetComponent<NetworkObject>().Despawn();
+            OnRemoveReferencesToUnit?.Invoke(unit);
+
+            //unitObject.GetComponent<NetworkObject>().Despawn();
             Destroy(unitObject);
         }
 
@@ -245,14 +258,88 @@ namespace Populous
         public Vector3 GetBattlePosition(int index) => m_BattlePositions[index];
         public int GetBattlesNumber() => m_BattlePositions.Count;
 
-        public void StartBattle(Unit a, Unit b)
+        public void StartBattle(Unit red, Unit blue, Settlement settlementDefense = null)
         {
-            m_BattlePositions.Add(new(a.transform.position.x, a.transform.position.z));
+            m_BattlePositions.Add(new(red.transform.position.x, red.transform.position.z));
+
+            red.StartBattle();
+            blue.StartBattle();
+
+            StartCoroutine(Attack(red, blue, settlementDefense));
         }
 
-        public void EndBattle(Unit a, Unit b)
+        public void EndBattle(Unit winner, Unit loser)
         {
-            m_BattlePositions.Remove(new(a.transform.position.x, a.transform.position.z));
+            m_BattlePositions.Remove(
+                winner.Team == Team.RED 
+                ? new(winner.transform.position.x, winner.transform.position.z)
+                : new(loser.transform.position.x, loser.transform.position.z)
+            );
+
+            DespawnUnit(loser.gameObject);
+            winner.EndBattle();
+        }
+
+
+        private IEnumerator Attack(Unit red, Unit blue, Settlement settlementDefense = null)
+        {
+            Random random = new();
+
+            while (true)
+            {
+                int redSpeed = random.Next(1, 21) + red.UnitData.Speed;
+                int blueSpeed = random.Next(1, 21) + blue.UnitData.Speed;
+
+                if (redSpeed > blueSpeed && WasKilled(red, blue) || blueSpeed > redSpeed && WasKilled(blue, red))
+                    break;
+
+                yield return new WaitForSeconds(1);
+            }
+
+            Unit winner = red.CurrentHealth <= 0 ? blue : red;
+            Unit loser = red.CurrentHealth <= 0 ? red : blue;
+
+            if (settlementDefense)
+                HandleSettlementDefense(winner, settlementDefense);
+
+            EndBattle(winner, loser);
+        }
+
+        private bool WasKilled(Unit first, Unit second)
+        {
+            second.TakeDamage(first.UnitData.Strength);
+
+            if (second.CurrentHealth <= 0)
+                return true;
+
+            first.TakeDamage(second.UnitData.Strength);
+
+            if (first.CurrentHealth <= 0)
+                return true;
+
+            return false;
+        }
+
+
+        public void AttackSettlement(Unit unit, Settlement settlement)
+        {
+            settlement.IsAttacked = true;
+            unit.PauseMovement(true);
+            Unit other = SpawnUnit(unit.ClosestMapPoint, settlement.Team, settlement.Type, false).GetComponent<Unit>();
+
+            StartBattle(unit.Team == Team.RED ? unit : other, unit.Team == Team.BLUE ? unit : other, settlement);
+        }
+
+        private void HandleSettlementDefense(Unit winner, Settlement settlement)
+        {
+            if (winner.Team == settlement.Team) return;
+
+            if (winner.IsKnight)
+                settlement.RuinSettlement();
+            else
+                StructureManager.Instance.SwitchTeam(settlement, winner.Team);
+
+            settlement.IsAttacked = false;
         }
 
         #endregion

@@ -1,7 +1,6 @@
-using Microsoft.Win32.SafeHandles;
-using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using UnityEngine;
 using Random = System.Random;
 
@@ -356,7 +355,15 @@ namespace Populous
             => GetChunkByIndex(chunkIndex).GetTileCenterHeight(tile);
 
         public List<MapPoint> GetTilePoints((int x, int z) tile)
-            => new() { new(tile.x, tile.z), new(tile.x + 1, tile.z), new(tile.x, tile.z + 1), new(tile.x + 1, tile.z + 1) };
+        {
+            if (tile.x >= TilesPerSide)
+                tile.x -= 1;
+
+            if (tile.z >= TilesPerSide)
+                tile.z -= 1;
+
+            return new() { new(tile.x, tile.z), new(tile.x + 1, tile.z), new(tile.x, tile.z + 1), new(tile.x + 1, tile.z + 1) };
+        }
 
         public Structure GetStructureOccupyingTile((int x, int z) tile)
             => GetChunkByIndex(GetChunkIndex(tile)).GetStructureOccupyingTile(tile.x, tile.z);
@@ -427,6 +434,41 @@ namespace Populous
             => GetChunkByIndex(chunk).IsTileOccupied(tile.x, tile.z);
 
         /// <summary>
+        /// Tests whether the given tile is occupied by some structure or not.
+        /// </summary>
+        /// <param name="tile">The coordinates of the tile.</param>
+        /// <returns>True if there is a structure occupying the tile, false otherwise.</returns>
+        public bool HasTileAccessibleSettlement((int x, int z) tile, Team team)
+            => GetChunkByIndex(GetChunkIndex(tile)).HasTileAccessibleSettlement(tile.x, tile.z, team);
+
+        /// <summary>
+        /// Tests whether the given tile is occupied by some structure or not.
+        /// </summary>
+        /// <param name="chunk">The index of the chunk the tile is in.</param>
+        /// <param name="tile">The coordinates of the tile.</param>
+        /// <returns>True if there is a structure occupying the tile, false otherwise.</returns>
+        public bool HasTileAccessibleSettlement((int x, int z) chunk, (int x, int z) tile, Team team)
+            => GetChunkByIndex(chunk).HasTileAccessibleSettlement(tile.x, tile.z, team);
+
+        /// <summary>
+        /// Tests whether the given tile is occupied by some structure or not.
+        /// </summary>
+        /// <param name="tile">The coordinates of the tile.</param>
+        /// <returns>True if there is a structure occupying the tile, false otherwise.</returns>
+        public bool HasTileEnemySettlement((int x, int z) tile, Team team)
+            => GetChunkByIndex(GetChunkIndex(tile)).HasTileEnemySettlement(tile.x, tile.z, team);
+
+        /// <summary>
+        /// Tests whether the given tile is occupied by some structure or not.
+        /// </summary>
+        /// <param name="chunk">The index of the chunk the tile is in.</param>
+        /// <param name="tile">The coordinates of the tile.</param>
+        /// <returns>True if there is a structure occupying the tile, false otherwise.</returns>
+        public bool HasTileEnemySettlement((int x, int z) chunk, (int x, int z) tile, Team team)
+            => GetChunkByIndex(chunk).HasTileEnemySettlement(tile.x, tile.z, team);
+
+
+        /// <summary>
         /// 
         /// </summary>
         /// <param name="tile"></param>
@@ -462,11 +504,27 @@ namespace Populous
             int dx = newLocation.TileX - location.TileX;
             int dz = newLocation.TileZ - location.TileZ;
 
-            if (Mathf.Abs(dx) != Mathf.Abs(dz) ||
-                dx > 0 && dz > 0 && !IsTileOccupied((location.TileX, location.TileZ)) ||
-                dx > 0 && dz < 0 && location.TileZ - 1 >= 0 && !IsTileOccupied((location.TileX, location.TileZ - 1)) ||
-                dx < 0 && dz > 0 && location.TileX - 1 >= 0 && !IsTileOccupied((location.TileX - 1, location.TileZ)) ||
-                dx < 0 && dz < 0 && location.TileX - 1 >= 0 && location.TileZ - 1 >= 0 && !IsTileOccupied((location.TileX - 1, location.TileZ - 1)))
+            if (Mathf.Abs(dx) != Mathf.Abs(dz))
+                return false;
+
+            int x = location.TileX;
+            int z = location.TileZ;
+
+            if (dx > 0 && dz < 0)
+                z -= 1;
+            else if (dx < 0 && dz > 0)
+                x -= 1;
+            else if (dx < 0 && dz < 0)
+            {
+                x -= 1;
+                z -= 1;
+            }
+
+            if (x < 0 || z < 0)
+                return true;
+
+            Structure structure = GetStructureOccupyingTile((x, z));
+            if (structure == null || structure.GetType() == typeof(Field))
                 return false;
 
             return true;

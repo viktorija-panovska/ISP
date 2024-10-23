@@ -70,22 +70,22 @@ namespace Populous
 
         private readonly (float x, float z)[] m_VertexOffsets = new (float x, float z)[]
         {
-        (0, 0), (1, 0), (1, 1), (0, 1), (0.5f, 0.5f)
+            (0, 0), (1, 0), (1, 1), (0, 1), (0.5f, 0.5f)
         };
         private readonly int[] m_TriangleIndices = new int[]
         {
-        0, 4, 1,    // bottom left, center, bottom right
-        1, 4, 2,    // bottom right, center, top right
-        2, 4, 3,    // top right, center, top left
-        3, 4, 0     // top left, center, bottom left
+            0, 4, 1,    // bottom left, center, bottom right
+            1, 4, 2,    // bottom right, center, top right
+            2, 4, 3,    // top right, center, top left
+            3, 4, 0     // top left, center, bottom left
         };
         private readonly List<int>[] m_SharedVertexOffsets = new List<int>[5]
         {
-        new() { 0, 11 },        // bottom left
-        new() { 2, 3  },        // bottom right
-        new() { 8, 9 },         // top left
-        new() { 5, 6 },         // top right
-        new() { 1, 4, 7, 10 }   // center
+            new() { 0, 11 },        // bottom left
+            new() { 2, 3  },        // bottom right
+            new() { 8, 9 },         // top left
+            new() { 5, 6 },         // top right
+            new() { 1, 4, 7, 10 }   // center
         };
 
         private Structure[,] m_IsTileOccupied = new Structure[Terrain.Instance.TilesPerChunkSide, Terrain.Instance.TilesPerChunkSide];
@@ -116,7 +116,7 @@ namespace Populous
 
             SetVisibility(false);
             m_MeshData = GenerateMeshData();
-            //SetVertexHeights();
+            SetVertexHeights();
             SetMesh();
         }
 
@@ -505,6 +505,26 @@ namespace Populous
             (int x, int z) inChunk = GetPointInChunk((x, z));
             return m_IsTileOccupied[inChunk.z, inChunk.x];
         }
+
+        public bool HasTileAccessibleSettlement(int x, int z, Team team)
+        {
+            (int x, int z) inChunk = GetPointInChunk((x, z));
+            if (!m_IsTileOccupied[inChunk.z, inChunk.x] || m_IsTileOccupied[inChunk.z, inChunk.x].GetType() != typeof(Settlement))
+                return false;
+
+            Settlement settlement = (Settlement)m_IsTileOccupied[inChunk.z, inChunk.x];
+            return settlement.Team == team && settlement.HasSpace;
+        }
+
+        public bool HasTileEnemySettlement(int x, int z, Team team)
+        {
+            (int x, int z) inChunk = GetPointInChunk((x, z));
+            if (!m_IsTileOccupied[inChunk.z, inChunk.x] || m_IsTileOccupied[inChunk.z, inChunk.x].GetType() != typeof(Settlement))
+                return false;
+
+            return ((Settlement)m_IsTileOccupied[inChunk.z, inChunk.x]).Team != team;
+        }
+
 
         public bool IsTileFlat((int x, int z) tile)
         {

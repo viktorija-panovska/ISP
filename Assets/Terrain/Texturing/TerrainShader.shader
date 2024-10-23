@@ -36,9 +36,9 @@ Shader "Custom/TerrainShader"
         {
             float3 scaledWorldPos = IN.worldPos / _TextureScale;
 
-            if (IN.worldPos.y >= waterLevel + 10)
+            if (IN.worldPos.y >= waterLevel + 5)
                 o.Albedo = tex2D(_LandTexture, scaledWorldPos.xz);
-            else if (IN.worldPos.y > waterLevel + 3 && IN.worldPos.y < waterLevel + 10)
+            else if (IN.worldPos.y > waterLevel + 1 && IN.worldPos.y < waterLevel + 5)
                 o.Albedo = tex2D(_SandTexture, scaledWorldPos.xz);
             else 
                 o.Albedo = tex2D(_WaterTexture, scaledWorldPos.xz);

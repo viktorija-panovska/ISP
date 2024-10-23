@@ -11,29 +11,46 @@ namespace Populous
         [SerializeField] private GameObject[] m_SettlementObjects;
         [SerializeField] private SettlementData[] m_SettlementData;
         [SerializeField] private int m_SettlementObjectOffset = 5;
+        [SerializeField] private GameObject m_RuinedSettlement;
 
         [Header("Flag")]
-        [SerializeField] private GameObject m_Flag;
+        [SerializeField] private GameObject[] m_Flags;
         [SerializeField] private Color[] m_FlagColors;
         [SerializeField] private GameObject[] m_LeaderSigns;
 
         public new Team Team 
         { 
-            get => m_Team; 
-            set { 
+            get => m_Team;
+            set
+            {
+                m_Flags[(int)m_Team].SetActive(false);//.GetComponent<ObjectActivator>().SetActiveClientRpc(false);
+
                 m_Team = value;
-                m_Flag.GetComponent<MeshRenderer>().materials[1].color = m_FlagColors[(int)m_Team];
+
+                if (m_Team != Team.NONE)
+                    m_Flags[(int)m_Team].SetActive(true);//.GetComponent<ObjectActivator>().SetActiveClientRpc(false);
             }
         }
 
         private int m_CurrentSettlementIndex;
         private SettlementData m_CurrentSettlementData;
 
+        public SettlementType Type { get => m_CurrentSettlementData.Type; }
+
         private int m_Health;
         private int m_UnitsInHouse;
         private bool m_ContainsLeader;
 
+        public bool HasSpace { get => m_UnitsInHouse < m_CurrentSettlementData.FollowerCapacity; }
+
         private Action<Settlement> OnStructureDestroyed;
+        private Action OnSettlementRuined;
+
+        private bool m_IsAttacked;
+        public bool IsAttacked { get => m_IsAttacked; set => m_IsAttacked = value; }
+
+        private bool m_IsRuined;
+        public bool IsRuined { get => m_IsRuined; }
 
 
         public void Start()
@@ -47,12 +64,17 @@ namespace Populous
                     scaleY: true
                 );
 
-            m_Flag.transform.position = new Vector3(0, m_SettlementObjects[0].transform.position.y, 0);
-            m_Flag.transform.localScale = new Vector3(
-                m_Flag.transform.localScale.x * (m_SettlementObjects[0].transform.localScale.x / startingScale.x),
-                m_Flag.transform.localScale.y * (m_SettlementObjects[0].transform.localScale.y / startingScale.y),
-                m_Flag.transform.localScale.z * (m_SettlementObjects[0].transform.localScale.z / startingScale.z)
-            );
+            GameUtils.ResizeGameObject(m_RuinedSettlement, Terrain.Instance.UnitsPerTileSide, scaleY: true);
+
+            foreach (GameObject flag in m_Flags)
+            {
+                flag.transform.position = new Vector3(0, m_SettlementObjects[0].transform.position.y, 0);
+                flag.transform.localScale = new Vector3(
+                    flag.transform.localScale.x * (m_SettlementObjects[0].transform.localScale.x / startingScale.x),
+                    flag.transform.localScale.y * (m_SettlementObjects[0].transform.localScale.y / startingScale.y),
+                    flag.transform.localScale.z * (m_SettlementObjects[0].transform.localScale.z / startingScale.z)
+                );
+            }
 
             foreach (GameObject sign in m_LeaderSigns)
             {
@@ -74,7 +96,7 @@ namespace Populous
                 OnStructureDestroyed?.Invoke(this);
                 StructureManager.Instance.DespawnStructure(gameObject);
             }
-            else
+            else if (!m_IsRuined)
             {
                 UpdateType();
             }
@@ -86,12 +108,26 @@ namespace Populous
         }
 
 
+        private void OnTriggerEnter(Collider other)
+        {
+            Unit unit = other.GetComponent<Unit>();
+            if (!unit) return;
+
+            if (unit.Team == m_Team)
+            {
+
+            }
+
+            if (unit.Team != m_Team && !IsAttacked)
+                UnitManager.Instance.AttackSettlement(unit, this);
+        }
+
 
         #region Settlement Type
 
         public void UpdateType()
         {
-            if (!GameController.Instance.IsPlayerHosting) return;
+            //if (!GameController.Instance.IsPlayerHosting) return;
 
             int fields = CreateFields();
             int settlementIndex = Mathf.Clamp(Mathf.CeilToInt((fields + 1) / 2f), 0, m_SettlementData.Length);
@@ -102,7 +138,7 @@ namespace Populous
 
             if (m_CurrentSettlementData != null)
             {
-                m_SettlementObjects[m_CurrentSettlementIndex].GetComponent<ObjectActivator>().SetActiveClientRpc(false);
+                m_SettlementObjects[m_CurrentSettlementIndex].SetActive(false);//.GetComponent<ObjectActivator>().SetActiveClientRpc(false);
 
                 if (m_CurrentSettlementData.Type == SettlementType.CITY)
                 {
@@ -130,18 +166,14 @@ namespace Populous
             m_CurrentSettlementData = newSettlement;
             m_Health = newSettlement.MaxHealth;
 
-            m_SettlementObjects[m_CurrentSettlementIndex].GetComponent<ObjectActivator>().SetActiveClientRpc(true);
+            Debug.Log(m_CurrentSettlementIndex);
+            m_SettlementObjects[m_CurrentSettlementIndex].SetActive(true);//.GetComponent<ObjectActivator>().SetActiveClientRpc(true);
 
+            Vector3 size = new (Terrain.Instance.UnitsPerTileSide, 1, Terrain.Instance.UnitsPerTileSide);
+            GetComponent<BoxCollider>().size = m_CurrentSettlementData.Type != SettlementType.CITY ? size : new Vector3(3 * size.x, size.y, 3 * size.z);
 
-            UpdateColliderClientRpc(
-                m_CurrentSettlementData.Type, 
-                new Vector3(
-                    Terrain.Instance.UnitsPerTileSide - m_SettlementObjectOffset, 
-                    1, 
-                    Terrain.Instance.UnitsPerTileSide - m_SettlementObjectOffset
-                )
-            );
-            
+            //UpdateColliderClientRpc(m_CurrentSettlementData.Type != SettlementType.CITY ? size : new Vector3(3 * size.x, size.y, 3 * size.z));
+
             if (m_CurrentSettlementData.Type == SettlementType.CITY)
             {
                 // fill in the blank spaces between the parallels and diagonals
@@ -159,7 +191,7 @@ namespace Populous
                             field = (Field)structure;
 
                         if (field == null)
-                            field = StructureManager.Instance.SpawnField(neighborTile, Team);
+                            field = StructureManager.Instance.SpawnField(neighborTile, m_Team);
 
                         if (!field.IsServingSettlement(this))
                         {
@@ -173,8 +205,8 @@ namespace Populous
         }
 
         [ClientRpc]
-        private void UpdateColliderClientRpc(SettlementType settlement, Vector3 size, ClientRpcParams clientRpcParams = default)
-            => GetComponent<BoxCollider>().size = settlement != SettlementType.CITY ? size : new Vector3(3 * size.x, size.y, 3 * size.z);
+        private void UpdateColliderClientRpc(Vector3 size, ClientRpcParams clientRpcParams = default)
+            => GetComponent<BoxCollider>().size = size;
 
         // Count surrounding flat spaces (and set them to fields) in 5x5 space around the settlement
         private int CreateFields()
@@ -201,7 +233,7 @@ namespace Populous
                         Type structureType = structure.GetType();
 
                         if (structureType == typeof(Swamp) || structureType == typeof(Settlement) ||
-                            (structureType == typeof(Field) && ((Field)structure).Team != Team))
+                            (structureType == typeof(Field) && ((Field)structure).Team != m_Team))
                             continue;
 
                         if (structureType == typeof(Rock))
@@ -220,12 +252,13 @@ namespace Populous
                     fields++;
 
                     if (field == null)
-                        field = StructureManager.Instance.SpawnField(neighborTile, Team);
+                        field = StructureManager.Instance.SpawnField(neighborTile, m_Team);
 
                     if (!field.IsServingSettlement(this))
                     {
                         field.AddSettlementServed(this);
                         OnStructureDestroyed += field.OnSettlementRemoved;
+                        OnSettlementRuined += field.RuinField;
                         field.OnFieldDestroyed += UpdateType;
                     }
                 }
@@ -239,8 +272,40 @@ namespace Populous
             OnStructureDestroyed -= field.OnSettlementRemoved;
         }
 
+        public void RuinSettlement()
+        {
+            m_IsRuined = true;
+            Team = Team.NONE;
+
+            if (m_CurrentSettlementData != null)
+            {
+                m_SettlementObjects[m_CurrentSettlementIndex].SetActive(false);//.GetComponent<ObjectActivator>().SetActiveClientRpc(false);
+                m_CurrentSettlementData = null;
+            }
+
+            m_RuinedSettlement.SetActive(true);//.GetComponent<ObjectActivator>().SetActiveClientRpc(true);
+
+            //UpdateColliderClientRpc(Vector3.zero);
+            GetComponent<BoxCollider>().size = Vector3.zero;
+
+            OnSettlementRuined?.Invoke();
+        }
+
+
         #endregion
 
+
+        #region Units
+
+        public void AddUnit(bool isLeader)
+        {
+            Debug.Log("Unit");
+            m_UnitsInHouse++;
+            if (isLeader) AddLeader();
+        }
+
+
+        #endregion
 
 
         #region HealthBar
@@ -286,7 +351,7 @@ namespace Populous
 
         #region Leader
 
-        public void MakeLeader()
+        public void AddLeader()
         {
             m_ContainsLeader = true;
             m_LeaderSigns[(int)m_Team].GetComponent<ObjectActivator>().SetActiveClientRpc(true);

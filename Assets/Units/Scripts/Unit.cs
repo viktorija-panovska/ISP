@@ -16,6 +16,13 @@ namespace Populous
     {
         [SerializeField] private GameObject[] m_LeaderSigns;
         [SerializeField] private GameObject m_Sword;
+        [SerializeField] private UnitBattleDetector m_BattleDetector;
+        [SerializeField] private UnitAreaScanner m_AreaScanner;
+        [SerializeField] private UnitProximityDetector m_ProximityDetector;
+
+        [SerializeField] private int m_BattleDetectorRadius = 15;
+        [SerializeField] private int m_AreaScannerTilesPerSide = 20;
+        [SerializeField] private int m_ProximityDetectorTilesPerSide = 1;
 
         private Team m_Team;
         public Team Team { get => m_Team; }
@@ -24,24 +31,30 @@ namespace Populous
         public UnitData UnitData { get => m_UnitData; }
 
         private bool m_IsLeader;
-        public bool IsLeader 
+        public bool IsLeader
         {
-            get => m_IsLeader; 
+            get => m_IsLeader;
             set { m_IsLeader = value; m_LeaderSigns[(int)m_Team].GetComponent<ObjectActivator>().SetActiveClientRpc(m_IsLeader); }
         }
 
         private bool m_IsKnight;
         public bool IsKnight { get => m_IsKnight; set => m_IsKnight = value; }
 
+        private bool m_IsBattling;
+        public bool IsBattling { get => m_IsBattling; set => m_IsBattling = value; }
+
         public MapPoint ClosestMapPoint { get => new(gameObject.transform.position.x, gameObject.transform.position.z); }
 
         private UnitState m_LastState;
+        public UnitState LastState { get => m_LastState; }
+
         private UnitState m_CurrentState;
         public UnitState CurrentState { get => m_CurrentState; }
 
         private UnitMovementHandler m_MovementHandler;
 
         private int m_CurrentHealth;
+        public int CurrentHealth { get => m_CurrentHealth; }
 
 
         public void Setup(Team team, UnitData unitData)
@@ -52,6 +65,10 @@ namespace Populous
 
             m_MovementHandler = GetComponent<UnitMovementHandler>();
             m_MovementHandler.InitializeMovement();
+
+            m_BattleDetector.Setup(this);
+            m_AreaScanner.Setup(team, m_AreaScannerTilesPerSide);
+            m_ProximityDetector.Setup(this, m_ProximityDetectorTilesPerSide);
         }
 
 
@@ -68,7 +85,7 @@ namespace Populous
             {
                 float heightDifference = Mathf.Abs(endHeight - startHeight);
                 float totalDistance = new Vector2(
-                    m_MovementHandler.EndLocation.X - m_MovementHandler.StartLocation.X, 
+                    m_MovementHandler.EndLocation.X - m_MovementHandler.StartLocation.X,
                     m_MovementHandler.EndLocation.Z - m_MovementHandler.StartLocation.Z
                 ).magnitude;
 
@@ -80,6 +97,7 @@ namespace Populous
                 height = startHeight < endHeight ? startHeight + height : endHeight + height;
             }
 
+            // TODO: ones on the edges shouldn't disappear if they haven't been sunk
             if (height <= Terrain.Instance.WaterLevel)
                 UnitManager.Instance.DespawnUnit(gameObject);
             else
@@ -89,14 +107,44 @@ namespace Populous
         [ClientRpc]
         private void SetHeightClientRpc(float height) => transform.position = new Vector3(transform.position.x, height, transform.position.z);
 
-        [ClientRpc]
-        public void RotateClientRpc(Vector3 lookPosition) => transform.rotation = Quaternion.LookRotation(lookPosition);
+        //[ClientRpc]
+        public void Rotate/*ClientRpc*/(Vector3 lookPosition) => transform.rotation = Quaternion.LookRotation(lookPosition);
 
+
+        public void StartBattle()
+        {
+            m_IsBattling = true;
+            m_MovementHandler.Pause(true);
+        }
+
+        public void EndBattle()
+        {
+            m_IsBattling = false;
+            m_MovementHandler.Pause(false);
+        }
+
+        public void TakeDamage(int damage) => m_CurrentHealth -= damage;
+
+        public void PauseMovement(bool pause) => m_MovementHandler.Pause(pause);
+
+
+        public Vector3 GetRoamingDirection() => m_AreaScanner.GetAverageDirection();
+
+        public void NewTargetAcquired(GameObject target)
+        {
+            if (target.GetComponent<Unit>() != null)
+                m_MovementHandler.FollowUnit(target.GetComponent<Unit>());
+        }
+
+        public void TargetLost(GameObject target)
+        {
+            if (target.GetComponent<Unit>() != null)
+                m_MovementHandler.StopFollowingUnit(target.GetComponent<Unit>());
+        }
 
         public void GoToFlag()
         {
-            if (m_CurrentState != UnitState.GO_TO_FLAG)
-                return;
+            if (m_CurrentState != UnitState.GO_TO_FLAG) return;
 
             m_MovementHandler.FlagReached = false;
 
@@ -111,10 +159,22 @@ namespace Populous
 
         public void FlagReached()
         {
-            if (m_CurrentState != UnitState.GO_TO_FLAG)
-                return;
-
+            if (m_CurrentState != UnitState.GO_TO_FLAG) return;
             m_MovementHandler.FlagReached = true;
+        }
+
+
+        public void RemoveRefrencesToUnit(Unit unit)
+        {
+            m_AreaScanner.RemoveUnit(unit);
+            m_MovementHandler.StopFollowingUnit(unit);
+            m_ProximityDetector.RemoveTarget(unit.gameObject);
+        }
+
+        public void RemoveRefrencesToSettlement(Settlement settlement)
+        {
+            m_AreaScanner.RemoveSettlement(settlement);
+            m_ProximityDetector.RemoveTarget(settlement.gameObject);
         }
 
 
@@ -122,11 +182,15 @@ namespace Populous
 
         public void SwitchState(UnitState state)
         {
+            if (state == m_CurrentState) return;
+
             m_LastState = m_CurrentState;
             m_CurrentState = state;
 
-            if (m_LastState == UnitState.BATTLE)
-                ShowSword(false);
+            m_ProximityDetector.StateChange(state);
+            m_AreaScanner.StateChange(state);
+
+            m_MovementHandler.StopFollowingUnit();
 
             switch (m_CurrentState)
             {
@@ -135,13 +199,14 @@ namespace Populous
                     break;
 
                 case UnitState.SETTLE:
+                    m_MovementHandler.RoamToSettle();
                     break;
 
                 case UnitState.GATHER:
                     break;
 
                 case UnitState.BATTLE:
-                    ShowSword(true);
+                    m_MovementHandler.RoamToBattle();
                     break;
             }
         }

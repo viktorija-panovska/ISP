@@ -22,12 +22,16 @@ namespace Populous
         public static PlayerController Instance { get => m_Instance; }
 
         private Team m_Team;
+        public Team Team { get => m_Team; }
 
         private bool m_IsPaused;
         /// <summary>
         /// Gets a value indicating whether the game is paused.
         /// </summary>
         public bool IsPaused { get => m_IsPaused; }
+
+        private int m_VisibleUnitsAndStructures;
+        public int VisibleUnitsAndStructures { get => m_VisibleUnitsAndStructures; set => m_VisibleUnitsAndStructures = value; }
 
 
         private float m_Manna;
@@ -208,15 +212,9 @@ namespace Populous
         {
             if (Mathf.Abs(Mathf.Round(point.x / Terrain.Instance.UnitsPerTileSide) - point.x / Terrain.Instance.UnitsPerTileSide) > m_ClickerError ||
                 Mathf.Abs(Mathf.Round(point.z / Terrain.Instance.UnitsPerTileSide) - point.z / Terrain.Instance.UnitsPerTileSide) > m_ClickerError ||
-                (m_ActivePower == Power.MOLD_TERRAIN && !CanSeeAllies()))
+                (m_ActivePower == Power.MOLD_TERRAIN && m_VisibleUnitsAndStructures <= 0))
                 return false;
 
-            return true;
-        }
-
-        private bool CanSeeAllies()
-        {
-            // TODO implement
             return true;
         }
 

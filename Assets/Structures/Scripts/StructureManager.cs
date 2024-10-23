@@ -21,7 +21,6 @@ namespace Populous
         [SerializeField] private GameObject m_FieldPrefab;
 
         [Header("Settlements")]
-        [SerializeField] private GameObject m_RuinedSettlementPrefab;
         [SerializeField] private GameObject m_SettlementPrefab;
 
         [Header("Trees and Rocks Properties")]
@@ -35,6 +34,9 @@ namespace Populous
         private GameObject[] m_Flags;
         private List<(int x, int z)>[] m_SettlementTiles = new List<(int x, int z)>[] { new(), new() };
 
+        public Action<Settlement> OnRemoveReferencesToSettlement;
+
+
 
         private void Awake()
         {
@@ -47,7 +49,6 @@ namespace Populous
         private void Start()
         {
             GameUtils.ResizeGameObject(m_SwampPrefab, Terrain.Instance.UnitsPerTileSide);
-            GameUtils.ResizeGameObject(m_RuinedSettlementPrefab, Terrain.Instance.UnitsPerTileSide - 5f, scaleY: true);
 
             foreach (GameObject flag in m_FlagPrefabs)
                 GameUtils.ResizeGameObject(flag, 10, scaleY: true);
@@ -82,9 +83,23 @@ namespace Populous
             GameController.Instance.OnFlood += structure.ReactToTerrainChange;
 
             if (structure.GetType() == typeof(Settlement))
+            {
                 AddSettlementPosition(structure.OccupiedTile, team);
+                //SetupSettlementClientRpc(structureObject.GetComponent<NetworkObject>().NetworkObjectId, $"{team} Settlement", LayerMask.NameToLayer(GameController.Instance.TeamLayers[(int)team]));
+                structureObject.name = $"{team} Settlement";
+                structureObject.layer = LayerMask.NameToLayer(GameController.Instance.TeamLayers[(int)team]);
+            }
 
             return structureObject;
+        }
+
+
+        [ClientRpc]
+        private void SetupSettlementClientRpc(ulong unitNetworkId, string name, int layer)
+        {
+            GameObject settlementObject = GetNetworkObject(unitNetworkId).gameObject;
+            settlementObject.name = name;
+            settlementObject.layer = layer;
         }
 
 
@@ -107,7 +122,10 @@ namespace Populous
             Terrain.Instance.SetOccupiedTile(structure.OccupiedTile, null);
 
             if (structure.GetType() == typeof(Settlement))
+            {
                 RemoveSettlementPosition(structure.OccupiedTile, structure.Team);
+                OnRemoveReferencesToSettlement?.Invoke((Settlement)structure);
+            }
 
             structure.Cleanup();
             structure.GetComponent<NetworkObject>().Despawn();
@@ -116,6 +134,31 @@ namespace Populous
 
 
         #region Settlements
+
+        public void CreateSettlement(MapPoint tile, Team team)
+            => SpawnStructure(m_SettlementPrefab, (tile.TileX, tile.TileZ), tile.TileCorners, team);
+
+        public void EnterSettlement(MapPoint tile, Unit unit)
+        {
+            Settlement settlement = (Settlement)Terrain.Instance.GetStructureOccupyingTile((tile.TileX, tile.TileZ));
+            settlement.AddUnit(unit.IsLeader);
+            UnitManager.Instance.DespawnUnit(unit.gameObject);
+        }
+
+        public void SwitchTeam(Settlement settlement, Team team)
+        {
+            settlement.Team = team;
+            //SetupSettlementClientRpc(settlement.GetComponent<NetworkObject>().NetworkObjectId, $"{team} Settlement", LayerMask.NameToLayer(GameController.Instance.TeamLayers[(int)team]));
+
+            settlement.gameObject.name = $"{team} Settlement";
+            settlement.gameObject.layer = LayerMask.NameToLayer(GameController.Instance.TeamLayers[(int)team]);
+        }
+
+        public void RuinSettlement(Settlement settlement)
+        {
+            settlement.RuinSettlement();
+            SwitchTeam(settlement, Team.NONE);
+        }
 
         public (int x, int z) GetSettlementTile(int index, Team team) => m_SettlementTiles[(int)team][index];
 
@@ -140,7 +183,7 @@ namespace Populous
 
         public Field SpawnField((int x, int z) tile, Team team)
         {
-            if (!IsServer) return null;
+            //if (!IsServer) return null;
 
             Field field = SpawnStructure(m_FieldPrefab, tile, Terrain.Instance.GetTilePoints(tile)).GetComponent<Field>();
             field.Team = team;

@@ -9,6 +9,9 @@ namespace Populous
     {
         [SerializeField] private CinemachineVirtualCamera m_VirtualCamera;
         [SerializeField] private Transform m_FollowTarget;
+        [SerializeField] private BoxCollider m_DetectionZone;
+
+        [Header("Movement")]
         [SerializeField] private float m_MovementSpeed;
         [SerializeField] private float m_RotationSpeed;
         [SerializeField] private float m_ZoomSpeed;
@@ -55,6 +58,11 @@ namespace Populous
             m_Instance = this;
         }
 
+        private void Start()
+        {
+            ResizeViewport();
+        }
+
         private void Update()
         {
             if (m_Movement != Vector3.zero)
@@ -68,6 +76,20 @@ namespace Populous
         }
 
         #endregion
+
+
+        private void ResizeViewport()
+        {
+            // Calculate the planes from the main camera's view frustum
+            Plane[] planes = GeometryUtility.CalculateFrustumPlanes(Camera.main);
+
+            float sizeX = planes[0].distance + planes[1].distance;
+            float sizeY = planes[2].distance + planes[3].distance;
+            float sizeZ = planes[4].distance + planes[5].distance;
+
+            m_DetectionZone.size = new Vector3(sizeX, sizeY, sizeZ);
+            m_DetectionZone.center = new Vector3(m_DetectionZone.center.x, m_DetectionZone.center.y, sizeZ / 2);
+        }
 
 
         /// <summary>
@@ -163,9 +185,11 @@ namespace Populous
                 m_MaxZoomOut
             );
             UpdateVisibleTerrainChunks();
+            ResizeViewport();
         }
 
         #endregion
+
 
         [ClientRpc]
         public void LookAtClientRpc(Vector3 position, ClientRpcParams clientRpcParams = default)

@@ -18,5 +18,8 @@ namespace Populous
             scale.z = min;
             gameObject.transform.localScale = scale;
         }
+
+        public static int NextArrayIndex(int start, int increment, int arrayLength)
+            => (start + increment + arrayLength) % arrayLength;
     }
 }

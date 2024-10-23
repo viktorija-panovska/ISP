@@ -38,7 +38,7 @@ namespace Populous
             newScale.z = newSize * newScale.z / size.z;
 
             transform.localScale = newScale;
-            transform.position = new Vector3(Terrain.Instance.UnitsPerSide / 2, 3, Terrain.Instance.UnitsPerSide / 2);
+            transform.position = new Vector3(Terrain.Instance.UnitsPerSide / 2, 1, Terrain.Instance.UnitsPerSide / 2);
         }
 
 

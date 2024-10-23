@@ -1,7 +1,7 @@
 using UnityEngine;
 using System.Collections.Generic;
 
-public class UnitEnemyDetector : MonoBehaviour
+public class OldUnitEnemyDetector : MonoBehaviour
 {
     public OldUnit Unit;
     private GameObject target;

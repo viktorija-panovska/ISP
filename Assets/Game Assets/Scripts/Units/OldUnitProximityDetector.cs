@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public class UnitProximityDetector : MonoBehaviour
+public class OldUnitProximityDetector : MonoBehaviour
 {
     public OldUnit Unit;
 

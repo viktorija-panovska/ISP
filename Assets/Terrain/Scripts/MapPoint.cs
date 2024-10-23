@@ -2,6 +2,9 @@ using System.Collections.Generic;
 using System;
 using Unity.Netcode;
 using UnityEngine;
+using static UnityEditor.Searcher.SearcherWindow.Alignment;
+using UnityEngine.UIElements;
+using Unity.VisualScripting;
 
 namespace Populous
 {
@@ -55,6 +58,16 @@ namespace Populous
             }
         }
 
+        private List<MapPoint> m_TileCorners;
+        public List<MapPoint> TileCorners
+        {
+            get
+            {
+                m_TileCorners ??= GetTileCorners();
+                return m_TileCorners;
+            }
+        }
+
         public readonly bool IsOnEdge { get => m_TileX == Terrain.Instance.TilesPerSide || m_TileZ == Terrain.Instance.TilesPerSide; }
 
         public readonly Vector3 TileCenter 
@@ -77,6 +90,9 @@ namespace Populous
         public MapPoint(float x, float z)
             : this(Mathf.RoundToInt(x / Terrain.Instance.UnitsPerTileSide), Mathf.RoundToInt(z / Terrain.Instance.UnitsPerTileSide)) { }
 
+        public MapPoint((int x, int z) tile)
+            : this(tile.x, tile.z) { }
+
         /// <summary>
         /// A constructor for <c>MapPoint</c>, to be used when the coordinates of the point on the grid are already computed.
         /// </summary>
@@ -89,6 +105,7 @@ namespace Populous
 
             m_TouchingChunks = null;
             m_Neighbors = null;
+            m_TileCorners = null;
         }
 
         #endregion
@@ -242,6 +259,41 @@ namespace Populous
 
             return neighbors;
         }
+
+        public readonly MapPoint GetClosestTileCorner(MapPoint start)
+        {
+            MapPoint? closest = null;
+            float distance = float.MaxValue;
+
+            for (int z = 0; z <= 1; ++z)
+            {
+                for (int x = 0; x <= 1; ++x)
+                {
+                    MapPoint corner = new(TileX + x, TileZ + z);
+                    float d = Vector3.Distance(start.ToWorldPosition(), corner.ToWorldPosition());
+
+                    if (d < distance)
+                    {
+                        closest = corner;
+                        distance = d;
+                    }
+                }
+            }
+
+            return closest.Value;
+        }
+
+        private readonly List<MapPoint> GetTileCorners()
+        {
+            List<MapPoint> corners = new();
+
+            for (int z = 0; z <= 1; ++z)
+                for (int x = 0; x <= 1; ++x)
+                    corners.Add(new(TileX + x, TileZ + z));
+
+            return corners;
+        }
+
 
         #endregion
     }

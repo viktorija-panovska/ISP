@@ -73,6 +73,8 @@ namespace Populous
 
         public bool IsPlayerHosting { get => IsHost; }
 
+        public string[] TeamLayers = new string[] { "Red Team", "Blue Team", "None Team" };
+
         public int MaxManna { get => m_MaxManna; }
         public int[] PowerActivationThreshold { get => m_PowerActivationThreshold; }
         public int[] PowerMannaCost { get => m_PowerMannaCost; }
@@ -247,6 +249,9 @@ namespace Populous
 
         public void CreateKnight(Team team)
         {
+            if (UnitManager.Instance.GetLeader(team) == null)
+                return;
+
             UnitManager.Instance.CreateKnight(team);
             StructureManager.Instance.SetFlagPosition(team, UnitManager.Instance.GetNewestKnight(team).ClosestMapPoint.ToWorldPosition());
         }
