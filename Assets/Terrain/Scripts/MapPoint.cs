@@ -2,39 +2,49 @@ using System.Collections.Generic;
 using System;
 using Unity.Netcode;
 using UnityEngine;
-using static UnityEditor.Searcher.SearcherWindow.Alignment;
-using UnityEngine.UIElements;
-using Unity.VisualScripting;
 
 namespace Populous
 {
+    /// <summary>
+    /// The <c>MapPoint</c> struct represents one point on the grid of the terrain.
+    /// </summary>
+    /// <remarks>It is also used to represent a tile on the terrain, where a tile is defined by it's bottom-left point.</remarks>
     public struct MapPoint : IEquatable<MapPoint>, INetworkSerializable
     {
-        private int m_TileX;
-        private int m_TileZ;
+        private int m_GridX;
+        /// <summary>
+        /// Gets the X coordinate of this point on the terrain grid.
+        /// </summary>
+        public readonly int GridX { get => m_GridX; }
+
+        private int m_GridZ;
+        /// <summary>
+        /// Gets the Z coordinate of this point on the terrain grid.
+        /// </summary>
+        public readonly int GridZ { get => m_GridZ; }
 
         /// <summary>
-        /// Gets the X coordinate of this <c>MapPoint</c> on the grid.
+        /// Gets the X coordinate of the world position of this point.
         /// </summary>
-        public readonly int TileX { get => m_TileX; }
+        public readonly int X { get => m_GridX * Terrain.Instance.UnitsPerTileSide; }
         /// <summary>
-        /// Gets the Z coordinate of this <c>MapPoint</c> on the grid.
+        /// Gets the Z coordinate of the world position of this point.
         /// </summary>
-        public readonly int TileZ { get => m_TileZ; }
+        public readonly int Z { get => m_GridZ * Terrain.Instance.UnitsPerTileSide; }
 
-        public readonly int X { get => m_TileX * Terrain.Instance.UnitsPerTileSide; }
-        public readonly int Z { get => m_TileZ * Terrain.Instance.UnitsPerTileSide; }
-
+        /// <summary>
+        /// Gets the height of this point on the terrain.
+        /// </summary>
         public readonly int Y
         {
             get => m_TouchingChunks == null
-                ? Terrain.Instance.GetPointHeight((m_TileX, m_TileZ))
-                : Terrain.Instance.GetPointHeight(m_TouchingChunks[0], (m_TileX, m_TileZ));
+                ? Terrain.Instance.GetPointHeight((m_GridX, m_GridZ))
+                : Terrain.Instance.GetPointHeight(m_TouchingChunks[0], (m_GridX, m_GridZ));
         }
 
         private List<(int x, int z)> m_TouchingChunks;
         /// <summary>
-        /// Gets the list of chunks which this <c>MapPoint</c> is a part of if it is available, creates it then returns it otherwise.
+        /// Gets the list of chunks which share this point if it is available, creates it then returns it otherwise.
         /// </summary>
         public List<(int x, int z)> TouchingChunks
         {
@@ -47,7 +57,7 @@ namespace Populous
 
         private List<MapPoint> m_Neighbors;
         /// <summary>
-        /// Gets the list of neighboring points of this <c>MapPoint</c> if it is available, creates it then returns it otherwise.
+        /// Gets the list of neighboring points of this point if it is available, creates it then returns it otherwise.
         /// </summary>
         public List<MapPoint> Neighbors
         {
@@ -59,6 +69,9 @@ namespace Populous
         }
 
         private List<MapPoint> m_TileCorners;
+        /// <summary>
+        /// Gets the list of points at the corners of the tile represented by this point if it is available, creates it then returns it otherwise.
+        /// </summary>
         public List<MapPoint> TileCorners
         {
             get
@@ -68,14 +81,23 @@ namespace Populous
             }
         }
 
-        public readonly bool IsOnEdge { get => m_TileX == Terrain.Instance.TilesPerSide || m_TileZ == Terrain.Instance.TilesPerSide; }
+        /// <summary>
+        /// True if the point is on the edge of the terrain, false otherwise.
+        /// </summary>
+        public readonly bool IsOnEdge 
+        { 
+            get => m_GridX == 0 || m_GridX == Terrain.Instance.TilesPerSide || m_GridZ == 0 || m_GridZ == Terrain.Instance.TilesPerSide; 
+        }
 
+        /// <summary>
+        /// Gets the position of the center of the tile represented by this point.
+        /// </summary>
         public readonly Vector3 TileCenter 
         { 
             get => new(
-                (m_TileX + 0.5f) * Terrain.Instance.TilesPerSide, 
-                Terrain.Instance.GetTileCenterHeight((m_TileX, m_TileZ)),
-                (m_TileZ + 0.5f) * Terrain.Instance.TilesPerSide
+                (m_GridX + 0.5f) * Terrain.Instance.TilesPerSide, 
+                Terrain.Instance.GetTileCenterHeight((m_GridX, m_GridZ)),
+                (m_GridZ + 0.5f) * Terrain.Instance.TilesPerSide
             ); 
         }
 
@@ -85,23 +107,26 @@ namespace Populous
         /// <summary>
         /// A constructor for <c>MapPoint</c>, to be used when the coordinates of the point on the grid need to be computed from a world position.
         /// </summary>
-        /// <param name="x">The x coordinate of a world position.</param>
-        /// <param name="z">The y coordinate of a world position.</param>
+        /// <param name="x">The x coordinate of the world position.</param>
+        /// <param name="z">The y coordinate of the world position.</param>
         public MapPoint(float x, float z)
             : this(Mathf.RoundToInt(x / Terrain.Instance.UnitsPerTileSide), Mathf.RoundToInt(z / Terrain.Instance.UnitsPerTileSide)) { }
 
-        public MapPoint((int x, int z) tile)
-            : this(tile.x, tile.z) { }
+        /// <summary>
+        /// A constructor for <c>MapPoint</c>, to be used when we have a tuple of the point's position on the grid.
+        /// </summary>
+        /// <param name="gridPoint">The x coordinate of the world position.</param>
+        public MapPoint((int x, int z) gridPoint) : this(gridPoint.x, gridPoint.z) { }
 
         /// <summary>
-        /// A constructor for <c>MapPoint</c>, to be used when the coordinates of the point on the grid are already computed.
+        /// A constructor for <c>MapPoint</c>, to be used when with the point's position on the grid.
         /// </summary>
         /// <param name="x">The x coordinate of the point on the grid.</param>
         /// <param name="z">The z coordinate of the point on the grid.</param>
         public MapPoint(int x, int z)
         {
-            m_TileX = x;
-            m_TileZ = z;
+            m_GridX = x;
+            m_GridZ = z;
 
             m_TouchingChunks = null;
             m_Neighbors = null;
@@ -164,7 +189,7 @@ namespace Populous
         /// <remarks>Interface member of <c>IEquitable</c>.</remarks>
         /// <param name="other">The <c>MapPoint</c> instance which is being compared against this <c>MapPoint</c>.</param>
         /// <returns>True if the coordinates of the <c>MapPoint</c>s are equal, false otherwise.</returns>
-        public readonly bool Equals(MapPoint other) => m_TileX == other.TileX && m_TileZ == other.TileZ;
+        public readonly bool Equals(MapPoint other) => m_GridX == other.GridX && m_GridZ == other.GridZ;
 
         /// <summary>
         /// Gets the hash code for the current <c>MapPoint</c>.
@@ -181,8 +206,8 @@ namespace Populous
         /// <param name="serializer">The <c>BufferSerializer</c> to be used in the serialization.</param>
         public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
         {
-            serializer.SerializeValue(ref m_TileX);
-            serializer.SerializeValue(ref m_TileZ);
+            serializer.SerializeValue(ref m_GridX);
+            serializer.SerializeValue(ref m_GridZ);
         }
 
         #endregion
@@ -191,17 +216,16 @@ namespace Populous
         #region Methods
 
         /// <summary>
-        /// Gets all the chunks that the given point belongs to.
+        /// Gets all the chunks which share this point.
         /// </summary>
-        /// <param name="point">The (x, z) index of a point in the terrain mesh.</param>
-        /// <returns>A list of (x,z) indices of chunks that contain the given point.</returns>
+        /// <returns>A list of (x, z) indices of the chunks that contain this point.</returns>
         private readonly List<(int x, int z)> GetAllTouchingChunks()
         {
-            (int x, int z) mainChunk = Terrain.Instance.GetChunkIndex((m_TileX, m_TileZ));
+            (int x, int z) mainChunk = Terrain.Instance.GetChunkIndex((m_GridX, m_GridZ));
 
             List<(int x, int z)> chunks = new() { mainChunk };
 
-            (int x, int z) pointInChunk = Terrain.Instance.GetChunkByIndex(mainChunk).GetPointInChunk((m_TileX, m_TileZ));
+            (int x, int z) pointInChunk = Terrain.Instance.GetChunkByIndex(mainChunk).GetPointInChunk((m_GridX, m_GridZ));
 
             // bottom left
             if (pointInChunk.x == 0 && mainChunk.x > 0 && pointInChunk.z == 0 && mainChunk.z > 0)
@@ -239,9 +263,9 @@ namespace Populous
         }
 
         /// <summary>
-        /// Gets all the point which neighbor the given point.
+        /// Gets all the point which neighbor this point.
         /// </summary>
-        /// <returns>A list of (x,z) indices of points that neighbor the given point.</returns>
+        /// <returns>A list of (x, z) indices of the points that neighbor this point.</returns>
         private readonly List<MapPoint> GetAllPointNeighbors()
         {
             List<MapPoint> neighbors = new();
@@ -252,14 +276,19 @@ namespace Populous
                 {
                     if ((x, z) == (0, 0)) continue;
 
-                    if (Terrain.Instance.IsPointInBounds((m_TileX + x, m_TileZ + z)))
-                        neighbors.Add(new(m_TileX + x, m_TileZ + z));
+                    if (Terrain.Instance.IsPointInBounds((m_GridX + x, m_GridZ + z)))
+                        neighbors.Add(new(m_GridX + x, m_GridZ + z));
                 }
             }
 
             return neighbors;
         }
 
+        /// <summary>
+        /// Gets the corner of the tile represented by this point that is closest to the given point.
+        /// </summary>
+        /// <param name="start">The <c>MapPoint</c> from which the distance should be calculated.</param>
+        /// <returns></returns>
         public readonly MapPoint GetClosestTileCorner(MapPoint start)
         {
             MapPoint? closest = null;
@@ -269,7 +298,7 @@ namespace Populous
             {
                 for (int x = 0; x <= 1; ++x)
                 {
-                    MapPoint corner = new(TileX + x, TileZ + z);
+                    MapPoint corner = new(GridX + x, GridZ + z);
                     float d = Vector3.Distance(start.ToWorldPosition(), corner.ToWorldPosition());
 
                     if (d < distance)
@@ -283,17 +312,20 @@ namespace Populous
             return closest.Value;
         }
 
+        /// <summary>
+        /// Gets the points at the corners of the tile represented by this point.
+        /// </summary>
+        /// <returns>A list of <c>MapPoint</c>s representing the corners of this tile.</returns>
         private readonly List<MapPoint> GetTileCorners()
         {
             List<MapPoint> corners = new();
 
             for (int z = 0; z <= 1; ++z)
                 for (int x = 0; x <= 1; ++x)
-                    corners.Add(new(TileX + x, TileZ + z));
+                    corners.Add(new(GridX + x, GridZ + z));
 
             return corners;
         }
-
 
         #endregion
     }

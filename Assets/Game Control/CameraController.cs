@@ -1,5 +1,4 @@
 using Cinemachine;
-using System.Collections.Generic;
 using Unity.Netcode;
 using UnityEngine;
 
@@ -44,8 +43,6 @@ namespace Populous
         /// </summary>
         public int ZoomDirection { get => m_ZoomDirection; set => m_ZoomDirection = Mathf.Clamp(value, -1, 1); }
 
-        private List<TerrainChunk> m_VisibleTerrainChunks = new();
-
 
 
         #region MonoBehavior
@@ -78,6 +75,43 @@ namespace Populous
         #endregion
 
 
+
+        #region Camera Movement
+
+        private void Move()
+        {
+            Vector3 newPosition = m_FollowTarget.position + Quaternion.Euler(0, m_FollowTarget.eulerAngles.y, 0) * m_Movement * m_MovementSpeed * Time.deltaTime;
+            if (newPosition.x < 0 || newPosition.x > Terrain.Instance.UnitsPerSide ||
+                newPosition.z < 0 || newPosition.z > Terrain.Instance.UnitsPerSide)
+                return;
+
+            m_FollowTarget.position = newPosition;
+        }
+
+        private void Rotate()
+        {
+            m_FollowTarget.eulerAngles = new Vector3(
+                m_FollowTarget.eulerAngles.x,
+                m_FollowTarget.eulerAngles.y + m_RotationDirection * m_RotationSpeed * Time.deltaTime,
+                m_FollowTarget.eulerAngles.z
+            );
+        }
+
+        private void Zoom()
+        {
+            m_VirtualCamera.m_Lens.OrthographicSize = Mathf.Clamp(
+                m_VirtualCamera.m_Lens.OrthographicSize + m_ZoomDirection * m_ZoomSpeed * Time.deltaTime,
+                m_MaxZoomIn,
+                m_MaxZoomOut
+            );
+
+            ResizeViewport();
+        }
+
+        #endregion
+
+
+
         private void ResizeViewport()
         {
             // Calculate the planes from the main camera's view frustum
@@ -92,110 +126,10 @@ namespace Populous
         }
 
 
-        /// <summary>
-        /// Finds the terrain chunks which are at least partially captured by the player camera and makes them visible,
-        /// making the rest of the terrain chunks invisible.
-        /// </summary>
-        public void UpdateVisibleTerrainChunks()
-        {
-            foreach (TerrainChunk chunk in m_VisibleTerrainChunks)
-                chunk.SetVisibility(false);
-            m_VisibleTerrainChunks = new();
-
-            int leftIndex = Terrain.Instance.ChunksPerSide, bottomIndex = Terrain.Instance.ChunksPerSide;
-            int rightIndex = -1, topIndex = -1;
-            RaycastHit hit;
-
-            // bottom left
-            if (Physics.Raycast(Camera.main.ViewportPointToRay(new Vector3(0, 0, 0)), out hit))
-            {
-                (int x, int z) = Terrain.Instance.GetChunkIndex(hit.point);
-                leftIndex = Mathf.Min(leftIndex, x);
-                bottomIndex = Mathf.Min(bottomIndex, z);
-            }
-
-            // top right
-            if (Physics.Raycast(Camera.main.ViewportPointToRay(new Vector3(1, 1, 0)), out hit))
-            {
-                (int x, int z) = Terrain.Instance.GetChunkIndex(hit.point);
-                rightIndex = Mathf.Max(rightIndex, x);
-                topIndex = Mathf.Max(rightIndex, z);
-            }
-
-            // bottom right
-            if (Physics.Raycast(Camera.main.ViewportPointToRay(new Vector3(1, 0, 0)), out hit))
-            {
-                (int x, int z) = Terrain.Instance.GetChunkIndex(hit.point);
-                rightIndex = Mathf.Max(rightIndex, x);
-                bottomIndex = Mathf.Min(bottomIndex, z);
-            }
-
-            // top left
-            if (Physics.Raycast(Camera.main.ViewportPointToRay(new Vector3(0, 1, 0)), out hit))
-            {
-                (int x, int z) = Terrain.Instance.GetChunkIndex(hit.point);
-                leftIndex = Mathf.Min(leftIndex, x);
-                topIndex = Mathf.Max(topIndex, z);
-            }
-
-            for (int z = Mathf.Clamp(bottomIndex, 0, Terrain.Instance.ChunksPerSide - 1);
-                 z <= Mathf.Clamp(topIndex, 0, Terrain.Instance.ChunksPerSide - 1);
-                 ++z)
-            {
-                for (int x = Mathf.Clamp(leftIndex, 0, Terrain.Instance.ChunksPerSide - 1);
-                     x <= Mathf.Clamp(rightIndex, 0, Terrain.Instance.ChunksPerSide - 1);
-                     ++x)
-                {
-                    TerrainChunk chunk = Terrain.Instance.GetChunkByIndex((x, z));
-                    chunk.SetVisibility(true);
-                    m_VisibleTerrainChunks.Add(chunk);
-                }
-            }
-        }
-
-
-        #region Camera Movement
-
-        private void Move()
-        {
-            Vector3 newPosition = m_FollowTarget.position + Quaternion.Euler(0, m_FollowTarget.eulerAngles.y, 0) * m_Movement * m_MovementSpeed * Time.deltaTime;
-            if (newPosition.x < 0 || newPosition.x > Terrain.Instance.UnitsPerSide ||
-                newPosition.z < 0 || newPosition.z > Terrain.Instance.UnitsPerSide)
-                return;
-
-            m_FollowTarget.position = newPosition;
-            UpdateVisibleTerrainChunks();
-        }
-
-        private void Rotate()
-        {
-            m_FollowTarget.eulerAngles = new Vector3(
-                m_FollowTarget.eulerAngles.x,
-                m_FollowTarget.eulerAngles.y + m_RotationDirection * m_RotationSpeed * Time.deltaTime,
-                m_FollowTarget.eulerAngles.z
-            );
-            UpdateVisibleTerrainChunks();
-        }
-
-        private void Zoom()
-        {
-            m_VirtualCamera.m_Lens.OrthographicSize = Mathf.Clamp(
-                m_VirtualCamera.m_Lens.OrthographicSize + m_ZoomDirection * m_ZoomSpeed * Time.deltaTime,
-                m_MaxZoomIn,
-                m_MaxZoomOut
-            );
-            UpdateVisibleTerrainChunks();
-            ResizeViewport();
-        }
-
-        #endregion
-
-
         [ClientRpc]
         public void LookAtClientRpc(Vector3 position, ClientRpcParams clientRpcParams = default)
         {
             m_FollowTarget.transform.position = new Vector3(position.x, 0, position.z);
-            UpdateVisibleTerrainChunks();
         }
     }
 }

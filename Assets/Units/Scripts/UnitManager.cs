@@ -51,9 +51,9 @@ namespace Populous
             GameObject unitObject = Instantiate(
                 m_UnitPrefab,
                 new Vector3(
-                    location.TileX * Terrain.Instance.UnitsPerTileSide,
-                    m_UnitPrefab.transform.position.y + Terrain.Instance.GetTileCenterHeight((location.TileX, location.TileZ)),
-                    location.TileZ * Terrain.Instance.UnitsPerTileSide),
+                    location.GridX * Terrain.Instance.UnitsPerTileSide,
+                    m_UnitPrefab.transform.position.y + Terrain.Instance.GetTileCenterHeight((location.GridX, location.GridZ)),
+                    location.GridZ * Terrain.Instance.UnitsPerTileSide),
                 Quaternion.identity
             );
 
@@ -287,8 +287,8 @@ namespace Populous
 
             while (true)
             {
-                int redSpeed = random.Next(1, 21) + red.UnitData.Speed;
-                int blueSpeed = random.Next(1, 21) + blue.UnitData.Speed;
+                int redSpeed = random.Next(1, 21) + red.Speed;
+                int blueSpeed = random.Next(1, 21) + blue.Speed;
 
                 if (redSpeed > blueSpeed && WasKilled(red, blue) || blueSpeed > redSpeed && WasKilled(blue, red))
                     break;
@@ -307,12 +307,12 @@ namespace Populous
 
         private bool WasKilled(Unit first, Unit second)
         {
-            second.TakeDamage(first.UnitData.Strength);
+            second.TakeDamage(first.Strength);
 
             if (second.CurrentHealth <= 0)
                 return true;
 
-            first.TakeDamage(second.UnitData.Strength);
+            first.TakeDamage(second.Strength);
 
             if (first.CurrentHealth <= 0)
                 return true;

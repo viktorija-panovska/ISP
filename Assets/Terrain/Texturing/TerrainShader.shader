@@ -2,12 +2,13 @@ Shader "Custom/TerrainShader"
 {
     Properties
     {
-        _TextureScale("Texture scale", float) = 5
+        _TextureScale ("Texture scale", float) = 5
         _WaterTexture ("Water texture", 2D) = "" {}
         _LandTexture ("Land texture", 2D) = "" {}
         _SandTexture ("Sand texture", 2D) = "" {}
     }
-        SubShader
+    
+    SubShader
     {
         Tags { "RenderType" = "Opaque" }
         LOD 200
@@ -38,7 +39,7 @@ Shader "Custom/TerrainShader"
 
             if (IN.worldPos.y >= waterLevel + 5)
                 o.Albedo = tex2D(_LandTexture, scaledWorldPos.xz);
-            else if (IN.worldPos.y > waterLevel + 1 && IN.worldPos.y < waterLevel + 5)
+            else if (IN.worldPos.y > waterLevel && IN.worldPos.y < waterLevel + 5)
                 o.Albedo = tex2D(_SandTexture, scaledWorldPos.xz);
             else 
                 o.Albedo = tex2D(_WaterTexture, scaledWorldPos.xz);

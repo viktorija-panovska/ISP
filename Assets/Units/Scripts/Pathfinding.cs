@@ -55,8 +55,8 @@ namespace Populous
             {
                 Vector2 current = GetNodeWithLowestFCost(nodes, openList);
 
-                if (nodes[current].Location.TileX == end.TileX &&
-                    nodes[current].Location.TileZ == end.TileZ)
+                if (nodes[current].Location.GridX == end.GridX &&
+                    nodes[current].Location.GridZ == end.GridZ)
                     return GetPath(nodes[current]);
 
                 openList.Remove(current);
@@ -86,7 +86,7 @@ namespace Populous
         }
 
 
-        private static Vector2 GetKey(MapPoint location) => new(location.TileX, location.TileZ);
+        private static Vector2 GetKey(MapPoint location) => new(location.GridX, location.GridZ);
 
 
         private static Vector2 GetNodeWithLowestFCost(Dictionary<Vector2, PathNode> allNodes, List<Vector2> openList)
@@ -111,8 +111,8 @@ namespace Populous
                 {
                     if ((xOffset, zOffset) == (0, 0)) continue;
 
-                    int x = currentNode.Location.TileX + xOffset;
-                    int z = currentNode.Location.TileZ + zOffset;
+                    int x = currentNode.Location.GridX + xOffset;
+                    int z = currentNode.Location.GridZ + zOffset;
 
 
                     if (x < 0 || x > Terrain.Instance.TilesPerSide || z < 0 || z > Terrain.Instance.TilesPerSide)
@@ -120,7 +120,7 @@ namespace Populous
 
                     MapPoint newLocation = new(x, z);
 
-                    if (!newLocation.IsOnEdge && Terrain.Instance.IsCrossingStructure(currentNode.Location, newLocation))
+                    if (!newLocation.IsOnEdge && !Terrain.Instance.CanCrossTile(currentNode.Location, newLocation))
                         continue;
 
                     Vector2 key = GetKey(newLocation);
@@ -138,8 +138,8 @@ namespace Populous
 
         private static float GetDistanceCost(MapPoint start, MapPoint end)
         {
-            float x = Mathf.Abs(start.TileX - end.TileX);
-            float z = Mathf.Abs(start.TileZ - end.TileZ);
+            float x = Mathf.Abs(start.GridX - end.GridX);
+            float z = Mathf.Abs(start.GridZ - end.GridZ);
 
             return DIAGONAL_COST * Mathf.Min(x, z) + STRAIGHT_COST * Mathf.Abs(x - z);
         }
@@ -173,15 +173,15 @@ namespace Populous
                 {
                     if ((xOffset, zOffset) == (0, 0)) continue;
 
-                    int x = start.TileX + xOffset;
-                    int z = start.TileZ + zOffset;
+                    int x = start.GridX + xOffset;
+                    int z = start.GridZ + zOffset;
 
                     if (x < 0 || x > Terrain.Instance.TilesPerSide || z < 0 || z > Terrain.Instance.TilesPerSide)
                         continue;
 
                     MapPoint newLocation = new(x, z);
 
-                    if (!newLocation.IsOnEdge && Terrain.Instance.IsCrossingStructure(start, newLocation))
+                    if (!newLocation.IsOnEdge && !Terrain.Instance.CanCrossTile(start, newLocation))
                         continue;
 
                     float cost = GetDistanceCost(newLocation, unit);

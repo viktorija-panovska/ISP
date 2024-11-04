@@ -1,30 +1,57 @@
-
 using UnityEngine;
+using Random = System.Random;
 
 namespace Populous
 {
-    public static class HeightMapGenerator
+    /// <summary>
+    /// The <c>IMapGenerator</c> interface defines methods necessary for classes which 
+    /// </summary>
+    public interface IMapGenerator
     {
-        private static int m_Seed;
+        /// <summary>
+        /// Computes the height at a given position using the Perlin Noise function and a falloff function.
+        /// </summary>
+        /// <param name="position">A <c>Vector3</c> representing the position on the terrain that the height should be computed for.</param>
+        /// <returns>A <c>float</c> between 0 and 1 representing the height of the terrain at the given position.</returns>
+        public float GetHeightAtPosition(Vector3 position);
+    }
+
+
+    /// <summary>
+    /// The <c>HeightMapGenerator</c> class is a static class which contains properties and methods 
+    /// which are used to generate a height map for the terrain.
+    /// </summary>
+    public class HeightMapGenerator : IMapGenerator
+    {
         private const float SCALE = 2f;
         private const int OCTAVES = 6;              // number of levels of detail
         private const float PERSISTENCE = 0.5f;     // how much each octave contributes to the overall shape (adjusts the amplitude) - in range 0..1
         private const float LACUNARITY = 2;         // how much detail is added or removed at each octave (adjusts frequency) - must be > 1
-        private static Vector2[] m_Offsets;
+
+        private int m_Seed;
+        private Vector2[] m_Offsets;
 
 
-        public static void Initialize(int mapSeed)
+        /// <summary>
+        /// Constructor for the <c>HeightMapGenerator</c> class.
+        /// </summary>
+        /// <param name="mapSeed">The random seed for the height map.</param>
+        public HeightMapGenerator(int mapSeed)
         {
             m_Seed = mapSeed;
             m_Offsets = GenerateNoiseOffsets();
         }
 
 
-        private static Vector2[] GenerateNoiseOffsets()
+        /// <summary>
+        /// Creates a noise offset for each octave based on the height map seed.
+        /// </summary>
+        /// <returns>A <c>Vector2</c> array of offsets.</returns>
+        private Vector2[] GenerateNoiseOffsets()
         {
             // to get different random maps every time, we need to sample from different random coordinates
             // we sample at differnet random coordinates for each octave
-            System.Random ranGen = new(m_Seed);
+            Random ranGen = new(m_Seed);
             Vector2[] offsets = new Vector2[OCTAVES];
 
             for (int i = 0; i < OCTAVES; ++i)
@@ -38,8 +65,8 @@ namespace Populous
         }
 
 
-        // returns a value between 0 and 1
-        public static float GetPerlinAtPosition(Vector3 position)
+        /// <inheritdoc />
+        public float GetHeightAtPosition(Vector3 position)
         {
             float amplitude = 1;
             float frequency = 1;
@@ -69,7 +96,13 @@ namespace Populous
         }
 
 
-        public static float GetFalloffAtPosition(Vector3 position)
+        /// <summary>
+        /// Computes the terrain falloff at a given position, based on the distance from the center.
+        /// </summary>
+        /// <remarks>Used to generate a terrain in the form of an island.</remarks>
+        /// <param name="position">A <c>Vector3</c> representing the position on the terrain that the height should be computed for.</param>
+        /// <returns>A <c>float</c> between 0 and 1 representing the falloff at the given position.</returns>
+        private float GetFalloffAtPosition(Vector3 position)
         {
             float dx = 2 * position.x / Terrain.Instance.UnitsPerSide - 1;
             float dz = 2 * position.z / Terrain.Instance.UnitsPerSide - 1;

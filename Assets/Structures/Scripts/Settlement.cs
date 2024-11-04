@@ -115,7 +115,7 @@ namespace Populous
 
             if (unit.Team == m_Team)
             {
-
+                // share strength?
             }
 
             if (unit.Team != m_Team && !IsAttacked)
@@ -151,7 +151,7 @@ namespace Populous
                                 continue;
 
                             (int x, int z) neighborTile = (m_OccupiedTile.x + x, m_OccupiedTile.z + z);
-                            Structure structure = Terrain.Instance.GetStructureOccupyingTile(neighborTile);
+                            Structure structure = Terrain.Instance.GetStructureOnTile(neighborTile);
 
                             if (!structure || structure.GetType() != typeof(Field))
                                 continue;
@@ -166,7 +166,6 @@ namespace Populous
             m_CurrentSettlementData = newSettlement;
             m_Health = newSettlement.MaxHealth;
 
-            Debug.Log(m_CurrentSettlementIndex);
             m_SettlementObjects[m_CurrentSettlementIndex].SetActive(true);//.GetComponent<ObjectActivator>().SetActiveClientRpc(true);
 
             Vector3 size = new (Terrain.Instance.UnitsPerTileSide, 1, Terrain.Instance.UnitsPerTileSide);
@@ -185,7 +184,7 @@ namespace Populous
                             continue;
 
                         (int x, int z) neighborTile = (m_OccupiedTile.x + x, m_OccupiedTile.z + z);
-                        Structure structure = Terrain.Instance.GetStructureOccupyingTile(neighborTile);
+                        Structure structure = Terrain.Instance.GetStructureOnTile(neighborTile);
                         Field field = null;
                         if (structure && structure.GetType() == typeof(Field))
                             field = (Field)structure;
@@ -225,7 +224,7 @@ namespace Populous
                         !Terrain.Instance.IsTileFlat(neighborTile))
                         continue;
 
-                    Structure structure = Terrain.Instance.GetStructureOccupyingTile(neighborTile);
+                    Structure structure = Terrain.Instance.GetStructureOnTile(neighborTile);
                     Field field = null;
 
                     if (structure)

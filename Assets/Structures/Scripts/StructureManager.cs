@@ -136,11 +136,11 @@ namespace Populous
         #region Settlements
 
         public void CreateSettlement(MapPoint tile, Team team)
-            => SpawnStructure(m_SettlementPrefab, (tile.TileX, tile.TileZ), tile.TileCorners, team);
+            => SpawnStructure(m_SettlementPrefab, (tile.GridX, tile.GridZ), tile.TileCorners, team);
 
         public void EnterSettlement(MapPoint tile, Unit unit)
         {
-            Settlement settlement = (Settlement)Terrain.Instance.GetStructureOccupyingTile((tile.TileX, tile.TileZ));
+            Settlement settlement = (Settlement)Terrain.Instance.GetStructureOnTile((tile.GridX, tile.GridZ));
             settlement.AddUnit(unit.IsLeader);
             UnitManager.Instance.DespawnUnit(unit.gameObject);
         }
@@ -185,7 +185,7 @@ namespace Populous
         {
             //if (!IsServer) return null;
 
-            Field field = SpawnStructure(m_FieldPrefab, tile, Terrain.Instance.GetTilePoints(tile)).GetComponent<Field>();
+            Field field = SpawnStructure(m_FieldPrefab, tile, Terrain.Instance.GetTileCorners(tile)).GetComponent<Field>();
             field.Team = team;
             return field;
         }
@@ -217,7 +217,7 @@ namespace Populous
                     if (Terrain.Instance.IsTileOccupied((x, z)) || Terrain.Instance.IsTileUnderwater((x, z)))
                         continue;
 
-                    List<MapPoint> occupiedPoints = Terrain.Instance.GetTilePoints((x, z));
+                    List<MapPoint> occupiedPoints = Terrain.Instance.GetTileCorners((x, z));
 
                     double randomValue = random.NextDouble();
 
@@ -254,7 +254,7 @@ namespace Populous
                 MapPoint location = UnitManager.Instance.GetLeader(flag.Team).ClosestMapPoint;
                 flagObject.transform.position = location.ToWorldPosition();
 
-                flag.OccupiedTile = (location.TileX, location.TileZ);
+                flag.OccupiedTile = (location.GridX, location.GridZ);
                 flag.OccupiedPointHeights = new() { { location, location.Y } };
 
                 GameController.Instance.OnTerrainMoved += flag.ReactToTerrainChange;

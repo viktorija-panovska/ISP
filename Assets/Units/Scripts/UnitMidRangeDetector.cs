@@ -1,9 +1,8 @@
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace Populous
 {
-    public class UnitProximityDetector : MonoBehaviour
+    public class UnitMidRangeDetector : MonoBehaviour
     {
         private Unit m_Unit;
         private UnitState m_UnitState = UnitState.SETTLE;
@@ -34,11 +33,15 @@ namespace Populous
         private void OnTriggerEnter(Collider other)
         {
             if ((m_UnitState == UnitState.BATTLE && other.gameObject.layer != LayerMask.NameToLayer(GameController.Instance.TeamLayers[(int)m_EnemyTeam])) ||
-                (m_UnitState == UnitState.GATHER && other.gameObject.layer != LayerMask.NameToLayer(GameController.Instance.TeamLayers[(int)m_Team])) ||
-                (m_Target != null && Vector3.Distance(other.transform.position, transform.position) >= Vector3.Distance(m_Target.transform.position, transform.position)))
+                (m_UnitState == UnitState.GATHER && (other.gameObject.layer != LayerMask.NameToLayer(GameController.Instance.TeamLayers[(int)m_Team])) ||
+                (m_Target != null && Vector3.Distance(other.transform.position, transform.position) >= Vector3.Distance(m_Target.transform.position, transform.position))))
                 return;
 
-            Debug.Log("Target acquired");
+            Settlement settlement = other.GetComponent<Settlement>();
+            Unit unit = other.GetComponent<Unit>();
+
+            if ((settlement && (m_UnitState == UnitState.GATHER || settlement.IsRuined)) || (unit && unit.IsBattling))
+                return;
 
             m_Target = other.gameObject;
             m_Unit.NewTargetAcquired(m_Target);
@@ -47,7 +50,7 @@ namespace Populous
         private void OnTriggerExit(Collider other)
         {
             if ((m_UnitState == UnitState.BATTLE && other.gameObject.layer != LayerMask.NameToLayer(GameController.Instance.TeamLayers[(int)m_EnemyTeam])) ||
-                (m_UnitState == UnitState.GATHER && other.gameObject.layer != LayerMask.NameToLayer(GameController.Instance.TeamLayers[(int)m_Team])) || 
+                (m_UnitState == UnitState.GATHER && (other.gameObject.layer != LayerMask.NameToLayer(GameController.Instance.TeamLayers[(int)m_Team]) || other.GetComponent<Unit>() == null)) ||
                 other.gameObject != m_Target)
                 return;
 

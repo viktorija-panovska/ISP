@@ -150,7 +150,7 @@ namespace Populous
             switch (m_ActivePower)
             {
                 case Power.MOLD_TERRAIN:
-                    GameController.Instance.MoldTerrain(m_NearestClickablePoint.Value, lower: true);
+                    GameController.Instance.MoldTerrain(m_NearestClickablePoint.Value, lower: false);
                     break;
 
                 case Power.GUIDE_FOLLOWERS:
@@ -181,8 +181,9 @@ namespace Populous
             if (!context.performed || !m_NearestClickablePoint.HasValue || m_ActivePower != Power.MOLD_TERRAIN) return;
 
             if (m_NearestClickablePoint.HasValue)
-                GameController.Instance.MoldTerrain(m_NearestClickablePoint.Value, lower: false);
+                GameController.Instance.MoldTerrain(m_NearestClickablePoint.Value, lower: true);
         }
+        
         #endregion
 
 
@@ -211,8 +212,8 @@ namespace Populous
         private bool IsPointClickable(Vector3 point)
         {
             if (Mathf.Abs(Mathf.Round(point.x / Terrain.Instance.UnitsPerTileSide) - point.x / Terrain.Instance.UnitsPerTileSide) > m_ClickerError ||
-                Mathf.Abs(Mathf.Round(point.z / Terrain.Instance.UnitsPerTileSide) - point.z / Terrain.Instance.UnitsPerTileSide) > m_ClickerError ||
-                (m_ActivePower == Power.MOLD_TERRAIN && m_VisibleUnitsAndStructures <= 0))
+                Mathf.Abs(Mathf.Round(point.z / Terrain.Instance.UnitsPerTileSide) - point.z / Terrain.Instance.UnitsPerTileSide) > m_ClickerError //||
+                /*(m_ActivePower == Power.MOLD_TERRAIN && m_VisibleUnitsAndStructures <= 0)*/)
                 return false;
 
             return true;
@@ -233,9 +234,9 @@ namespace Populous
             if (m_NearestClickablePoint.HasValue)
             {
                 m_Markers[m_ActiveMarkerIndex].transform.position = new Vector3(
-                    m_NearestClickablePoint.Value.TileX * Terrain.Instance.UnitsPerTileSide,
+                    m_NearestClickablePoint.Value.GridX * Terrain.Instance.UnitsPerTileSide,
                     m_NearestClickablePoint.Value.Y + 5,
-                    m_NearestClickablePoint.Value.TileZ * Terrain.Instance.UnitsPerTileSide);
+                    m_NearestClickablePoint.Value.GridZ * Terrain.Instance.UnitsPerTileSide);
                 m_Markers[m_ActiveMarkerIndex].GetComponent<MeshRenderer>().material.color = m_HighlightMarkerColor;
             }
             else

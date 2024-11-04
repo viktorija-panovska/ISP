@@ -108,9 +108,9 @@ namespace Populous
         private void Start()
         {
             Terrain.Instance.CreateTerrain();
-            //StructureManager.Instance.PlaceTreesAndRocks();
-            UnitManager.Instance.SpawnStarterUnits();
-            StructureManager.Instance.SpawnFlags();
+            StructureManager.Instance.PlaceTreesAndRocks();
+            //UnitManager.Instance.SpawnStarterUnits();
+            //StructureManager.Instance.SpawnFlags();
         }
 
         #endregion
@@ -153,9 +153,9 @@ namespace Populous
                 return;
 
             StructureManager.Instance.SetFlagPosition/*ClientRpc*/(team, new Vector3(
-                point.TileX * Terrain.Instance.UnitsPerTileSide,
+                point.GridX * Terrain.Instance.UnitsPerTileSide,
                 point.Y,
-                point.TileZ * Terrain.Instance.UnitsPerTileSide
+                point.GridZ * Terrain.Instance.UnitsPerTileSide
             ));
 
             if (team == Team.RED)
@@ -199,13 +199,13 @@ namespace Populous
             {
                 for (int x = -m_SwampRadius; x < m_SwampRadius; ++x)
                 {
-                    (int x, int z) neighborTile = (tile.TileX + x, tile.TileZ + z);
-                    if (tile.TileX + x < 0 || tile.TileX + x >= Terrain.Instance.TilesPerSide ||
-                        tile.TileZ + z < 0 || tile.TileZ + z >= Terrain.Instance.TilesPerSide ||
+                    (int x, int z) neighborTile = (tile.GridX + x, tile.GridZ + z);
+                    if (tile.GridX + x < 0 || tile.GridX + x >= Terrain.Instance.TilesPerSide ||
+                        tile.GridZ + z < 0 || tile.GridZ + z >= Terrain.Instance.TilesPerSide ||
                         !Terrain.Instance.IsTileFlat(neighborTile))
                         continue;
 
-                    Structure structure = Terrain.Instance.GetStructureOccupyingTile(neighborTile);
+                    Structure structure = Terrain.Instance.GetStructureOnTile(neighborTile);
 
                     if (structure)
                     {
@@ -238,7 +238,7 @@ namespace Populous
                 (tiles[count], tiles[randomIndex]) = (tiles[randomIndex], tiles[count]);
 
                 if (tiles[count] <= swampTiles)
-                    StructureManager.Instance.SpawnSwamp(flatTile, Terrain.Instance.GetTilePoints(flatTile));
+                    StructureManager.Instance.SpawnSwamp(flatTile, Terrain.Instance.GetTileCorners(flatTile));
             }
         }
 
@@ -298,6 +298,7 @@ namespace Populous
         {
             Terrain.Instance.RaiseWaterLevel();
             Water.Instance.Raise();
+            Frame.Instance.Raise();
 
             if (IsHost)
                 OnFlood?.Invoke();

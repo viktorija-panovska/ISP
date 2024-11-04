@@ -16,19 +16,31 @@ namespace Populous
     {
         [SerializeField] private GameObject[] m_LeaderSigns;
         [SerializeField] private GameObject m_Sword;
-        [SerializeField] private UnitBattleDetector m_BattleDetector;
-        [SerializeField] private UnitAreaScanner m_AreaScanner;
-        [SerializeField] private UnitProximityDetector m_ProximityDetector;
+        [SerializeField] private UnitCloseRangeDetector m_CloseRangeDetector;
+        [SerializeField] private UnitMidRangeDetector m_MidRangeDetector;
+        [SerializeField] private UnitWideRangeDetector m_WideRangeDetector;
 
-        [SerializeField] private int m_BattleDetectorRadius = 15;
-        [SerializeField] private int m_AreaScannerTilesPerSide = 20;
-        [SerializeField] private int m_ProximityDetectorTilesPerSide = 1;
+        [SerializeField] private int m_CloseRangeRadius = 15;
+        [SerializeField] private int m_MidRangeTilesPerSide = 1;
+        [SerializeField] private int m_WideRangeTilesPerSide = 20;
 
         private Team m_Team;
         public Team Team { get => m_Team; }
 
-        private UnitData m_UnitData;
-        public UnitData UnitData { get => m_UnitData; }
+        private int m_MaxHealth;
+        public int MaxHealth { get => m_MaxHealth; }
+
+        private int m_CurrentHealth;
+        public int CurrentHealth { get => m_CurrentHealth; }
+
+        private int m_Strength;
+        public int Strength { get => m_Strength; }
+
+        private int m_Speed;
+        public int Speed { get => m_Speed; }
+
+        private int m_ManaGain;
+        public int ManaGain { get => m_ManaGain; }
 
         private bool m_IsLeader;
         public bool IsLeader
@@ -53,22 +65,24 @@ namespace Populous
 
         private UnitMovementHandler m_MovementHandler;
 
-        private int m_CurrentHealth;
-        public int CurrentHealth { get => m_CurrentHealth; }
+
 
 
         public void Setup(Team team, UnitData unitData)
         {
             m_Team = team;
-            m_UnitData = unitData;
-            m_CurrentHealth = m_UnitData.MaxHealth;
+            m_MaxHealth = unitData.MaxHealth;
+            m_Strength = unitData.Strength;
+            m_Speed = unitData.Speed;
+            m_ManaGain = unitData.ManaGain;
+            m_CurrentHealth = m_MaxHealth;
 
             m_MovementHandler = GetComponent<UnitMovementHandler>();
             m_MovementHandler.InitializeMovement();
 
-            m_BattleDetector.Setup(this);
-            m_AreaScanner.Setup(team, m_AreaScannerTilesPerSide);
-            m_ProximityDetector.Setup(this, m_ProximityDetectorTilesPerSide);
+            m_CloseRangeDetector.Setup(this);
+            m_WideRangeDetector.Setup(team, m_WideRangeTilesPerSide);
+            m_MidRangeDetector.Setup(this, m_MidRangeTilesPerSide);
         }
 
 
@@ -111,6 +125,12 @@ namespace Populous
         public void Rotate/*ClientRpc*/(Vector3 lookPosition) => transform.rotation = Quaternion.LookRotation(lookPosition);
 
 
+        public void AbsorbUnit(Unit unit)
+        {
+
+        }
+
+
         public void StartBattle()
         {
             m_IsBattling = true;
@@ -128,7 +148,7 @@ namespace Populous
         public void PauseMovement(bool pause) => m_MovementHandler.Pause(pause);
 
 
-        public Vector3 GetRoamingDirection() => m_AreaScanner.GetAverageDirection();
+        public Vector3 GetRoamingDirection() => m_WideRangeDetector.GetAverageDirection();
 
         public void NewTargetAcquired(GameObject target)
         {
@@ -166,15 +186,14 @@ namespace Populous
 
         public void RemoveRefrencesToUnit(Unit unit)
         {
-            m_AreaScanner.RemoveUnit(unit);
+            m_WideRangeDetector.RemoveUnit(unit);
             m_MovementHandler.StopFollowingUnit(unit);
-            m_ProximityDetector.RemoveTarget(unit.gameObject);
+            m_MidRangeDetector.RemoveTarget(unit.gameObject);
         }
 
         public void RemoveRefrencesToSettlement(Settlement settlement)
         {
-            m_AreaScanner.RemoveSettlement(settlement);
-            m_ProximityDetector.RemoveTarget(settlement.gameObject);
+            m_MidRangeDetector.RemoveTarget(settlement.gameObject);
         }
 
 
@@ -187,8 +206,8 @@ namespace Populous
             m_LastState = m_CurrentState;
             m_CurrentState = state;
 
-            m_ProximityDetector.StateChange(state);
-            m_AreaScanner.StateChange(state);
+            m_MidRangeDetector.StateChange(state);
+            m_WideRangeDetector.StateChange(state);
 
             m_MovementHandler.StopFollowingUnit();
 
@@ -202,11 +221,9 @@ namespace Populous
                     m_MovementHandler.RoamToSettle();
                     break;
 
-                case UnitState.GATHER:
-                    break;
-
                 case UnitState.BATTLE:
-                    m_MovementHandler.RoamToBattle();
+                case UnitState.GATHER:
+                    m_MovementHandler.RoamToBattleOrGather();
                     break;
             }
         }
@@ -227,7 +244,7 @@ namespace Populous
         [ServerRpc(RequireOwnership = false)]
         public void ToggleHealthBarServerRpc(bool show, ServerRpcParams parameters = default)
         {
-            ToggleHealthBarClientRpc(show, m_UnitData.MaxHealth, m_CurrentHealth, UnitManager.Instance.UnitColors[(int)m_Team], new ClientRpcParams
+            ToggleHealthBarClientRpc(show, m_MaxHealth, m_CurrentHealth, UnitManager.Instance.UnitColors[(int)m_Team], new ClientRpcParams
             {
                 Send = new ClientRpcSendParams
                 {

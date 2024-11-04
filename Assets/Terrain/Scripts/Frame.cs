@@ -2,16 +2,18 @@ using UnityEngine;
 
 namespace Populous
 {
+    /// <summary>
+    /// The <c>Frame</c> class is a <c>MonoBehavior</c> which contains properties and 
+    /// methods relating to the behavior of the frame surrounding the generated terrain.
+    /// </summary>
     public class Frame : MonoBehaviour
     {
         private static Frame m_Instance;
         /// <summary>
-        /// Gets an instance of the class.
+        /// Gets the singleton instance of the class.
         /// </summary>
         public static Frame Instance { get => m_Instance; }
 
-
-        #region MonoBehavior
 
         private void Awake()
         {
@@ -21,13 +23,10 @@ namespace Populous
             m_Instance = this;
         }
 
-        #endregion
-
-
         /// <summary>
-        /// Sets the size and position of the frame.
+        /// Sets the size and position of the frame based on the size of the terrain.
         /// </summary>
-        public void SetupFrame()
+        public void Create()
         {
             float newSize = Terrain.Instance.UnitsPerSide * 2;
             Vector3 size = GetComponent<Renderer>().bounds.size;
@@ -42,5 +41,11 @@ namespace Populous
             GetComponent<BoxCollider>().center = transform.position;
             GetComponent<BoxCollider>().size = new Vector3(newSize, 0.1f, newSize);
         }
+
+        /// <summary>
+        /// Increases the height of the frame by one step.
+        /// </summary>
+        /// <remarks>Used for the Flood power.</remarks>
+        public void Raise() => transform.position += Vector3.up * Terrain.Instance.StepHeight;
     }
 }

@@ -3,15 +3,13 @@ using UnityEngine;
 
 namespace Populous
 {
-    public class UnitAreaScanner : MonoBehaviour
+    public class UnitWideRangeDetector : MonoBehaviour
     {
         private UnitState m_UnitState = UnitState.SETTLE;
         private Team m_Team = Team.NONE;
         private Team m_EnemyTeam = Team.NONE;
 
         private HashSet<Unit> m_NearbyUnits = new();
-        private HashSet<Settlement> m_NearbySettlements = new();
-
         private BoxCollider m_Collider;
 
 
@@ -38,9 +36,6 @@ namespace Populous
 
             if (other.gameObject.GetComponent<Unit>() != null)
                 m_NearbyUnits.Add(other.gameObject.GetComponent<Unit>());
-
-            if (other.gameObject.GetComponent<Settlement>() != null)
-                m_NearbySettlements.Add(other.gameObject.GetComponent<Settlement>());
         }
 
         private void OnTriggerExit(Collider other)
@@ -51,15 +46,12 @@ namespace Populous
 
             if (other.gameObject.GetComponent<Unit>() != null)
                 m_NearbyUnits.Remove(other.gameObject.GetComponent<Unit>());
-
-            if (other.gameObject.GetComponent<Settlement>() != null)
-                m_NearbySettlements.Remove(other.gameObject.GetComponent<Settlement>());
         }
 
 
         public Vector3 GetAverageDirection()
         {
-            if (m_NearbyUnits.Count == 0 && m_NearbySettlements.Count == 0)
+            if (m_NearbyUnits.Count == 0)
                 return Vector3.zero;
 
             Vector3 sum = Vector3.zero;
@@ -67,10 +59,7 @@ namespace Populous
             foreach (Unit unit in m_NearbyUnits)
                 sum += unit.transform.position;
 
-            foreach (Settlement settlement in m_NearbySettlements)
-                sum += settlement.transform.position;
-
-            return ((sum / (m_NearbyUnits.Count + m_NearbySettlements.Count)) - transform.position).normalized;
+            return ((sum / m_NearbyUnits.Count) - transform.position).normalized;
         }
 
 
@@ -80,7 +69,6 @@ namespace Populous
 
             m_UnitState = state;
             m_NearbyUnits = new();
-            m_NearbySettlements = new();
 
             if (state == UnitState.GATHER || state == UnitState.BATTLE)
                 m_Collider.enabled = true;
@@ -92,12 +80,6 @@ namespace Populous
         {
             if (m_NearbyUnits.Contains(unit))
                 m_NearbyUnits.Remove(unit);
-        }
-
-        public void RemoveSettlement(Settlement settlement)
-        {
-            if (m_NearbySettlements.Contains(settlement))
-                m_NearbySettlements.Remove(settlement);
         }
     }
 }

@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 5112217753619212594}
   - component: {fileID: 4125043769463975922}
   m_Layer: 0
-  m_Name: AreaScanner
+  m_Name: WideRangeDetector
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -225,12 +225,12 @@ MonoBehaviour:
   - {fileID: 3319941856513379266}
   - {fileID: 6475190841780479472}
   m_Sword: {fileID: 8455134085631431226}
-  m_BattleDetector: {fileID: 8487823297983500840}
-  m_AreaScanner: {fileID: 4125043769463975922}
-  m_ProximityDetector: {fileID: 6128104503836289826}
-  m_BattleDetectorRadius: 15
-  m_AreaScannerTilesPerSide: 20
-  m_ProximityDetectorTilesPerSide: 4
+  m_CloseRangeDetector: {fileID: 8487823297983500840}
+  m_MidRangeDetector: {fileID: 6128104503836289826}
+  m_WideRangeDetector: {fileID: 4125043769463975922}
+  m_CloseRangeRadius: 15
+  m_MidRangeTilesPerSide: 1
+  m_WideRangeTilesPerSide: 20
 --- !u!114 &7064862365862757736
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -278,7 +278,7 @@ GameObject:
   - component: {fileID: 5748610768862596859}
   - component: {fileID: 6128104503836289826}
   m_Layer: 0
-  m_Name: ProximityDetector
+  m_Name: MidRangeDetector
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -336,7 +336,7 @@ GameObject:
   - component: {fileID: 7654029764747775136}
   - component: {fileID: 8487823297983500840}
   m_Layer: 0
-  m_Name: BattleDetector
+  m_Name: CloseRangeDetector
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

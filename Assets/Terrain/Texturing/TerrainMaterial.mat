@@ -83,16 +83,19 @@ Material:
     - _GlossMapScale: 1
     - _Glossiness: 0.5
     - _GlossyReflections: 1
+    - _LandScale: 5
     - _Metallic: 0
     - _Mode: 0
     - _OcclusionStrength: 1
     - _Parallax: 0.02
+    - _SandScale: 5
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
     - _SrcBlend: 1
     - _TextureScale: 5
     - _UVSec: 0
     - _WaterColorSize: 0.05
+    - _WaterScale: 50
     - _ZWrite: 1
     - _textureScale: 10
     - _waterColorSize: 0.05
