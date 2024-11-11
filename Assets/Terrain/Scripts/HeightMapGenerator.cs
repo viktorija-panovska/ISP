@@ -4,9 +4,9 @@ using Random = System.Random;
 namespace Populous
 {
     /// <summary>
-    /// The <c>IMapGenerator</c> interface defines methods necessary for classes which 
+    /// The <c>IHeightMapGenerator</c> interface defines methods necessary for classes which generate a height map.
     /// </summary>
-    public interface IMapGenerator
+    public interface IHeightMapGenerator
     {
         /// <summary>
         /// Computes the height at a given position using the Perlin Noise function and a falloff function.
@@ -21,7 +21,7 @@ namespace Populous
     /// The <c>HeightMapGenerator</c> class is a static class which contains properties and methods 
     /// which are used to generate a height map for the terrain.
     /// </summary>
-    public class HeightMapGenerator : IMapGenerator
+    public class HeightMapGenerator : IHeightMapGenerator
     {
         private const float SCALE = 2f;
         private const int OCTAVES = 6;              // number of levels of detail

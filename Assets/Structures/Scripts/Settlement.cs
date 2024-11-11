@@ -52,6 +52,8 @@ namespace Populous
         private bool m_IsRuined;
         public bool IsRuined { get => m_IsRuined; }
 
+        public int UnitStrength = 1;
+
 
         public void Start()
         {
@@ -330,7 +332,7 @@ namespace Populous
         [ClientRpc]
         private void ToggleHealthBarClientRpc(bool show, int maxHealth, int currentHealth, Color teamColor, ClientRpcParams parameters = default)
         {
-            GameUI.Instance.ToggleHealthBar(
+            GameUI.Instance.ToggleUnitUI(
                 show,
                 maxHealth,
                 currentHealth,
@@ -342,7 +344,7 @@ namespace Populous
         [ClientRpc]
         private void UpdateHealthBarClientRpc(int maxHealth, int currentHealth, Team team, ClientRpcParams parameters = default)
         {
-            GameUI.Instance.UpdateHealthBar(maxHealth, currentHealth);
+            GameUI.Instance.UpdateStrengthBar(maxHealth, currentHealth);
         }
 
         #endregion

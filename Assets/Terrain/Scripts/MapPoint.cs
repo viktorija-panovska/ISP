@@ -90,6 +90,14 @@ namespace Populous
         }
 
         /// <summary>
+        /// True if this is the last point either on the X axis or the Z axis of the terrain grid.
+        /// </summary>
+        public readonly bool IsLastPoint
+        {
+            get => m_GridX == Terrain.Instance.TilesPerSide || m_GridZ == Terrain.Instance.TilesPerSide;
+        }
+
+        /// <summary>
         /// Gets the position of the center of the tile represented by this point.
         /// </summary>
         public readonly Vector3 TileCenter 

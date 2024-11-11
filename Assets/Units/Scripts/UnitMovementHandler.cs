@@ -1,17 +1,42 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using Random = System.Random;
-using System;
 
 namespace Populous
 {
+    /// <summary>
+    /// The <c>UnitMovementHandler</c> class is a <c>MonoBehavior</c> which contains 
+    /// all the properties and methods relating to handling the movement of a unit.
+    /// </summary>
     public class UnitMovementHandler : MonoBehaviour
     {
+        /// <summary>
+        /// States of movement a unit can be in.
+        /// </summary>
         private enum MoveState
         {
+            /// <summary>
+            /// The unit is not moving.
+            /// </summary>
             STOP,
-            FREE_MOVE,
-            FOLLOW_FLAT_SPACE,
+            /// <summary>
+            /// The unit is roaming.
+            /// </summary>
+            ROAM,
+            /// <summary>
+            /// The unit is following another unit.
+            /// </summary>
+            FOLLOW,
+            /// <summary>
+            /// The unit is travelling to a flat space.
+            /// </summary>
+            GO_TO_FLAT_SPACE,
+            /// <summary>
+            /// The unit is travelling to its faction symbol.
+            /// </summary>
+            GO_TO_SYMBOL
         }
 
         [SerializeField] private float m_MoveSpeed = 40f;
@@ -21,59 +46,91 @@ namespace Populous
         [SerializeField] private int m_RoamingViewTileDistance = 5;
         [SerializeField] private int m_RoamingViewTileWidth = 3;
         [SerializeField] private int m_MaxStepsInRoamDirection = 10;
-        [SerializeField] private int m_MaxStepsInBattleDirection = 10;
         [SerializeField] private int m_MaxChaseSteps = 10;
 
+        /// <summary>
+        /// The <c>MapPoint</c> closest to the starting point of the current movement.
+        /// </summary>
         public MapPoint StartLocation { get; private set; }
+        /// <summary>
+        /// The <c>MapPoint</c> closest to the current target point.
+        /// </summary>
         public MapPoint EndLocation { get => m_TargetPoint == null ? StartLocation : new(m_TargetPoint.Value.x, m_TargetPoint.Value.z); }
 
         private Unit m_Unit;
         private Rigidbody m_Rigidbody;
 
-        // Following path
-        private Vector3 m_StartPosition;
-        private List<MapPoint> m_Path;
-        private Vector3? m_TargetPoint;
-        private int m_TargetPointIndex = 0;
-        private Unit m_UnitToFollow = null;
-
-        private bool m_FlagReached;
-        public bool FlagReached { get => m_FlagReached; set => m_FlagReached = value; }
-
-        private bool m_MoveToCenter;
-        private (int x, int z) m_RoamDirection;
-        private int m_StepsTakenInDirection;
-        private readonly (int x, int z)[] m_RoamDirections = new (int, int)[] { (0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (-1, -1), (-1, 0), (-1, 1) };
-        private MapPoint? m_TargetTile;
-
-        private int m_BattleStepsTakenInDirection;
-        private int m_ChaseSteps;
-
         private MoveState m_LastMoveState = MoveState.STOP;
         private MoveState m_CurrentMoveState = MoveState.STOP;
 
+        private bool m_SymbolReached;
+        /// <summary>
+        /// True if the unit is travelling to the faction symbol and has reached it, false otherwise.
+        /// </summary>
+        public bool SymbolReached { get => m_SymbolReached; set => m_SymbolReached = value; }
 
-        #region MonoBehaviors
+        // Path Movement
+        private List<MapPoint> m_Path;
+        private int m_PathIndex = 0;
+        private Vector3 m_StartPosition;
+        private Vector3? m_TargetPoint;
+
+        // Roaming
+        /// <summary>
+        /// All the possible directions the unit could roam in.
+        /// </summary>
+        private readonly (int x, int z)[] m_RoamDirections = new (int, int)[] 
+        { 
+            (0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (-1, -1), (-1, 0), (-1, 1) 
+        };
+        /// <summary>
+        /// The direction the unit is roaming in.
+        /// </summary>
+        private (int x, int z) m_CurrentRoamDirection;
+        /// <summary>
+        /// True if the current step the unit is taking is to the center of a tile, false otherwise.
+        /// </summary>
+        private bool m_MoveToCenter;
+        /// <summary>
+        /// Total steps taken while roaming
+        /// </summary>
+        private int m_RoamSteps;
+        /// <summary>
+        /// The number of steps the unit has roamed in one roam direction.
+        /// </summary>
+        private int m_RoamStepsInDirection;
+
+        // Follow
+        /// <summary>
+        /// A <c>MapPoint</c> representing a flat tile the unit has found and is moving towards, null if there is no such tile.
+        /// </summary>
+        private MapPoint? m_FoundFlatTile;
+        /// <summary>
+        /// The target this unit is going after, null if no such target exists.
+        /// </summary>
+        private Unit m_TargetUnit = null;
+
 
         private void FixedUpdate()
         {
-            if (m_TargetPoint == null || m_CurrentMoveState == MoveState.STOP) return;
+            if (m_CurrentMoveState == MoveState.STOP) return;
 
             Vector3 currentPosition = transform.position;
 
-            if (Vector3.Distance(currentPosition, m_TargetPoint.Value) > m_PositionError)
+            if (m_TargetPoint != null && Vector3.Distance(currentPosition, m_TargetPoint.Value) > m_PositionError)
                 m_Rigidbody.MovePosition(currentPosition + (m_MoveSpeed * Time.deltaTime * (m_TargetPoint.Value - currentPosition).normalized));
-            else if (m_Path != null)
+            else if (m_Path != null)            // there are more steps to take along the path
                 ChooseNextPathTarget();
-            else
-                m_TargetPoint = null;
+            else                                // we have reached the end of the path
+                ChooseNextAction();
         }
-
-        #endregion
 
 
         #region Control
 
+        /// <summary>
+        /// Sets up the necessary properties for the unit's movement and starts to roam.
+        /// </summary>
         public void InitializeMovement()
         {
             m_Unit = GetComponent<Unit>();
@@ -82,10 +139,13 @@ namespace Populous
             m_StartPosition = m_Unit.ClosestMapPoint.ToWorldPosition();
             StartLocation = m_Unit.ClosestMapPoint;
 
-            SwitchMoveState(MoveState.FREE_MOVE);
-            RoamToSettle();
+            Roam();
         }
 
+        /// <summary>
+        /// Pauses or unpauses the unit's movement.
+        /// </summary>
+        /// <param name="pause">True if the movement should be paused, false if the movement should be resumed.</param>
         public void Pause(bool pause)
         {
             if (pause && m_CurrentMoveState == MoveState.STOP) return;
@@ -101,64 +161,36 @@ namespace Populous
             }
         }
 
+        /// <summary>
+        /// Sets the movement state to roam.
+        /// </summary>
+        public void SetRoam() => SwitchMoveState(MoveState.ROAM);
+
+        /// <summary>
+        /// Switches the movement state to the given state.
+        /// </summary>
+        /// <param name="state">The <c>MoveState</c> which should be set.</param>
         private void SwitchMoveState(MoveState state)
         {
+            if (state == m_CurrentMoveState) return;
+
+            if (m_CurrentMoveState == MoveState.FOLLOW)
+                StopFollowingUnit();
+
             m_LastMoveState = m_CurrentMoveState;
             m_CurrentMoveState = state;
         }
 
-        #endregion
-
-
-        #region Path Movement
-
-        public void SetPath(Vector3 end) => SetPath(Pathfinding.FindPath(m_Unit.ClosestMapPoint, new(end.x, end.z)));
-
-        private void SetPath(List<MapPoint> path)
-        {
-            m_Path = path;
-            m_TargetPointIndex = 0;
-            m_TargetPoint = m_Path[m_TargetPointIndex].ToWorldPosition();
-        }
-
-        private void ChooseNextPathTarget()
-        {
-            if (m_TargetPointIndex >= m_Path.Count)
-            {
-                ChooseNextAction();
-                return;
-            }
-
-            m_StartPosition = m_Unit.ClosestMapPoint.ToWorldPosition();
-            StartLocation = m_Unit.ClosestMapPoint;
-
-            // pick next target
-            Vector3 target = m_Path[m_TargetPointIndex].ToWorldPosition();
-
-            // rotate unit to face the next target
-            m_Unit.Rotate/*ClientRpc*/((target - Vector3.up * target.y) - (m_StartPosition - Vector3.up * m_StartPosition.y));
-
-            // if we are moving on a diagonal, the next step will be to the center of the tile
-            if (!m_MoveToCenter && m_StartPosition.x != target.x && m_StartPosition.z != target.z)
-            {
-                m_MoveToCenter = true;
-                m_TargetPoint = ComputeCenterPosition(m_StartPosition, target);
-            }
-            else
-            {
-                // this was the move to the center, so the next one will be a move to the edge
-                m_MoveToCenter = false;
-                m_TargetPointIndex++;
-                m_TargetPoint = target;
-            }
-        }
-
+        /// <summary>
+        /// Chooses what the unit should do next once it has reached the end of the current path.
+        /// </summary>
         private void ChooseNextAction()
         {
-            if (m_Unit.IsKnight)
+            // Knights bypass any other movement commands.
+            if (m_Unit.Class == UnitClass.KNIGHT)
             {
-                if (m_UnitToFollow)
-                    GetNextStepToTargetUnit();
+                if (m_CurrentMoveState == MoveState.FOLLOW)
+                    GetNextStepToFollowTarget();
                 else
                 {
                     Unit leader = UnitManager.Instance.GetLeader(m_Unit.Team == Team.RED ? Team.BLUE : Team.RED);
@@ -166,122 +198,22 @@ namespace Populous
                     if (leader)
                         FollowUnit(leader);
                     else
-                        RoamToBattleOrGather();
+                        Roam();
                 }
 
                 return;
             }
 
-            if (m_Unit.CurrentState == UnitState.SETTLE)
-            {
-                if (m_CurrentMoveState == MoveState.FOLLOW_FLAT_SPACE && m_TargetTile.HasValue &&
-                    Terrain.Instance.IsTileFlat((m_TargetTile.Value.GridX, m_TargetTile.Value.GridZ)) &&
-                    !Terrain.Instance.IsTileOccupied((m_TargetTile.Value.GridX, m_TargetTile.Value.GridZ)))
-                    FlatSpaceFound(m_TargetTile.Value);
-                else
-                    RoamToSettle();
-            }
-            else if (m_UnitToFollow && (m_Unit.CurrentState == UnitState.GO_TO_FLAG || m_Unit.CurrentState == UnitState.BATTLE))
-                GetNextStepToTargetUnit();
-            else if (m_Unit.CurrentState == UnitState.BATTLE || m_Unit.CurrentState == UnitState.GATHER)
-                RoamToBattleOrGather();
-            else if (m_FlagReached && m_Unit.CurrentState == UnitState.GO_TO_FLAG)
+            if (m_CurrentMoveState == MoveState.GO_TO_FLAT_SPACE && m_FoundFlatTile.HasValue &&
+                Terrain.Instance.IsTileFlat((m_FoundFlatTile.Value.GridX, m_FoundFlatTile.Value.GridZ)) &&
+                !Terrain.Instance.IsTileOccupied((m_FoundFlatTile.Value.GridX, m_FoundFlatTile.Value.GridZ)))
+                FlatTileReached(m_FoundFlatTile.Value);
+            else if (m_CurrentMoveState == MoveState.FOLLOW && m_TargetUnit)
+                GetNextStepToFollowTarget();
+            else if (m_CurrentMoveState == MoveState.GO_TO_SYMBOL && m_SymbolReached)
                 WanderAroundPoint();
             else
-                ResetPath();
-        }
-
-        private void ResetPath()
-        {
-            m_Path = null;
-            m_TargetPointIndex = 0;
-            m_TargetPoint = null;
-        }
-
-        private Vector3 ComputeCenterPosition(Vector3 a, Vector3 b)
-        {
-            float dx = (b.x - a.x) / Terrain.Instance.UnitsPerTileSide;
-            float dz = (b.z - a.z) / Terrain.Instance.UnitsPerTileSide;
-
-            float x = a.x + dx * (Terrain.Instance.UnitsPerTileSide / 2);
-            float z = a.z + dz * (Terrain.Instance.UnitsPerTileSide / 2);
-
-            int y = Terrain.Instance.GetTileCenterHeight(
-                ((int)(x / (Terrain.Instance.UnitsPerTileSide)),
-                 (int)(z / (Terrain.Instance.UnitsPerTileSide)))
-            );
-
-            return new(x, y, z);
-        }
-
-        private MapPoint GetNeighboringPoint(MapPoint point)
-        {
-            Random random = new();
-            List<MapPoint> neighbors = point.Neighbors;
-            MapPoint? neighbor = null;
-
-            while (neighbor == null)
-            {
-                MapPoint choice = neighbors[random.Next(neighbors.Count)];
-                if (Terrain.Instance.CanCrossTile(point, choice))
-                    neighbor = choice;
-            }
-
-            return neighbor.Value;
-        }
-
-        #endregion
-
-
-        #region Follow Unit
-
-        public void FollowLeader() => FollowUnit(UnitManager.Instance.GetLeader(m_Unit.Team));
-
-        public void FollowUnit(Unit unit)
-        {
-            m_UnitToFollow = unit;
-            GetNextStepToTargetUnit();
-        }
-
-        public void StopFollowingUnit(Unit unit)
-        {
-            if (m_UnitToFollow != unit)
-                return;
-
-            m_UnitToFollow = null;
-        }
-
-        public void StopFollowingUnit()
-        {
-            m_UnitToFollow = null;
-        }
-
-        private void GetNextStepToTargetUnit()
-        {
-            MapPoint? step = Pathfinding.FollowUnit(m_Unit.ClosestMapPoint, m_UnitToFollow.ClosestMapPoint);
-
-            if (step == null) return;
-            SetPath(new List<MapPoint>() { step.Value });
-        }
-
-
-        #endregion
-
-
-        #region Special Circumstances
-
-        private void WanderAroundPoint()
-        {
-            MapPoint lastPoint = m_Unit.ClosestMapPoint;
-            SetPath(new List<MapPoint> { GetNeighboringPoint(lastPoint), lastPoint });
-        }
-
-        private void FlatSpaceFound(MapPoint tile)
-        {
-            SwitchMoveState(MoveState.STOP);
-            StructureManager.Instance.CreateSettlement(tile, m_Unit.Team);
-            m_TargetTile = null;
-            SwitchMoveState(MoveState.FREE_MOVE);
+                Roam();
         }
 
         #endregion
@@ -289,76 +221,125 @@ namespace Populous
 
         #region Roaming
 
-        public void RoamToSettle()
+        /// <summary>
+        /// Makes the unit wander around the map.
+        /// </summary>
+        private void Roam()
         {
-            ResetPath();
+            UnsetPath();
+            SwitchMoveState(MoveState.ROAM);
 
             MapPoint currentLocation = m_Unit.ClosestMapPoint;
-            MapPoint? targetTile = FindFreeTile(currentLocation);
+            UnitManager.Instance.AddStepAtPoint(m_Unit.Team, (currentLocation.GridX, currentLocation.GridZ));
 
-            if (targetTile.HasValue)
+            if (m_RoamSteps == UnitManager.Instance.DecayRate)
             {
-                if (m_Unit.CurrentState == UnitState.SETTLE)
-                    SwitchMoveState(MoveState.FOLLOW_FLAT_SPACE);
-
-                m_TargetTile = targetTile;
-                SetPath(targetTile.Value.GetClosestTileCorner(currentLocation).ToWorldPosition());
-                return;
+                m_Unit.LoseStrength(1);
+                m_RoamSteps = 0;
             }
 
-            // Roam
-            if (m_StepsTakenInDirection <= m_MaxStepsInRoamDirection && m_RoamDirection != (0, 0))
-                m_StepsTakenInDirection++;
+            m_RoamSteps++;
+
+            if (CheckUnitStateBehavior(currentLocation))
+                return;
+
+            // No flat tile found, so we roam. We only go a certain number of steps in one direction.
+            if (m_RoamStepsInDirection <= m_MaxStepsInRoamDirection && m_CurrentRoamDirection != (0, 0))
+                m_RoamStepsInDirection++;
             else
                 ChooseRoamDirection(currentLocation);
 
-            Vector3 target = ChooseNextRoamTarget(currentLocation).ToWorldPosition();
-            SetPath(target);
+            SetPath(ChooseNextRoamTarget(currentLocation).ToWorldPosition());
         }
 
-        public void RoamToBattleOrGather()
+        /// <summary>
+        /// Checks whether the normal roaming bahevior can be modified based on the 
+        /// current state of the unit, and performs the modifications if so.
+        /// </summary>
+        /// <param name="currentLocation">The <c>MapPoint</c> of the current location of this unit.</param>
+        /// <returns>True if the normal roam behavior has been modified, false if not.</returns>
+        private bool CheckUnitStateBehavior(MapPoint currentLocation)
         {
-            ResetPath();
+            // If we are settling, try to find an free tile in the vicinity.
+            if (m_Unit.Behavior == UnitBehavior.SETTLE)
+            {
+                MapPoint? targetTile = FindFreeTile(currentLocation);
 
-            MapPoint currentLocation = m_Unit.ClosestMapPoint;
+                if (targetTile.HasValue)
+                {
+                    SwitchMoveState(MoveState.GO_TO_FLAT_SPACE);
+                    m_FoundFlatTile = targetTile;
+                    SetPath(targetTile.Value.GetClosestTileCorner(currentLocation).ToWorldPosition());
+                    return true;
+                }
+            }
 
-            if (m_BattleStepsTakenInDirection == 0 || m_BattleStepsTakenInDirection > m_MaxStepsInBattleDirection || m_RoamDirection == (0, 0))
-                ChooseRoamDirection(currentLocation);
-            else
-                m_BattleStepsTakenInDirection++;
+            // If we are battling or gathering, go in the direction of other units, if some are detected.
+            if (m_Unit.Behavior == UnitBehavior.FIGHT || m_Unit.Behavior == UnitBehavior.GATHER)
+            {
+                Unit targetToFollow = m_Unit.GetFollowTarget();
 
-            Vector3 target = ChooseNextRoamTarget(currentLocation).ToWorldPosition();
-            SetPath(target);
+                // if we have another unit that's close enough, follow it.
+                if (targetToFollow != null)
+                {
+                    FollowUnit(targetToFollow);
+                    return true;
+                }
+
+                Vector3 direction = m_Unit.GetUnitsDirection();
+
+                if (direction != Vector3.zero)
+                {
+                    m_CurrentRoamDirection = (Mathf.RoundToInt(direction.x), Mathf.RoundToInt(direction.z));
+                    SetPath(ChooseNextRoamTarget(currentLocation).ToWorldPosition());
+                    return true;
+                }
+            }
+
+            if (m_Unit.Behavior == UnitBehavior.GO_TO_SYMBOL)
+            {
+                GoToSymbol();
+                return true;
+            }
+
+            return false;
         }
 
+        /// <summary>
+        /// Searches the surroundings of the current location depending on the roam direction to find a free tile.
+        /// </summary>
+        /// <param name="currentLocation">The <c>MapPoint</c> of the current location of this unit.</param>
+        /// <returns>A <c>MapPoint</c> representing the free tile that was found, null if no such tile was found.</returns>
         private MapPoint? FindFreeTile(MapPoint currentLocation)
         {
-            UnitState state = m_Unit.CurrentState;
+            UnitBehavior state = m_Unit.Behavior;
             MapPoint? target = null;
 
             FindFreeTile_Surrounding();
 
-            // we are standing next to either a flat space or a house
-            if (target == null && m_RoamDirection.x == 0 && m_RoamDirection.z == 0 && m_RoamDirection != (0, 0))
+            if (target == null && m_CurrentRoamDirection.x == 0 && m_CurrentRoamDirection.z == 0 && m_CurrentRoamDirection != (0, 0))
                 FindFreeTile_Parallel();
             else if (target == null)
                 FindFreeTile_Diagonal();
 
             return target;
 
-
+            /// <summary>
+            /// Searches the tiles immediately around the current location.
+            /// </summary>
             void FindFreeTile_Surrounding()
             {
                 for (int z = 0; z >= -1; --z)
                 {
                     for (int x = 0; x >= -1; --x)
                     {
-                        if (!Terrain.Instance.IsPointInBounds((currentLocation.GridX + x, currentLocation.GridZ + z)))
+                        if (!Terrain.Instance.IsPointInBounds((currentLocation.GridX + x, currentLocation.GridZ + z)) ||
+                            Terrain.Instance.IsLastPoint((currentLocation.GridX + x, currentLocation.GridZ + z)))
                             continue;
 
                         MapPoint point = new(currentLocation.GridX + x, currentLocation.GridZ + z);
 
-                        if (Terrain.Instance.IsTileUnderwater((point.GridX, point.GridZ)) || (state == UnitState.SETTLE && 
+                        if (Terrain.Instance.IsTileUnderwater((point.GridX, point.GridZ)) || (state == UnitBehavior.SETTLE &&
                             (!Terrain.Instance.IsTileFlat((point.GridX, point.GridZ)) || Terrain.Instance.IsTileOccupied((point.GridX, point.GridZ)))))
                             continue;
 
@@ -368,23 +349,27 @@ namespace Populous
                 }
             }
 
+            /// <summary>
+            /// Searches the tiles in front of the unit based on the direction it is facing, 
+            /// if that direction is up, down, left, or right.
+            /// </summary>
             void FindFreeTile_Parallel()
             {
                 for (int dist = 1; dist < m_RoamingViewTileDistance; ++dist)
                 {
-                    int distanceTarget = m_RoamDirection.x == 0 ? (currentLocation.GridZ + m_RoamDirection.z * dist) : (currentLocation.GridX + m_RoamDirection.x * dist);
+                    int distanceTarget = m_CurrentRoamDirection.x == 0 ? (currentLocation.GridZ + m_CurrentRoamDirection.z * dist) : (currentLocation.GridX + m_CurrentRoamDirection.x * dist);
 
                     if (distanceTarget < 0 || distanceTarget >= Terrain.Instance.TilesPerSide) continue;
 
                     for (int width = -m_RoamingViewTileWidth; width < m_RoamingViewTileWidth; ++width)
                     {
-                        int widthTarget = m_RoamDirection.x == 0 ? (currentLocation.GridX + width) : (currentLocation.GridZ + width);
+                        int widthTarget = m_CurrentRoamDirection.x == 0 ? (currentLocation.GridX + width) : (currentLocation.GridZ + width);
 
                         if (widthTarget < 0 || widthTarget >= Terrain.Instance.TilesPerSide) continue;
 
-                        MapPoint point = m_RoamDirection.x == 0 ? new(widthTarget, distanceTarget) : new(distanceTarget, widthTarget);
+                        MapPoint point = m_CurrentRoamDirection.x == 0 ? new(widthTarget, distanceTarget) : new(distanceTarget, widthTarget);
 
-                        if (Terrain.Instance.IsTileUnderwater((point.GridX, point.GridZ)) || (state == UnitState.SETTLE && 
+                        if (Terrain.Instance.IsTileUnderwater((point.GridX, point.GridZ)) || (state == UnitBehavior.SETTLE &&
                             (!Terrain.Instance.IsTileFlat((point.GridX, point.GridZ)) || Terrain.Instance.IsTileOccupied((point.GridX, point.GridZ)))))
                             continue;
 
@@ -394,6 +379,10 @@ namespace Populous
                 }
             }
 
+            /// <summary>
+            /// Searches the tiles in front of the unit based on the direction it is facing, 
+            /// if that direction is up-left, up-right, down-left, or down-right.
+            /// </summary>
             void FindFreeTile_Diagonal()
             {
                 for (int dist = 1; dist < m_RoamingViewTileDistance; ++dist)
@@ -409,15 +398,15 @@ namespace Populous
 
                         foreach ((int dx, int dz) in directions)
                         {
-                            int targetX = currentLocation.GridX + m_RoamDirection.x * dx;
-                            int targetZ = currentLocation.GridZ + m_RoamDirection.z * dz;
+                            int targetX = currentLocation.GridX + m_CurrentRoamDirection.x * dx;
+                            int targetZ = currentLocation.GridZ + m_CurrentRoamDirection.z * dz;
 
-                            if (!Terrain.Instance.IsPointInBounds((targetX, targetZ)))
+                            if (!Terrain.Instance.IsPointInBounds((targetX, targetZ)) || Terrain.Instance.IsLastPoint((targetX, targetZ)))
                                 continue;
 
                             MapPoint point = new(targetX, targetZ);
 
-                            if (Terrain.Instance.IsTileUnderwater((point.GridX, point.GridZ)) || (state == UnitState.SETTLE && 
+                            if (Terrain.Instance.IsTileUnderwater((point.GridX, point.GridZ)) || (state == UnitBehavior.SETTLE &&
                                 (!Terrain.Instance.IsTileFlat((point.GridX, point.GridZ)) || Terrain.Instance.IsTileOccupied((point.GridX, point.GridZ)))))
                                 continue;
 
@@ -429,20 +418,13 @@ namespace Populous
             }
         }
 
+        /// <summary>
+        /// Finds a new direction for the unit to roam in, only staying in the same direction if none other is available.
+        /// </summary>
+        /// <param name="currentLocation">The <c>MapPoint</c> of the current location of this unit.</param>
         private void ChooseRoamDirection(MapPoint currentLocation)
         {
-            if (m_Unit.CurrentState == UnitState.BATTLE || m_Unit.CurrentState == UnitState.GATHER)
-            {
-                Vector3 direction = m_Unit.GetRoamingDirection();
-
-                if (direction != Vector3.zero)
-                {
-                    m_RoamDirection = (Mathf.RoundToInt(direction.x), Mathf.RoundToInt(direction.z));
-                    return;
-                }
-            }
-
-            List<(int, int)> availableDirections = new();
+            List<(int x, int z)> availableDirections = new();
 
             void AddValidDirections((int, int)[] d)
             {
@@ -460,11 +442,11 @@ namespace Populous
                 }
             }
 
-            if (m_RoamDirection == (0, 0))
+            if (m_CurrentRoamDirection == (0, 0))
                 AddValidDirections(m_RoamDirections);
             else
             {
-                int currentDirection = Array.IndexOf(m_RoamDirections, m_RoamDirection);
+                int currentDirection = Array.IndexOf(m_RoamDirections, m_CurrentRoamDirection);
 
                 // forward directions
                 AddValidDirections(new (int, int)[] {
@@ -484,30 +466,270 @@ namespace Populous
 
                 // only backtrack the way we came if there are no other options
                 if (availableDirections.Count == 0)
-                    AddValidDirections(new (int, int)[] { 
-                        m_RoamDirections[Helpers.NextArrayIndex(currentDirection, +4, m_RoamDirections.Length)] 
+                    AddValidDirections(new (int, int)[] {
+                        m_RoamDirections[Helpers.NextArrayIndex(currentDirection, +4, m_RoamDirections.Length)]
                     });
             }
 
-            // if we can't go anywhere, stay in place
-            m_RoamDirection = availableDirections.Count > 0 ? availableDirections[new Random().Next(0, availableDirections.Count)] : (0, 0);
+
+            if (availableDirections.Count == 0)
+            {
+                m_CurrentRoamDirection = (0, 0);
+                return;
+            }
+
+            int[] steps = new int[availableDirections.Count];
+            int minStep = int.MaxValue;
+            int minIndex = -1;
+
+            for (int i = 0; i < availableDirections.Count; ++i)
+            {
+                (int x, int z) gridPoint = (currentLocation.GridX + availableDirections[i].x, currentLocation.GridZ + availableDirections[i].z);
+
+                if (gridPoint.x < 0 || gridPoint.x > Terrain.Instance.TilesPerSide || gridPoint.z < 0 || gridPoint.z > Terrain.Instance.TilesPerSide)
+                {
+                    steps[i] = int.MaxValue;
+                    return;
+                }
+                
+                int stepsAtPoint = UnitManager.Instance.GetStepsAtPoint(m_Unit.Team, gridPoint);
+                steps[i] = stepsAtPoint;
+
+                if (stepsAtPoint < minStep)
+                {
+                    minStep = stepsAtPoint;
+                    minIndex = i;
+                }
+            }
+
+            if (steps.All(x => steps[0] == x))
+                m_CurrentRoamDirection = availableDirections[new Random().Next(0, availableDirections.Count)];
+            else
+                m_CurrentRoamDirection = availableDirections[minIndex];
         }
 
+        /// <summary>
+        /// Finds the next target for the unit to roam to, given the current location and the direction of roaming.
+        /// </summary>
+        /// <param name="currentLocation">The <c>MapPoint</c> of the current location of this unit.</param>
+        /// <returns>The <c>MapPoint</c> of the target location.</returns>
         private MapPoint ChooseNextRoamTarget(MapPoint currentLocation)
         {
-            (int x, int z) target = (currentLocation.GridX + m_RoamDirection.x, currentLocation.GridZ + m_RoamDirection.z);
+            (int x, int z) target = (currentLocation.GridX + m_CurrentRoamDirection.x, currentLocation.GridZ + m_CurrentRoamDirection.z);
             MapPoint targetLocation = new(target.x, target.z);
 
             if (!Terrain.Instance.IsPointInBounds(target) || !Terrain.Instance.CanCrossTile(currentLocation, targetLocation) ||
                 Terrain.Instance.IsTileUnderwater(target))
             {
-                m_StepsTakenInDirection = 0;
+                m_RoamStepsInDirection = 0;
                 ChooseRoamDirection(currentLocation);
-                target = (currentLocation.GridX + m_RoamDirection.x, currentLocation.GridZ + m_RoamDirection.z);
+                target = (currentLocation.GridX + m_CurrentRoamDirection.x, currentLocation.GridZ + m_CurrentRoamDirection.z);
                 targetLocation = new(target.x, target.z);
             }
 
             return targetLocation;
+        }
+
+        #endregion
+
+
+        #region Path Movement
+
+        /// <summary>
+        /// Gets the path from the current position to the given end position and sets it up as the current path the unit should follow.
+        /// </summary>
+        /// <param name="end"></param>
+        private void SetPath(Vector3 end) => SetPath(Pathfinder.FindPath(m_Unit.ClosestMapPoint, new(end.x, end.z)));
+
+        /// <summary>
+        /// Sets the path the unit should follow and initializes the movement along it.
+        /// </summary>
+        /// <param name="path">A list of <c>MapPoints</c> representing the path.</param>
+        private void SetPath(List<MapPoint> path)
+        {
+            m_Path = path;
+            m_PathIndex = 0;
+            m_TargetPoint = m_Path[m_PathIndex].ToWorldPosition();
+        }
+
+        /// <summary>
+        /// Removes the current path.
+        /// </summary>
+        private void UnsetPath()
+        {
+            m_Path = null;
+            m_PathIndex = 0;
+            m_TargetPoint = null;
+        }
+
+        /// <summary>
+        /// Sets the next target point the unit should go along the path, either the next point on 
+        /// the grid or the center of a tile if the unit is crossing along the tile's diagonal.
+        /// </summary>
+        private void ChooseNextPathTarget()
+        {
+            if (m_PathIndex >= m_Path.Count)
+            {
+                UnsetPath();
+                return;
+            }
+
+            m_StartPosition = m_Unit.ClosestMapPoint.ToWorldPosition();
+            StartLocation = m_Unit.ClosestMapPoint;
+
+            // pick next target
+            Vector3 target = m_Path[m_PathIndex].ToWorldPosition();
+
+            // rotate unit to face the next target
+            m_Unit.Rotate/*ClientRpc*/((target - Vector3.up * target.y) - (m_StartPosition - Vector3.up * m_StartPosition.y));
+
+            // if we are moving on a diagonal, the next step will be to the center of the tile
+            if (!m_MoveToCenter && m_StartPosition.x != target.x && m_StartPosition.z != target.z)
+            {
+                m_MoveToCenter = true;
+                m_TargetPoint = ComputeCenterPosition(m_StartPosition, target);
+            }
+            else
+            {
+                // this was the move to the center, so the next one will be a move to the edge
+                m_MoveToCenter = false;
+                m_PathIndex++;
+                m_TargetPoint = target;
+            }
+        }
+
+        /// <summary>
+        /// Gets the center point of a tile with the given diagonal corners.
+        /// </summary>
+        /// <param name="a">The position of one corner of the tile.</param>
+        /// <param name="b">The position of the corner of the tile diagonal to <c>a</c>.</param>
+        /// <returns>The <c>Vector3</c> of the position of the center of the tile.</returns>
+        private Vector3 ComputeCenterPosition(Vector3 a, Vector3 b)
+        {
+            float dx = (b.x - a.x) / Terrain.Instance.UnitsPerTileSide;
+            float dz = (b.z - a.z) / Terrain.Instance.UnitsPerTileSide;
+
+            float x = a.x + dx * (Terrain.Instance.UnitsPerTileSide / 2);
+            float z = a.z + dz * (Terrain.Instance.UnitsPerTileSide / 2);
+
+            int y = Terrain.Instance.GetTileCenterHeight(
+                ((int)(x / (Terrain.Instance.UnitsPerTileSide)),
+                 (int)(z / (Terrain.Instance.UnitsPerTileSide)))
+            );
+
+            return new(x, y, z);
+        }
+
+        #endregion
+
+
+        #region Follow
+
+        /// <summary>
+        /// Make this unit go after the leader of its faction.
+        /// </summary>
+        private void FollowLeader() => FollowUnit(UnitManager.Instance.GetLeader(m_Unit.Team));
+
+        /// <summary>
+        /// Make this unit go after the given unit.
+        /// </summary>
+        /// <param name="unit">The <c>Unit</c> which we want to go after.</param>
+        private void FollowUnit(Unit unit)
+        {
+            SwitchMoveState(MoveState.FOLLOW);
+            m_TargetUnit = unit;
+            GetNextStepToFollowTarget();
+        }
+
+        /// <summary>
+        /// Gets the next step this unit should take, going after the target unit.
+        /// </summary>
+        private void GetNextStepToFollowTarget()
+        {
+            MapPoint? step = Pathfinder.Follow(m_Unit.ClosestMapPoint, m_TargetUnit.ClosestMapPoint);
+
+            if (step == null) return;
+            SetPath(new List<MapPoint>() { step.Value });
+        }
+
+        /// <summary>
+        /// Stops following the current target unit if it matches the given unit.
+        /// </summary>
+        /// <param name="targetUnit"></param>
+        public void StopFollowingUnit(Unit targetUnit)
+        {
+            if (m_TargetUnit != targetUnit)
+                return;
+
+            StopFollowingUnit();
+        }
+
+        /// <summary>
+        /// Stops following the current target unit.
+        /// </summary>
+        public void StopFollowingUnit() => m_TargetUnit = null;
+
+        #endregion
+
+
+        #region Special Circumstances
+
+        /// <summary>
+        /// Sets the unit to go to the faction symbol.
+        /// </summary>
+        public void GoToSymbol()
+        {
+            m_SymbolReached = false;
+            SwitchMoveState(MoveState.GO_TO_SYMBOL);
+
+            if (m_Unit.Class == UnitClass.LEADER || !UnitManager.Instance.GetLeader(m_Unit.Team))
+                SetPath(StructureManager.Instance.GetSymbolPosition(m_Unit.Team));
+            else
+                FollowLeader();
+        }
+
+        /// <summary>
+        /// Sets the unit's actions when it has reached a flat tile.
+        /// </summary>
+        /// <param name="tile">The <c>MapPoint</c> representing the found free tile.</param>
+        private void FlatTileReached(MapPoint tile)
+        {
+            SwitchMoveState(MoveState.STOP);
+            StructureManager.Instance.CreateSettlement(tile, m_Unit.Team);
+
+            // TODO enter house
+            m_FoundFlatTile = null;
+            SwitchMoveState(MoveState.ROAM);
+        }
+
+        /// <summary>
+        /// Sets the unit to wander around its current location.
+        /// </summary>
+        private void WanderAroundPoint()
+        {
+            MapPoint lastPoint = m_Unit.ClosestMapPoint;
+            SetPath(new List<MapPoint> { GetNeighboringPoint(lastPoint), lastPoint });
+        }
+
+        /// <summary>
+        /// Gets a neightbor of the given point that can be reached by a unit starting from that point.
+        /// </summary>
+        /// <param name="point">The starting <c>MapPoint</c>.</param>
+        /// <returns>A <c>MapPoint</c> representing the neighboring point.</returns>
+        private MapPoint GetNeighboringPoint(MapPoint point)
+        {
+            Random random = new();
+            List<MapPoint> neighbors = point.Neighbors;
+            MapPoint? neighbor = null;
+
+            while (neighbor == null)
+            {
+                MapPoint choice = neighbors[random.Next(neighbors.Count)];
+                if (Terrain.Instance.CanCrossTile(point, choice))
+                    neighbor = choice;
+            }
+
+            return neighbor.Value;
         }
 
         #endregion

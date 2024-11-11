@@ -141,7 +141,7 @@ namespace Populous
         public void EnterSettlement(MapPoint tile, Unit unit)
         {
             Settlement settlement = (Settlement)Terrain.Instance.GetStructureOnTile((tile.GridX, tile.GridZ));
-            settlement.AddUnit(unit.IsLeader);
+            settlement.AddUnit(unit.Class == UnitClass.LEADER);
             UnitManager.Instance.DespawnUnit(unit.gameObject);
         }
 
@@ -195,8 +195,7 @@ namespace Populous
 
         #region Trees and Rocks
 
-        public void PlaceTreesAndRocks()
-            => PlaceTreesAndRocks(m_TreeDensity, m_WhiteRockDensity, m_BlackRockDensity);
+        public void PlaceTreesAndRocks() => PlaceTreesAndRocks(m_TreeDensity, m_WhiteRockDensity, m_BlackRockDensity);
 
         /// <summary>
         /// 
@@ -206,7 +205,7 @@ namespace Populous
         /// <param name="blackRockDensity"></param>
         public void PlaceTreesAndRocks(float treeDensity, float whiteRockDensity, float blackRockDensity)
         {
-            if (!IsHost) return;
+            //if (!IsHost) return;
 
             Random random = new(GameData.Instance == null ? 0 : GameData.Instance.MapSeed);
 
@@ -261,7 +260,7 @@ namespace Populous
             }
         }
 
-        public Vector3 GetFlagPosition(Team team) => m_Flags[(int)team].transform.position;
+        public Vector3 GetSymbolPosition(Team team) => m_Flags[(int)team].transform.position;
 
         //[ClientRpc]
         public void SetFlagPosition/*ClientRpc*/(Team team, Vector3 position) => m_Flags[(int)team].transform.position = position;

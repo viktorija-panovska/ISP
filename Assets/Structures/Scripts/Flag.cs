@@ -8,10 +8,10 @@ namespace Populous
         {
             Unit unit = other.GetComponent<Unit>();
 
-            if (unit == null || unit.CurrentState != UnitState.GO_TO_FLAG || unit.Team != m_Team || unit.IsKnight)
+            if (unit == null || unit.Behavior != UnitBehavior.GO_TO_SYMBOL || unit.Team != m_Team || unit.Class == UnitClass.KNIGHT)
                 return;
 
-            unit.FlagReached();
+            unit.SymbolReached();
 
             if (UnitManager.Instance.GetLeader(m_Team) != null)
                 return;

@@ -33,13 +33,6 @@ namespace Populous
         private int m_VisibleUnitsAndStructures;
         public int VisibleUnitsAndStructures { get => m_VisibleUnitsAndStructures; set => m_VisibleUnitsAndStructures = value; }
 
-
-        private float m_Manna;
-        /// <summary>
-        /// Gets the amount of manna the player currently has.
-        /// </summary>
-        public float Manna { get => m_Manna; }
-
         private Power m_ActivePower = Power.MOLD_TERRAIN;
         /// <summary>
         /// Gets the current active power of the player.
@@ -49,7 +42,7 @@ namespace Populous
         private int m_ActiveMarkerIndex = 0;
         private MapPoint? m_NearestClickablePoint = null;
 
-        private UnitState m_ActiveUnitState = UnitState.SETTLE;
+        private UnitBehavior m_ActiveUnitState = UnitBehavior.SETTLE;
 
 
 
@@ -146,7 +139,6 @@ namespace Populous
         {
             if (!context.performed || !m_NearestClickablePoint.HasValue || !m_NearestClickablePoint.HasValue) return;
 
-            UseManna();
             switch (m_ActivePower)
             {
                 case Power.MOLD_TERRAIN:
@@ -252,28 +244,19 @@ namespace Populous
 
         #region Manna and Powers
 
-        private bool HasEnoughManna(Power power)
-        {
-            if (m_Manna >= GameController.Instance.PowerActivationThreshold[(int)power])
-                return true;
-
-            // flash the symbol red
-            return false;
-        }
+        private bool HasEnoughManna(Power power) => true;
 
         private void SwitchActivePower(Power power)
         {
-            if (HasEnoughManna(power))
-            {
-                m_ActivePower = power;
-                SwitchActiveMarker((int)power);
-            }
+            m_ActivePower = HasEnoughManna(power) ? power : Power.MOLD_TERRAIN;
+            SwitchActiveMarker((int)power);
         }
 
-        private void UseManna()
-        {
+        #endregion
 
-        }
+
+
+        #region Powers
 
         /// <summary>
         /// Handles the <b>MoldTerrainSelected</b> input action.
@@ -366,29 +349,29 @@ namespace Populous
 
         public void OnGoToFlagSelected(InputAction.CallbackContext context)
         {
-            if (!context.performed || m_ActiveUnitState == UnitState.GO_TO_FLAG) return;
-            SwitchState(UnitState.GO_TO_FLAG);
+            if (!context.performed || m_ActiveUnitState == UnitBehavior.GO_TO_SYMBOL) return;
+            SwitchState(UnitBehavior.GO_TO_SYMBOL);
         }
 
         public void OnSettleSelected(InputAction.CallbackContext context)
         {
-            if (!context.performed || m_ActiveUnitState == UnitState.SETTLE) return;
-            SwitchState(UnitState.SETTLE);
+            if (!context.performed || m_ActiveUnitState == UnitBehavior.SETTLE) return;
+            SwitchState(UnitBehavior.SETTLE);
         }
 
         public void OnGatherSelected(InputAction.CallbackContext context)
         {
-            if (!context.performed || m_ActiveUnitState == UnitState.GATHER) return;
-            SwitchState(UnitState.GATHER);
+            if (!context.performed || m_ActiveUnitState == UnitBehavior.GATHER) return;
+            SwitchState(UnitBehavior.GATHER);
         }
 
         public void OnBattleSelected(InputAction.CallbackContext context)
         {
-            if (!context.performed || m_ActiveUnitState == UnitState.BATTLE) return;
-            SwitchState(UnitState.BATTLE);
+            if (!context.performed || m_ActiveUnitState == UnitBehavior.FIGHT) return;
+            SwitchState(UnitBehavior.FIGHT);
         }
 
-        private void SwitchState(UnitState state)
+        private void SwitchState(UnitBehavior state)
         {
             m_ActiveUnitState = state;
             UnitManager.Instance.UnitStateChange/*ServerRpc*/(m_ActiveUnitState, m_Team);

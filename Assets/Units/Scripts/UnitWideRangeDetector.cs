@@ -3,16 +3,24 @@ using UnityEngine;
 
 namespace Populous
 {
+    /// <summary>
+    /// The <c>UnitWideRangeDetector</c> class implements the functionality of the largest collider for detecting other units that a team has.
+    /// </summary>
+    /// <remarks>The wide range detector is used to find a direction this team should move in to find other team when there aren't any close to it.</remarks>
     public class UnitWideRangeDetector : MonoBehaviour
     {
-        private UnitState m_UnitState = UnitState.SETTLE;
+        private UnitBehavior m_UnitState = UnitBehavior.SETTLE;
         private Team m_Team = Team.NONE;
         private Team m_EnemyTeam = Team.NONE;
 
         private HashSet<Unit> m_NearbyUnits = new();
         private BoxCollider m_Collider;
 
-
+        /// <summary>
+        /// Sets the properties of the wide range detector.
+        /// </summary>
+        /// <param name="team">The <c>Team</c> this unit belongs to.</param>
+        /// <param name="tilesPerSide">The size of one side of the detector, in tiles.</param>
         public void Setup(Team team, int tilesPerSide)
         {
             m_Team = team;
@@ -30,8 +38,8 @@ namespace Populous
 
         private void OnTriggerEnter(Collider other)
         {
-            if ((m_UnitState == UnitState.BATTLE && other.gameObject.layer != LayerMask.NameToLayer(GameController.Instance.TeamLayers[(int)m_EnemyTeam])) ||
-                (m_UnitState == UnitState.GATHER && other.gameObject.layer != LayerMask.NameToLayer(GameController.Instance.TeamLayers[(int)m_Team])))
+            if ((m_UnitState == UnitBehavior.FIGHT && other.gameObject.layer != LayerMask.NameToLayer(GameController.Instance.TeamLayers[(int)m_EnemyTeam])) ||
+                (m_UnitState == UnitBehavior.GATHER && other.gameObject.layer != LayerMask.NameToLayer(GameController.Instance.TeamLayers[(int)m_Team])))
                 return;
 
             if (other.gameObject.GetComponent<Unit>() != null)
@@ -40,15 +48,18 @@ namespace Populous
 
         private void OnTriggerExit(Collider other)
         {
-            if ((m_UnitState == UnitState.BATTLE && other.gameObject.layer != LayerMask.NameToLayer(GameController.Instance.TeamLayers[(int)m_EnemyTeam])) ||
-                (m_UnitState == UnitState.GATHER && other.gameObject.layer != LayerMask.NameToLayer(GameController.Instance.TeamLayers[(int)m_Team])))
+            if ((m_UnitState == UnitBehavior.FIGHT && other.gameObject.layer != LayerMask.NameToLayer(GameController.Instance.TeamLayers[(int)m_EnemyTeam])) ||
+                (m_UnitState == UnitBehavior.GATHER && other.gameObject.layer != LayerMask.NameToLayer(GameController.Instance.TeamLayers[(int)m_Team])))
                 return;
 
             if (other.gameObject.GetComponent<Unit>() != null)
                 m_NearbyUnits.Remove(other.gameObject.GetComponent<Unit>());
         }
 
-
+        /// <summary>
+        /// Computes the average vector from the positions of all the units in the vicinity.
+        /// </summary>
+        /// <returns>A <c>Vector3</c> representing the average direction.</returns>
         public Vector3 GetAverageDirection()
         {
             if (m_NearbyUnits.Count == 0)
@@ -62,20 +73,27 @@ namespace Populous
             return ((sum / m_NearbyUnits.Count) - transform.position).normalized;
         }
 
-
-        public void StateChange(UnitState state)
+        /// <summary>
+        /// Changes the current active state of this unit to the given state.
+        /// </summary>
+        /// <param name="state">The <c>UnitBehavior</c> that this unit's state should be set to.</param>
+        public void StateChange(UnitBehavior state)
         {
             if (state == m_UnitState) return;
 
             m_UnitState = state;
             m_NearbyUnits = new();
 
-            if (state == UnitState.GATHER || state == UnitState.BATTLE)
+            if (state == UnitBehavior.GATHER || state == UnitBehavior.FIGHT)
                 m_Collider.enabled = true;
             else
                 m_Collider.enabled = false;
         }
 
+        /// <summary>
+        /// Removes the given unit from the list of units in the vicinity.
+        /// </summary>
+        /// <param name="unit">The <c>Unit</c> that should be removed.</param>
         public void RemoveUnit(Unit unit)
         {
             if (m_NearbyUnits.Contains(unit))

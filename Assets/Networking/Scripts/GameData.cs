@@ -88,6 +88,8 @@ namespace Populous
 
         private NetworkList<PlayerInfo> m_PlayersInfo;
 
+        private ulong[] m_NetworkIds = new ulong[Enum.GetValues(typeof(Team)).Length];
+
 
         private void Awake()
         {
@@ -135,6 +137,8 @@ namespace Populous
             return null;
         }
 
+        public ulong GetNetworkIdByTeam(Team team) => m_NetworkIds[(int)team];
+
         #endregion
 
 
@@ -149,6 +153,7 @@ namespace Populous
                 return false;
 
             m_PlayersInfo.Add(playerInfo);
+            m_NetworkIds[(int)playerInfo.Team] = playerInfo.NetworkId;
             return true;
         }
 

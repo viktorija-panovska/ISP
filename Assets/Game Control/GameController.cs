@@ -54,6 +54,8 @@ namespace Populous
     [RequireComponent(typeof(NetworkObject))]
     public class GameController : NetworkBehaviour
     {
+        [SerializeField] private Color[] m_TeamColors;
+
         [Header("Manna")]
         [SerializeField] private int m_MaxManna = 100;
         [SerializeField] private int[] m_PowerActivationThreshold = new int[Enum.GetNames(typeof(Power)).Length];
@@ -74,10 +76,8 @@ namespace Populous
         public bool IsPlayerHosting { get => IsHost; }
 
         public string[] TeamLayers = new string[] { "Red Team", "Blue Team", "None Team" };
+        public Color[] TeamColors { get => m_TeamColors; }
 
-        public int MaxManna { get => m_MaxManna; }
-        public int[] PowerActivationThreshold { get => m_PowerActivationThreshold; }
-        public int[] PowerMannaCost { get => m_PowerMannaCost; }
         public int EarthquakeRadius { get => m_EarthquakeRadius; }
         public int SwampRadius { get => m_SwampRadius; }
         public int VolcanoRadius { get => m_VolcanoRadius; }
@@ -90,9 +90,10 @@ namespace Populous
         public Team Winner;  // TODO: Remove - for testing only
 
         private int m_BattlesIndex;
-        private int[] m_KnightsIndex = new int[2];
-        private int[] m_SettlementsIndex = new int[2];
+        private readonly int[] m_KnightsIndex = new int[2];
+        private readonly int[] m_SettlementsIndex = new int[2];
 
+        private readonly int[] m_Manna = new int[Enum.GetValues(typeof(Team)).Length];
 
 
         #region MonoBehavior
@@ -109,12 +110,40 @@ namespace Populous
         {
             Terrain.Instance.CreateTerrain();
             StructureManager.Instance.PlaceTreesAndRocks();
-            //UnitManager.Instance.SpawnStarterUnits();
-            //StructureManager.Instance.SpawnFlags();
+            UnitManager.Instance.SpawnStartingUnits();
+            StructureManager.Instance.SpawnFlags();
         }
 
         #endregion
 
+
+        #region Manna
+
+        public void AddManna(Team team, int amount = 1)
+            => SetManna(team, Mathf.Clamp(m_Manna[(int)team] + amount, 0, m_MaxManna));
+
+        [ServerRpc(RequireOwnership = false)]
+        public void RemoveMannaServerRpc(Team team, int amount = 1)
+            => SetManna(team, Mathf.Clamp(m_Manna[(int)team] - amount, 0, m_MaxManna));
+
+        private void SetManna(Team team, int value)
+        {
+            if (value == m_Manna[(int)team]) return;
+            m_Manna[(int)team] = value;
+            //UpdateMannaUIClientRpc(m_MaxManna, m_Manna[(int)team], new ClientRpcParams
+            //{
+            //    Send = new ClientRpcSendParams
+            //    {
+            //        TargetClientIds = new ulong[] { GameData.Instance.GetNetworkIdByTeam(team) }
+            //    }
+            //});
+        }
+
+        [ClientRpc]
+        private void UpdateMannaUIClientRpc(int maxManna, int currentManna, ClientRpcParams clientParams = default)
+            => GameUI.Instance.UpdateMannaBar(maxManna, currentManna);
+
+        #endregion
 
 
         #region Powers
@@ -309,7 +338,6 @@ namespace Populous
         #endregion
 
 
-
         #region Zoom
 
         [ServerRpc(RequireOwnership = false)]
@@ -339,7 +367,7 @@ namespace Populous
         [ServerRpc(RequireOwnership = false)]
         public void ShowFlagServerRpc(Team team, ServerRpcParams serverRpcParams = default)
         {
-            Vector3 flagPosition = StructureManager.Instance.GetFlagPosition(team);
+            Vector3 flagPosition = StructureManager.Instance.GetSymbolPosition(team);
 
             CameraController.Instance.LookAtClientRpc(
                 new Vector3(flagPosition.x, 0, flagPosition.z),
@@ -401,7 +429,7 @@ namespace Populous
         [ServerRpc(RequireOwnership = false)]
         public void ShowBattlesServerRpc(ServerRpcParams serverRpcParams = default)
         {
-            Vector2 battleLocation = UnitManager.Instance.GetBattlePosition(m_BattlesIndex);
+            Vector2 battleLocation = UnitManager.Instance.GetFightPosition(m_BattlesIndex);
 
             CameraController.Instance.LookAtClientRpc(
                 new Vector3(battleLocation.x, 0, battleLocation.y),
@@ -414,7 +442,7 @@ namespace Populous
                 }
             );
 
-            m_BattlesIndex = (m_BattlesIndex + 1) % UnitManager.Instance.GetBattlesNumber();
+            m_BattlesIndex = (m_BattlesIndex + 1) % UnitManager.Instance.GetFightsNumber();
         }
 
         #endregion

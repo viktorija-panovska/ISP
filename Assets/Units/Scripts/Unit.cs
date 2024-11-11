@@ -4,78 +4,74 @@ using UnityEngine.EventSystems;
 
 namespace Populous
 {
-    public enum UnitState
-    {
-        SETTLE,
-        GO_TO_FLAG,
-        GATHER,
-        BATTLE
-    }
-
+    /// <summary>
+    /// The <c>Unit</c> class is a <c>MonoBehavior</c> which represents and handles the functioning of one unit.
+    /// Units are an abstraction of the population of the world, where one unit represents a group of people.
+    /// </summary>
     public class Unit : NetworkBehaviour, IPointerEnterHandler, IPointerExitHandler
     {
         [SerializeField] private GameObject[] m_LeaderSigns;
         [SerializeField] private GameObject m_Sword;
+
+        [Header("Detectors")]
         [SerializeField] private UnitCloseRangeDetector m_CloseRangeDetector;
         [SerializeField] private UnitMidRangeDetector m_MidRangeDetector;
         [SerializeField] private UnitWideRangeDetector m_WideRangeDetector;
-
         [SerializeField] private int m_CloseRangeRadius = 15;
         [SerializeField] private int m_MidRangeTilesPerSide = 1;
         [SerializeField] private int m_WideRangeTilesPerSide = 20;
 
-        private Team m_Team;
-        public Team Team { get => m_Team; }
-
-        private int m_MaxHealth;
-        public int MaxHealth { get => m_MaxHealth; }
-
-        private int m_CurrentHealth;
-        public int CurrentHealth { get => m_CurrentHealth; }
-
-        private int m_Strength;
-        public int Strength { get => m_Strength; }
-
-        private int m_Speed;
-        public int Speed { get => m_Speed; }
-
-        private int m_ManaGain;
-        public int ManaGain { get => m_ManaGain; }
-
-        private bool m_IsLeader;
-        public bool IsLeader
-        {
-            get => m_IsLeader;
-            set { m_IsLeader = value; m_LeaderSigns[(int)m_Team].GetComponent<ObjectActivator>().SetActiveClientRpc(m_IsLeader); }
-        }
-
-        private bool m_IsKnight;
-        public bool IsKnight { get => m_IsKnight; set => m_IsKnight = value; }
-
-        private bool m_IsBattling;
-        public bool IsBattling { get => m_IsBattling; set => m_IsBattling = value; }
-
-        public MapPoint ClosestMapPoint { get => new(gameObject.transform.position.x, gameObject.transform.position.z); }
-
-        private UnitState m_LastState;
-        public UnitState LastState { get => m_LastState; }
-
-        private UnitState m_CurrentState;
-        public UnitState CurrentState { get => m_CurrentState; }
-
         private UnitMovementHandler m_MovementHandler;
 
+        /// <summary>
+        /// The <c>MapPoint</c> on the terrain grid which is closest to the current position of the unit.
+        /// </summary>
+        public MapPoint ClosestMapPoint { get => new(gameObject.transform.position.x, gameObject.transform.position.z); }
+
+        private Team m_Team;
+        /// <summary>
+        /// Gets the team this unit belongs to.
+        /// </summary>
+        public Team Team { get => m_Team; }
+
+        private UnitClass m_Class;
+        /// <summary>
+        /// Gets the class of this unit.
+        /// </summary>
+        public UnitClass Class { get => m_Class; }
+
+        private UnitBehavior m_Behavior;
+        /// <summary>
+        /// Gets the current state of this unit.
+        /// </summary>
+        public UnitBehavior Behavior { get => m_Behavior; }
+
+        private int m_Strength;
+        /// <summary>
+        /// The current strength of the unit.
+        /// </summary>
+        /// <remarks>The strength of the unit is the number of walkers represented by this one unit.</remarks>
+        public int Strength { get => m_Strength; }
+
+        private bool m_IsInFight;
+        /// <summary>
+        /// True if the unit is currently in a fight with a unit of the opposite team, false otherwise.
+        /// </summary>
+        public bool IsInFight { get => m_IsInFight; set => m_IsInFight = value; }
+
+        private int m_FightId = -1;
+        public int FightId { get => m_FightId; }
 
 
-
-        public void Setup(Team team, UnitData unitData)
+        /// <summary>
+        /// Sets up the properties and different components of the unit.
+        /// </summary>
+        /// <param name="team">The <c>Team</c> the unit belongs to.</param>
+        /// <param name="strength">The starting maxStrength of the unit.</param>
+        public void Setup(Team team, int strength)
         {
             m_Team = team;
-            m_MaxHealth = unitData.MaxHealth;
-            m_Strength = unitData.Strength;
-            m_Speed = unitData.Speed;
-            m_ManaGain = unitData.ManaGain;
-            m_CurrentHealth = m_MaxHealth;
+            m_Strength = 10;
 
             m_MovementHandler = GetComponent<UnitMovementHandler>();
             m_MovementHandler.InitializeMovement();
@@ -86,7 +82,149 @@ namespace Populous
         }
 
 
-        public void RecalculateHeight()
+        #region Behavior and Class
+
+        /// <summary>
+        /// Sets the current class of the unit to the given class.
+        /// </summary>
+        /// <param name="unitClass">The <c>UnitClass</c> that should be set.</param>
+        public void SetClass(UnitClass unitClass)
+        {
+            if (m_Class == unitClass) return;
+
+            if (m_Class == UnitClass.LEADER)
+                ToggleLeaderSign(false);
+
+            if (m_Class == UnitClass.KNIGHT)
+                ToggleWeapon(false);
+
+            m_Class = unitClass;
+
+            if (m_Class == UnitClass.LEADER)
+                ToggleLeaderSign(true);
+
+            if (m_Class == UnitClass.KNIGHT)
+                ToggleWeapon(true);
+        } 
+
+        /// <summary>
+        /// Sets the current state of the unit to the given state.
+        /// </summary>
+        /// <param name="unitBehavior">The <c>UnitBehavior</c> that should be set.</param>
+        public void SetBehavior(UnitBehavior unitBehavior)
+        {
+            if (m_Behavior == unitBehavior) return;
+
+            if (unitBehavior == UnitBehavior.FIGHT)
+                ToggleWeapon(false);
+
+            m_Behavior = unitBehavior;
+
+            m_MidRangeDetector.StateChange(unitBehavior);
+            m_WideRangeDetector.StateChange(unitBehavior);
+            m_MovementHandler.SetRoam();
+
+            UnitManager.Instance.ResetGridSteps(m_Team);
+
+            if (unitBehavior == UnitBehavior.FIGHT)
+                ToggleWeapon(true);
+        }
+
+        /// <summary>
+        /// Activates or deactivates the sign the leader should be holding.
+        /// </summary>
+        /// <param name="isOn">True if the sign should be activated, false otherwise.</param>
+        private void ToggleLeaderSign(bool isOn)
+        {
+            m_LeaderSigns[(int)m_Team].SetActive(isOn);
+            //m_LeaderSigns[(int)m_Team].GetComponent<ObjectActivator>().SetActiveClientRpc(isOn);
+        }
+
+        /// <summary>
+        /// Activates or deactivates the weapon in the unit's hands.
+        /// </summary>
+        /// <param name="isOn">True if the weapon should be activated, false otherwise.</param>
+        private void ToggleWeapon(bool isOn)
+        {
+            m_Sword.SetActive(isOn);
+            //m_Sword.GetComponent<ObjectActivator>().SetActiveClientRpc(isOn);
+        }
+
+        #endregion
+
+
+        #region Strength
+
+        /// <summary>
+        /// Checks whether the unit has maximum strength.
+        /// </summary>
+        /// <returns>True if the unit has maximum strength, false otherwise.</returns>
+        public bool HasMaxStrength() => m_Strength == UnitManager.Instance.MaxStrength;
+
+        /// <summary>
+        /// Adds the given amount of maxStrength to the unit.
+        /// </summary>
+        /// <param name="amount">The amount of maxStrength to be added.</param>
+        public void GainStrength(int amount)
+        {
+            m_Strength += amount;
+            UpdateUnitUI();
+        }
+
+        /// <summary>
+        /// Removes the given amount of maxStrength from the unit.
+        /// </summary>
+        /// <param name="amount">The amount of maxStrength to be removed.</param>
+        public void LoseStrength(int amount) 
+        { 
+            m_Strength -= amount;
+            UpdateUnitUI();
+
+            if (m_Strength == 0)
+                UnitManager.Instance.DespawnUnit(gameObject);
+        }
+
+        #endregion
+
+
+        #region Fight
+
+        /// <summary>
+        /// Enters the unit into a fight.
+        /// </summary>
+        public void StartFight(int id)
+        {
+            m_IsInFight = true;
+            m_FightId = id;
+            m_MovementHandler.Pause(true);
+        }
+
+        /// <summary>
+        /// Removes the unit from a fight.
+        /// </summary>
+        public void EndFight()
+        {
+            m_IsInFight = false;
+            m_FightId = -1;
+            m_MovementHandler.Pause(false);
+        }
+
+        #endregion
+
+
+        #region Movement
+
+        /// <summary>
+        /// Starts or stops the movement of the unit.
+        /// </summary>
+        /// <param name="pause">True if the movement should be stopped, false otherwise.</param>
+        public void ToggleMovement(bool pause) => m_MovementHandler.Pause(pause);
+
+        /// <summary>
+        /// Computes the height of the terrain under the current position of the unit and 
+        /// sets the position of the unit so that it is standing properly on the terrain.
+        /// </summary>
+        public void RecomputeHeight()
         {
             float height;
 
@@ -115,163 +253,190 @@ namespace Populous
             if (height <= Terrain.Instance.WaterLevel)
                 UnitManager.Instance.DespawnUnit(gameObject);
             else
-                SetHeightClientRpc(height);
+                SetHeight/*ClientRpc*/(height);
         }
 
-        [ClientRpc]
-        private void SetHeightClientRpc(float height) => transform.position = new Vector3(transform.position.x, height, transform.position.z);
-
+        /// <summary>
+        /// Sets the height that the unit stands at.
+        /// </summary>
+        /// <param name="height">The height the unit should stand at.</param>
         //[ClientRpc]
-        public void Rotate/*ClientRpc*/(Vector3 lookPosition) => transform.rotation = Quaternion.LookRotation(lookPosition);
+        private void SetHeight/*ClientRpc*/(float height) => transform.position = new Vector3(transform.position.x, height, transform.position.z);
 
-
-        public void AbsorbUnit(Unit unit)
+        /// <summary>
+        /// Rotates the unit to face in the given direction.
+        /// </summary>
+        /// <param name="lookPosition">The direction the unit should be turned towards.</param>
+        //[ClientRpc]
+        public void Rotate/*ClientRpc*/(Vector3 lookPosition)
         {
-
+            if (lookPosition != Vector3.zero)
+                transform.rotation = Quaternion.LookRotation(lookPosition);
         }
 
+        #endregion
 
-        public void StartBattle()
+
+        #region Other units
+
+        /// <summary>
+        /// Gets a direction the unit should move to run across other units.
+        /// </summary>
+        /// <returns>A <c>Vector3</c> representing the direction of the other units, 
+        /// zero vector if no units are detected in the vicinity.</returns>
+        public Vector3 GetUnitsDirection() => m_WideRangeDetector.GetAverageDirection();
+
+        /// <summary>
+        /// Gets a unit that this unit can follow.
+        /// </summary>
+        /// <returns>A <c>Unit</c> to be followed if one is found, null otherwise.</returns>
+        public Unit GetFollowTarget()
         {
-            m_IsBattling = true;
-            m_MovementHandler.Pause(true);
+            GameObject target = m_MidRangeDetector.GetTarget();
+
+            if (!target) return null;
+            return target.GetComponent<Unit>();
         }
 
-        public void EndBattle()
-        {
-            m_IsBattling = false;
-            m_MovementHandler.Pause(false);
-        }
-
-        public void TakeDamage(int damage) => m_CurrentHealth -= damage;
-
-        public void PauseMovement(bool pause) => m_MovementHandler.Pause(pause);
-
-
-        public Vector3 GetRoamingDirection() => m_WideRangeDetector.GetAverageDirection();
-
-        public void NewTargetAcquired(GameObject target)
-        {
-            if (target.GetComponent<Unit>() != null)
-                m_MovementHandler.FollowUnit(target.GetComponent<Unit>());
-        }
-
-        public void TargetLost(GameObject target)
+        /// <summary>
+        /// Stops this unit from following its target, if that target is the given <c>GameObject</c>.
+        /// </summary>
+        /// <param name="target">The <c>GameObject</c> that should be checked against the target.</param>
+        public void LoseTarget(GameObject target)
         {
             if (target.GetComponent<Unit>() != null)
                 m_MovementHandler.StopFollowingUnit(target.GetComponent<Unit>());
         }
 
-        public void GoToFlag()
+        #endregion
+
+
+        #region Flag
+
+        /// <summary>
+        /// Sets a new target for the unit movement if it is going to its faction symbol.
+        /// </summary>
+        public void SymbolLocationChanged()
         {
-            if (m_CurrentState != UnitState.GO_TO_FLAG) return;
-
-            m_MovementHandler.FlagReached = false;
-
-            if (!m_IsLeader)
-                m_MovementHandler.FollowLeader();
-            else
-            {
-                Vector3 target = StructureManager.Instance.GetFlagPosition(m_Team);
-                m_MovementHandler.SetPath(target);
-            }
+            if (m_Behavior != UnitBehavior.GO_TO_SYMBOL) return;
+            m_MovementHandler.GoToSymbol();
         }
 
-        public void FlagReached()
+        /// <summary>
+        /// Sets unit behavior for when it has reached its faction symbol.
+        /// </summary>
+        public void SymbolReached()
         {
-            if (m_CurrentState != UnitState.GO_TO_FLAG) return;
-            m_MovementHandler.FlagReached = true;
+            if (m_Behavior != UnitBehavior.GO_TO_SYMBOL) return;
+            m_MovementHandler.SymbolReached = true;
         }
-
-
-        public void RemoveRefrencesToUnit(Unit unit)
-        {
-            m_WideRangeDetector.RemoveUnit(unit);
-            m_MovementHandler.StopFollowingUnit(unit);
-            m_MidRangeDetector.RemoveTarget(unit.gameObject);
-        }
-
-        public void RemoveRefrencesToSettlement(Settlement settlement)
-        {
-            m_MidRangeDetector.RemoveTarget(settlement.gameObject);
-        }
-
-
-        #region State
-
-        public void SwitchState(UnitState state)
-        {
-            if (state == m_CurrentState) return;
-
-            m_LastState = m_CurrentState;
-            m_CurrentState = state;
-
-            m_MidRangeDetector.StateChange(state);
-            m_WideRangeDetector.StateChange(state);
-
-            m_MovementHandler.StopFollowingUnit();
-
-            switch (m_CurrentState)
-            {
-                case UnitState.GO_TO_FLAG:
-                    GoToFlag();
-                    break;
-
-                case UnitState.SETTLE:
-                    m_MovementHandler.RoamToSettle();
-                    break;
-
-                case UnitState.BATTLE:
-                case UnitState.GATHER:
-                    m_MovementHandler.RoamToBattleOrGather();
-                    break;
-            }
-        }
-
-        private void ShowSword(bool show) => m_Sword.GetComponent<ObjectActivator>().SetActiveClientRpc(show);
 
         #endregion
 
 
-        #region Health Bar
+        #region Strength Bar
 
-        public void OnPointerEnter(PointerEventData eventData)
-            => ToggleHealthBarServerRpc(show: true);
+        /// <summary>
+        /// Called when the mouse cursor hovers over the unit.
+        /// </summary>
+        /// <param name="eventData">Event data for the pointer event.</param>
+        public void OnPointerEnter(PointerEventData eventData) => ToggleUnitUIServer/*Rpc*/(true);
 
-        public void OnPointerExit(PointerEventData eventData)
-            => ToggleHealthBarServerRpc(show: false);
+        /// <summary>
+        /// Called when the mouse cursor stops hovering over the unit.
+        /// </summary>
+        /// <param name="eventData">Event data for the pointer event.</param>
+        public void OnPointerExit(PointerEventData eventData) => ToggleUnitUIServer/*Rpc*/(false);
 
-        [ServerRpc(RequireOwnership = false)]
-        public void ToggleHealthBarServerRpc(bool show, ServerRpcParams parameters = default)
+
+        /// <summary>
+        /// Shows or hides the info for the unit on the UI.
+        /// </summary>
+        /// <param name="show">True if the UI should be active, false otherwise.</param>
+        /// <param name="parameters">RPC data for the server RPC.</param>
+        //[ServerRpc(RequireOwnership = false)]
+        private void ToggleUnitUIServer/*Rpc*/(bool show, ServerRpcParams parameters = default)
         {
-            ToggleHealthBarClientRpc(show, m_MaxHealth, m_CurrentHealth, UnitManager.Instance.UnitColors[(int)m_Team], new ClientRpcParams
+            if (IsInFight)
+                UnitManager.Instance.ToggleFightUI(show, m_FightId, parameters.Receive.SenderClientId);
+            else
             {
-                Send = new ClientRpcSendParams
-                {
-                    TargetClientIds = new ulong[] { parameters.Receive.SenderClientId }
-                }
-            });
+                ToggleUnitUIClient/*Rpc*/(show, UnitManager.Instance.MaxStrength, m_Strength, GameController.Instance.TeamColors[(int)m_Team],
+                    new ClientRpcParams()
+                    {
+                        Send = new ClientRpcSendParams
+                        {
+                            TargetClientIds = new ulong[] { parameters.Receive.SenderClientId }
+                        }
+                    }
+                );
+            }
         }
 
-        [ClientRpc]
-        private void ToggleHealthBarClientRpc(bool show, int maxHealth, int currentHealth, Color teamColor, ClientRpcParams parameters = default)
+        /// <summary>
+        /// Shows or hides the info for the unit on the UI.
+        /// </summary>
+        /// <param name="show">True if the UI should be active, false otherwise.</param>
+        /// <param name="maxStrength">The maximum value of the strength bar.</param>
+        /// <param name="currentStrength">The current value of the strength bar.</param>
+        /// <param name="teamColor">The color of the strength bar.</param>
+        /// <param name="parameters">RPC data for the client RPC.</param>
+        //[ClientRpc]
+        private void ToggleUnitUIClient/*Rpc*/(bool show, int maxStrength, int currentStrength, Color teamColor, ClientRpcParams parameters = default)
         {
-            GameUI.Instance.ToggleHealthBar(
+            GameUI.Instance.ToggleUnitUI(
                 show,
-                maxHealth,
-                currentHealth,
+                maxStrength,
+                currentStrength,
                 teamColor,
                 transform.position + Vector3.up * GetComponent<Renderer>().bounds.size.y
             );
         }
 
-        [ClientRpc]
-        private void UpdateHealthBarClientRpc(int maxHealth, int currentHealth, Team team, ClientRpcParams parameters = default)
+        /// <summary>
+        /// Updates the unit info on the UI.
+        /// </summary>
+        private void UpdateUnitUI()
         {
-            GameUI.Instance.UpdateHealthBar(maxHealth, currentHealth);
+            if (IsInFight)
+                UnitManager.Instance.UpdateFightUI(m_FightId);
+            else
+                UpdateUnitUIClient/*Rpc*/(UnitManager.Instance.MaxStrength, m_Strength);
         }
+
+        /// <summary>
+        /// Updates the unit info on the UI.
+        /// </summary>
+        /// <param name="maxStrength">The maximum value of the strength bar.</param>
+        /// <param name="currentStrength">The current value of the strength bar.</param>
+        /// <param name="parameters">RPC data for the client RPC.</param>
+        //[ClientRpc]
+        private void UpdateUnitUIClient/*Rpc*/(int maxStrength, int currentStrength, ClientRpcParams parameters = default)
+            => GameUI.Instance.UpdateStrengthBar(maxStrength, currentStrength);
 
         #endregion
 
+
+        #region Cleanup
+
+        /// <summary>
+        /// Removes the references to the given unit wherever they appear.
+        /// </summary>
+        /// <param name="unit">The <c>Unit</c> that should be removed.</param>
+        public void RemoveRefrencesToUnit(Unit unit)
+        {
+            m_MovementHandler.StopFollowingUnit(unit);
+            m_WideRangeDetector.RemoveUnit(unit);
+            m_MidRangeDetector.RemoveTarget(unit.gameObject);
+        }
+
+        /// <summary>
+        /// Removes the references to the given settlement wherever they appear.
+        /// </summary>
+        /// <param name="settlement">The <c>Settlement</c> that should be removed.</param>
+        public void RemoveRefrencesToSettlement(Settlement settlement)
+            => m_MidRangeDetector.RemoveTarget(settlement.gameObject);
+
+        #endregion
     }
 }

@@ -31,8 +31,8 @@ namespace Populous
         private TerrainChunk[,] m_ChunkMap;
         private HashSet<(int, int)> m_ModifiedChunks;
 
-        private IMapGenerator m_MapGenerator;
-        public IMapGenerator MapGenerator { get => m_MapGenerator; }
+        private IHeightMapGenerator m_MapGenerator;
+        public IHeightMapGenerator MapGenerator { get => m_MapGenerator; }
 
         private int m_WaterLevel;
         /// <summary>
@@ -370,6 +370,13 @@ namespace Populous
         /// <param name="point">The (x, z) coordinates of the point which is to be tested.</param>
         /// <returns>True if the point is in bounds, false otherwise.</returns>
         public bool IsPointInBounds((int x, int z) point) => point.x >= 0 && point.x <= TilesPerSide && point.z >= 0 && point.z <= TilesPerSide;
+
+        /// <summary>
+        /// Checks whether the given point is the last point either on the X axis or the Z axis of the terrain grid.
+        /// </summary>
+        /// <param name="point">The (x, z) coordinates of the point which is to be tested.</param>
+        /// <returns>True if the point is the last point, otherwise false.</returns>
+        public bool IsLastPoint((int x, int z) point) => point.x == TilesPerSide || point.z == TilesPerSide;
 
         /// <summary>
         /// Gets the height of the terrain at the given point.
