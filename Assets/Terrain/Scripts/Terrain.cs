@@ -7,8 +7,7 @@ using Random = System.Random;
 namespace Populous
 {
     /// <summary>
-    /// The <c>Terrain</c> class is a <c>MonoBehavior</c> which contains properties 
-    /// and methods used for the generation and modification of the terrain.
+    /// The <c>Terrain</c> class is a <c>MonoBehavior</c> which handles the generation and modification of the terrain.
     /// </summary>
     public class Terrain : MonoBehaviour
     {

@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Populous
 {
     /// <summary>
-    /// The <c>UnitWideRangeDetector</c> class implements the functionality of the largest collider for detecting other units that a team has.
+    /// The <c>UnitCloseRangeDetector</c> class represents a unit's largest collider for detecting other units of its team.
     /// </summary>
     /// <remarks>The wide range detector is used to find a direction this team should move in to find other team when there aren't any close to it.</remarks>
     public class UnitWideRangeDetector : MonoBehaviour

@@ -52,7 +52,7 @@ namespace Populous
 
 
     /// <summary>
-    /// The <c>UnitManager</c> class is a <c>MonoBehavior</c> which manages all the units in the player's team.
+    /// The <c>UnitManager</c> class is a <c>MonoBehavior</c> which manages all the units in the game.
     /// </summary>
     public class UnitManager : NetworkBehaviour
     {
@@ -94,11 +94,18 @@ namespace Populous
         /// An array of lists containing all the active knights of each team.
         /// </summary>
         private readonly List<Unit>[] m_Knights = new List<Unit>[] { new(), new() };
+
         /// <summary>
-        /// A list of the locations of all active battles.
+        /// A list of the ids of all the active fights.
         /// </summary>
         private readonly List<int> m_FightIds = new();
+        /// <summary>
+        /// A map of fight ids to the pair of units involved in the fight with that id.
+        /// </summary>
         private readonly Dictionary<int, (Unit red, Unit blue)> m_Fights = new();
+        /// <summary>
+        /// The id that should be assigned to the next fight.
+        /// </summary>
         private int m_NextFightId = 0;
 
         /// <summary>
@@ -189,7 +196,7 @@ namespace Populous
         }
 
         /// <summary>
-        /// Sets up the some <c>GameObject</c> properties for the given unit on each client.
+        /// Sets up some <c>GameObject</c> properties for the given unit on each client.
         /// </summary>
         /// <param name="unitNetworkId">The <c>NetworkObjectId</c> of the unit.</param>
         /// <param name="name">The name for the <c>GameObject</c> of the unit.</param>
@@ -608,7 +615,7 @@ namespace Populous
             if (winner.Team == settlement.Team) return;
 
             if (winner.Class == UnitClass.KNIGHT)
-                settlement.RuinSettlement();
+                settlement.BurnSettlement();
             else
                 StructureManager.Instance.SwitchTeam(settlement, winner.Team);
 

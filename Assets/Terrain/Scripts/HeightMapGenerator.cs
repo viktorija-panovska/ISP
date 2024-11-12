@@ -18,8 +18,7 @@ namespace Populous
 
 
     /// <summary>
-    /// The <c>HeightMapGenerator</c> class is a static class which contains properties and methods 
-    /// which are used to generate a height map for the terrain.
+    /// The <c>HeightMapGenerator</c> class generates a height map for the terrain.
     /// </summary>
     public class HeightMapGenerator : IHeightMapGenerator
     {

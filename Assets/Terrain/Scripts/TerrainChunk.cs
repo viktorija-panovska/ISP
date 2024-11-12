@@ -4,8 +4,7 @@ using UnityEngine;
 namespace Populous
 {
     /// <summary>
-    /// The <c>TerrainChunk</c> class is a class which contains properties
-    /// and methods used to create and modify one chunk of the terrain.
+    /// The <c>TerrainChunk</c> class is a class which handles the creation and modification of one chunk of the terrain.
     /// </summary>
     public class TerrainChunk
     {
@@ -253,6 +252,7 @@ namespace Populous
                 Terrain.Instance.MaxHeight
             ));
 
+            // Make structures react
             for (int z = 0; z >= -1; --z)
             {
                 for (int x = 0; x >= -1; --x)

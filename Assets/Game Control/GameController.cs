@@ -111,7 +111,7 @@ namespace Populous
             Terrain.Instance.CreateTerrain();
             StructureManager.Instance.PlaceTreesAndRocks();
             UnitManager.Instance.SpawnStartingUnits();
-            StructureManager.Instance.SpawnFlags();
+            StructureManager.Instance.SpawnTeamSymbols();
         }
 
         #endregion
@@ -181,7 +181,7 @@ namespace Populous
             if (UnitManager.Instance.GetLeader(team) == null)
                 return;
 
-            StructureManager.Instance.SetFlagPosition/*ClientRpc*/(team, new Vector3(
+            StructureManager.Instance.SetSymbolPosition/*ClientRpc*/(team, new Vector3(
                 point.GridX * Terrain.Instance.UnitsPerTileSide,
                 point.Y,
                 point.GridZ * Terrain.Instance.UnitsPerTileSide
@@ -267,7 +267,7 @@ namespace Populous
                 (tiles[count], tiles[randomIndex]) = (tiles[randomIndex], tiles[count]);
 
                 if (tiles[count] <= swampTiles)
-                    StructureManager.Instance.SpawnSwamp(flatTile, Terrain.Instance.GetTileCorners(flatTile));
+                    StructureManager.Instance.SpawnSwamp(flatTile);
             }
         }
 
@@ -282,7 +282,7 @@ namespace Populous
                 return;
 
             UnitManager.Instance.CreateKnight(team);
-            StructureManager.Instance.SetFlagPosition(team, UnitManager.Instance.GetNewestKnight(team).ClosestMapPoint.ToWorldPosition());
+            StructureManager.Instance.SetSymbolPosition(team, UnitManager.Instance.GetNewestKnight(team).ClosestMapPoint.ToWorldPosition());
         }
 
         #endregion
@@ -298,7 +298,7 @@ namespace Populous
         public void VolcanoServerRpc(MapPoint point)
         {
             VolcanoClientRpc(point);
-            StructureManager.Instance.PlaceTreesAndRocks(0, m_VolcanoRockDensity, 0);
+            StructureManager.Instance.PlaceVolcanoRocks();
         }
 
         [ClientRpc]

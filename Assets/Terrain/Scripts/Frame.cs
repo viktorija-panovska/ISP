@@ -3,8 +3,7 @@ using UnityEngine;
 namespace Populous
 {
     /// <summary>
-    /// The <c>Frame</c> class is a <c>MonoBehavior</c> which contains properties and 
-    /// methods relating to the behavior of the frame surrounding the generated terrain.
+    /// The <c>Frame</c> class is a <c>MonoBehavior</c> which represents the frame surrounding the generated terrain.
     /// </summary>
     public class Frame : MonoBehaviour
     {

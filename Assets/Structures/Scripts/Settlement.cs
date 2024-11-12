@@ -5,6 +5,9 @@ using UnityEngine.EventSystems;
 
 namespace Populous
 {
+    /// <summary>
+    /// 
+    /// </summary>
     public class Settlement : Structure, IPointerEnterHandler, IPointerExitHandler
     {
         [Header("Settlements")]
@@ -43,8 +46,8 @@ namespace Populous
 
         public bool HasSpace { get => m_UnitsInHouse < m_CurrentSettlementData.FollowerCapacity; }
 
-        private Action<Settlement> OnStructureDestroyed;
-        private Action OnSettlementRuined;
+        private Action<Settlement> OnSettlementDestroyed;
+        private Action OnSettlementBurned;
 
         private bool m_IsAttacked;
         public bool IsAttacked { get => m_IsAttacked; set => m_IsAttacked = value; }
@@ -55,8 +58,10 @@ namespace Populous
         public int UnitStrength = 1;
 
 
-        public void Start()
+        private void Start()
         {
+            m_DestroyMethod = DestroyMethod.TERRAIN_CHANGE;
+
             Vector3 startingScale = m_SettlementObjects[0].transform.localScale;
 
             for (int i = 0; i < m_SettlementData.Length; ++i)
@@ -91,25 +96,6 @@ namespace Populous
             UpdateType();
         }
 
-        public override void ReactToTerrainChange()
-        {
-            if (ShouldDestroyStructure())
-            {
-                OnStructureDestroyed?.Invoke(this);
-                StructureManager.Instance.DespawnStructure(gameObject);
-            }
-            else if (!m_IsRuined)
-            {
-                UpdateType();
-            }
-        }
-
-        public override void Cleanup()
-        {
-            OnStructureDestroyed = null;
-        }
-
-
         private void OnTriggerEnter(Collider other)
         {
             Unit unit = other.GetComponent<Unit>();
@@ -123,6 +109,42 @@ namespace Populous
             if (unit.Team != m_Team && !IsAttacked)
                 UnitManager.Instance.AttackSettlement(unit, this);
         }
+
+
+
+
+        /// <inheritdoc />
+        public override void ReactToTerrainChange()
+        {
+            if (ShouldDestroyStructure())
+            {
+                OnSettlementDestroyed?.Invoke(this);
+                StructureManager.Instance.DespawnStructure(gameObject);
+                return;
+            }
+
+            if (m_DestroyMethod == DestroyMethod.DROWN)
+            {
+                SetHeightClientRpc(
+                    GetType() == typeof(TeamSymbol)
+                    ? Terrain.Instance.GetPointHeight(m_OccupiedTile)
+                    : Terrain.Instance.GetTileCenterHeight(m_OccupiedTile)
+                );
+            }
+
+            if (!m_IsRuined)
+            {
+                UpdateType();
+            }
+        }
+
+        /// <inheritdoc />
+        public override void Cleanup()
+        {
+            OnSettlementDestroyed = null;
+        }
+
+
 
 
         #region Settlement Type
@@ -197,7 +219,7 @@ namespace Populous
                         if (!field.IsServingSettlement(this))
                         {
                             field.AddSettlementServed(this);
-                            OnStructureDestroyed += field.OnSettlementRemoved;
+                            OnSettlementDestroyed += field.OnSettlementRemoved;
                             field.OnFieldDestroyed += UpdateType;
                         }
                     }
@@ -258,8 +280,8 @@ namespace Populous
                     if (!field.IsServingSettlement(this))
                     {
                         field.AddSettlementServed(this);
-                        OnStructureDestroyed += field.OnSettlementRemoved;
-                        OnSettlementRuined += field.RuinField;
+                        OnSettlementDestroyed += field.OnSettlementRemoved;
+                        OnSettlementBurned += field.BurnField;
                         field.OnFieldDestroyed += UpdateType;
                     }
                 }
@@ -270,10 +292,10 @@ namespace Populous
 
         public void RemoveField(Field field)
         {
-            OnStructureDestroyed -= field.OnSettlementRemoved;
+            OnSettlementDestroyed -= field.OnSettlementRemoved;
         }
 
-        public void RuinSettlement()
+        public void BurnSettlement()
         {
             m_IsRuined = true;
             Team = Team.NONE;
@@ -289,7 +311,7 @@ namespace Populous
             //UpdateColliderClientRpc(Vector3.zero);
             GetComponent<BoxCollider>().size = Vector3.zero;
 
-            OnSettlementRuined?.Invoke();
+            OnSettlementBurned?.Invoke();
         }
 
 

@@ -3,7 +3,7 @@ using UnityEngine;
 namespace Populous
 {
     /// <summary>
-    /// The <c>UnitCloseRangeDetector</c> class implements the functionality of the smallest collider for detecting other units that a team has.
+    /// The <c>UnitCloseRangeDetector</c> class represents a unit's smallest collider for detecting other units of its team.
     /// </summary>
     /// <remarks>The close range detector is used to check if there is another unit close enough to this unit 
     /// so that a battle or combining of the two unit can happen, depending on the unit state.</remarks>
@@ -31,7 +31,8 @@ namespace Populous
 
             if (!otherUnit) return;
 
-            if (otherUnit.Team == m_Team && m_Unit.Strength >= otherUnit.Strength && !m_Unit.HasMaxStrength())
+            if (otherUnit.Team == m_Team && !m_Unit.HasMaxStrength() && (m_Unit.Class == UnitClass.KNIGHT || 
+                (otherUnit.Class != UnitClass.KNIGHT && m_Unit.Strength >= otherUnit.Strength)))
             {
                 m_Unit.GainStrength(1);
                 UnitManager.Instance.DespawnUnit(otherUnit.gameObject);

@@ -5,80 +5,117 @@ using UnityEngine;
 
 namespace Populous
 {
+    /// <summary>
+    /// The <c>Structure</c> class represents any stationary object that is placed on the terrain.
+    /// </summary>
     public class Structure : NetworkBehaviour
     {
-        protected enum DestroyState
+        /// <summary>
+        /// The method with which the structure can be destroyed.
+        /// </summary>
+        protected enum DestroyMethod
         {
+            /// <summary>
+            /// The structure cannot be destroyed.
+            /// </summary>
             NONE,
-            LOWER,
-            WATER
+            /// <summary>
+            /// The structure is destroyed when the terrain under it changes.
+            /// </summary>
+            TERRAIN_CHANGE,
+            /// <summary>
+            /// The structure is destroyed when the terrain under it is lowered all the way to the water.
+            /// </summary>
+            DROWN
         }
 
 
-        [SerializeField] protected DestroyState m_DestroyState;
-
-        protected Dictionary<MapPoint, int> m_OccupiedPointHeights = new();
+        protected Team m_Team;
         /// <summary>
-        /// Gets and sets the occupied points and their heights at the time of the structure's creation.
+        /// Gets the team the structure belongs to.
         /// </summary>
-        public Dictionary<MapPoint, int> OccupiedPointHeights { get => m_OccupiedPointHeights; set { m_OccupiedPointHeights = value; } }
+        public Team Team { get => m_Team; set => m_Team = value; }
+
+        /// <summary>
+        /// What it takes for the structure to be destroyed.
+        /// </summary>
+        protected DestroyMethod m_DestroyMethod;
 
         protected (int x, int z) m_OccupiedTile;
         /// <summary>
-        /// Gets the index of the tile on the grid that the structure occupies.
+        /// Gets the index of the tile on the terrain grid that the structure occupies.
         /// </summary>
         public (int x, int z) OccupiedTile { get => m_OccupiedTile; set { m_OccupiedTile = value; } }
 
-        protected Team m_Team;
-        public Team Team { get => m_Team; set => m_Team = value; }
+        protected Dictionary<MapPoint, int> m_OccupiedPointHeights = new();
+        /// <summary>
+        /// Gets and sets the points the structure occupies and their heights at the time of the structure's creation.
+        /// </summary>
+        public Dictionary<MapPoint, int> OccupiedPointHeights { get => m_OccupiedPointHeights; set { m_OccupiedPointHeights = value; } }
 
-
-        public virtual void Cleanup()
-        {}
 
         /// <summary>
-        /// Change the height or destroy the structure depending on the change of the height of the terrain beneath it.
+        /// Cleans up references to other objects before the destruction of the structure.
+        /// </summary>
+        public virtual void Cleanup() {}
+
+
+        #region Terrain Change
+
+        /// <summary>
+        /// Handles the settlement's response to a change in the height of the terrain under it.
         /// </summary>
         public virtual void ReactToTerrainChange()
         {
             if (ShouldDestroyStructure())
-                StructureManager.Instance.DespawnStructure(gameObject);
-        }
-
-        protected bool ShouldDestroyStructure()
-        {
-            bool isTileUnderwater = true;
-            bool hasHeightChanged = false;
-
-            foreach ((MapPoint point, int height) in m_OccupiedPointHeights)
             {
-                if (m_DestroyState == DestroyState.WATER && point.Y > Terrain.Instance.WaterLevel)
-                    isTileUnderwater = false;
-
-                if (point.Y != height || point.Y <= Terrain.Instance.WaterLevel)
-                {
-                    if (m_DestroyState == DestroyState.LOWER)
-                        return true;
-                    else
-                        hasHeightChanged = true;
-                }
+                StructureManager.Instance.DespawnStructure(gameObject);
+                return;
             }
 
-            if (m_DestroyState == DestroyState.LOWER)
+            if (m_DestroyMethod == DestroyMethod.DROWN)
+            {
+                SetHeightClientRpc(
+                    GetType() == typeof(TeamSymbol)
+                    ? Terrain.Instance.GetPointHeight(m_OccupiedTile)
+                    : Terrain.Instance.GetTileCenterHeight(m_OccupiedTile)
+                );
+            }
+        }
+
+        /// <summary>
+        /// Decides whether the structure should be destroyed or lowered when the terrain under it has changed height.
+        /// </summary>
+        /// <returns>True if the structure should be destroyed, false otherwise.</returns>
+        protected bool ShouldDestroyStructure()
+        {
+            if (m_DestroyMethod == DestroyMethod.NONE)
                 return false;
 
-            if (m_DestroyState == DestroyState.WATER && isTileUnderwater)
+            if (m_DestroyMethod == DestroyMethod.TERRAIN_CHANGE)
                 return true;
 
-            if (hasHeightChanged)
-                SetHeightClientRpc(GetType() == typeof(Flag) ? Terrain.Instance.GetPointHeight(m_OccupiedTile) : Terrain.Instance.GetTileCenterHeight(m_OccupiedTile));
+            if (m_DestroyMethod == DestroyMethod.DROWN)
+            {
+                bool isTileUnderwater = true;
+                foreach ((MapPoint point, int height) in m_OccupiedPointHeights)
+                    if (m_DestroyMethod == DestroyMethod.DROWN && point.Y > Terrain.Instance.WaterLevel)
+                        isTileUnderwater = false;
+
+                if (isTileUnderwater)
+                    return true;
+            }
 
             return false;
         }
 
-
+        /// <summary>
+        /// Sets the height the structure is sitting at to the given value.
+        /// </summary>
+        /// <param name="height">The value that the height the structure is sitting at should be set to.</param>
         [ClientRpc]
-        private void SetHeightClientRpc(float height) => transform.position = new Vector3(transform.position.x, height, transform.position.z);
+        protected void SetHeightClientRpc(float height) => transform.position = new Vector3(transform.position.x, height, transform.position.z);
 
+        #endregion
     }
 }

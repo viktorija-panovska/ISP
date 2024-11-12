@@ -205,7 +205,7 @@ namespace Populous
         {
             if (Mathf.Abs(Mathf.Round(point.x / Terrain.Instance.UnitsPerTileSide) - point.x / Terrain.Instance.UnitsPerTileSide) > m_ClickerError ||
                 Mathf.Abs(Mathf.Round(point.z / Terrain.Instance.UnitsPerTileSide) - point.z / Terrain.Instance.UnitsPerTileSide) > m_ClickerError //||
-                /*(m_ActivePower == Power.MOLD_TERRAIN && m_VisibleUnitsAndStructures <= 0)*/)
+                /*(m_ActivePower == Power.TERRAIN_CHANGE && m_VisibleUnitsAndStructures <= 0)*/)
                 return false;
 
             return true;

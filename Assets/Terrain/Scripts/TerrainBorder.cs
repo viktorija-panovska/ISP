@@ -5,8 +5,8 @@ using Unity.Netcode;
 namespace Populous
 {
     /// <summary>
-    /// The <c>TerrainBorder</c> class is a <c>MonoBehavior</c> which contains properties and methods used for the creation 
-    /// and modification four walls surrounding the terrain which would prevent the player from seeing under the terrain mesh.
+    /// The <c>TerrainBorder</c> class is a <c>MonoBehavior</c> which handles the creation and modification of 
+    /// the four walls surrounding the terrain which would prevent the player from seeing under the terrain mesh.
     /// </summary>
     public class TerrainBorder : NetworkBehaviour
     {

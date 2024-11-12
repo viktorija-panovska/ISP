@@ -325,7 +325,7 @@ namespace Populous
         /// <summary>
         /// Sets unit behavior for when it has reached its faction symbol.
         /// </summary>
-        public void SymbolReached()
+        public void TeamSymbolReached()
         {
             if (m_Behavior != UnitBehavior.GO_TO_SYMBOL) return;
             m_MovementHandler.SymbolReached = true;

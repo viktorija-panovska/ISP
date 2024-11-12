@@ -3,7 +3,7 @@ using UnityEngine;
 namespace Populous
 {
     /// <summary>
-    /// The <c>UnitMidRangeDetector</c> class implements the functionality of the middle collider for detecting other units that a team has.
+    /// The <c>UnitCloseRangeDetector</c> class represents a unit's middle collider for detecting other units of its team.
     /// </summary>
     /// <remarks>The mid range detector is used to check if there is another unit close enough to this unit 
     /// so that it can start chasing it to either combine or battle, depending on the unit state.</remarks>

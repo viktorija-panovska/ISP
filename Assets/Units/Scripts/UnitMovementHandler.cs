@@ -7,8 +7,7 @@ using Random = System.Random;
 namespace Populous
 {
     /// <summary>
-    /// The <c>UnitMovementHandler</c> class is a <c>MonoBehavior</c> which contains 
-    /// all the properties and methods relating to handling the movement of a unit.
+    /// The <c>UnitMovementHandler</c> class is a <c>MonoBehavior</c> which handles the movement of a unit.
     /// </summary>
     public class UnitMovementHandler : MonoBehaviour
     {

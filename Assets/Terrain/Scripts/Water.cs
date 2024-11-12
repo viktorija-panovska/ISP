@@ -3,8 +3,7 @@ using UnityEngine;
 namespace Populous
 {
     /// <summary>
-    /// The <c>Water</c> class is a <c>MonoBehavior</c> which contains properties and methods
-    /// relating to the behavior of the plane representing the water level of the terrain.
+    /// The <c>Water</c> class is a <c>MonoBehavior</c> which handles the plane representing the water level of the terrain.
     /// </summary>
     public class Water : MonoBehaviour
     {

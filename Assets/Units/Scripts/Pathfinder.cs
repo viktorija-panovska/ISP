@@ -27,7 +27,7 @@ namespace Populous
 
 
     /// <summary>
-    /// The <c>Pathfinder</c> class implements the A* pathfinding algorithm for a unit.
+    /// The <c>Pathfinder</c> class handles the pathfinding for the movement of a unit.
     /// </summary>
     public class Pathfinder : IPathfinder
     {
