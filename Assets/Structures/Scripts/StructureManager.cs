@@ -9,7 +9,7 @@ using Random = System.Random;
 namespace Populous
 {
     /// <summary>
-    /// The <c>UnitManager</c> class is a <c>MonoBehavior</c> which manages all the structures in the game.
+    /// The <c>StructureManager</c> class is a <c>MonoBehavior</c> which manages all the structures in the game.
     /// </summary>
     public class StructureManager : NetworkBehaviour
     {
@@ -90,19 +90,25 @@ namespace Populous
 
             //structureObject.GetComponent<NetworkObject>().Spawn(true);
 
+            // Structure properties
             Structure structure = structureObject.GetComponent<Structure>();
-            Terrain.Instance.SetOccupiedTile(tile, structure);
             structure.Team = team;
             structure.OccupiedPointHeights = occupiedPoints.ToDictionary(x => x, x => x.Y);
             structure.OccupiedTile = tile;
+            Terrain.Instance.SetOccupiedTile(tile, structure);
             GameController.Instance.OnFlood += structure.ReactToTerrainChange;
 
+            // Settlement properties
             if (structure.GetType() == typeof(Settlement))
             {
+                Settlement settlement = (Settlement)structure;
+                settlement.SetType();
                 AddSettlementPosition(structure.OccupiedTile, team);
+                GameController.Instance.OnTerrainMoved += settlement.SetType;
                 //SetupSettlementClientRpc(structureObject.GetComponent<NetworkObject>().NetworkObjectId, $"{team} Settlement", LayerMask.NameToLayer(GameController.Instance.TeamLayers[(int)team]));
                 structureObject.name = $"{team} Settlement";
                 structureObject.layer = LayerMask.NameToLayer(GameController.Instance.TeamLayers[(int)team]);
+                settlement.StartFillingSettlement();
             }
 
             return structureObject;
@@ -128,7 +134,7 @@ namespace Populous
         /// <param name="structureObject">The <c>GameObject</c> of the structrue to be destroyed.</param>
         public void DespawnStructure(GameObject structureObject)
         {
-            if (!IsServer) return;
+            //if (!IsServer) return;
 
             Structure structure = structureObject.GetComponent<Structure>();
 
@@ -142,12 +148,13 @@ namespace Populous
 
             if (structure.GetType() == typeof(Settlement))
             {
+                Settlement settlement = (Settlement)structure;
                 RemoveSettlementPosition(structure.OccupiedTile, structure.Team);
-                OnRemoveReferencesToSettlement?.Invoke((Settlement)structure);
+                OnRemoveReferencesToSettlement?.Invoke(settlement);
             }
 
             structure.Cleanup();
-            structure.GetComponent<NetworkObject>().Despawn();
+            //structure.GetComponent<NetworkObject>().Despawn();
             Destroy(structureObject);
         }
 
@@ -230,12 +237,8 @@ namespace Populous
 
                 flag.Team = i == 0 ? Team.RED : Team.BLUE;
                 flagObject.transform.Rotate(new Vector3(1, -90, 1));
-                MapPoint location = UnitManager.Instance.GetLeader(flag.Team).ClosestMapPoint;
-                flagObject.transform.position = location.ToWorldPosition();
 
-                flag.OccupiedTile = (location.GridX, location.GridZ);
-                flag.OccupiedPointHeights = new() { { location, location.Y } };
-
+                flagObject.transform.position = GameController.Instance.GetLeaderObject(flag.Team).transform.position;
                 GameController.Instance.OnTerrainMoved += flag.ReactToTerrainChange;
             }
         }
@@ -259,12 +262,19 @@ namespace Populous
 
         #region Settlements
 
+        public void SpawnRedHouse(MapPoint tile)
+            => CreateSettlement(tile, Team.RED);
+
         /// <summary>
         /// Creates a settlement of the given team on the given tile.
         /// </summary>
         /// <param name="tile">The tile that the settlement should be created on.</param>
         /// <param name="team">The team the settlement should belong to.</param>
-        public void CreateSettlement(MapPoint tile, Team team) => SpawnStructure(m_SettlementPrefab, (tile.GridX, tile.GridZ), tile.TileCorners, team);
+        public void CreateSettlement(MapPoint tile, Team team) 
+        {
+            if (tile.IsLastPoint) return;
+            SpawnStructure(m_SettlementPrefab, (tile.GridX, tile.GridZ), tile.TileCorners, team); 
+        }
 
         /// <summary>
         /// Switches the team the given settlement belongs to.
@@ -275,7 +285,7 @@ namespace Populous
         {
             RemoveSettlementPosition(settlement.OccupiedTile, settlement.Team);
 
-            settlement.Team = team;
+            settlement.ChangeTeam(team);
             //SetupSettlementClientRpc(settlement.GetComponent<NetworkObject>().NetworkObjectId, $"{team} Settlement", LayerMask.NameToLayer(GameController.Instance.TeamLayers[(int)team]));
             settlement.gameObject.name = $"{team} Settlement";
             settlement.gameObject.layer = LayerMask.NameToLayer(GameController.Instance.TeamLayers[(int)team]);
@@ -289,7 +299,7 @@ namespace Populous
         /// <param name="settlement">The <c>Settlement</c> that should be burned down.</param>
         public void BurnSettlement(Settlement settlement)
         {
-            settlement.BurnSettlement();
+            settlement.BurnSettlementDown();
             SwitchTeam(settlement, Team.NONE);
         }
 
@@ -336,7 +346,6 @@ namespace Populous
         public Field SpawnField((int x, int z) tile, Team team)
         {
             //if (!IsServer) return null;
-
             Field field = SpawnStructure(m_FieldPrefab, tile, Terrain.Instance.GetTileCorners(tile)).GetComponent<Field>();
             field.Team = team;
             return field;

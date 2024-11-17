@@ -17,7 +17,7 @@ namespace Populous
         /// <summary>
         /// Gets and sets the team that the field belongs to.
         /// </summary>
-        public new Team Team
+        public override Team Team
         {
             get => m_Team;
             set
@@ -33,19 +33,14 @@ namespace Populous
         /// </summary>
         private readonly HashSet<Settlement> m_SettlementsServed = new();
 
-        /// <summary>
-        /// Action to be called when the field is destroyed.
-        /// </summary>
-        public Action OnFieldDestroyed;
 
+        private void Start() => m_DestroyMethod = DestroyMethod.TERRAIN_CHANGE;
 
         /// <inheritdoc />
         public override void Cleanup()
         {
             foreach (Settlement settlement in m_SettlementsServed)
                 settlement.RemoveField(this);
-
-            OnFieldDestroyed = null;
         }
 
         /// <summary>
@@ -59,7 +54,7 @@ namespace Populous
         /// to and removes the field if there are no more settlements that own it.
         /// </summary>
         /// <param name="settlement">The <c>Settlement</c> that should be removed.</param>
-        public void OnSettlementRemoved(Settlement settlement)
+        public void RemoveSettlementServed(Settlement settlement)
         {
             m_SettlementsServed.Remove(settlement);
 
@@ -77,6 +72,16 @@ namespace Populous
         /// <summary>
         /// Makes this field unusable by any settlement.
         /// </summary>
-        public void BurnField() => Team = Team.NONE;
+        public void BurnField() => OnTeamChanged(Team.NONE);
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="team"></param>
+        public void OnTeamChanged(Team team)
+        {
+            if (team == m_Team) return;
+            Team = team;
+        }
     }
 }

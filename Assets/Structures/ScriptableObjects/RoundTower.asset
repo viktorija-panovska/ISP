@@ -13,8 +13,6 @@ MonoBehaviour:
   m_Name: RoundTower
   m_EditorClassIdentifier: 
   m_Type: 7
-  m_FollowerCapacity: 1
-  m_MaxHealth: 1
-  m_HealthRegenPerUnit: 1
-  m_ManaGain: 1
-  m_UnitReleaseWait: 1
+  m_Capacity: 16
+  m_FillRate: 4
+  m_UnitStrength: 8

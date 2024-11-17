@@ -356,7 +356,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d405f600ccc48a041b234905abf78e46, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_DestroyState: 1
   m_SettlementObjects:
   - {fileID: 2145721895016335166}
   - {fileID: 9175907684013792421}
@@ -379,16 +378,11 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 88250d170f083d546bd7bdcc0fb1294d, type: 2}
   - {fileID: 11400000, guid: 6e25c993bc59a89439b35310c5808956, type: 2}
   - {fileID: 11400000, guid: db1f5d6473723a544a4820d315d13eb6, type: 2}
-  m_SettlementObjectOffset: 5
   m_RuinedSettlement: {fileID: 2784344123747126139}
   m_Flags:
   - {fileID: 4511899175268513038}
   - {fileID: 7359410384570498222}
-  m_FlagColors:
-  - {r: 1, g: 0, b: 0, a: 1}
-  - {r: 0, g: 0, b: 1, a: 1}
-  - {r: 1, g: 1, b: 1, a: 1}
-  m_LeaderSigns:
+  m_TeamSymbols:
   - {fileID: 6356267390281876263}
   - {fileID: 7222772813105562713}
 --- !u!1 &7825948508522091219

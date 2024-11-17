@@ -48,7 +48,7 @@ namespace Populous
         #endregion
 
 
-        #region Strength Bar
+        #region Unit UI
 
         public void ToggleUnitUI(bool show, int maxStrength, int currentStrength, Color teamColor, Vector3 worldPosition)
         {
@@ -64,14 +64,29 @@ namespace Populous
             m_HealthBar.transform.DOScale(1, 0.25f);
         }
 
-        public void UpdateStrengthBar(int maxStrength, int currentStrength) => m_HealthBar.value = currentStrength / maxStrength;
+        public void UpdateUnitUI(int maxStrength, int currentStrength) => m_HealthBar.value = currentStrength / maxStrength;
 
-        public void ToggleFightStrengthBars(bool show, int redStrength, int blueStrength)
+        public void ToggleFightUI(bool show, int redStrength, int blueStrength)
         {
 
         }
 
         public void UpdateFightUI(int redStrength, int blueStrength)
+        {
+
+        }
+
+        #endregion
+
+
+        #region Settlement UI
+
+        public void ToggleSettlementUI(bool show, int settlementIndex, int maxCapacity, int currentCapacity, Color teamColor)
+        {
+
+        }
+
+        public void UpdateSettlementUI(int settlementIndex, int maxCapacity, int currentCapacity)
         {
 
         }

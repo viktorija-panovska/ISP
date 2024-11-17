@@ -96,6 +96,10 @@ namespace Populous
         private readonly int[] m_Manna = new int[Enum.GetValues(typeof(Team)).Length];
 
 
+        private readonly Unit[] m_LeaderUnits = new Unit[Enum.GetValues(typeof(Team)).Length];
+        private readonly Settlement[] m_LeaderSettlements = new Settlement[Enum.GetValues(typeof(Team)).Length];
+
+
         #region MonoBehavior
 
         private void Awake()
@@ -117,14 +121,74 @@ namespace Populous
         #endregion
 
 
+        #region Leader
+
+        public bool HasLeader(Team team) => m_LeaderUnits[(int)team] || m_LeaderSettlements[(int)team];
+        public bool HasUnitLeader(Team team) => m_LeaderUnits[(int)team];
+        public bool IsLeaderInSettlement(Team team) => m_LeaderSettlements[(int)team];
+
+        public Unit GetLeaderUnit(Team team) => m_LeaderUnits[(int)team];
+        public Settlement GetLeaderSettlement(Team team) => m_LeaderSettlements[(int)team];
+
+        public GameObject GetLeaderObject(Team team)
+            => HasUnitLeader(team) ? GetLeaderUnit(team).gameObject : (IsLeaderInSettlement(team) ? GetLeaderSettlement(team).gameObject : null);
+
+
+        public void SetLeader(GameObject leaderObject, Team team)
+        {
+            if (!leaderObject) return;
+            Debug.Log("Set leader");
+            RemoveLeader(team);
+
+            Unit leaderUnit = leaderObject.GetComponent<Unit>();
+            if (leaderUnit)
+            {
+                m_LeaderUnits[(int)team] = leaderUnit;
+                leaderUnit.SetClass(UnitClass.LEADER);
+                UnitManager.Instance.OnNewLeaderGained?.Invoke();
+                return;
+            }
+
+            Settlement settlementUnit = leaderObject.GetComponent<Settlement>();
+            if (settlementUnit)
+            {
+                m_LeaderSettlements[(int)team] = settlementUnit;
+                settlementUnit.SetLeader(true);
+                UnitManager.Instance.OnNewLeaderGained?.Invoke();
+            }
+        }
+
+        public void RemoveLeader(Team team)
+        {
+            if (!HasLeader(team)) return;
+
+            if (HasUnitLeader(team))
+            {
+                m_LeaderUnits[(int)team].SetClass(UnitClass.WALKER);
+                m_LeaderUnits[(int)team] = null;
+            }
+
+            if (IsLeaderInSettlement(team))
+            {
+                m_LeaderSettlements[(int)team].SetLeader(false);
+                m_LeaderSettlements[(int)team] = null;
+            }
+        }
+
+        #endregion
+
+
+
         #region Manna
 
         public void AddManna(Team team, int amount = 1)
             => SetManna(team, Mathf.Clamp(m_Manna[(int)team] + amount, 0, m_MaxManna));
 
-        [ServerRpc(RequireOwnership = false)]
-        public void RemoveMannaServerRpc(Team team, int amount = 1)
+        public void RemoveManna(Team team, int amount = 1)
             => SetManna(team, Mathf.Clamp(m_Manna[(int)team] - amount, 0, m_MaxManna));
+
+        [ServerRpc(RequireOwnership = false)]
+        public void RemoveMannaServerRpc(Team team, int amount = 1) => RemoveManna(team, amount);
 
         private void SetManna(Team team, int value)
         {
@@ -178,8 +242,7 @@ namespace Populous
         //[ServerRpc(RequireOwnership = false)]
         public void MoveFlag/*ServerRpc*/(MapPoint point, Team team)
         {
-            if (UnitManager.Instance.GetLeader(team) == null)
-                return;
+            if (!HasLeader(team)) return;
 
             StructureManager.Instance.SetSymbolPosition/*ClientRpc*/(team, new Vector3(
                 point.GridX * Terrain.Instance.UnitsPerTileSide,
@@ -246,7 +309,7 @@ namespace Populous
 
                         if (structureType == typeof(Field))
                         {
-                            ((Field)structure).OnFieldDestroyed?.Invoke();
+                            //((Field)structure).OnFieldDestroyed?.Invoke();
                             StructureManager.Instance.DespawnStructure(structure.gameObject);
                         }
                     }
@@ -278,7 +341,7 @@ namespace Populous
 
         public void CreateKnight(Team team)
         {
-            if (UnitManager.Instance.GetLeader(team) == null)
+            if (!HasLeader(team))
                 return;
 
             UnitManager.Instance.CreateKnight(team);
@@ -343,7 +406,7 @@ namespace Populous
         [ServerRpc(RequireOwnership = false)]
         public void ShowLeaderServerRpc(Team team, ServerRpcParams serverRpcParams = default)
         {
-            Unit leader = UnitManager.Instance.GetLeader(team);
+            GameObject leader = GetLeaderObject(team);
 
             if (leader == null)
             {

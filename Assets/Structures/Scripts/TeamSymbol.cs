@@ -20,8 +20,8 @@ namespace Populous
             unit.TeamSymbolReached();
 
             // if we don't have a leader, set the first unit that reached the symbol to be the leader.
-            if (UnitManager.Instance.GetLeader(m_Team) != null) return;
-            UnitManager.Instance.SetLeader(unit, unit.Team);
+            if (GameController.Instance.HasLeader(m_Team)) return;
+            GameController.Instance.SetLeader(unit.gameObject, unit.Team);
         }
 
         /// <summary>

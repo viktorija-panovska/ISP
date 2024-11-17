@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Drawing;
 using UnityEngine;
 
 namespace Populous
@@ -58,7 +59,7 @@ namespace Populous
 
             SetVisibility(false);
             m_MeshData = GenerateMeshData();
-            SetVertexHeights();
+            //SetVertexHeights();
             SetMesh();
         }
 
@@ -91,7 +92,7 @@ namespace Populous
 
                         Vector3 vertex = new(
                             (x + MeshData.VertexOffsets[index].x) * Terrain.Instance.UnitsPerTileSide,
-                            0,
+                            20,
                             (z + MeshData.VertexOffsets[index].z) * Terrain.Instance.UnitsPerTileSide
                         );
                         meshData.AddVertex(vertexIndex + i, vertex);
@@ -111,7 +112,7 @@ namespace Populous
         }
 
         /// <summary>
-        /// Sets the heights for each point in the terrain chunk.
+        /// Sets the heights for each pointInChunk in the terrain chunk.
         /// </summary>
         private void SetVertexHeights()
         {
@@ -146,10 +147,10 @@ namespace Populous
         }
 
         /// <summary>
-        /// Generates and computes the height of the terrain at the given point.
+        /// Generates and computes the height of the terrain at the given pointInChunk.
         /// </summary>
-        /// <param name="pointInChunk">The (x, z) coordinates relative to one chunk of the point whose height should be computed.</param>
-        /// <returns>An <c>int</c> representing the height at the given point.</returns>
+        /// <param name="pointInChunk">The (x, z) coordinates relative to one chunk of the pointInChunk whose height should be computed.</param>
+        /// <returns>An <c>int</c> representing the height at the given pointInChunk.</returns>
         private int CalculateVertexHeight((int x, int z) pointInChunk)
         {
             int vertexIndex = GetPointIndex(pointInChunk);
@@ -240,7 +241,7 @@ namespace Populous
         /// so that the one step height difference between two points is maintained.
         /// </summary>
         /// <param name="point">The <c>MapPoint</c> whose height should be changed.</param>
-        /// <param name="lower">True if the height of the point should be lowered by one step, false if it should be elevated by one step.</param>
+        /// <param name="lower">True if the height of the pointInChunk should be lowered by one step, false if it should be elevated by one step.</param>
         /// <param name="steps"></param>
         public void ChangeHeights(MapPoint point, bool lower)
         {
@@ -252,21 +253,7 @@ namespace Populous
                 Terrain.Instance.MaxHeight
             ));
 
-            // Make structures react
-            for (int z = 0; z >= -1; --z)
-            {
-                for (int x = 0; x >= -1; --x)
-                {
-                    (int x, int z) tile = (pointInChunk.x + x, pointInChunk.z + z);
-
-                    if (tile.x < 0 || tile.x >= Terrain.Instance.TilesPerChunkSide || tile.z < 0 || tile.z >= Terrain.Instance.TilesPerChunkSide)
-                        continue;
-
-                    Structure structure = GetStructureOnTile((point.GridX + x, point.GridZ + z));
-                    if (structure != null)
-                        structure.ReactToTerrainChange();
-                }
-            }
+            HandleStructures(point, pointInChunk);
 
             // Update neighboring vertices
             for (int zOffset = -1; zOffset <= 1; ++zOffset)
@@ -304,9 +291,9 @@ namespace Populous
         }
 
         /// <summary>
-        /// Recalculates the height of the centers of the tiles surrounding a given point in the chunk.
+        /// Recalculates the height of the centers of the tiles surrounding a given pointInChunk in the chunk.
         /// </summary>
-        /// <param name="pointInChunk">The (x, z) coordinates relative to one chunk of the point whose surrounding centers should be recomputed.</param>
+        /// <param name="pointInChunk">The (x, z) coordinates relative to one chunk of the pointInChunk whose surrounding centers should be recomputed.</param>
         private void RecomputeCenters((int x, int z) pointInChunk)
         {
             for (int z = -1; z <= 0; ++z)
@@ -329,6 +316,44 @@ namespace Populous
             }
         }
 
+        /// <summary>
+        /// Checks the area surrounding the modified point for structures and notifies them to react to the change.
+        /// </summary>
+        /// <param name="point">The <c>MapPoint</c> whose height has been modified.</param>
+        /// <param name="pointInChunk">The coordinates of the point relative to the chunk.</param>
+        private void HandleStructures(MapPoint point, (int x, int z) pointInChunk)
+        {
+            // We check the tiles in a 5x5 square around the point for any settlements
+            for (int z = -2; z <= 2; ++z)
+            {
+                for (int x = -2; x <= 2; ++x)
+                {
+                    (int x, int z) tile = (pointInChunk.x + x, pointInChunk.z + z);
+
+                    if (tile.x < 0 || tile.x >= Terrain.Instance.TilesPerChunkSide || tile.z < 0 || tile.z >= Terrain.Instance.TilesPerChunkSide)
+                        continue;
+
+                    Structure structure = GetStructureOnTile((point.GridX + x, point.GridZ + z));
+                    if (!structure) continue;
+
+                    bool movedSettlement = false;
+                    // We are checking if there is something on the tiles that share the point.
+                    if (z <= 0 && z >= -1 && x <= 0 && x >= -1)
+                    {
+                        structure.ReactToTerrainChange();
+                        if (structure.GetType() == typeof(Settlement))
+                            movedSettlement = true;
+                    }
+
+                    // if the settlement is not on one of the tiles that share the modified point but it is in the affected area
+                    // it means that by modifying the point height a new flat tile might have been introduced or one might have
+                    // been removed, so we want the settlement to recalculate its fields.
+                    if (!movedSettlement && structure.GetType() == typeof(Settlement))
+                        ((Settlement)structure).ShouldTryUpdateType = true;
+                }
+            }
+        }
+
         #endregion
 
 
@@ -337,38 +362,38 @@ namespace Populous
         /// <summary>
         /// Checks whether the point is inside the bounds of the chunk.
         /// </summary>
-        /// <param name="point">The (x, z) coordinates of the point.</param>
+        /// <param name="pointInChunk">The (x, z) coordinates of the point relative to the chunk.</param>
         /// <returns>True if the point is in the bounds of the chunk, false otherwise.</returns>
-        public bool IsPointInChunk((int x, int z) point)
-            => point.x >= 0 && point.z >= 0 && point.x <= Terrain.Instance.TilesPerChunkSide && point.z <= Terrain.Instance.TilesPerChunkSide;
+        public bool IsPointInChunk((int x, int z) pointInChunk)
+            => pointInChunk.x >= 0 && pointInChunk.z >= 0 && pointInChunk.x <= Terrain.Instance.TilesPerChunkSide && pointInChunk.z <= Terrain.Instance.TilesPerChunkSide;
 
         /// <summary>
-        /// Translates the coordinates of the given point from coordinates relative to the whole terrain to coordinates relative to one chunk.
+        /// Translates the coordinates of the given pointInChunk from coordinates relative to the whole terrain to coordinates relative to one chunk.
         /// </summary>
-        /// <param name="point">The (x, z) coordinates of the point relative to the whole terrain.</param>
-        /// <returns>The (x, z) coordinates of the point relative to one chunk.</returns>
+        /// <param name="point">The (x, z) coordinates of the pointInChunk relative to the whole terrain.</param>
+        /// <returns>The (x, z) coordinates of the pointInChunk relative to one chunk.</returns>
         public (int x, int z) GetPointInChunk((int x, int z) point)
             => (point.x - m_ChunkIndex.x * Terrain.Instance.TilesPerChunkSide, point.z - m_ChunkIndex.z * Terrain.Instance.TilesPerChunkSide);
 
         /// <summary>
-        /// Gets the height of the terrain at the given point.
+        /// Gets the height of the terrain at the given pointInChunk.
         /// </summary>
-        /// <param name="point">The (x, z) coordinates of the point whose height should be returned.</param>
-        /// <returns>An <c>int</c> representing the height at the given point.</returns>
+        /// <param name="point">The (x, z) coordinates of the pointInChunk whose height should be returned.</param>
+        /// <returns>An <c>int</c> representing the height at the given pointInChunk.</returns>
         public int GetPointHeight((int x, int z) point) => GetMeshHeightAtPoint(GetPointInChunk(point));
 
         /// <summary>
-        /// Gets the height of the mesh at the given point.
+        /// Gets the height of the mesh at the given pointInChunk.
         /// </summary>
-        /// <param name="pointInChunk">The (x, z) coordinates relative to one chunk of the point whose height should be returned.</param>
-        /// <returns>An <c>int</c> representing the height at the given point.</returns>
+        /// <param name="pointInChunk">The (x, z) coordinates relative to one chunk of the pointInChunk whose height should be returned.</param>
+        /// <returns>An <c>int</c> representing the height at the given pointInChunk.</returns>
         private int GetMeshHeightAtPoint((int x, int z) pointInChunk) => (int)m_MeshData.Vertices[GetPointIndex(pointInChunk)].y;
 
         /// <summary>
-        /// Gets an index of the vertex in the mesh which corresponds to the given point.
+        /// Gets an index of the vertex in the mesh which corresponds to the given pointInChunk.
         /// </summary>
-        /// <param name="pointInChunk">The (x, z) coordinates in relation to the chunk of a point.</param>
-        /// <returns>The index of a vertex at the given point.</returns>
+        /// <param name="pointInChunk">The (x, z) coordinates in relation to the chunk of a pointInChunk.</param>
+        /// <returns>The index of a vertex at the given pointInChunk.</returns>
         private int GetPointIndex((int x, int z) pointInChunk)
         {
             if (pointInChunk.x == Terrain.Instance.TilesPerChunkSide && pointInChunk.z != pointInChunk.x)
@@ -382,10 +407,10 @@ namespace Populous
         }
 
         /// <summary>
-        /// Sets the height of all the vertices at the given point to the given height..
+        /// Sets the height of all the vertices at the given pointInChunk to the given height..
         /// </summary>
-        /// <param name="pointInChunk">The (x, z) coordinates in relation to the chunk of the point whose height should be set.</param>
-        /// <param name="height">The value the height of the point should be set to.</param>
+        /// <param name="pointInChunk">The (x, z) coordinates in relation to the chunk of the pointInChunk whose height should be set.</param>
+        /// <param name="height">The value the height of the pointInChunk should be set to.</param>
         private void SetPointHeight((int x, int z) pointInChunk, int height)
         {
             int vertexIndex = 0;

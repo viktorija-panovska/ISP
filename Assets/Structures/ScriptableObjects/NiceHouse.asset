@@ -13,8 +13,6 @@ MonoBehaviour:
   m_Name: NiceHouse
   m_EditorClassIdentifier: 
   m_Type: 6
-  m_FollowerCapacity: 1
-  m_MaxHealth: 1
-  m_HealthRegenPerUnit: 1
-  m_ManaGain: 1
-  m_UnitReleaseWait: 1
+  m_Capacity: 14
+  m_FillRate: 5
+  m_UnitStrength: 7

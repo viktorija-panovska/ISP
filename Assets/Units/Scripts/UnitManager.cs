@@ -58,9 +58,11 @@ namespace Populous
     {
         [SerializeField] private GameObject m_UnitPrefab;
         [SerializeField] private int m_StartingUnits = 15;
-        [SerializeField] private int m_MaxUnits = 100;
+        [SerializeField] private int m_MaxPopulation = 100;
         [SerializeField] private int m_MaxUnitStrength = 100;
         [SerializeField] private int m_UnitDecayRate = 20;
+        [SerializeField] private int m_StartingUnitStrength = 1;
+        [SerializeField] private int m_LeaderDeathManna = 10;
 
         private static UnitManager m_Instance;
         /// <summary>
@@ -68,6 +70,10 @@ namespace Populous
         /// </summary>
         public static UnitManager Instance { get => m_Instance; }
 
+        /// <summary>
+        /// The maximum number of units of one team that can be active at a time.
+        /// </summary>
+        public int MaxPopulation { get => m_MaxPopulation; }
         /// <summary>
         /// Gets the maximum strength a unit can have.
         /// </summary>
@@ -85,15 +91,15 @@ namespace Populous
         /// An array of the sizes of the population of each team.
         /// </summary>
         private readonly int[] m_Population = new int[Enum.GetValues(typeof(Team)).Length];
-
-        /// <summary>
-        /// An array of the leaders of each team.
-        /// </summary>
-        private readonly Unit[] m_Leaders = new Unit[Enum.GetValues(typeof(Team)).Length];
         /// <summary>
         /// An array of lists containing all the active knights of each team.
         /// </summary>
         private readonly List<Unit>[] m_Knights = new List<Unit>[] { new(), new() };
+
+        /// <summary>
+        /// An array storing the active unit behavior for the units in each team.
+        /// </summary>
+        private readonly UnitBehavior[] m_ActiveBehavior = new UnitBehavior[Enum.GetValues(typeof(Team)).Length];
 
         /// <summary>
         /// A list of the ids of all the active fights.
@@ -109,17 +115,21 @@ namespace Populous
         private int m_NextFightId = 0;
 
         /// <summary>
-        /// Action to be called when the state of the units in the red team is changed.
+        /// Action to be called when the behavior of the units in the red team is changed.
         /// </summary>
-        public Action<UnitBehavior> OnRedStateChange;
+        public Action<UnitBehavior> OnRedBehaviorChange;
         /// <summary>
-        /// Action to be called when the state of the units in the blue team is changed.
+        /// Action to be called when the behavior of the units in the blue team is changed.
         /// </summary>
-        public Action<UnitBehavior> OnBlueStateChange;
+        public Action<UnitBehavior> OnBlueBehaviorChange;
         /// <summary>
         /// Action to be called when a unit is despawned to remove references to it from other objects.
         /// </summary>
         public Action<Unit> OnRemoveReferencesToUnit;
+        /// <summary>
+        /// Action to be called when a new unit is assigned as the leader of the team.
+        /// </summary>
+        public Action OnNewLeaderGained;
 
 
         private void Awake()
@@ -141,9 +151,9 @@ namespace Populous
         /// <param name="strength">The initial strength of the unit.</param>
         /// <param name="isLeader">True if the created unit is a leader, false otherwise.</param>
         /// <returns>The <c>GameObject</c> of the newly spawned unit.</returns>
-        public GameObject SpawnUnit(MapPoint location, Team team, int strength = 1, bool isLeader = false)
+        public GameObject SpawnUnit(MapPoint location, Team team, int strength = 1, bool isLeader = false, bool canEnterSettlement = false)
         {
-            //if (!IsServer) return null;
+            if (/*!IsServer || */m_Population[(int)team] == m_MaxPopulation) return null;
 
             GameObject unitObject = Instantiate(
                 m_UnitPrefab,
@@ -155,25 +165,27 @@ namespace Populous
             );
 
             Unit unit = unitObject.GetComponent<Unit>();
-            GameController.Instance.OnTerrainMoved += unit.RecomputeHeight;
+            OnNewLeaderGained += unit.NewLeaderUnitGained;
             OnRemoveReferencesToUnit += unit.RemoveRefrencesToUnit;
+            GameController.Instance.OnTerrainMoved += unit.RecomputeHeight;
             StructureManager.Instance.OnRemoveReferencesToSettlement += unit.RemoveRefrencesToSettlement;
 
             if (team == Team.RED)
             {
-                OnRedStateChange += unit.SetBehavior;
+                OnRedBehaviorChange += unit.SetBehavior;
                 GameController.Instance.OnRedFlagMoved += unit.SymbolLocationChanged;
             }
             else if (team == Team.BLUE)
             {
-                OnBlueStateChange += unit.SetBehavior;
+                OnBlueBehaviorChange += unit.SetBehavior;
                 GameController.Instance.OnBlueFlagMoved += unit.SymbolLocationChanged;
             }
 
-            unit.Setup(team, strength);
+            unit.Setup(team, strength, canEnterSettlement);
+            unit.SetBehavior(m_ActiveBehavior[(int)team]);
 
             if (isLeader)
-                SetLeader(unit, team);
+                GameController.Instance.SetLeader(unitObject, team);
 
             //NetworkObject networkUnit = unitObject.GetComponent<NetworkObject>();
             //networkUnit.Spawn(true);
@@ -189,7 +201,6 @@ namespace Populous
             unitObject.name = $"{team} Unit";
             unitObject.layer = LayerMask.NameToLayer(GameController.Instance.TeamLayers[(int)team]);
 
-            AddPopulation(team);
             GameController.Instance.AddManna(team);
 
             return unitObject;
@@ -215,7 +226,9 @@ namespace Populous
         /// Despawns the given unit from the network and destroys is.
         /// </summary>
         /// <param name="unitObject">The <c>GameObject</c> of the unit to be destroyed.</param>
-        public void DespawnUnit(GameObject unitObject)
+        /// <param name="hasDied">True if the unit is being despawned because it died, 
+        /// false if it is being despawned because it entered a settlement.</param>
+        public void DespawnUnit(GameObject unitObject, bool hasDied = true)
         {
             //if (!IsServer) return;
 
@@ -223,19 +236,26 @@ namespace Populous
             GameController.Instance.OnTerrainMoved -= unit.RecomputeHeight;
 
             if (unit.Team == Team.RED)
-                OnRedStateChange -= unit.SetBehavior;
+                OnRedBehaviorChange -= unit.SetBehavior;
             else if (unit.Team == Team.BLUE)
-                OnBlueStateChange -= unit.SetBehavior;
+                OnBlueBehaviorChange -= unit.SetBehavior;
 
             if (unit.Class == UnitClass.LEADER)
-                RemoveLeader(unit.Team);
+            {
+                GameController.Instance.RemoveLeader(unit.Team);
+
+                if (hasDied)
+                {
+                    GameController.Instance.RemoveManna(unit.Team, m_LeaderDeathManna);
+                    GameController.Instance.AddManna(unit.Team == Team.RED ? Team.BLUE : Team.RED, m_LeaderDeathManna);
+                    StructureManager.Instance.SetSymbolPosition(unit.Team, unit.ClosestMapPoint.ToWorldPosition());
+                }
+            }
 
             if (unit.Class == UnitClass.KNIGHT)
                 DestroyKnight(unit.Team, unit);
 
             OnRemoveReferencesToUnit?.Invoke(unit);
-
-            RemovePopulation(unit.Team);
 
             //unitObject.GetComponent<NetworkObject>().Despawn();
             Destroy(unitObject);
@@ -247,18 +267,25 @@ namespace Populous
         #region Population
 
         /// <summary>
+        /// Checks whether the population of the given team has reached the maximum number of followers.
+        /// </summary>
+        /// <param name="team">The <c>Team</c> whose population should be checked.</param>
+        /// <returns>True if the team is full, false otherwise.</returns>
+        public bool IsTeamFull(Team team) => m_Population[(int)team] == m_MaxPopulation;
+
+        /// <summary>
         /// Adds the given amount to the population of the given team.
         /// </summary>
         /// <param name="team">The <c>Team</c> the population should be added to.</param>
         /// <param name="amount">The amount of population that should be added.</param>
         public void AddPopulation(Team team, int amount = 1)
         {
-            int population = Mathf.Clamp(m_Population[(int)team] + amount, 0, m_MaxUnits);
+            int population = Mathf.Clamp(m_Population[(int)team] + amount, 0, m_MaxPopulation);
 
             if (population == m_Population[(int)team]) return;
             m_Population[(int)team] = population;
 
-            //UpdatePopulationUIClientRpc(team, m_MaxUnits, population);
+            //UpdatePopulationUIClientRpc(team, m_MaxPopulation, population);
         }
 
         /// <summary>
@@ -268,12 +295,12 @@ namespace Populous
         /// <param name="amount">The amount of population that should be removed.</param>
         public void RemovePopulation(Team team, int amount = 1)
         {
-            int population = Mathf.Clamp(m_Population[(int)team] - amount, 0, m_MaxUnits);
+            int population = Mathf.Clamp(m_Population[(int)team] - amount, 0, m_MaxPopulation);
 
             if (population == m_Population[(int)team]) return;
             m_Population[(int)team] = population;
 
-            //UpdatePopulationUIClientRpc(team, m_MaxUnits, population);
+            //UpdatePopulationUIClientRpc(team, m_MaxPopulation, population);
         }
 
         /// <summary>
@@ -308,11 +335,13 @@ namespace Populous
 
             FindSpawnPoints(ref redSpawns, ref blueSpawns);
 
+            int unitsToSpawn = m_StartingUnits <= m_MaxPopulation ? m_StartingUnits : m_MaxPopulation;
+
             for (int team = 0; team <= 1; ++team)
             {
                 List<(int, int)> spawns = team == 0 ? redSpawns : blueSpawns;
                 List<int> spawnIndices = Enumerable.Range(0, spawns.Count).ToList();
-                int leader = random.Next(0, m_StartingUnits);
+                int leader = random.Next(0, unitsToSpawn);
 
                 int spawned = 0;
                 int count = spawnIndices.Count;
@@ -322,20 +351,32 @@ namespace Populous
                     int randomIndex = random.Next(count + 1);
                     (spawnIndices[count], spawnIndices[randomIndex]) = (spawnIndices[randomIndex], spawnIndices[count]);
 
-                    if (spawnIndices[count] < m_StartingUnits)
+                    if (spawnIndices[count] < unitsToSpawn)
                     {
-                        SpawnUnit(new MapPoint(spawn.x, spawn.z), team == 0 ? Team.RED : Team.BLUE, isLeader: spawned == leader);
+                        SpawnUnit(
+                            new MapPoint(spawn.x, spawn.z), 
+                            team == 0 ? Team.RED : Team.BLUE, 
+                            strength: m_StartingUnitStrength, 
+                            isLeader: spawned == leader, 
+                            canEnterSettlement: true
+                        );
                         spawned++;
                     }
                 }
 
-                if (spawned == m_StartingUnits)
+                if (spawned == unitsToSpawn || spawns.Count == 0)
                     continue;
 
-                for (int i = 0; i < m_StartingUnits - spawned; ++i)
+                for (int i = 0; i < unitsToSpawn - spawned; ++i)
                 {
                     (int x, int z) point = spawns[random.Next(spawns.Count)];
-                    SpawnUnit(new MapPoint(point.x, point.z), team == 0 ? Team.RED : Team.BLUE, isLeader: spawned == leader);
+                    SpawnUnit(
+                        new MapPoint(point.x, point.z),
+                        team == 0 ? Team.RED : Team.BLUE,
+                        strength: m_StartingUnitStrength,
+                        isLeader: spawned == leader,
+                        canEnterSettlement: true
+                    );
                     spawned++;
                 }
             }
@@ -380,45 +421,6 @@ namespace Populous
         #endregion
 
 
-        #region Leader
-
-        /// <summary>
-        /// Gets the leader of the given team.
-        /// </summary>
-        /// <param name="team">The <c>Team</c> whose leader should be returned.</param>
-        /// <returns>The <c>Unit</c> who is the leader of the given team, null if the team doesn't have a leader.</returns>
-        public Unit GetLeader(Team team) => m_Leaders[(int)team];
-
-        /// <summary>
-        /// Assigns the given unit as the leader of the given team.
-        /// </summary>
-        /// <param name="leader">The <c>Unit</c> who should be assigned as a leader.</param>
-        /// <param name="team">The <c>Team</c> for which the leader should be assigned.</param>
-        public void SetLeader(Unit leader, Team team)
-        {
-            RemoveLeader(team);
-
-            m_Leaders[(int)team] = leader;
-            leader.SetClass(UnitClass.LEADER);
-        }
-
-        /// <summary>
-        /// Removes the leader of the given team, if the team has a leader.
-        /// </summary>
-        /// <param name="team">The <c>Team</c> whose leader should be removed.</param>
-        public void RemoveLeader(Team team)
-        {
-            Unit leader = m_Leaders[(int)team];
-
-            if (!leader) return;
-
-            leader.SetClass(UnitClass.WALKER);
-            m_Leaders[(int)team] = null;
-        }
-
-        #endregion
-
-
         #region Knight
 
         /// <summary>
@@ -447,12 +449,21 @@ namespace Populous
         /// <param name="team">The <c>Team</c> that the new knight should belong to.</param>
         public void CreateKnight(Team team)
         {
-            Unit unit = m_Leaders[(int)team];
-            if (unit == null) return;
+            if (!GameController.Instance.HasLeader(team)) return;
 
-            RemoveLeader(team);
-            m_Knights[(int)team].Add(unit);
-            unit.SetClass(UnitClass.KNIGHT);
+            if (GameController.Instance.HasUnitLeader(team))
+            {
+                Unit leader = GameController.Instance.GetLeaderUnit(team);
+                m_Knights[(int)team].Add(leader);
+                leader.SetClass(UnitClass.KNIGHT);
+            }
+
+            if (GameController.Instance.IsLeaderInSettlement(team))
+            {
+
+            }
+
+            GameController.Instance.RemoveLeader(team);
         }
 
         /// <summary>
@@ -469,20 +480,24 @@ namespace Populous
         #endregion
 
 
-        #region Unit Behavior
+        #region Behavior
 
         /// <summary>
-        /// Switches the state of all the units in the given team to the given state.
+        /// Switches the behavior of all the units in the given team to the given behavior.
         /// </summary>
-        /// <param name="state">The <c>UnitBehavior</c> that should be applied to all units in the team.</param>
+        /// <param name="behavior">The <c>UnitBehavior</c> that should be applied to all units in the team.</param>
         /// <param name="team">The <c>Team</c> whose units should be targeted.</param>
         //[ServerRpc(RequireOwnership = false)]
-        public void UnitStateChange/*ServerRpc*/(UnitBehavior state, Team team)
+        public void UnitBehaviorChange/*ServerRpc*/(UnitBehavior behavior, Team team)
         {
+            if (m_ActiveBehavior[(int)team] == behavior) return;
+
+            m_ActiveBehavior[(int)team] = behavior;
+
             if (team == Team.RED)
-                OnRedStateChange?.Invoke(state);
+                OnRedBehaviorChange?.Invoke(behavior);
             else if (team == Team.BLUE)
-                OnBlueStateChange?.Invoke(state);
+                OnBlueBehaviorChange?.Invoke(behavior);
         }
 
         #endregion
@@ -553,7 +568,7 @@ namespace Populous
         /// </summary>
         /// <param name="winner">The <c>Unit</c> who won the battle.</param>
         /// <param name="loser">The <c>Unit</c> who lost the battle.</param>
-        public void EndBattle(Unit winner, Unit loser)
+        public void EndFight(Unit winner, Unit loser)
         {
             m_Fights.Remove(winner.FightId);
             m_FightIds.Remove(winner.FightId);
@@ -573,7 +588,7 @@ namespace Populous
         {
             while (true)
             {
-                yield return new WaitForSeconds(0.1f);
+                yield return new WaitForSeconds(5f);
 
                 red.LoseStrength(1);
                 blue.LoseStrength(1);
@@ -588,7 +603,7 @@ namespace Populous
             if (settlementDefense)
                 ResolveSettlementAttack(winner, settlementDefense);
 
-            EndBattle(winner, loser);
+            EndFight(winner, loser);
         }
 
         /// <summary>
@@ -601,6 +616,12 @@ namespace Populous
             settlement.IsAttacked = true;
             unit.ToggleMovement(true);
             Unit other = SpawnUnit(unit.ClosestMapPoint, settlement.Team, settlement.UnitStrength, false).GetComponent<Unit>();
+
+            if (!other)
+            {
+                ResolveSettlementAttack(unit, settlement);
+                return;
+            }
 
             StartFight(unit.Team == Team.RED ? unit : other, unit.Team == Team.BLUE ? unit : other, settlement);
         }
@@ -615,7 +636,7 @@ namespace Populous
             if (winner.Team == settlement.Team) return;
 
             if (winner.Class == UnitClass.KNIGHT)
-                settlement.BurnSettlement();
+                settlement.BurnSettlementDown();
             else
                 StructureManager.Instance.SwitchTeam(settlement, winner.Team);
 
@@ -649,7 +670,7 @@ namespace Populous
         /// <param name="parameters">RPC data for the server RPC.</param>
         //[ClientRpc]
         private void ToggleFightUIClient/*Rpc*/(bool show, int redStrength, int blueStrength, ClientRpcParams parameters = default)
-            => GameUI.Instance.ToggleFightStrengthBars(show, redStrength, blueStrength);
+            => GameUI.Instance.ToggleFightUI(show, redStrength, blueStrength);
 
         /// <summary>
         /// Updates the fight info on the UI.

@@ -13,8 +13,6 @@ MonoBehaviour:
   m_Name: SquareTower
   m_EditorClassIdentifier: 
   m_Type: 8
-  m_FollowerCapacity: 1
-  m_MaxHealth: 1
-  m_HealthRegenPerUnit: 1
-  m_ManaGain: 1
-  m_UnitReleaseWait: 1
+  m_Capacity: 18
+  m_FillRate: 3
+  m_UnitStrength: 9

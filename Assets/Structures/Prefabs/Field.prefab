@@ -161,8 +161,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8f24d58d265f774408634fc2210964a7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_DestroyState: 1
-  m_FieldTypes:
+  m_TeamFields:
   - {fileID: 2455768191136774418}
   - {fileID: 7470680228479296595}
   - {fileID: 7597703088974177753}

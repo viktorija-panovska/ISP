@@ -374,7 +374,7 @@ namespace Populous
         private void SwitchState(UnitBehavior state)
         {
             m_ActiveUnitState = state;
-            UnitManager.Instance.UnitStateChange/*ServerRpc*/(m_ActiveUnitState, m_Team);
+            UnitManager.Instance.UnitBehaviorChange/*ServerRpc*/(m_ActiveUnitState, m_Team);
         }
 
         #endregion

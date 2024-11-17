@@ -13,7 +13,7 @@ namespace Populous
         private Team m_Team = Team.NONE;
         private Team m_EnemyTeam = Team.NONE;
 
-        private HashSet<Unit> m_NearbyUnits = new();
+        private HashSet<GameObject> m_NearbyObjects = new();
         private BoxCollider m_Collider;
 
         /// <summary>
@@ -42,8 +42,8 @@ namespace Populous
                 (m_UnitState == UnitBehavior.GATHER && other.gameObject.layer != LayerMask.NameToLayer(GameController.Instance.TeamLayers[(int)m_Team])))
                 return;
 
-            if (other.gameObject.GetComponent<Unit>() != null)
-                m_NearbyUnits.Add(other.gameObject.GetComponent<Unit>());
+            if (other.gameObject.GetComponent<Unit>() || other.gameObject.GetComponent<Settlement>())
+                m_NearbyObjects.Add(other.gameObject);
         }
 
         private void OnTriggerExit(Collider other)
@@ -53,24 +53,24 @@ namespace Populous
                 return;
 
             if (other.gameObject.GetComponent<Unit>() != null)
-                m_NearbyUnits.Remove(other.gameObject.GetComponent<Unit>());
+                m_NearbyObjects.Remove(other.gameObject);
         }
 
         /// <summary>
-        /// Computes the average vector from the positions of all the units in the vicinity.
+        /// Computes the average vector from the positions of all the units and settlements of the desired type in the vicinity.
         /// </summary>
         /// <returns>A <c>Vector3</c> representing the average direction.</returns>
         public Vector3 GetAverageDirection()
         {
-            if (m_NearbyUnits.Count == 0)
+            if (m_NearbyObjects.Count == 0)
                 return Vector3.zero;
 
             Vector3 sum = Vector3.zero;
 
-            foreach (Unit unit in m_NearbyUnits)
-                sum += unit.transform.position;
+            foreach (GameObject gameObject in m_NearbyObjects)
+                sum += gameObject.transform.position;
 
-            return ((sum / m_NearbyUnits.Count) - transform.position).normalized;
+            return ((sum / m_NearbyObjects.Count) - transform.position).normalized;
         }
 
         /// <summary>
@@ -82,7 +82,7 @@ namespace Populous
             if (state == m_UnitState) return;
 
             m_UnitState = state;
-            m_NearbyUnits = new();
+            m_NearbyObjects = new();
 
             if (state == UnitBehavior.GATHER || state == UnitBehavior.FIGHT)
                 m_Collider.enabled = true;
@@ -91,13 +91,13 @@ namespace Populous
         }
 
         /// <summary>
-        /// Removes the given unit from the list of units in the vicinity.
+        /// Removes the given object from the list of units in the vicinity.
         /// </summary>
-        /// <param name="unit">The <c>Unit</c> that should be removed.</param>
-        public void RemoveUnit(Unit unit)
+        /// <param name="gameObject">The <c>GameObject</c> that should be removed.</param>
+        public void RemoveObject(GameObject gameObject)
         {
-            if (m_NearbyUnits.Contains(unit))
-                m_NearbyUnits.Remove(unit);
+            if (m_NearbyObjects.Contains(gameObject))
+                m_NearbyObjects.Remove(gameObject);
         }
     }
 }

@@ -13,8 +13,6 @@ MonoBehaviour:
   m_Name: WoodHouse
   m_EditorClassIdentifier: 
   m_Type: 4
-  m_FollowerCapacity: 1
-  m_MaxHealth: 1
-  m_HealthRegenPerUnit: 1
-  m_ManaGain: 1
-  m_UnitReleaseWait: 1
+  m_Capacity: 10
+  m_FillRate: 7
+  m_UnitStrength: 5

@@ -577,10 +577,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_UnitPrefab: {fileID: 4803634603491590232, guid: fb550bad1c970ed4c9b4ceb3be5cb1b5, type: 3}
-  m_StartingUnits: 2
-  m_MaxUnits: 100
+  m_StartingUnits: 1
+  m_MaxPopulation: 100
   m_MaxUnitStrength: 100
   m_UnitDecayRate: 20
+  m_StartingUnitStrength: 1
 --- !u!4 &379849926
 Transform:
   m_ObjectHideFlags: 0
@@ -1606,10 +1607,10 @@ MonoBehaviour:
   m_SwampPrefab: {fileID: 2078980801612766481, guid: 1b6608c92976575459e954002fd6d823, type: 3}
   m_FieldPrefab: {fileID: 3158639387827070285, guid: ba884a45874a4d746b90f0d5881b0241, type: 3}
   m_SettlementPrefab: {fileID: 3435573214129474652, guid: b7c76e4edb289ac42bc4cbef75e3ef48, type: 3}
-  m_TreeProbability: 0
+  m_TreeProbability: 0.9
   m_RockProbability:
-  - 0.9
-  - 0.19
+  - 0.1
+  - 0.3
   m_VolcanoRockProbability:
   - 0.6
   - 0

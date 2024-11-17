@@ -1,3 +1,4 @@
+using System.Collections;
 using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -11,7 +12,7 @@ namespace Populous
     public class Unit : NetworkBehaviour, IPointerEnterHandler, IPointerExitHandler
     {
         [SerializeField] private GameObject[] m_LeaderSigns;
-        [SerializeField] private GameObject m_Sword;
+        [SerializeField] private float m_SecondsUntilEnteringEnabled = 0.5f;
 
         [Header("Detectors")]
         [SerializeField] private UnitCloseRangeDetector m_CloseRangeDetector;
@@ -60,7 +61,17 @@ namespace Populous
         public bool IsInFight { get => m_IsInFight; set => m_IsInFight = value; }
 
         private int m_FightId = -1;
+        /// <summary>
+        /// Gets the idenitifier of the fight the unit is involved in.
+        /// </summary>
+        /// <remarks>-1 if the unit is not involved in a fiight.</remarks>
         public int FightId { get => m_FightId; }
+
+        private bool m_CanEnterSettlement;
+        /// <summary>
+        /// True if the followers from the unit can enter a settlement, false otherwise.
+        /// </summary>
+        public bool CanEnterSettlement { get => m_CanEnterSettlement; }
 
 
         /// <summary>
@@ -68,10 +79,11 @@ namespace Populous
         /// </summary>
         /// <param name="team">The <c>Team</c> the unit belongs to.</param>
         /// <param name="strength">The starting maxStrength of the unit.</param>
-        public void Setup(Team team, int strength)
+        public void Setup(Team team, int strength, bool canEnterSettlement)
         {
             m_Team = team;
-            m_Strength = 10;
+            m_Strength = team == Team.RED ? 1 : 2/*strength*/;
+            m_CanEnterSettlement = canEnterSettlement;
 
             m_MovementHandler = GetComponent<UnitMovementHandler>();
             m_MovementHandler.InitializeMovement();
@@ -79,6 +91,9 @@ namespace Populous
             m_CloseRangeDetector.Setup(this);
             m_WideRangeDetector.Setup(team, m_WideRangeTilesPerSide);
             m_MidRangeDetector.Setup(this, m_MidRangeTilesPerSide);
+
+            if (m_CanEnterSettlement == false)
+                StartCoroutine(WaitToEnableEntering());
         }
 
 
@@ -95,16 +110,10 @@ namespace Populous
             if (m_Class == UnitClass.LEADER)
                 ToggleLeaderSign(false);
 
-            if (m_Class == UnitClass.KNIGHT)
-                ToggleWeapon(false);
-
             m_Class = unitClass;
 
             if (m_Class == UnitClass.LEADER)
                 ToggleLeaderSign(true);
-
-            if (m_Class == UnitClass.KNIGHT)
-                ToggleWeapon(true);
         } 
 
         /// <summary>
@@ -115,9 +124,6 @@ namespace Populous
         {
             if (m_Behavior == unitBehavior) return;
 
-            if (unitBehavior == UnitBehavior.FIGHT)
-                ToggleWeapon(false);
-
             m_Behavior = unitBehavior;
 
             m_MidRangeDetector.StateChange(unitBehavior);
@@ -125,9 +131,6 @@ namespace Populous
             m_MovementHandler.SetRoam();
 
             UnitManager.Instance.ResetGridSteps(m_Team);
-
-            if (unitBehavior == UnitBehavior.FIGHT)
-                ToggleWeapon(true);
         }
 
         /// <summary>
@@ -137,17 +140,13 @@ namespace Populous
         private void ToggleLeaderSign(bool isOn)
         {
             m_LeaderSigns[(int)m_Team].SetActive(isOn);
-            //m_LeaderSigns[(int)m_Team].GetComponent<ObjectActivator>().SetActiveClientRpc(isOn);
+            //m_TeamSymbols[(int)m_Team].GetComponent<ObjectActivator>().SetActiveClientRpc(isOn);
         }
 
-        /// <summary>
-        /// Activates or deactivates the weapon in the unit's hands.
-        /// </summary>
-        /// <param name="isOn">True if the weapon should be activated, false otherwise.</param>
-        private void ToggleWeapon(bool isOn)
+        private IEnumerator WaitToEnableEntering()
         {
-            m_Sword.SetActive(isOn);
-            //m_Sword.GetComponent<ObjectActivator>().SetActiveClientRpc(isOn);
+            yield return new WaitForSeconds(m_SecondsUntilEnteringEnabled);
+            m_CanEnterSettlement = true;
         }
 
         #endregion
@@ -175,13 +174,13 @@ namespace Populous
         /// Removes the given amount of maxStrength from the unit.
         /// </summary>
         /// <param name="amount">The amount of maxStrength to be removed.</param>
-        public void LoseStrength(int amount) 
+        public void LoseStrength(int amount, bool isDamaged = true) 
         { 
             m_Strength -= amount;
             UpdateUnitUI();
 
             if (m_Strength == 0)
-                UnitManager.Instance.DespawnUnit(gameObject);
+                UnitManager.Instance.DespawnUnit(gameObject, isDamaged);
         }
 
         #endregion
@@ -290,28 +289,27 @@ namespace Populous
         /// Gets a unit that this unit can follow.
         /// </summary>
         /// <returns>A <c>Unit</c> to be followed if one is found, null otherwise.</returns>
-        public Unit GetFollowTarget()
-        {
-            GameObject target = m_MidRangeDetector.GetTarget();
-
-            if (!target) return null;
-            return target.GetComponent<Unit>();
-        }
+        public Unit GetFollowTarget() => m_MidRangeDetector.GetTarget();
 
         /// <summary>
         /// Stops this unit from following its target, if that target is the given <c>GameObject</c>.
         /// </summary>
         /// <param name="target">The <c>GameObject</c> that should be checked against the target.</param>
-        public void LoseTarget(GameObject target)
+        public void LoseTarget(Unit target) => m_MovementHandler.StopFollowingUnit(target);
+
+        /// <summary>
+        /// Reacts to a new unit being assigned as the leader of the team, if this unit isn't the leader.
+        /// </summary>
+        public void NewLeaderUnitGained()
         {
-            if (target.GetComponent<Unit>() != null)
-                m_MovementHandler.StopFollowingUnit(target.GetComponent<Unit>());
+            if (m_Class == UnitClass.LEADER || m_Behavior != UnitBehavior.GO_TO_SYMBOL) return;
+            m_MovementHandler.GoToSymbol();
         }
 
         #endregion
 
 
-        #region Flag
+        #region Team symbol
 
         /// <summary>
         /// Sets a new target for the unit movement if it is going to its faction symbol.
@@ -334,7 +332,7 @@ namespace Populous
         #endregion
 
 
-        #region Strength Bar
+        #region UI
 
         /// <summary>
         /// Called when the mouse cursor hovers over the unit.
@@ -412,7 +410,7 @@ namespace Populous
         /// <param name="parameters">RPC data for the client RPC.</param>
         //[ClientRpc]
         private void UpdateUnitUIClient/*Rpc*/(int maxStrength, int currentStrength, ClientRpcParams parameters = default)
-            => GameUI.Instance.UpdateStrengthBar(maxStrength, currentStrength);
+            => GameUI.Instance.UpdateUnitUI(maxStrength, currentStrength);
 
         #endregion
 
@@ -426,8 +424,8 @@ namespace Populous
         public void RemoveRefrencesToUnit(Unit unit)
         {
             m_MovementHandler.StopFollowingUnit(unit);
-            m_WideRangeDetector.RemoveUnit(unit);
-            m_MidRangeDetector.RemoveTarget(unit.gameObject);
+            m_WideRangeDetector.RemoveObject(unit.gameObject);
+            m_MidRangeDetector.RemoveTarget(unit);
         }
 
         /// <summary>
@@ -435,7 +433,9 @@ namespace Populous
         /// </summary>
         /// <param name="settlement">The <c>Settlement</c> that should be removed.</param>
         public void RemoveRefrencesToSettlement(Settlement settlement)
-            => m_MidRangeDetector.RemoveTarget(settlement.gameObject);
+        {
+            m_WideRangeDetector.RemoveObject(settlement.gameObject);
+        }
 
         #endregion
     }

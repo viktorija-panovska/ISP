@@ -13,8 +13,6 @@ MonoBehaviour:
   m_Name: Tent
   m_EditorClassIdentifier: 
   m_Type: 0
-  m_FollowerCapacity: 1
-  m_MaxHealth: 1
-  m_HealthRegenPerUnit: 1
-  m_ManaGain: 1
-  m_UnitReleaseWait: 1
+  m_Capacity: 2
+  m_FillRate: 10
+  m_UnitStrength: 1

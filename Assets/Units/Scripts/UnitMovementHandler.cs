@@ -78,9 +78,9 @@ namespace Populous
         /// <summary>
         /// All the possible directions the unit could roam in.
         /// </summary>
-        private readonly (int x, int z)[] m_RoamDirections = new (int, int)[] 
-        { 
-            (0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (-1, -1), (-1, 0), (-1, 1) 
+        private readonly (int x, int z)[] m_RoamDirections = new (int, int)[]
+        {
+            (0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (-1, -1), (-1, 0), (-1, 1)
         };
         /// <summary>
         /// The direction the unit is roaming in.
@@ -173,9 +173,6 @@ namespace Populous
         {
             if (state == m_CurrentMoveState) return;
 
-            if (m_CurrentMoveState == MoveState.FOLLOW)
-                StopFollowingUnit();
-
             m_LastMoveState = m_CurrentMoveState;
             m_CurrentMoveState = state;
         }
@@ -192,10 +189,16 @@ namespace Populous
                     GetNextStepToFollowTarget();
                 else
                 {
-                    Unit leader = UnitManager.Instance.GetLeader(m_Unit.Team == Team.RED ? Team.BLUE : Team.RED);
+                    GameObject leader = GameController.Instance.GetLeaderObject(m_Unit.Team == Team.RED ? Team.BLUE : Team.RED);
+                    if (!leader)
+                    {
+                        Roam();
+                        return;
+                    }
 
-                    if (leader)
-                        FollowUnit(leader);
+                    Unit leaderUnit = leader.GetComponent<Unit>();
+                    if (leaderUnit)
+                        FollowUnit(leaderUnit);
                     else
                         Roam();
                 }
@@ -211,6 +214,8 @@ namespace Populous
                 GetNextStepToFollowTarget();
             else if (m_CurrentMoveState == MoveState.GO_TO_SYMBOL && m_SymbolReached)
                 WanderAroundPoint();
+            else if (m_CurrentMoveState == MoveState.GO_TO_SYMBOL)
+                GoToSymbol();
             else
                 Roam();
         }
@@ -490,7 +495,7 @@ namespace Populous
                     steps[i] = int.MaxValue;
                     return;
                 }
-                
+
                 int stepsAtPoint = UnitManager.Instance.GetStepsAtPoint(m_Unit.Team, gridPoint);
                 steps[i] = stepsAtPoint;
 
@@ -625,9 +630,9 @@ namespace Populous
         #region Follow
 
         /// <summary>
-        /// Make this unit go after the leader of its faction.
+        /// Make this unit go after the leader of its faction, if a leader exists.
         /// </summary>
-        private void FollowLeader() => FollowUnit(UnitManager.Instance.GetLeader(m_Unit.Team));
+        public void FollowLeader() => FollowUnit(GameController.Instance.GetLeaderUnit(m_Unit.Team));
 
         /// <summary>
         /// Make this unit go after the given unit.
@@ -666,7 +671,11 @@ namespace Populous
         /// <summary>
         /// Stops following the current target unit.
         /// </summary>
-        public void StopFollowingUnit() => m_TargetUnit = null;
+        public void StopFollowingUnit() 
+        {
+            m_TargetUnit = null;
+            SwitchMoveState(MoveState.ROAM);
+        }
 
         #endregion
 
@@ -681,8 +690,10 @@ namespace Populous
             m_SymbolReached = false;
             SwitchMoveState(MoveState.GO_TO_SYMBOL);
 
-            if (m_Unit.Class == UnitClass.LEADER || !UnitManager.Instance.GetLeader(m_Unit.Team))
+            if (m_Unit.Class == UnitClass.LEADER || !GameController.Instance.HasLeader(m_Unit.Team))
                 SetPath(StructureManager.Instance.GetSymbolPosition(m_Unit.Team));
+            else if (GameController.Instance.IsLeaderInSettlement(m_Unit.Team))
+                SetPath(GameController.Instance.GetLeaderSettlement(m_Unit.Team).transform.position);
             else
                 FollowLeader();
         }

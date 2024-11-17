@@ -224,7 +224,7 @@ MonoBehaviour:
   m_LeaderSigns:
   - {fileID: 3319941856513379266}
   - {fileID: 6475190841780479472}
-  m_Sword: {fileID: 8455134085631431226}
+  m_SecondsUntilEnteringEnabled: 0.5
   m_CloseRangeDetector: {fileID: 8487823297983500840}
   m_MidRangeDetector: {fileID: 6128104503836289826}
   m_WideRangeDetector: {fileID: 4125043769463975922}
@@ -340,7 +340,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &3927254605426900321
 Transform:
   m_ObjectHideFlags: 0

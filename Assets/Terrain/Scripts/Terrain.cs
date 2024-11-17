@@ -154,12 +154,12 @@ namespace Populous
             m_ModifiedChunks = new();
             ChangePointHeight(point, lower);
 
-            GameController.Instance.OnTerrainMoved?.Invoke();
-
             foreach ((int, int) chunkIndex in m_ModifiedChunks)
                 GetChunkByIndex(chunkIndex).SetMesh();
 
             m_ModifiedChunks = new();
+
+            GameController.Instance.OnTerrainMoved?.Invoke();
         }
 
         /// <summary>

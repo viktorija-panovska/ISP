@@ -13,8 +13,6 @@ MonoBehaviour:
   m_Name: RockHut
   m_EditorClassIdentifier: 
   m_Type: 3
-  m_FollowerCapacity: 1
-  m_MaxHealth: 1
-  m_HealthRegenPerUnit: 1
-  m_ManaGain: 1
-  m_UnitReleaseWait: 1
+  m_Capacity: 8
+  m_FillRate: 8
+  m_UnitStrength: 4

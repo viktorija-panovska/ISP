@@ -34,7 +34,7 @@ namespace Populous
         /// <summary>
         /// Gets the team the structure belongs to.
         /// </summary>
-        public Team Team { get => m_Team; set => m_Team = value; }
+        public virtual Team Team { get => m_Team; set => m_Team = value; }
 
         /// <summary>
         /// What it takes for the structure to be destroyed.
