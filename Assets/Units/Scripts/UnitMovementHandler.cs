@@ -54,7 +54,7 @@ namespace Populous
         /// <summary>
         /// The <c>MapPoint</c> closest to the current target point.
         /// </summary>
-        public MapPoint EndLocation { get => m_TargetPoint == null ? StartLocation : new(m_TargetPoint.Value.x, m_TargetPoint.Value.z); }
+        public MapPoint EndLocation { get => !m_TargetPoint.HasValue ? StartLocation : new(m_TargetPoint.Value.x, m_TargetPoint.Value.z); }
 
         private Unit m_Unit;
         private Rigidbody m_Rigidbody;
@@ -68,7 +68,7 @@ namespace Populous
         /// </summary>
         public bool SymbolReached { get => m_SymbolReached; set => m_SymbolReached = value; }
 
-        // Path Movement
+        // Path MovementDirection
         private List<MapPoint> m_Path;
         private int m_PathIndex = 0;
         private Vector3 m_StartPosition;
@@ -116,7 +116,7 @@ namespace Populous
 
             Vector3 currentPosition = transform.position;
 
-            if (m_TargetPoint != null && Vector3.Distance(currentPosition, m_TargetPoint.Value) > m_PositionError)
+            if (m_TargetPoint.HasValue && Vector3.Distance(currentPosition, m_TargetPoint.Value) > m_PositionError)
                 m_Rigidbody.MovePosition(currentPosition + (m_MoveSpeed * Time.deltaTime * (m_TargetPoint.Value - currentPosition).normalized));
             else if (m_Path != null)            // there are more steps to take along the path
                 ChooseNextPathTarget();
@@ -284,7 +284,7 @@ namespace Populous
                 Unit targetToFollow = m_Unit.GetFollowTarget();
 
                 // if we have another unit that's close enough, follow it.
-                if (targetToFollow != null)
+                if (targetToFollow)
                 {
                     FollowUnit(targetToFollow);
                     return true;
@@ -321,9 +321,9 @@ namespace Populous
 
             FindFreeTile_Surrounding();
 
-            if (target == null && m_CurrentRoamDirection.x == 0 && m_CurrentRoamDirection.z == 0 && m_CurrentRoamDirection != (0, 0))
+            if (!target.HasValue && m_CurrentRoamDirection.x == 0 && m_CurrentRoamDirection.z == 0 && m_CurrentRoamDirection != (0, 0))
                 FindFreeTile_Parallel();
-            else if (target == null)
+            else if (!target.HasValue)
                 FindFreeTile_Diagonal();
 
             return target;
@@ -454,10 +454,10 @@ namespace Populous
 
                 // forward directions
                 AddValidDirections(new (int, int)[] {
-                    m_RoamDirections[GameUtils.NextArrayIndex(currentDirection, -1, m_RoamDirections.Length)],
-                    m_RoamDirections[GameUtils.NextArrayIndex(currentDirection, +1, m_RoamDirections.Length)],
-                    m_RoamDirections[GameUtils.NextArrayIndex(currentDirection, -2, m_RoamDirections.Length)],
-                    m_RoamDirections[GameUtils.NextArrayIndex(currentDirection, +2, m_RoamDirections.Length)]
+                    m_RoamDirections[GameUtils.GetNextArrayIndex(currentDirection, -1, m_RoamDirections.Length)],
+                    m_RoamDirections[GameUtils.GetNextArrayIndex(currentDirection, +1, m_RoamDirections.Length)],
+                    m_RoamDirections[GameUtils.GetNextArrayIndex(currentDirection, -2, m_RoamDirections.Length)],
+                    m_RoamDirections[GameUtils.GetNextArrayIndex(currentDirection, +2, m_RoamDirections.Length)]
                 });
 
                 // backwards directions or continue in the direction we already are going down
@@ -652,7 +652,7 @@ namespace Populous
         {
             MapPoint? step = Pathfinder.Follow(m_Unit.ClosestMapPoint, m_TargetUnit.ClosestMapPoint);
 
-            if (step == null) return;
+            if (!step.HasValue) return;
             SetPath(new List<MapPoint>() { step.Value });
         }
 
@@ -732,7 +732,7 @@ namespace Populous
             List<MapPoint> neighbors = point.Neighbors;
             MapPoint? neighbor = null;
 
-            while (neighbor == null)
+            while (!neighbor.HasValue)
             {
                 MapPoint choice = neighbors[random.Next(neighbors.Count)];
                 if (Terrain.Instance.CanCrossTile(point, choice))

@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -75,9 +74,9 @@ namespace Populous
         public void BurnField() => OnTeamChanged(Team.NONE);
 
         /// <summary>
-        /// 
+        /// Changes the team this field belongs to.
         /// </summary>
-        /// <param name="team"></param>
+        /// <param name="team">The new <c>Team</c> this field should belong to.</param>
         public void OnTeamChanged(Team team)
         {
             if (team == m_Team) return;

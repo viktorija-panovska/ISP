@@ -36,7 +36,7 @@ namespace Populous
         /// <param name="increment">The amount to increment by.</param>
         /// <param name="arrayLength">The length of the array.</param>
         /// <returns></returns>
-        public static int NextArrayIndex(int start, int increment, int arrayLength)
+        public static int GetNextArrayIndex(int start, int increment, int arrayLength)
             => (start + increment + arrayLength) % arrayLength;
     }
 }

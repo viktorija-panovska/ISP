@@ -141,8 +141,7 @@ namespace Populous
             gameObject.GetComponent<MeshRenderer>().sharedMaterial = material;
 
             MeshCollider collider = gameObject.GetComponent<MeshCollider>();
-            if (collider)
-                collider.sharedMesh = mesh;
+            if (collider) collider.sharedMesh = mesh;
         }
     }
 }

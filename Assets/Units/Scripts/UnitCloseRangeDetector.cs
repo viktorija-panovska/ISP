@@ -31,14 +31,14 @@ namespace Populous
 
             if (!otherUnit) return;
 
-            if (otherUnit.Team == m_Team && !m_Unit.HasMaxStrength() && (m_Unit.Class == UnitClass.KNIGHT || 
+            if (otherUnit.Team == m_Team && !m_Unit.HasMaxStrength() && !m_Unit.IsInFight && (m_Unit.Class == UnitClass.KNIGHT ||
                 (otherUnit.Class != UnitClass.KNIGHT && m_Unit.Strength >= otherUnit.Strength)))
             {
                 m_Unit.GainStrength(1);
                 UnitManager.Instance.DespawnUnit(otherUnit.gameObject);
             }
 
-            if (otherUnit.Team == m_EnemyTeam && m_Team == Team.RED && !otherUnit.IsInFight)
+            if (otherUnit.Team == m_EnemyTeam && m_Team == Team.RED && !m_Unit.IsInFight && !otherUnit.IsInFight)
                 UnitManager.Instance.StartFight(m_Unit, otherUnit);
         }
     }

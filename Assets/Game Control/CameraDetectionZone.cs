@@ -2,44 +2,46 @@ using UnityEngine;
 
 namespace Populous
 {
+    /// <summary>
+    /// The <c>CameraDetectionZone</c> class represents a collider with the size, shape, and position 
+    /// of the field of view of an isometric camera, used to detect the visibility of objects on the scene.
+    /// </summary>
     public class CameraDetectionZone : MonoBehaviour
     {
         private void OnTriggerEnter(Collider other)
         {
-            if (other.gameObject.layer == LayerMask.NameToLayer("Terrain"))
+            // Handle chunk spawning
+            TerrainChunk chunk = other.GetComponent<TerrainChunk>();
+            if (chunk)
             {
-                SetChunkVisibility(other.gameObject.name, true);
+                chunk.SetVisibility(true);
                 return;
             }
 
+            // Count visible units and structures
             Team team = PlayerController.Instance.Team;
 
-            if (team == Team.RED && other.gameObject.layer == LayerMask.NameToLayer(GameController.Instance.TeamLayers[(int)Team.RED]) ||
-                team == Team.BLUE && other.gameObject.layer == LayerMask.NameToLayer(GameController.Instance.TeamLayers[(int)Team.BLUE]))
+            if (team == Team.RED && other.gameObject.layer == LayerData.TeamLayers[(int)Team.RED] ||
+                team == Team.BLUE && other.gameObject.layer == LayerData.TeamLayers[(int)Team.BLUE])
                 PlayerController.Instance.VisibleUnitsAndStructures++;
         }
 
         private void OnTriggerExit(Collider other)
         {
-            if (other.gameObject.layer == LayerMask.NameToLayer("Terrain"))
+            // Handle chunk despawning
+            TerrainChunk chunk = other.GetComponent<TerrainChunk>();
+            if (chunk)
             {
-                SetChunkVisibility(other.gameObject.name, false);
+                chunk.SetVisibility(false);
                 return;
             }
 
+            // Count visible units and structures
             Team team = PlayerController.Instance.Team;
 
-            if (team == Team.RED && other.gameObject.layer == LayerMask.NameToLayer(GameController.Instance.TeamLayers[(int)Team.RED]) ||
-                team == Team.BLUE && other.gameObject.layer == LayerMask.NameToLayer(GameController.Instance.TeamLayers[(int)Team.BLUE]))
+            if (team == Team.RED && other.gameObject.layer == LayerData.TeamLayers[(int)Team.RED] ||
+                team == Team.BLUE && other.gameObject.layer == LayerData.TeamLayers[(int)Team.BLUE])
                 PlayerController.Instance.VisibleUnitsAndStructures--;
-        }
-
-        private void SetChunkVisibility(string chunkName, bool visible)
-        {
-            string[] name = chunkName.Split(' ');
-
-            if (int.TryParse(name[1], out int x) && int.TryParse(name[2], out int z))
-                Terrain.Instance.GetChunkByIndex((x, z)).SetVisibility(visible);
         }
     }
 }

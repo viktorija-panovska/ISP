@@ -5,52 +5,57 @@ namespace Populous
 {
     /// <summary>
     /// The <c>PlayerController</c> class contains methods for handling player input and
-    /// properties for data about the state of the player's team.
+    /// properties for data about the behavior of the player's team.
     /// </summary>
     public class PlayerController : MonoBehaviour
     {
         [Header("Markers")]
-        [SerializeField] private float m_ClickerError = 0.05f;
+        [SerializeField] private float m_ClickerLeeway = 0.1f;
         [SerializeField] private GameObject[] m_Markers;
         [SerializeField] private Color m_HighlightMarkerColor;
         [SerializeField] private Color m_GrayedOutMarkerColor;
 
         private static PlayerController m_Instance;
         /// <summary>
-        /// Gets an instance of the class.
+        /// Gets a signleton instance of the class.
         /// </summary>
         public static PlayerController Instance { get => m_Instance; }
 
         private Team m_Team;
+        /// <summary>
+        /// Gets the team this player controls.
+        /// </summary>
         public Team Team { get => m_Team; }
 
-        private bool m_IsPaused;
-        /// <summary>
-        /// Gets a value indicating whether the game is paused.
-        /// </summary>
-        public bool IsPaused { get => m_IsPaused; }
-
         private int m_VisibleUnitsAndStructures;
+        /// <summary>
+        /// Gets the number of units and structures of the player's team currently visible to the player.
+        /// </summary>
         public int VisibleUnitsAndStructures { get => m_VisibleUnitsAndStructures; set => m_VisibleUnitsAndStructures = value; }
 
-        private Power m_ActivePower = Power.MOLD_TERRAIN;
+        /// <summary>
+        /// The <c>MapPoint</c> representing the nearest point on the terrain to the player's 
+        /// cursor, null if the player's cursor is outside the bounds of the terrain.
+        /// </summary>
+        private MapPoint? m_NearestPoint = null;
         /// <summary>
         /// Gets the current active power of the player.
         /// </summary>
-        public Power ActivePower { get => m_ActivePower; }
-
+        private Power m_ActivePower = Power.MOLD_TERRAIN;
+        /// <summary>
+        /// Gets the current active behavior of the units in the player's team.
+        /// </summary>
+        private UnitBehavior m_ActiveBehavior = UnitBehavior.SETTLE;
+        /// <summary>
+        /// The index of the power marker that's currently active.
+        /// </summary>
         private int m_ActiveMarkerIndex = 0;
-        private MapPoint? m_NearestClickablePoint = null;
-
-        private UnitBehavior m_ActiveUnitState = UnitBehavior.SETTLE;
 
 
-
-        #region MonoBehavior
 
         private void Awake()
         {
-            if (m_Instance != null)
+            if (m_Instance)
                 Destroy(gameObject);
 
             m_Instance = this;
@@ -68,36 +73,79 @@ namespace Populous
         private void Update()
         {
             if (m_ActivePower != Power.KNIGHT && m_ActivePower != Power.FLOOD && m_ActivePower != Power.ARMAGHEDDON)
-                SetNearestClickablePoint();
+                FindNearestClickablePoint();
         }
 
-        #endregion
 
 
-
-        #region Input Handlers
+        #region Input Events
 
         /// <summary>
-        /// Handles the <b>Pause</b> input action.
+        /// Triggers the game to pause or unpause, depending on the behavior.
         /// </summary>
         /// <param name="context">Details about the input action which triggered this event.</param>
         public void OnPause(InputAction.CallbackContext context)
         {
             if (!context.performed) return;
-            HandlePause();
+            GameController.Instance.TogglePauseGameServerRpc();
         }
 
         /// <summary>
-        /// Handles the <b>Move</b> input action.
+        /// Executes all events triggered by a left click, if the player's cursor is near a clickable point.
         /// </summary>
         /// <param name="context">Details about the input action which triggered this event.</param>
-        public void OnMove(InputAction.CallbackContext context)
+        public void OnLeftClick(InputAction.CallbackContext context)
         {
-            CameraController.Instance.Movement = context.ReadValue<Vector2>();
+            if (!context.performed || !m_NearestPoint.HasValue) return;
+
+            switch (m_ActivePower)
+            {
+                case Power.MOLD_TERRAIN:
+                    GameController.Instance.MoldTerrain/*ServerRpc*/(m_NearestPoint.Value, lower: false);
+                    break;
+
+                case Power.GUIDE_FOLLOWERS:                    
+                    GameController.Instance.MoveFlag/*ServerRpc*/(m_NearestPoint.Value, m_Team);
+                    break;
+
+                case Power.EARTHQUAKE:
+                    GameController.Instance.EarthquakeServerRpc(m_NearestPoint.Value);
+                    break;
+
+                case Power.SWAMP:
+                    GameController.Instance.SwampServerRpc(m_NearestPoint.Value);
+                    break;
+
+                case Power.VOLCANO:
+                    GameController.Instance.VolcanoServerRpc(m_NearestPoint.Value);
+                    break;
+            }
+
         }
 
         /// <summary>
-        /// Handles the <b>RotateCameraClockwise</b> input action.
+        /// Executes all events triggered by a right click, if the player's cursor is near a clickable point.
+        /// </summary>
+        /// <param name="context">Details about the input action which triggered this event.</param>
+        public void OnRightClick(InputAction.CallbackContext context)
+        {
+            if (!context.performed || m_ActivePower != Power.MOLD_TERRAIN || !m_NearestPoint.HasValue) return;
+
+            GameController.Instance.MoldTerrain/*ServerRpc*/(m_NearestPoint.Value, lower: true);
+        }
+
+
+        #region Camera Movement Inputs
+
+        /// <summary>
+        /// Triggers the position movement of the camera.
+        /// </summary>
+        /// <param name="context">Data about the input action which triggered this event.</param>
+        public void OnMove(InputAction.CallbackContext context)
+            => CameraController.Instance.MovementDirection = context.ReadValue<Vector2>();
+
+        /// <summary>
+        /// Triggers the clockwise rotation of the camera around the point it is looking at.
         /// </summary>
         /// <param name="context">Details about the input action which triggered this event.</param>
         public void OnRotateCameraClockwise(InputAction.CallbackContext context)
@@ -110,7 +158,7 @@ namespace Populous
         }
 
         /// <summary>
-        /// Handles the <b>RotateCameraCounterclockwise</b> input action.
+        /// Triggers the counter-clockwise rotation of the camera around the point it is looking at.
         /// </summary>
         /// <param name="context">Details about the input action which triggered this event.</param>
         public void OnRotateCameraCounterclockwise(InputAction.CallbackContext context)
@@ -123,97 +171,229 @@ namespace Populous
         }
 
         /// <summary>
-        /// Handles the <b>ZoomCamera</b> input action.
+        /// Triggers the zoom in or out of the camera, focused on the point it is looking at.
         /// </summary>
         /// <param name="context">Details about the input action which triggered this event.</param>
         public void OnZoomCamera(InputAction.CallbackContext context)
-        {
-            CameraController.Instance.ZoomDirection = (int)context.ReadValue<float>();
-        }
+            => CameraController.Instance.ZoomDirection = (int)context.ReadValue<float>();
 
-        /// <summary>
-        /// Handles the <b>LeftClick</b> input action.
-        /// </summary>
-        /// <param name="context">Details about the input action which triggered this event.</param>
-        public void OnLeftClick(InputAction.CallbackContext context)
-        {
-            if (!context.performed || !m_NearestClickablePoint.HasValue || !m_NearestClickablePoint.HasValue) return;
-
-            switch (m_ActivePower)
-            {
-                case Power.MOLD_TERRAIN:
-                    GameController.Instance.MoldTerrain(m_NearestClickablePoint.Value, lower: false);
-                    break;
-
-                case Power.GUIDE_FOLLOWERS:
-                    GameController.Instance.MoveFlag/*ServerRpc*/(m_NearestClickablePoint.Value, m_Team);
-                    break;
-
-                case Power.EARTHQUAKE:
-                    GameController.Instance.EarthquakeServerRpc(m_NearestClickablePoint.Value);
-                    break;
-
-                case Power.SWAMP:
-                    GameController.Instance.SwampServerRpc(m_NearestClickablePoint.Value);
-                    break;
-
-                case Power.VOLCANO:
-                    GameController.Instance.VolcanoServerRpc(m_NearestClickablePoint.Value);
-                    break;
-            }
-
-        }
-
-        /// <summary>
-        /// Handles the <b>RightClick</b> input action.
-        /// </summary>
-        /// <param name="context">Details about the input action which triggered this event.</param>
-        public void OnRightClick(InputAction.CallbackContext context)
-        {
-            if (!context.performed || !m_NearestClickablePoint.HasValue || m_ActivePower != Power.MOLD_TERRAIN) return;
-
-            if (m_NearestClickablePoint.HasValue)
-                GameController.Instance.MoldTerrain(m_NearestClickablePoint.Value, lower: true);
-        }
-        
         #endregion
 
 
+        #region Powers Inputs
 
-        #region Point Markers
-
-        private void SetNearestClickablePoint()
+        /// <summary>
+        /// Activates the Mold Terrain power.
+        /// </summary>
+        /// <param name="context">Details about the input action which triggered this event.</param>
+        public void OnMoldTerrainSelected(InputAction.CallbackContext context)
         {
-            if (!Physics.Raycast(Camera.main.ScreenPointToRay(Mouse.current.position.ReadValue()), out RaycastHit hit) ||
-                hit.point.x - m_ClickerError < 0 || hit.point.z - m_ClickerError < 0 ||
-                hit.point.x + m_ClickerError > Terrain.Instance.UnitsPerSide || hit.point.z + m_ClickerError > Terrain.Instance.UnitsPerSide)
-            {
-                m_NearestClickablePoint = null;
-                SetHighlight(hit.point);
-                return;
-            }
-
-            if (IsPointClickable(hit.point))
-                m_NearestClickablePoint = new MapPoint(hit.point.x, hit.point.z);
-            else
-                m_NearestClickablePoint = null;
-
-            SetHighlight(hit.point);
+            if (!context.performed) return;
+            TryActivatePower(Power.MOLD_TERRAIN);
         }
 
-        private bool IsPointClickable(Vector3 point)
+        /// <summary>
+        /// Activates the Guide Followers power.
+        /// </summary>
+        /// <param name="context">Details about the input action which triggered this event.</param>
+        public void OnGuideFollowersSelected(InputAction.CallbackContext context)
         {
-            if (Mathf.Abs(Mathf.Round(point.x / Terrain.Instance.UnitsPerTileSide) - point.x / Terrain.Instance.UnitsPerTileSide) > m_ClickerError ||
-                Mathf.Abs(Mathf.Round(point.z / Terrain.Instance.UnitsPerTileSide) - point.z / Terrain.Instance.UnitsPerTileSide) > m_ClickerError //||
-                /*(m_ActivePower == Power.TERRAIN_CHANGE && m_VisibleUnitsAndStructures <= 0)*/)
-                return false;
-
-            return true;
+            if (!context.performed) return;
+            TryActivatePower(Power.GUIDE_FOLLOWERS);
         }
 
+        /// <summary>
+        /// Activates the Earthquake power.
+        /// </summary>
+        /// <param name="context">Details about the input action which triggered this event.</param>
+        public void OnEarthquakeSelected(InputAction.CallbackContext context)
+        {
+            if (!context.performed) return;
+            TryActivatePower(Power.EARTHQUAKE);
+        }
+
+        /// <summary>
+        /// Activates the Swamp power.
+        /// </summary>
+        /// <param name="context">Details about the input action which triggered this event.</param>
+        public void OnSwampSelected(InputAction.CallbackContext context)
+        {
+            if (!context.performed) return;
+            TryActivatePower(Power.SWAMP);
+        }
+
+        /// <summary>
+        /// Activates the Knight power.
+        /// </summary>
+        /// <param name="context">Details about the input action which triggered this event.</param>
+        public void OnKnightSelected(InputAction.CallbackContext context)
+        {
+            if (!context.performed) return;
+            TryActivatePower(Power.KNIGHT);
+        }
+
+        /// <summary>
+        /// Activates the Volcano power.
+        /// </summary>
+        /// <param name="context">Details about the input action which triggered this event.</param>
+        public void OnVolcanoSelected(InputAction.CallbackContext context)
+        {
+            if (!context.performed) return;
+            TryActivatePower(Power.VOLCANO);
+        }
+
+        /// <summary>
+        /// Activates the Flood power.
+        /// </summary>
+        /// <param name="context">Details about the input action which triggered this event.</param>
+        public void OnFloodSelected(InputAction.CallbackContext context)
+        {
+            if (!context.performed) return;
+            TryActivatePower(Power.FLOOD);
+        }
+
+        /// <summary>
+        /// Activates the Armagheddon power.
+        /// </summary>
+        /// <param name="context">Details about the input action which triggered this event.</param>
+        public void OnArmagheddonSelected(InputAction.CallbackContext context)
+        {
+            if (!context.performed) return;
+            TryActivatePower(Power.ARMAGHEDDON);
+        }
+
+        #endregion
+
+
+        #region Influence Behavior Inputs
+
+        /// <summary>
+        /// Activates the Go To Flag unit behavior.
+        /// </summary>
+        /// <param name="context">Details about the input action which triggered this event.</param>
+        public void OnGoToFlagSelected(InputAction.CallbackContext context)
+        {
+            if (!context.performed) return;
+            SetUnitBehavior(UnitBehavior.GO_TO_SYMBOL);
+        }
+
+        /// <summary>
+        /// Activates the Settle unit behavior.
+        /// </summary>
+        /// <param name="context">Details about the input action which triggered this event.</param>
+        public void OnSettleSelected(InputAction.CallbackContext context)
+        {
+            if (!context.performed) return;
+            SetUnitBehavior(UnitBehavior.SETTLE);
+        }
+
+        /// <summary>
+        /// Activates the Gather unit behavior.
+        /// </summary>
+        /// <param name="context">Details about the input action which triggered this event.</param>
+        public void OnGatherSelected(InputAction.CallbackContext context)
+        {
+            if (!context.performed) return;
+            SetUnitBehavior(UnitBehavior.GATHER);
+        }
+
+        /// <summary>
+        /// Activates the Fight unit behavior.
+        /// </summary>
+        /// <param name="context">Details about the input action which triggered this event.</param>
+        public void OnFightSelected(InputAction.CallbackContext context)
+        {
+            if (!context.performed) return;
+            SetUnitBehavior(UnitBehavior.FIGHT);
+        }
+
+        #endregion
+
+
+        #region Zoom Inputs
+
+        /// <summary>
+        /// Triggers camera to show the player's team's symbol.
+        /// </summary>
+        /// <param name="context">Details about the input action which triggered this event.</param>
+        public void OnShowFlag(InputAction.CallbackContext context)
+        {
+            if (!context.performed) return;
+            GameController.Instance.ShowTeamSymbolServerRpc(m_Team);
+        }
+
+        /// <summary>
+        /// Triggers camera to show the player's team's leader.
+        /// </summary>
+        /// <param name="context">Details about the input action which triggered this event.</param>
+        public void OnShowLeader(InputAction.CallbackContext context)
+        {
+            if (!context.performed) return;
+            GameController.Instance.ShowLeaderServerRpc(m_Team);
+        }
+
+        /// <summary>
+        /// Triggers camera to show the player's team's settlements.
+        /// </summary>
+        /// <param name="context">Details about the input action which triggered this event.</param>
+        public void OnShowSettlements(InputAction.CallbackContext context)
+        {
+            if (!context.performed) return;
+            GameController.Instance.ShowSettlementsServerRpc(m_Team);
+        }
+
+        /// <summary>
+        /// Triggers camera to show the fights currenly happening..
+        /// </summary>
+        /// <param name="context">Details about the input action which triggered this event.</param>
+        public void OnShowFights(InputAction.CallbackContext context)
+        {
+            if (!context.performed) return;
+            GameController.Instance.ShowFightsServerRpc(m_Team);
+        }
+
+        /// <summary>
+        /// Triggers camera to show the player's team's knights.
+        /// </summary>
+        /// <param name="context">Details about the input action which triggered this event.</param>
+        public void OnShowKnights(InputAction.CallbackContext context)
+        {
+            if (!context.performed) return;
+            GameController.Instance.ShowKnightsServerRpc(m_Team);
+        }
+
+        #endregion
+
+        #endregion
+
+
+        #region Power Markers
+
+        /// <summary>
+        /// Finds the nearest point on the terrain that can be clicked. The points that 
+        /// can be clicked are the points at the intersections of the terrain grid.
+        /// </summary>
+        private void FindNearestClickablePoint()
+        {
+            m_NearestPoint =
+                !Physics.Raycast(Camera.main.ScreenPointToRay(Mouse.current.position.ReadValue()), out RaycastHit hit,
+                    maxDistance: Mathf.Infinity, layerMask: LayerMask.GetMask(LayerData.TERRAIN_LAYER_NAME)) ||
+                    hit.point.x - m_ClickerLeeway < 0 && hit.point.x + m_ClickerLeeway > Terrain.Instance.UnitsPerSide ||
+                    hit.point.z - m_ClickerLeeway < 0 && hit.point.z + m_ClickerLeeway > Terrain.Instance.UnitsPerSide
+                ? null
+                : new MapPoint(hit.point.x, hit.point.z);
+
+            SetupMarker();
+        }
+
+        /// <summary>
+        /// Sets the active marker to the marker with the given index.
+        /// </summary>
+        /// <param name="index">The index of the new active marker.</param>
         private void SwitchActiveMarker(int index)
         {
-            if (m_ActiveMarkerIndex == index || m_ActivePower == Power.KNIGHT || m_ActivePower == Power.FLOOD || m_ActivePower == Power.ARMAGHEDDON)
+            if (m_ActiveMarkerIndex == index || m_ActivePower == Power.KNIGHT || 
+                m_ActivePower == Power.FLOOD || m_ActivePower == Power.ARMAGHEDDON)
                 return;
 
             m_Markers[m_ActiveMarkerIndex].SetActive(false);
@@ -221,217 +401,65 @@ namespace Populous
             m_Markers[m_ActiveMarkerIndex].SetActive(true);
         }
 
-        private void SetHighlight(Vector3 position)
+        /// <summary>
+        /// Sets the marker's posiiton and changes it's color if an action cannot be performed.
+        /// </summary>
+        private void SetupMarker()
         {
-            if (m_NearestClickablePoint.HasValue)
-            {
-                m_Markers[m_ActiveMarkerIndex].transform.position = new Vector3(
-                    m_NearestClickablePoint.Value.GridX * Terrain.Instance.UnitsPerTileSide,
-                    m_NearestClickablePoint.Value.Y + 5,
-                    m_NearestClickablePoint.Value.GridZ * Terrain.Instance.UnitsPerTileSide);
-                m_Markers[m_ActiveMarkerIndex].GetComponent<MeshRenderer>().material.color = m_HighlightMarkerColor;
-            }
-            else
-            {
-                m_Markers[m_ActiveMarkerIndex].GetComponent<MeshRenderer>().material.color = m_GrayedOutMarkerColor;
-                m_Markers[m_ActiveMarkerIndex].transform.position = new Vector3(position.x, position.y < 0 ? 0 : position.y + 5, position.z);
-            }
+            if (!m_NearestPoint.HasValue) return;
+
+            m_Markers[m_ActiveMarkerIndex].transform.position = new Vector3(
+                m_NearestPoint.Value.GridX * Terrain.Instance.UnitsPerTileSide,
+                m_NearestPoint.Value.Y + 2,
+                m_NearestPoint.Value.GridZ * Terrain.Instance.UnitsPerTileSide
+            );
+
+            m_Markers[m_ActiveMarkerIndex].GetComponent<MeshRenderer>().material.color =
+                (m_ActivePower != Power.MOLD_TERRAIN || m_VisibleUnitsAndStructures > 0) 
+                ? m_HighlightMarkerColor 
+                : m_GrayedOutMarkerColor;
         }
 
         #endregion
 
 
 
-        #region Manna and Powers
-
-        private bool HasEnoughManna(Power power) => true;
-
-        private void SwitchActivePower(Power power)
+        /// <summary>
+        /// Checks with the server if this the given power can be activated for this player.
+        /// </summary>
+        /// <param name="power">The <c>Power</c> that the player wants to activate.</param>
+        private void TryActivatePower(Power power)
         {
-            m_ActivePower = HasEnoughManna(power) ? power : Power.MOLD_TERRAIN;
+            if (power == m_ActivePower && power != Power.KNIGHT && power != Power.FLOOD) return;
+            GameController.Instance.TryActivatePower/*ServerRpc*/(m_Team, power);
+        }
+
+        /// <summary>
+        /// Recieves information whether the given power has been activated or not and acts accordingly.
+        /// </summary>
+        /// <param name="power">The <c>Power</c> the player wanted to activate.</param>
+        /// <param name="isActivated">True if the power has been activated, false otherwise.</param>
+        public void ReceivePowerActivation(Power power, bool isActivated)
+        {
+            if (!isActivated)
+            {
+                GameUI.Instance.NotEnoughManna(power);
+                return;
+            }
+
+            m_ActivePower = power;
             SwitchActiveMarker((int)power);
         }
 
-        #endregion
-
-
-
-        #region Powers
-
         /// <summary>
-        /// Handles the <b>MoldTerrainSelected</b> input action.
+        /// Sets the behavior of the units of this player's team to the given behavior.
         /// </summary>
-        /// <param name="context">Details about the input action which triggered this event.</param>
-        public void OnMoldTerrainSelected(InputAction.CallbackContext context)
+        /// <param name="behavior">The new behavior that should be applied to all the units.</param>
+        private void SetUnitBehavior(UnitBehavior behavior)
         {
-            if (!context.performed) return;
-            SwitchActivePower(Power.MOLD_TERRAIN);
+            if (behavior == m_ActiveBehavior) return;
+            m_ActiveBehavior = behavior;
+            UnitManager.Instance.ChangeUnitBehavior/*ServerRpc*/(m_ActiveBehavior, m_Team);
         }
-
-        /// <summary>
-        /// Handles the <b>GuideFollowersSelected</b> input action.
-        /// </summary>
-        /// <param name="context">Details about the input action which triggered this event.</param>
-        public void OnGuideFollowersSelected(InputAction.CallbackContext context)
-        {
-            if (!context.performed) return;
-            SwitchActivePower(Power.GUIDE_FOLLOWERS);
-        }
-
-        /// <summary>
-        /// Handles the <b>EarthquakeSelected</b> input action.
-        /// </summary>
-        /// <param name="context">Details about the input action which triggered this event.</param>
-        public void OnEarthquakeSelected(InputAction.CallbackContext context)
-        {
-            if (!context.performed) return;
-            SwitchActivePower(Power.EARTHQUAKE);
-        }
-
-        /// <summary>
-        /// Handles the <b>SwampSelected</b> input action.
-        /// </summary>
-        /// <param name="context">Details about the input action which triggered this event.</param>
-        public void OnSwampSelected(InputAction.CallbackContext context)
-        {
-            if (!context.performed) return;
-            SwitchActivePower(Power.SWAMP);
-        }
-
-        /// <summary>
-        /// Handles the <b>KnightSelected</b> input action.
-        /// </summary>
-        /// <param name="context">Details about the input action which triggered this event.</param>
-        public void OnKnightSelected(InputAction.CallbackContext context)
-        {
-            if (!context.performed) return;
-            SwitchActivePower(Power.KNIGHT);
-
-            GameController.Instance.CreateKnight(m_Team);
-        }
-
-        /// <summary>
-        /// Handles the <b>VolcanoSelected</b> input action.
-        /// </summary>
-        /// <param name="context">Details about the input action which triggered this event.</param>
-        public void OnVolcanoSelected(InputAction.CallbackContext context)
-        {
-            if (!context.performed) return;
-            SwitchActivePower(Power.VOLCANO);
-        }
-
-        /// <summary>
-        /// Handles the <b>FloodSelected</b> input action.
-        /// </summary>
-        /// <param name="context">Details about the input action which triggered this event.</param>
-        public void OnFloodSelected(InputAction.CallbackContext context)
-        {
-            if (!context.performed) return;
-            SwitchActivePower(Power.FLOOD);
-            GameController.Instance.FloodServerRpc();
-        }
-
-        /// <summary>
-        /// Handles the <b>ArmagheddonSelected</b> input action.
-        /// </summary>
-        /// <param name="context">Details about the input action which triggered this event.</param>
-        public void OnArmagheddonSelected(InputAction.CallbackContext context)
-        {
-            if (!context.performed) return;
-            SwitchActivePower(Power.ARMAGHEDDON);
-        }
-
-        #endregion
-
-
-
-        #region Influence Behaviors
-
-        public void OnGoToFlagSelected(InputAction.CallbackContext context)
-        {
-            if (!context.performed || m_ActiveUnitState == UnitBehavior.GO_TO_SYMBOL) return;
-            SwitchState(UnitBehavior.GO_TO_SYMBOL);
-        }
-
-        public void OnSettleSelected(InputAction.CallbackContext context)
-        {
-            if (!context.performed || m_ActiveUnitState == UnitBehavior.SETTLE) return;
-            SwitchState(UnitBehavior.SETTLE);
-        }
-
-        public void OnGatherSelected(InputAction.CallbackContext context)
-        {
-            if (!context.performed || m_ActiveUnitState == UnitBehavior.GATHER) return;
-            SwitchState(UnitBehavior.GATHER);
-        }
-
-        public void OnBattleSelected(InputAction.CallbackContext context)
-        {
-            if (!context.performed || m_ActiveUnitState == UnitBehavior.FIGHT) return;
-            SwitchState(UnitBehavior.FIGHT);
-        }
-
-        private void SwitchState(UnitBehavior state)
-        {
-            m_ActiveUnitState = state;
-            UnitManager.Instance.UnitBehaviorChange/*ServerRpc*/(m_ActiveUnitState, m_Team);
-        }
-
-        #endregion
-
-
-
-        #region Zoom
-
-        public void OnShowLeader(InputAction.CallbackContext context)
-        {
-            if (!context.performed) return;
-            GameController.Instance.ShowLeaderServerRpc(m_Team);
-        }
-
-        public void OnShowFlag(InputAction.CallbackContext context)
-        {
-            if (!context.performed) return;
-            GameController.Instance.ShowFlagServerRpc(m_Team);
-        }
-
-        public void OnShowKnights(InputAction.CallbackContext context)
-        {
-            if (!context.performed) return;
-            GameController.Instance.ShowKnightsServerRpc(m_Team);
-        }
-
-        public void OnShowSettlements(InputAction.CallbackContext context)
-        {
-            if (!context.performed) return;
-            GameController.Instance.ShowSettlementsServerRpc(m_Team);
-        }
-
-        public void OnShowBattles(InputAction.CallbackContext context)
-        {
-            if (!context.performed) return;
-            GameController.Instance.ShowBattlesServerRpc();
-        }
-
-        #endregion
-
-
-
-        #region Game Control
-
-        /// <summary>
-        /// Pauses the game if it is unpaused and unpauses the game if it is paused.
-        /// </summary>
-        public void HandlePause()
-        {
-            if (m_IsPaused)
-                PauseMenuController.Instance.HidePauseMenu();
-            else
-                PauseMenuController.Instance.ShowPauseMenu();
-
-            m_IsPaused = !m_IsPaused;
-        }
-
-        #endregion
     }
 }

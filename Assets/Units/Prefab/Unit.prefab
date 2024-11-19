@@ -224,6 +224,7 @@ MonoBehaviour:
   m_LeaderSigns:
   - {fileID: 3319941856513379266}
   - {fileID: 6475190841780479472}
+  m_KnightSword: {fileID: 8455134085631431226}
   m_SecondsUntilEnteringEnabled: 0.5
   m_CloseRangeDetector: {fileID: 8487823297983500840}
   m_MidRangeDetector: {fileID: 6128104503836289826}

@@ -1,4 +1,3 @@
-using Unity.Netcode;
 using UnityEngine;
 
 namespace Populous
@@ -14,7 +13,7 @@ namespace Populous
         {
             Unit unit = other.GetComponent<Unit>();
 
-            if (unit == null || unit.Behavior != UnitBehavior.GO_TO_SYMBOL || unit.Team != m_Team || unit.Class == UnitClass.KNIGHT)
+            if (!unit || unit.Team != m_Team || unit.Class == UnitClass.KNIGHT)
                 return;
 
             unit.TeamSymbolReached();

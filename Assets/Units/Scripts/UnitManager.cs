@@ -63,6 +63,7 @@ namespace Populous
         [SerializeField] private int m_UnitDecayRate = 20;
         [SerializeField] private int m_StartingUnitStrength = 1;
         [SerializeField] private int m_LeaderDeathManna = 10;
+        [SerializeField] private float m_FightWaitDuration = 5f;
 
         private static UnitManager m_Instance;
         /// <summary>
@@ -77,29 +78,24 @@ namespace Populous
         /// <summary>
         /// Gets the maximum strength a unit can have.
         /// </summary>
-        public int MaxStrength { get => m_MaxUnitStrength; }
+        public int MaxUnitStrength { get => m_MaxUnitStrength; }
         /// <summary>
         /// Gets the number of steps after which a unit loses one strength.
         /// </summary>
         public int DecayRate { get => m_UnitDecayRate; }
 
         /// <summary>
-        /// An array of representations of the points on the terrain grid and the number of times a unit of a team has stepped on each point.
-        /// </summary>
-        private readonly int[][,] m_GridPointSteps = new int[Enum.GetValues(typeof(Team)).Length - 1][,];
-        /// <summary>
         /// An array of the sizes of the population of each team.
         /// </summary>
         private readonly int[] m_Population = new int[Enum.GetValues(typeof(Team)).Length];
         /// <summary>
-        /// An array of lists containing all the active knights of each team.
-        /// </summary>
-        private readonly List<Unit>[] m_Knights = new List<Unit>[] { new(), new() };
-
-        /// <summary>
         /// An array storing the active unit behavior for the units in each team.
         /// </summary>
         private readonly UnitBehavior[] m_ActiveBehavior = new UnitBehavior[Enum.GetValues(typeof(Team)).Length];
+        /// <summary>
+        /// An array of representations of the points on the terrain grid and the number of times a unit of a team has stepped on each point.
+        /// </summary>
+        private readonly int[][,] m_GridPointSteps = new int[Enum.GetValues(typeof(Team)).Length - 1][,];
 
         /// <summary>
         /// A list of the ids of all the active fights.
@@ -113,6 +109,10 @@ namespace Populous
         /// The id that should be assigned to the next fight.
         /// </summary>
         private int m_NextFightId = 0;
+        /// <summary>
+        /// An array of lists containing all the active knights of each team.
+        /// </summary>
+        private readonly List<Unit>[] m_Knights = new List<Unit>[] { new(), new() };
 
         /// <summary>
         /// Action to be called when the behavior of the units in the red team is changed.
@@ -127,14 +127,14 @@ namespace Populous
         /// </summary>
         public Action<Unit> OnRemoveReferencesToUnit;
         /// <summary>
-        /// Action to be called when a new unit is assigned as the leader of the team.
+        /// Action to be called when a new unit is assigned as the knight of the team.
         /// </summary>
         public Action OnNewLeaderGained;
 
 
         private void Awake()
         {
-            if (m_Instance != null)
+            if (m_Instance)
                 Destroy(gameObject);
 
             m_Instance = this;
@@ -149,11 +149,12 @@ namespace Populous
         /// <param name="location">The <c>MapPoint</c> at which the new unit should be spawned.</param>
         /// <param name="team">The team the new unit should belong to.</param>
         /// <param name="strength">The initial strength of the unit.</param>
-        /// <param name="isLeader">True if the created unit is a leader, false otherwise.</param>
+        /// <param name="isLeader">True if the created unit is a knight, false otherwise.</param>
         /// <returns>The <c>GameObject</c> of the newly spawned unit.</returns>
         public GameObject SpawnUnit(MapPoint location, Team team, int strength = 1, bool isLeader = false, bool canEnterSettlement = false)
         {
-            if (/*!IsServer || */m_Population[(int)team] == m_MaxPopulation) return null;
+            if (/*!IsServer || */m_Population[(int)team] == m_MaxPopulation) 
+                return null;
 
             GameObject unitObject = Instantiate(
                 m_UnitPrefab,
@@ -167,18 +168,18 @@ namespace Populous
             Unit unit = unitObject.GetComponent<Unit>();
             OnNewLeaderGained += unit.NewLeaderUnitGained;
             OnRemoveReferencesToUnit += unit.RemoveRefrencesToUnit;
-            GameController.Instance.OnTerrainMoved += unit.RecomputeHeight;
+            GameController.Instance.OnTerrainModified += unit.RecomputeHeight;
             StructureManager.Instance.OnRemoveReferencesToSettlement += unit.RemoveRefrencesToSettlement;
 
             if (team == Team.RED)
             {
                 OnRedBehaviorChange += unit.SetBehavior;
-                GameController.Instance.OnRedFlagMoved += unit.SymbolLocationChanged;
+                GameController.Instance.OnRedSymbolMoved += unit.SymbolLocationChanged;
             }
             else if (team == Team.BLUE)
             {
                 OnBlueBehaviorChange += unit.SetBehavior;
-                GameController.Instance.OnBlueFlagMoved += unit.SymbolLocationChanged;
+                GameController.Instance.OnBlueSymbolMoved += unit.SymbolLocationChanged;
             }
 
             unit.Setup(team, strength, canEnterSettlement);
@@ -199,7 +200,7 @@ namespace Populous
 
             unitObject.GetComponent<MeshRenderer>().material.color = GameController.Instance.TeamColors[(int)team];
             unitObject.name = $"{team} Unit";
-            unitObject.layer = LayerMask.NameToLayer(GameController.Instance.TeamLayers[(int)team]);
+            unitObject.layer = LayerData.TeamLayers[(int)team];
 
             GameController.Instance.AddManna(team);
 
@@ -233,7 +234,7 @@ namespace Populous
             //if (!IsServer) return;
 
             Unit unit = unitObject.GetComponent<Unit>();
-            GameController.Instance.OnTerrainMoved -= unit.RecomputeHeight;
+            GameController.Instance.OnTerrainModified -= unit.RecomputeHeight;
 
             if (unit.Team == Team.RED)
                 OnRedBehaviorChange -= unit.SetBehavior;
@@ -279,14 +280,7 @@ namespace Populous
         /// <param name="team">The <c>Team</c> the population should be added to.</param>
         /// <param name="amount">The amount of population that should be added.</param>
         public void AddPopulation(Team team, int amount = 1)
-        {
-            int population = Mathf.Clamp(m_Population[(int)team] + amount, 0, m_MaxPopulation);
-
-            if (population == m_Population[(int)team]) return;
-            m_Population[(int)team] = population;
-
-            //UpdatePopulationUIClientRpc(team, m_MaxPopulation, population);
-        }
+            => SetPopulation(team, Mathf.Clamp(m_Population[(int)team] + amount, 0, m_MaxPopulation));
 
         /// <summary>
         /// Removes the given amount from the population of the given team.
@@ -294,13 +288,22 @@ namespace Populous
         /// <param name="team">The <c>Team</c> the population should be removed from.</param>
         /// <param name="amount">The amount of population that should be removed.</param>
         public void RemovePopulation(Team team, int amount = 1)
+            => SetPopulation(team, Mathf.Clamp(m_Population[(int)team] - amount, 0, m_MaxPopulation));
+
+        /// <summary>
+        /// Sets the population of the given team to the given amount.
+        /// </summary>
+        /// <param name="team">The <c>Team</c> whose population should be set.</param>
+        /// <param name="amount">The amount of population the given team should have.</param>
+        private void SetPopulation(Team team, int amount)
         {
-            int population = Mathf.Clamp(m_Population[(int)team] - amount, 0, m_MaxPopulation);
+            if (amount == m_Population[(int)team]) return;
+            m_Population[(int)team] = amount;
 
-            if (population == m_Population[(int)team]) return;
-            m_Population[(int)team] = population;
+            //UpdatePopulationUIClientRpc(team, amount);
 
-            //UpdatePopulationUIClientRpc(team, m_MaxPopulation, population);
+            if (m_Population[(int)team] == 0)
+                GameController.Instance.GameOver(loser: team);
         }
 
         /// <summary>
@@ -310,8 +313,8 @@ namespace Populous
         /// <param name="maxPopulation">The maximum value of the population.</param>
         /// <param name="currentPopulation">The current value of the population.</param>
         [ClientRpc]
-        private void UpdatePopulationUIClientRpc(Team team, int maxPopulation, int currentPopulation)
-            => GameUI.Instance.UpdatePopulationBar(team, maxPopulation, currentPopulation);
+        private void UpdatePopulationUIClientRpc(Team team, int currentPopulation)
+            => GameUI.Instance.UpdatePopulationBar(team, currentPopulation);
 
         #endregion
 
@@ -328,7 +331,7 @@ namespace Populous
             ResetGridSteps(Team.RED);
             ResetGridSteps(Team.BLUE);
 
-            Random random = new(GameData.Instance == null ? 0 : GameData.Instance.MapSeed);
+            Random random = new(!GameData.Instance ? 0 : GameData.Instance.MapSeed);
 
             List<(int, int)> redSpawns = new();
             List<(int, int)> blueSpawns = new();
@@ -444,7 +447,7 @@ namespace Populous
         public int GetKnightsNumber(Team team) => m_Knights[(int)team].Count;
 
         /// <summary>
-        /// Turns the leader of the given team into a knight, if a leader exists.
+        /// Turns the knight of the given team into a knight, if a knight exists.
         /// </summary>
         /// <param name="team">The <c>Team</c> that the new knight should belong to.</param>
         public void CreateKnight(Team team)
@@ -453,9 +456,10 @@ namespace Populous
 
             if (GameController.Instance.HasUnitLeader(team))
             {
-                Unit leader = GameController.Instance.GetLeaderUnit(team);
-                m_Knights[(int)team].Add(leader);
-                leader.SetClass(UnitClass.KNIGHT);
+                Unit knight = GameController.Instance.GetLeaderUnit(team);
+                GameController.Instance.RemoveLeader(team);
+                knight.SetClass(UnitClass.KNIGHT);
+                m_Knights[(int)team].Add(knight);
             }
 
             if (GameController.Instance.IsLeaderInSettlement(team))
@@ -463,7 +467,6 @@ namespace Populous
 
             }
 
-            GameController.Instance.RemoveLeader(team);
         }
 
         /// <summary>
@@ -488,7 +491,7 @@ namespace Populous
         /// <param name="behavior">The <c>UnitBehavior</c> that should be applied to all units in the team.</param>
         /// <param name="team">The <c>Team</c> whose units should be targeted.</param>
         //[ServerRpc(RequireOwnership = false)]
-        public void UnitBehaviorChange/*ServerRpc*/(UnitBehavior behavior, Team team)
+        public void ChangeUnitBehavior/*ServerRpc*/(UnitBehavior behavior, Team team)
         {
             if (m_ActiveBehavior[(int)team] == behavior) return;
 
@@ -533,11 +536,12 @@ namespace Populous
         #region Fights
 
         /// <summary>
-        /// Gets the location of the fight at the given index in the fight locations list.
+        /// Gets the location of the fight at the given index in the fight IDs list.
         /// </summary>
-        /// <param name="index">The index of the fight whose location we want.</param>
-        /// <returns>A <c>Vector3</c> of the position of the fight.</returns>
-        public Vector3 GetFightPosition(int index) => m_Fights[m_FightIds[index]].red.gameObject.transform.position;
+        /// <param name="index">The index of the fight in the fight IDs list whose location we want.</param>
+        /// <returns>The position of the fight.</returns>
+        public Vector3? GetFightLocation(int index) 
+            => index >= m_FightIds.Count ? null : m_Fights[m_FightIds[index]].red.gameObject.transform.position;
         /// <summary>
         /// Gets the number of fights currently happening.
         /// </summary>
@@ -573,8 +577,8 @@ namespace Populous
             m_Fights.Remove(winner.FightId);
             m_FightIds.Remove(winner.FightId);
 
-            DespawnUnit(loser.gameObject);
             winner.EndFight();
+            if (loser) loser.EndFight();
         }
 
         /// <summary>
@@ -588,7 +592,10 @@ namespace Populous
         {
             while (true)
             {
-                yield return new WaitForSeconds(5f);
+                yield return new WaitForSeconds(m_FightWaitDuration);
+
+                // the unit has been destroyed outside the battle
+                if (!red || !blue) break;
 
                 red.LoseStrength(1);
                 blue.LoseStrength(1);
@@ -597,13 +604,22 @@ namespace Populous
                     break;
             }
 
-            Unit winner = red.Strength == 0 ? blue : red;
-            Unit loser = red.Strength == 0 ? red : blue;
+            Unit winner = null, loser = null;
+            if (!red) winner = blue;
+            else if (!blue) winner = red;
+            else if (red && blue)
+            {
+                winner = red.Strength == 0 ? blue : red;
+                loser = red.Strength == 0 ? red : blue;
+            }
 
-            if (settlementDefense)
-                ResolveSettlementAttack(winner, settlementDefense);
+            if (winner)
+            {
+                if (settlementDefense)
+                    ResolveSettlementAttack(winner, settlementDefense);
 
-            EndFight(winner, loser);
+                EndFight(winner, loser);
+            }
         }
 
         /// <summary>
@@ -613,6 +629,8 @@ namespace Populous
         /// <param name="settlement">The <c>Settlement</c> that is being attacked.</param>
         public void AttackSettlement(Unit unit, Settlement settlement)
         {
+            if (settlement.IsAttacked) return;
+
             settlement.IsAttacked = true;
             unit.ToggleMovement(true);
             Unit other = SpawnUnit(unit.ClosestMapPoint, settlement.Team, settlement.UnitStrength, false).GetComponent<Unit>();

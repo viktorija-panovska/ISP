@@ -34,7 +34,7 @@ namespace Populous
 
         private void Start()
         {
-            m_MapSeedField.text = GameData.Instance.MapSeed.ToString();
+            //m_MapSeedField.text = GameData.Instance.MapSeed.ToString();
 
             foreach (Button button in m_Buttons)
                 button.onClick.AddListener(() => AudioController.Instance.PlaySound(SoundType.MENU_BUTTON));
@@ -79,7 +79,7 @@ namespace Populous
         /// Calls the <see cref="PlayerController"/> to unpause the game.
         /// </summary>
         public void Unpause()
-            => PlayerController.Instance.HandlePause();
+            => GameController.Instance.TogglePauseGameServerRpc();
 
         /// <summary>
         /// Calls the <see cref="ConnectionManager"/> to disconnect the player from the game.

@@ -40,7 +40,7 @@ namespace Populous
         /// <summary>
         /// An array of lists of the tiles occupied by settlements for each team.
         /// </summary>
-        private readonly List<(int x, int z)>[] m_SettlementLocations = new List<(int x, int z)>[] { new(), new() };
+        private readonly List<Vector3>[] m_SettlementLocations = new List<Vector3>[] { new(), new() };
 
         /// <summary>
         /// Action to be called when a settlement is despawned to remove references to it from other objects.
@@ -50,7 +50,7 @@ namespace Populous
 
         private void Awake()
         {
-            if (m_Instance != null)
+            if (m_Instance)
                 Destroy(gameObject);
 
             m_Instance = this;
@@ -103,11 +103,11 @@ namespace Populous
             {
                 Settlement settlement = (Settlement)structure;
                 settlement.SetType();
-                AddSettlementPosition(structure.OccupiedTile, team);
-                GameController.Instance.OnTerrainMoved += settlement.SetType;
+                AddSettlementPosition(structure.transform.position, team);
+                GameController.Instance.OnTerrainModified += settlement.SetType;
                 //SetupSettlementClientRpc(structureObject.GetComponent<NetworkObject>().NetworkObjectId, $"{team} Settlement", LayerMask.NameToLayer(GameController.Instance.TeamLayers[(int)team]));
                 structureObject.name = $"{team} Settlement";
-                structureObject.layer = LayerMask.NameToLayer(GameController.Instance.TeamLayers[(int)team]);
+                structureObject.layer = LayerData.TeamLayers[(int)team];
                 settlement.StartFillingSettlement();
             }
 
@@ -149,7 +149,7 @@ namespace Populous
             if (structure.GetType() == typeof(Settlement))
             {
                 Settlement settlement = (Settlement)structure;
-                RemoveSettlementPosition(structure.OccupiedTile, structure.Team);
+                RemoveSettlementPosition(structure.transform.position, structure.Team);
                 OnRemoveReferencesToSettlement?.Invoke(settlement);
             }
 
@@ -183,7 +183,7 @@ namespace Populous
             int[] rockIndices = Enumerable.Range(0, rockProbabilities.Length).ToArray();
             Array.Sort(rockProbabilities, rockIndices);
 
-            Random random = new(GameData.Instance == null ? 0 : GameData.Instance.MapSeed);
+            Random random = new(!GameData.Instance ? 0 : GameData.Instance.MapSeed);
 
             for (int z = 0; z < Terrain.Instance.TilesPerSide; ++z)
             {
@@ -239,7 +239,7 @@ namespace Populous
                 flagObject.transform.Rotate(new Vector3(1, -90, 1));
 
                 flagObject.transform.position = GameController.Instance.GetLeaderObject(flag.Team).transform.position;
-                GameController.Instance.OnTerrainMoved += flag.ReactToTerrainChange;
+                GameController.Instance.OnTerrainModified += flag.ReactToTerrainChange;
             }
         }
 
@@ -262,8 +262,7 @@ namespace Populous
 
         #region Settlements
 
-        public void SpawnRedHouse(MapPoint tile)
-            => CreateSettlement(tile, Team.RED);
+        public void SpawnBlueHouse(MapPoint tile) => CreateSettlement(tile, Team.BLUE);
 
         /// <summary>
         /// Creates a settlement of the given team on the given tile.
@@ -283,14 +282,14 @@ namespace Populous
         /// <param name="team">The new <c>Team</c> the settlement should belong to.</param>
         public void SwitchTeam(Settlement settlement, Team team)
         {
-            RemoveSettlementPosition(settlement.OccupiedTile, settlement.Team);
+            RemoveSettlementPosition(settlement.transform.position, settlement.Team);
 
             settlement.ChangeTeam(team);
             //SetupSettlementClientRpc(settlement.GetComponent<NetworkObject>().NetworkObjectId, $"{team} Settlement", LayerMask.NameToLayer(GameController.Instance.TeamLayers[(int)team]));
             settlement.gameObject.name = $"{team} Settlement";
-            settlement.gameObject.layer = LayerMask.NameToLayer(GameController.Instance.TeamLayers[(int)team]);
+            settlement.gameObject.layer = LayerData.TeamLayers[(int)team];
 
-            AddSettlementPosition(settlement.OccupiedTile, settlement.Team);
+            AddSettlementPosition(settlement.transform.position, settlement.Team);
         }
 
         /// <summary>
@@ -304,12 +303,13 @@ namespace Populous
         }
 
         /// <summary>
-        /// Gets the tile on which the settlement of the given team sits.
+        /// Gets settlement location at the given index in the list of settlement locations of the given team.
         /// </summary>
-        /// <param name="index">The index in the settlement tile list of the settlement whose occupied tile should be returned.</param>
+        /// <param name="index">The index in the settlement location list of the settlement whose location should be returned.</param>
         /// <param name="team">The <c>Team</c> the settlement that should be returned belongs to.</param>
-        /// <returns>The (x, z) coordinates of the tile on which the settlement sits.</returns>
-        public (int x, int z) GetSettlementTile(int index, Team team) => m_SettlementLocations[(int)team][index];
+        /// <returns>The position at the given index in the settlement position list, null if the index is out of bounds.</returns>
+        public Vector3? GetSettlementLocation(int index, Team team) 
+            => index >= m_SettlementLocations[(int)team].Count ? null : m_SettlementLocations[(int)team][index];
 
         /// <summary>
         /// Gets the number of settlements of the given team currently on the terrain.
@@ -319,18 +319,18 @@ namespace Populous
         public int GetSettlementsNumber(Team team) => m_SettlementLocations[(int)team].Count;
 
         /// <summary>
-        /// Adds a settlememt location of the given team to the settlement locations list.
+        /// Adds the position of a settlement the given team to the settlement locations list.
         /// </summary>
-        /// <param name="tile">The (x, z) coordinates of the tile representing the settlement location.</param>
+        /// <param name="position">The position of the settlement.</param>
         /// <param name="team">The <c>Team</c> whose settlement should be added.</param>
-        public void AddSettlementPosition((int x, int z) tile, Team team) => m_SettlementLocations[(int)team].Add(tile);
+        public void AddSettlementPosition(Vector3 position, Team team) => m_SettlementLocations[(int)team].Add(position);
 
         /// <summary>
-        /// Removes a settlement location of the given team from the settlement locations list.
+        /// Removes the position of a settlement the given team to the settlement locations list.
         /// </summary>
-        /// <param name="tile">The (x, z) coordinates of the tile representing the settlement location.</param>
+        /// <param name="position">The position of the settlement.</param>
         /// <param name="team">The <c>Team</c> whose settlement should be removed.</param>
-        public void RemoveSettlementPosition((int x, int z) tile, Team team) => m_SettlementLocations[(int)team].Remove(tile);
+        public void RemoveSettlementPosition(Vector3 position, Team team) => m_SettlementLocations[(int)team].Remove(position);
 
         #endregion
 

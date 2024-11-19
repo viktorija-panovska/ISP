@@ -12,6 +12,7 @@ namespace Populous
     public class Unit : NetworkBehaviour, IPointerEnterHandler, IPointerExitHandler
     {
         [SerializeField] private GameObject[] m_LeaderSigns;
+        [SerializeField] private GameObject m_KnightSword;
         [SerializeField] private float m_SecondsUntilEnteringEnabled = 0.5f;
 
         [Header("Detectors")]
@@ -58,7 +59,7 @@ namespace Populous
         /// <summary>
         /// True if the unit is currently in a fight with a unit of the opposite team, false otherwise.
         /// </summary>
-        public bool IsInFight { get => m_IsInFight; set => m_IsInFight = value; }
+        public bool IsInFight { get => m_IsInFight; }
 
         private int m_FightId = -1;
         /// <summary>
@@ -110,10 +111,16 @@ namespace Populous
             if (m_Class == UnitClass.LEADER)
                 ToggleLeaderSign(false);
 
+            if (m_Class == UnitClass.KNIGHT)
+                ToggleKnightSword(false);
+
             m_Class = unitClass;
 
             if (m_Class == UnitClass.LEADER)
                 ToggleLeaderSign(true);
+
+            if (m_Class == UnitClass.KNIGHT)
+                ToggleKnightSword(true);
         } 
 
         /// <summary>
@@ -143,6 +150,21 @@ namespace Populous
             //m_TeamSymbols[(int)m_Team].GetComponent<ObjectActivator>().SetActiveClientRpc(isOn);
         }
 
+        /// <summary>
+        /// Activates or deactivates the sword a knight should be holding.
+        /// </summary>
+        /// <param name="isOn">True if the sword should be activated, false otherwise.</param>
+        private void ToggleKnightSword(bool isOn)
+        {
+            m_KnightSword.SetActive(isOn);
+            //m_KnightSword.GetComponent<ObjectActivator>().SetActiveClientRpc(isOn);
+        }
+
+        /// <summary>
+        /// Waits for a number seconds before enabling the unit to enter settlements.
+        /// </summary>
+        /// <remarks>This is to avoid a unit released from a settlement immediately attempting to reenter the settlement.</remarks>
+        /// <returns>An <c>IEnumerator</c> that waits for a number of seconds.</returns>
         private IEnumerator WaitToEnableEntering()
         {
             yield return new WaitForSeconds(m_SecondsUntilEnteringEnabled);
@@ -158,7 +180,7 @@ namespace Populous
         /// Checks whether the unit has maximum strength.
         /// </summary>
         /// <returns>True if the unit has maximum strength, false otherwise.</returns>
-        public bool HasMaxStrength() => m_Strength == UnitManager.Instance.MaxStrength;
+        public bool HasMaxStrength() => m_Strength == UnitManager.Instance.MaxUnitStrength;
 
         /// <summary>
         /// Adds the given amount of maxStrength to the unit.
@@ -359,7 +381,7 @@ namespace Populous
                 UnitManager.Instance.ToggleFightUI(show, m_FightId, parameters.Receive.SenderClientId);
             else
             {
-                ToggleUnitUIClient/*Rpc*/(show, UnitManager.Instance.MaxStrength, m_Strength, GameController.Instance.TeamColors[(int)m_Team],
+                ToggleUnitUIClient/*Rpc*/(show, UnitManager.Instance.MaxUnitStrength, m_Strength, GameController.Instance.TeamColors[(int)m_Team],
                     new ClientRpcParams()
                     {
                         Send = new ClientRpcSendParams
@@ -399,7 +421,7 @@ namespace Populous
             if (IsInFight)
                 UnitManager.Instance.UpdateFightUI(m_FightId);
             else
-                UpdateUnitUIClient/*Rpc*/(UnitManager.Instance.MaxStrength, m_Strength);
+                UpdateUnitUIClient/*Rpc*/(UnitManager.Instance.MaxUnitStrength, m_Strength);
         }
 
         /// <summary>
@@ -433,9 +455,7 @@ namespace Populous
         /// </summary>
         /// <param name="settlement">The <c>Settlement</c> that should be removed.</param>
         public void RemoveRefrencesToSettlement(Settlement settlement)
-        {
-            m_WideRangeDetector.RemoveObject(settlement.gameObject);
-        }
+            => m_WideRangeDetector.RemoveObject(settlement.gameObject);
 
         #endregion
     }

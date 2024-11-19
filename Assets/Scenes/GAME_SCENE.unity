@@ -424,6 +424,7 @@ MonoBehaviour:
   m_ZoomSpeed: 20
   m_MaxZoomIn: 10
   m_MaxZoomOut: 80
+  m_CameraHeightDeadzone: 0.1
 --- !u!4 &200283043
 Transform:
   m_ObjectHideFlags: 0
@@ -577,11 +578,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_UnitPrefab: {fileID: 4803634603491590232, guid: fb550bad1c970ed4c9b4ceb3be5cb1b5, type: 3}
-  m_StartingUnits: 1
+  m_StartingUnits: 2
   m_MaxPopulation: 100
   m_MaxUnitStrength: 100
   m_UnitDecayRate: 20
   m_StartingUnitStrength: 1
+  m_LeaderDeathManna: 10
+  m_FightWaitDuration: 5
 --- !u!4 &379849926
 Transform:
   m_ObjectHideFlags: 0
@@ -789,7 +792,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &853453184
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -933,7 +936,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f2982db3ffe31404bb1b10d916cef0a8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_ClickerError: 0.2
+  m_ClickerLeeway: 0.1
   m_Markers:
   - {fileID: 2095580094068501931}
   - {fileID: 2095580094068501931}
@@ -1284,7 +1287,7 @@ MonoBehaviour:
       m_Calls:
       - m_Target: {fileID: 941242024}
         m_TargetAssemblyTypeName: Populous.PlayerController, Assembly-CSharp
-        m_MethodName: OnBattleSelected
+        m_MethodName: OnFightSelected
         m_Mode: 0
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -1380,7 +1383,7 @@ MonoBehaviour:
       m_Calls:
       - m_Target: {fileID: 941242024}
         m_TargetAssemblyTypeName: Populous.PlayerController, Assembly-CSharp
-        m_MethodName: OnShowBattles
+        m_MethodName: OnShowFights
         m_Mode: 0
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -1678,8 +1681,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 33a744eedb4eef843ade2e52c0de34bf, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_ChunkPrefab: {fileID: 3529950447808904562, guid: 4757c215c126a194e9349a71efc65037, type: 3}
   m_ChunksPerSide: 1
-  m_TilesPerChunkSide: 7
+  m_TilesPerChunkSide: 3
   m_UnitsPerTileSide: 50
   m_MaxHeightSteps: 7
   m_StepHeight: 20
@@ -2023,10 +2027,6 @@ MonoBehaviour:
   m_SwampRadius: 2
   m_VolcanoRadius: 3
   m_VolcanoRockDensity: 0.4
-  TeamLayers:
-  - Red Team
-  - Blue Team
-  Winner: 0
 --- !u!1 &1853441060
 GameObject:
   m_ObjectHideFlags: 0
@@ -2173,7 +2173,7 @@ RectTransform:
   m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
+  m_AnchorMax: {x: 0, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}

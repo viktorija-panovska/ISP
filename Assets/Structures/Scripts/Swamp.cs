@@ -11,7 +11,7 @@ namespace Populous
 
         private void OnTriggerEnter(Collider other)
         {
-            if (other.gameObject.layer == LayerMask.NameToLayer("Red Team") || other.gameObject.layer == LayerMask.NameToLayer("Blue Team"))
+            if (other.gameObject.layer == LayerData.RedTeamLayer || other.gameObject.layer == LayerData.BlueTeamLayer)
                 Debug.Log("Unit Entered Swamp");
         }
     }

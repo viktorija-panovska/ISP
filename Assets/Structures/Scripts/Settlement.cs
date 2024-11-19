@@ -11,6 +11,9 @@ namespace Populous
     /// </summary>
     public class Settlement : Structure, IPointerEnterHandler, IPointerExitHandler
     {
+        [SerializeField] private BoxCollider m_SettlementCollision;
+        [SerializeField] private BoxCollider m_SettlementTrigger;
+
         [Header("Settlements")]
         [SerializeField] private GameObject[] m_SettlementObjects;
         [SerializeField] private SettlementData[] m_SettlementData;
@@ -140,6 +143,7 @@ namespace Populous
             //StartCoroutine(FillSettlement());
         }
 
+
         private void OnTriggerEnter(Collider other)
         {
             Unit unit = other.GetComponent<Unit>();
@@ -200,11 +204,11 @@ namespace Populous
             int settlementIndex = Mathf.Clamp(Mathf.CeilToInt((m_Fields + 1) / 2f), 0, m_SettlementData.Length);
             SettlementData newSettlement = m_SettlementData[settlementIndex];
 
-            if (m_CurrentSettlementData != null && m_CurrentSettlementData.Type == newSettlement.Type)
+            if (m_CurrentSettlementData && m_CurrentSettlementData.Type == newSettlement.Type)
                 return;
 
             // remove stuff from old settlement
-            if (m_CurrentSettlementData != null)
+            if (m_CurrentSettlementData)
             {
                 m_SettlementObjects[m_CurrentSettlementIndex].SetActive(false);//.GetComponent<ObjectActivator>().SetActiveClientRpc(false);
                 if (m_CurrentSettlementData.Type == SettlementType.CITY)
@@ -227,8 +231,7 @@ namespace Populous
                 ReleaseUnit(m_FollowersInSettlement - m_CurrentSettlementData.Capacity);
 
             // change the size of the collider
-            GetComponent<BoxCollider>().size = colliderSize;
-            // SetColliderClientRpc(colliderSize);
+            SetCollider/*ClientRpc*/(colliderSize);
         }
 
         /// <summary>
@@ -236,8 +239,12 @@ namespace Populous
         /// </summary>
         /// <param name="size">A <c>Vector3</c> of the new size of the collider.</param>
         /// <param name="clientRpcParams">RPC data for the client RPC.</param>
-        [ClientRpc]
-        private void SetColliderClientRpc(Vector3 size, ClientRpcParams clientRpcParams = default) => GetComponent<BoxCollider>().size = size;
+        //[ClientRpc]
+        private void SetCollider/*ClientRpc*/(Vector3 size, ClientRpcParams clientRpcParams = default) 
+        {
+            m_SettlementCollision.size = size;
+            m_SettlementTrigger.size = size;
+        }
 
         /// <summary>
         /// Sets this settlement to the burned down state.
@@ -248,7 +255,7 @@ namespace Populous
             Team = Team.NONE;
             m_DestroyMethod = DestroyMethod.DROWN;
 
-            if (m_CurrentSettlementData != null)
+            if (m_CurrentSettlementData)
             {
                 m_SettlementObjects[m_CurrentSettlementIndex].SetActive(false);//.GetComponent<ObjectActivator>().SetActiveClientRpc(false);
                 m_CurrentSettlementData = null;
@@ -397,7 +404,7 @@ namespace Populous
         /// <param name="tile">The (x, z) coordinates of the tile on the terrain grid where the field should be created.</param>
         private void SetupField(Field field, (int x, int z) tile)
         {
-            if (field == null)
+            if (!field)
                 field = StructureManager.Instance.SpawnField(tile, m_Team);
 
             if (!field.IsServingSettlement(this))

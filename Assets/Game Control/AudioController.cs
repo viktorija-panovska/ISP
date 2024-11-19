@@ -56,7 +56,7 @@ namespace Populous
 
         private void Awake()
         {
-            if (m_Instance != null)
+            if (m_Instance)
                 Destroy(gameObject);
 
             m_Instance = this;
@@ -74,8 +74,6 @@ namespace Populous
         /// <param name="sound">The <c>AudioClip</c> to be played.</param>
         /// <param name="volume">The volume at which the sound should play.</param>
         public void PlaySound(SoundType sound, float volume = 1f)
-        {
-            m_AudioSource.PlayOneShot(m_SoundClips[(int)sound], volume);
-        }
+            => m_AudioSource.PlayOneShot(m_SoundClips[(int)sound], volume);
     }
 }

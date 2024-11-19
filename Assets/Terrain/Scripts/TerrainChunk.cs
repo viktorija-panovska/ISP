@@ -1,18 +1,16 @@
 using System.Collections.Generic;
-using System.Drawing;
 using UnityEngine;
 
 namespace Populous
 {
     /// <summary>
-    /// The <c>TerrainChunk</c> class is a class which handles the creation and modification of one chunk of the terrain.
+    /// The <c>TerrainChunk</c> class is a <c>MonoBehavior</c> which handles the creation and modification of one chunk of the terrain.
     /// </summary>
-    public class TerrainChunk
+    public class TerrainChunk : MonoBehaviour
     {
-        private readonly GameObject m_ChunkObject;
-        private readonly MeshData m_MeshData;
+        private MeshData m_MeshData;
 
-        private readonly (int x, int z) m_ChunkIndex;
+        private (int x, int z) m_ChunkIndex;
         /// <summary>
         /// Gets the (x, z) index of the chunk in the terrain chunk array.
         /// </summary>
@@ -21,45 +19,28 @@ namespace Populous
         /// <summary>
         /// Gets the <c>Vector3</c> position of the chunk in the world.
         /// </summary>
-        public Vector3 ChunkPosition { get => m_ChunkObject.transform.position; }
+        public Vector3 ChunkPosition { get => transform.position; }
 
         /// <summary>
         /// Each cell the <c>Structure</c> occupying the tile with corresponding coordinates, or null if there isn't one.
         /// </summary>
-        private readonly Structure[,] m_StructureOnTile = new Structure[Terrain.Instance.TilesPerChunkSide, Terrain.Instance.TilesPerChunkSide];
+        private Structure[,] m_StructureOnTile;
 
 
         /// <summary>
-        /// The constructor for the <c>TerrainChunk</c> class.
+        /// Sets up the properties of the chunk and generates its mesh.
         /// </summary>
-        /// <param name="mapPositionX">The x index of the chunk in the terrain chunk array.</param>
-        /// <param name="mapPositionZ">The z index of the chunk in the terrain chunk array.</param>
-        /// <param name="parentTransform">The transform of the <c>Terrain</c> object.</param>
-        public TerrainChunk(int mapPositionX, int mapPositionZ, Transform parentTransform)
+        /// <param name="gridX">The X coordinate of the chunk on the terrain grid.</param>
+        /// <param name="gridZ">The Z coordinate of the chunk on the terrain grid.</param>
+        public void Setup(int gridX, int gridZ)
         {
-            m_ChunkObject = new GameObject();
-            m_ChunkObject.AddComponent<MeshFilter>();
-            m_ChunkObject.AddComponent<MeshRenderer>();
-            m_ChunkObject.AddComponent<MeshCollider>();
-            m_ChunkObject.AddComponent<Rigidbody>();
-
-            m_ChunkIndex = (mapPositionX, mapPositionZ);
-
-            m_ChunkObject.transform.position = new Vector3(
-                ChunkIndex.X * Terrain.Instance.UnitsPerChunkSide,
-                0,
-                ChunkIndex.Z * Terrain.Instance.UnitsPerChunkSide
-            );
-            m_ChunkObject.transform.SetParent(parentTransform);
-            m_ChunkObject.name = "Chunk " + ChunkIndex.X + " " + ChunkIndex.Z;
-
-            m_ChunkObject.layer = LayerMask.NameToLayer("Terrain");
-            m_ChunkObject.GetComponent<Rigidbody>().isKinematic = true;
-            m_ChunkObject.GetComponent<Rigidbody>().useGravity = false;
+            m_ChunkIndex = (gridX, gridZ);
+            name = "Chunk " + ChunkIndex.X + " " + ChunkIndex.Z;
+            m_StructureOnTile = new Structure[Terrain.Instance.TilesPerChunkSide, Terrain.Instance.TilesPerChunkSide];
 
             SetVisibility(false);
             m_MeshData = GenerateMeshData();
-            //SetVertexHeights();
+            SetVertexHeights();
             SetMesh();
         }
 
@@ -69,7 +50,7 @@ namespace Populous
         /// <summary>
         /// Applies the current <c>MeshData</c> to the terrain chunk.
         /// </summary>
-        public void SetMesh() => m_MeshData.SetMesh(m_ChunkObject, Terrain.Instance.TerrainMaterial);
+        public void SetMesh() => m_MeshData.SetMesh(gameObject, Terrain.Instance.TerrainMaterial);
 
         /// <summary>
         /// Generates all the required data to create the terrain mesh.
@@ -234,7 +215,7 @@ namespace Populous
         /// Sets the visibility of the chunk.
         /// </summary>
         /// <param name="isVisible">True if the chunk should be set as visible, false otherwise.</param>
-        public void SetVisibility(bool isVisible) => m_ChunkObject.GetComponent<MeshRenderer>().enabled = isVisible;
+        public void SetVisibility(bool isVisible) => GetComponent<MeshRenderer>().enabled = isVisible;
 
         /// <summary>
         /// Changes the height at the given <c>MapPoint</c> and propagates the changes if needed 
@@ -243,7 +224,7 @@ namespace Populous
         /// <param name="point">The <c>MapPoint</c> whose height should be changed.</param>
         /// <param name="lower">True if the height of the pointInChunk should be lowered by one step, false if it should be elevated by one step.</param>
         /// <param name="steps"></param>
-        public void ChangeHeights(MapPoint point, bool lower)
+        public void ChangeHeight(MapPoint point, bool lower)
         {
             (int x, int z) pointInChunk = GetPointInChunk((point.GridX, point.GridZ));
 

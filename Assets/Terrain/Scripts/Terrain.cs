@@ -11,6 +11,8 @@ namespace Populous
     /// </summary>
     public class Terrain : MonoBehaviour
     {
+        [SerializeField] private GameObject m_ChunkPrefab;
+
         [Header("Terrain Properties")]
         [SerializeField] private int m_ChunksPerSide = 2;
         [SerializeField] private int m_TilesPerChunkSide = 5;
@@ -90,7 +92,7 @@ namespace Populous
 
         private void Awake()
         {
-            if (m_Instance != null)
+            if (m_Instance)
                 Destroy(gameObject);
 
             m_Instance = this;
@@ -107,7 +109,7 @@ namespace Populous
         /// </summary>
         public void CreateTerrain()
         {
-            m_MapGenerator = new HeightMapGenerator(GameData.Instance == null ? 0 : GameData.Instance.MapSeed);
+            m_MapGenerator = new HeightMapGenerator(!GameData.Instance ? 0 : GameData.Instance.MapSeed);
             GenerateTerrain();
             SetupTerrainShader();
 
@@ -122,8 +124,19 @@ namespace Populous
         private void GenerateTerrain()
         {
             for (int z = 0; z < m_ChunksPerSide; ++z)
+            {
                 for (int x = 0; x < m_ChunksPerSide; ++x)
-                    m_ChunkMap[z, x] = new(x, z, gameObject.transform);
+                {                        
+                    GameObject newChunk = Instantiate(m_ChunkPrefab,
+                        position: new Vector3(x * UnitsPerChunkSide, 0, z * UnitsPerChunkSide),
+                        rotation: Quaternion.identity,
+                        parent: transform
+                    );
+
+                    m_ChunkMap[z, x] = newChunk.GetComponent<TerrainChunk>();
+                    m_ChunkMap[z, x].Setup(x, z);
+                }
+            }
         }
 
         /// <summary>
@@ -159,7 +172,7 @@ namespace Populous
 
             m_ModifiedChunks = new();
 
-            GameController.Instance.OnTerrainMoved?.Invoke();
+            GameController.Instance.OnTerrainModified?.Invoke();
         }
 
         /// <summary>
@@ -174,7 +187,7 @@ namespace Populous
                 if (!m_ModifiedChunks.Contains(chunkIndex))
                     m_ModifiedChunks.Add(chunkIndex);
 
-                GetChunkByIndex(chunkIndex).ChangeHeights(point, lower);
+                GetChunkByIndex(chunkIndex).ChangeHeight(point, lower);
             }
 
             if (point.IsOnEdge)
@@ -536,12 +549,19 @@ namespace Populous
                 return false;
 
             Structure structure = GetStructureOnTile((x, z));
-            if (structure == null || structure.GetType() == typeof(Field))
+            if (!structure || structure.GetType() == typeof(Field))
                 return true;
 
             return false;
         }
-        
+
         #endregion
+
+
+        /// <summary>
+        /// Checks whether the level of the water has reached the maximum height of the terrain.
+        /// </summary>
+        /// <returns>True if the level of the water has reached the maximum height, false otherwise.</returns>
+        public bool HasReachedMaxWaterLevel() => m_WaterLevel == MaxHeight;
     }
 }

@@ -159,7 +159,7 @@
                     "initialStateCheck": false
                 },
                 {
-                    "name": "SelectBattle",
+                    "name": "SelectFight",
                     "type": "Button",
                     "id": "a0fe56d1-9406-490b-acab-c5fddd984414",
                     "expectedControlType": "Button",
@@ -213,7 +213,7 @@
                     "initialStateCheck": false
                 },
                 {
-                    "name": "ShowBattles",
+                    "name": "ShowFights",
                     "type": "Button",
                     "id": "10d964be-2a6e-466e-9b13-21a536d020db",
                     "expectedControlType": "Button",
@@ -516,7 +516,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": "Keyboard&Mouse",
-                    "action": "SelectBattle",
+                    "action": "SelectFight",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
@@ -582,7 +582,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": "Keyboard&Mouse",
-                    "action": "ShowBattles",
+                    "action": "ShowFights",
                     "isComposite": false,
                     "isPartOfComposite": false
                 }

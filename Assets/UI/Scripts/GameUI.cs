@@ -19,6 +19,10 @@ namespace Populous
         /// </summary>
         public static GameUI Instance { get => m_Instance; }
 
+        private int m_MaxPopulation = -1;
+        private int m_MaxManna = -1;
+        private int m_MaxUnitStrength = -1;
+
 
         #region MonoBehavior
 
@@ -35,15 +39,24 @@ namespace Populous
 
         #region Population Bars
 
-        public void UpdatePopulationBar(Team team, int maxPopulation, int currentPopulation)
-            => m_PopulationBars[(int)team].value = currentPopulation / maxPopulation;
+        public void UpdatePopulationBar(Team team, int currentPopulation)
+            => m_PopulationBars[(int)team].value = currentPopulation / UnitManager.Instance.MaxPopulation;
 
         #endregion
 
 
         #region Manna Bar
 
-        public void UpdateMannaBar(int maxManna, int currentManna) => m_MannaBar.value = currentManna / maxManna;
+        public void UpdateMannaBar(int currentManna, int activePowers) 
+        {
+            //m_MannaBar.value = currentManna / GameController.Instance.MaxManna;
+        
+        }
+        
+        public void NotEnoughManna(Power power)
+        {
+
+        }
 
         #endregion
 

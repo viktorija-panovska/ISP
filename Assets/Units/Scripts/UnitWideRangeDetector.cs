@@ -38,8 +38,8 @@ namespace Populous
 
         private void OnTriggerEnter(Collider other)
         {
-            if ((m_UnitState == UnitBehavior.FIGHT && other.gameObject.layer != LayerMask.NameToLayer(GameController.Instance.TeamLayers[(int)m_EnemyTeam])) ||
-                (m_UnitState == UnitBehavior.GATHER && other.gameObject.layer != LayerMask.NameToLayer(GameController.Instance.TeamLayers[(int)m_Team])))
+            if ((m_UnitState == UnitBehavior.FIGHT && other.gameObject.layer != LayerData.TeamLayers[(int)m_EnemyTeam]) ||
+                (m_UnitState == UnitBehavior.GATHER && other.gameObject.layer != LayerData.TeamLayers[(int)m_Team]))
                 return;
 
             if (other.gameObject.GetComponent<Unit>() || other.gameObject.GetComponent<Settlement>())
@@ -48,11 +48,11 @@ namespace Populous
 
         private void OnTriggerExit(Collider other)
         {
-            if ((m_UnitState == UnitBehavior.FIGHT && other.gameObject.layer != LayerMask.NameToLayer(GameController.Instance.TeamLayers[(int)m_EnemyTeam])) ||
-                (m_UnitState == UnitBehavior.GATHER && other.gameObject.layer != LayerMask.NameToLayer(GameController.Instance.TeamLayers[(int)m_Team])))
+            if ((m_UnitState == UnitBehavior.FIGHT && other.gameObject.layer != LayerData.TeamLayers[(int)m_EnemyTeam]) ||
+                (m_UnitState == UnitBehavior.GATHER && other.gameObject.layer != LayerData.TeamLayers[(int)m_Team]))
                 return;
 
-            if (other.gameObject.GetComponent<Unit>() != null)
+            if (other.gameObject.GetComponent<Unit>())
                 m_NearbyObjects.Remove(other.gameObject);
         }
 

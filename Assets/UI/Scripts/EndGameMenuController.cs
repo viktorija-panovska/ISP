@@ -55,12 +55,11 @@ namespace Populous
         /// <summary>
         /// Fills in the name and avatar of the game winner and fades in the end game menu canvas.
         /// </summary>
-        public async void ShowEndGameMenu()
+        public async void ShowEndGameMenu(Team winner)
         {
             Cursor.SetCursor(m_CursorTexture, Vector2.zero, CursorMode.Auto);
             Cursor.visible = true;
 
-            Team winner = GameController.Instance.Winner;
             PlayerInfo? winnerInfo = GameData.Instance.GetPlayerInfoByTeam(winner);
 
             if (winnerInfo.HasValue)

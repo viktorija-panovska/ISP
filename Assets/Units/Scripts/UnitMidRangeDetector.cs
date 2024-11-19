@@ -41,9 +41,9 @@ namespace Populous
 
         private void OnTriggerEnter(Collider other)
         {
-            if ((m_UnitState == UnitBehavior.FIGHT && other.gameObject.layer != LayerMask.NameToLayer(GameController.Instance.TeamLayers[(int)m_EnemyTeam])) ||
-                (m_UnitState == UnitBehavior.GATHER && (other.gameObject.layer != LayerMask.NameToLayer(GameController.Instance.TeamLayers[(int)m_Team])) ||
-                (m_Target != null && Vector3.Distance(other.transform.position, transform.position) >= Vector3.Distance(m_Target.transform.position, transform.position))))
+            if ((m_UnitState == UnitBehavior.FIGHT && other.gameObject.layer != LayerData.TeamLayers[(int)m_EnemyTeam]) ||
+                (m_UnitState == UnitBehavior.GATHER && (other.gameObject.layer != LayerData.TeamLayers[(int)m_Team]) ||
+                (m_Target && Vector3.Distance(other.transform.position, transform.position) >= Vector3.Distance(m_Target.transform.position, transform.position))))
                 return;
 
             Unit unit = other.GetComponent<Unit>();
@@ -56,8 +56,8 @@ namespace Populous
 
         private void OnTriggerExit(Collider other)
         {
-            if ((m_UnitState == UnitBehavior.FIGHT && other.gameObject.layer != LayerMask.NameToLayer(GameController.Instance.TeamLayers[(int)m_EnemyTeam])) ||
-                (m_UnitState == UnitBehavior.GATHER && (other.gameObject.layer != LayerMask.NameToLayer(GameController.Instance.TeamLayers[(int)m_Team]))))
+            if ((m_UnitState == UnitBehavior.FIGHT && other.gameObject.layer != LayerData.TeamLayers[(int)m_EnemyTeam]) ||
+                (m_UnitState == UnitBehavior.GATHER && (other.gameObject.layer != LayerData.TeamLayers[(int)m_Team])))
                 return;
 
             Unit unit = other.GetComponent<Unit>();
@@ -84,9 +84,9 @@ namespace Populous
         }
 
         /// <summary>
-        /// 
+        /// Returns the unit that has been detected as a target to follow.
         /// </summary>
-        /// <returns></returns>
+        /// <returns>The target <c>Unit</c>, null if there is no target.</returns>
         public Unit GetTarget() => m_Target;
 
         /// <summary>
@@ -95,7 +95,7 @@ namespace Populous
         /// <param name="gameObject">The <c>GameObject</c> that should be checked against the target.</param>
         public void RemoveTarget(Unit unit)
         {
-            if (m_Target == gameObject)
+            if (m_Target == unit.gameObject)
             {
                 m_Unit.LoseTarget(m_Target);
                 m_Target = null;

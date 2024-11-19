@@ -88,7 +88,7 @@ namespace Populous
 
         private NetworkList<PlayerInfo> m_PlayersInfo;
 
-        private ulong[] m_NetworkIds = new ulong[Enum.GetValues(typeof(Team)).Length];
+        private readonly ulong[] m_NetworkIds = new ulong[Enum.GetValues(typeof(Team)).Length];
 
 
         private void Awake()
