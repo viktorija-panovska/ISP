@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Unity.VisualScripting;
 using UnityEngine;
 
 
@@ -213,7 +214,7 @@ namespace Populous
 
                     MapPoint newLocation = new(x, z);
 
-                    if (!newLocation.IsOnEdge && !Terrain.Instance.CanCrossTile(currentNode.Location, newLocation))
+                    if (!Terrain.Instance.CanCrossTile(currentNode.Location, newLocation))
                         continue;
 
                     Vector2 key = GetKey(newLocation);

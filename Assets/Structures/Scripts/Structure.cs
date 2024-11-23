@@ -1,5 +1,8 @@
+using Mono.Cecil;
 using System.Collections.Generic;
+using System.Linq;
 using Unity.Netcode;
+using Unity.VisualScripting;
 using UnityEngine;
 
 
@@ -41,11 +44,11 @@ namespace Populous
         /// </summary>
         protected DestroyMethod m_DestroyMethod;
 
-        protected (int x, int z) m_OccupiedTile;
+        protected MapPoint m_OccupiedTile;
         /// <summary>
         /// Gets the index of the tile on the terrain grid that the structure occupies.
         /// </summary>
-        public (int x, int z) OccupiedTile { get => m_OccupiedTile; set { m_OccupiedTile = value; } }
+        public MapPoint OccupiedTile { get => m_OccupiedTile; set { m_OccupiedTile = value; } }
 
         protected Dictionary<MapPoint, int> m_OccupiedPointHeights = new();
         /// <summary>
@@ -67,19 +70,28 @@ namespace Populous
         /// </summary>
         public virtual void ReactToTerrainChange()
         {
+            (int lowestX, int lowestZ, int highestX, int highestZ) = Terrain.Instance.GetAffectedTileRange();
+
+            if (m_OccupiedTile.GridX < lowestX || m_OccupiedTile.GridZ < lowestZ ||
+                m_OccupiedTile.GridX > highestX || m_OccupiedTile.GridZ > highestZ)
+                return;
+
             if (ShouldDestroyStructure())
             {
                 StructureManager.Instance.DespawnStructure(gameObject);
                 return;
             }
 
+            // since it wasn't destroyed, it should be moved
             if (m_DestroyMethod == DestroyMethod.DROWN)
             {
-                SetHeightClientRpc(
-                    GetType() == typeof(TeamSymbol)
-                    ? Terrain.Instance.GetPointHeight(m_OccupiedTile)
-                    : Terrain.Instance.GetTileCenterHeight(m_OccupiedTile)
-                );
+                int height = Terrain.Instance.GetTileCenterHeight((m_OccupiedTile.GridX, m_OccupiedTile.GridZ));
+
+                var corners = m_OccupiedPointHeights.Keys.ToArray();
+                foreach (MapPoint point in corners)
+                    m_OccupiedPointHeights[point] = height;
+
+                SetHeight/*ClientRpc*/(height);
             }
         }
 
@@ -92,19 +104,12 @@ namespace Populous
             if (m_DestroyMethod == DestroyMethod.NONE)
                 return false;
 
-            if (m_DestroyMethod == DestroyMethod.TERRAIN_CHANGE)
-                return true;
-
             if (m_DestroyMethod == DestroyMethod.DROWN)
-            {
-                bool isTileUnderwater = true;
-                foreach ((MapPoint point, int height) in m_OccupiedPointHeights)
-                    if (m_DestroyMethod == DestroyMethod.DROWN && point.Y > Terrain.Instance.WaterLevel)
-                        isTileUnderwater = false;
+                return Terrain.Instance.IsTileUnderwater((m_OccupiedTile.GridX, m_OccupiedTile.GridZ));
 
-                if (isTileUnderwater)
+            foreach ((MapPoint point, int height) in m_OccupiedPointHeights)
+                if (point.Y != height)
                     return true;
-            }
 
             return false;
         }
@@ -113,8 +118,9 @@ namespace Populous
         /// Sets the height the structure is sitting at to the given value.
         /// </summary>
         /// <param name="height">The value that the height the structure is sitting at should be set to.</param>
-        [ClientRpc]
-        protected void SetHeightClientRpc(float height) => transform.position = new Vector3(transform.position.x, height, transform.position.z);
+        //[ClientRpc]
+        protected void SetHeight/*ClientRpc*/(float height)
+            => transform.position = new Vector3(transform.position.x, height, transform.position.z);
 
         #endregion
     }

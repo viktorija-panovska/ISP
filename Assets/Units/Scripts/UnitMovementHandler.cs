@@ -54,7 +54,7 @@ namespace Populous
         /// <summary>
         /// The <c>MapPoint</c> closest to the current target point.
         /// </summary>
-        public MapPoint EndLocation { get => !m_TargetPoint.HasValue ? StartLocation : new(m_TargetPoint.Value.x, m_TargetPoint.Value.z); }
+        public MapPoint EndLocation { get => !m_TargetPoint.HasValue ? StartLocation : new(m_TargetPoint.Value.x, m_TargetPoint.Value.z, getClosestPoint: true); }
 
         private Unit m_Unit;
         private Rigidbody m_Rigidbody;
@@ -73,6 +73,10 @@ namespace Populous
         private int m_PathIndex = 0;
         private Vector3 m_StartPosition;
         private Vector3? m_TargetPoint;
+        /// <summary>
+        /// True if the current step the unit is taking is to the center of a tile, false otherwise.
+        /// </summary>
+        private bool m_MoveToCenter;
 
         // Roaming
         /// <summary>
@@ -86,10 +90,6 @@ namespace Populous
         /// The direction the unit is roaming in.
         /// </summary>
         private (int x, int z) m_CurrentRoamDirection;
-        /// <summary>
-        /// True if the current step the unit is taking is to the center of a tile, false otherwise.
-        /// </summary>
-        private bool m_MoveToCenter;
         /// <summary>
         /// Total steps taken while roaming
         /// </summary>
@@ -200,7 +200,7 @@ namespace Populous
                     if (leaderUnit)
                         FollowUnit(leaderUnit);
                     else
-                        Roam();
+                        SetPath(leader.transform.position);
                 }
 
                 return;
@@ -236,11 +236,11 @@ namespace Populous
             MapPoint currentLocation = m_Unit.ClosestMapPoint;
             UnitManager.Instance.AddStepAtPoint(m_Unit.Team, (currentLocation.GridX, currentLocation.GridZ));
 
-            if (m_RoamSteps == UnitManager.Instance.DecayRate)
-            {
-                m_Unit.LoseStrength(1);
-                m_RoamSteps = 0;
-            }
+            //if (m_RoamSteps == UnitManager.Instance.DecayRate)
+            //{
+            //    m_Unit.LoseStrength(1);
+            //    m_RoamSteps = 0;
+            //}
 
             m_RoamSteps++;
 
@@ -543,7 +543,13 @@ namespace Populous
         /// Gets the path from the current position to the given end position and sets it up as the current path the unit should follow.
         /// </summary>
         /// <param name="end"></param>
-        private void SetPath(Vector3 end) => SetPath(Pathfinder.FindPath(m_Unit.ClosestMapPoint, new(end.x, end.z)));
+        private void SetPath(Vector3 end) {
+            //Debug.LogWarning("SET PATH: " + m_Unit.ClosestMapPoint + " " + end);
+            List<MapPoint> path = Pathfinder.FindPath(m_Unit.ClosestMapPoint, new(end.x, end.z, getClosestPoint: true));
+
+            //Debug.Log(path == null);
+            SetPath(path); 
+        }
 
         /// <summary>
         /// Sets the path the unit should follow and initializes the movement along it.
@@ -616,12 +622,18 @@ namespace Populous
             float x = a.x + dx * (Terrain.Instance.UnitsPerTileSide / 2);
             float z = a.z + dz * (Terrain.Instance.UnitsPerTileSide / 2);
 
-            int y = Terrain.Instance.GetTileCenterHeight(
-                ((int)(x / (Terrain.Instance.UnitsPerTileSide)),
-                 (int)(z / (Terrain.Instance.UnitsPerTileSide)))
-            );
+            return new(x, GetCenterPositionHeight(x, z), z);
+        }
 
-            return new(x, y, z);
+        private int GetCenterPositionHeight(float x, float z) 
+            => Terrain.Instance.GetTileCenterHeight(((int)(x / Terrain.Instance.UnitsPerTileSide), (int)(z / Terrain.Instance.UnitsPerTileSide)));
+
+        public void UpdateTargetPointHeight()
+        {
+            if (!m_TargetPoint.HasValue) return;
+
+            Vector3 target = m_TargetPoint.Value;
+            m_TargetPoint = new(target.x, !m_MoveToCenter ? EndLocation.Y : GetCenterPositionHeight(target.x, target.z), target.z);
         }
 
         #endregion
@@ -735,6 +747,7 @@ namespace Populous
             while (!neighbor.HasValue)
             {
                 MapPoint choice = neighbors[random.Next(neighbors.Count)];
+                neighbors.Remove(choice);
                 if (Terrain.Instance.CanCrossTile(point, choice))
                     neighbor = choice;
             }

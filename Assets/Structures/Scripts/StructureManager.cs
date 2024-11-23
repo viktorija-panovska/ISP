@@ -94,8 +94,9 @@ namespace Populous
             Structure structure = structureObject.GetComponent<Structure>();
             structure.Team = team;
             structure.OccupiedPointHeights = occupiedPoints.ToDictionary(x => x, x => x.Y);
-            structure.OccupiedTile = tile;
+            structure.OccupiedTile = new MapPoint(tile.x, tile.z);
             Terrain.Instance.SetOccupiedTile(tile, structure);
+            GameController.Instance.OnTerrainModified += structure.ReactToTerrainChange;
             GameController.Instance.OnFlood += structure.ReactToTerrainChange;
 
             // Settlement properties
@@ -104,11 +105,10 @@ namespace Populous
                 Settlement settlement = (Settlement)structure;
                 settlement.SetType();
                 AddSettlementPosition(structure.transform.position, team);
-                GameController.Instance.OnTerrainModified += settlement.SetType;
                 //SetupSettlementClientRpc(structureObject.GetComponent<NetworkObject>().NetworkObjectId, $"{team} Settlement", LayerMask.NameToLayer(GameController.Instance.TeamLayers[(int)team]));
                 structureObject.name = $"{team} Settlement";
                 structureObject.layer = LayerData.TeamLayers[(int)team];
-                settlement.StartFillingSettlement();
+                //settlement.StartFillingSettlement();
             }
 
             return structureObject;
@@ -138,13 +138,16 @@ namespace Populous
 
             Structure structure = structureObject.GetComponent<Structure>();
 
-            if (!Terrain.Instance.IsTileOccupied(structure.OccupiedTile))
+            if (!Terrain.Instance.IsTileOccupied((structure.OccupiedTile.GridX, structure.OccupiedTile.GridZ)))
                 return;
+
+            if (GameController.Instance.OnTerrainModified != null)
+                GameController.Instance.OnTerrainModified -= structure.ReactToTerrainChange;
 
             if (GameController.Instance.OnFlood != null)
                 GameController.Instance.OnFlood -= structure.ReactToTerrainChange;
 
-            Terrain.Instance.SetOccupiedTile(structure.OccupiedTile, null);
+            Terrain.Instance.SetOccupiedTile((structure.OccupiedTile.GridX, structure.OccupiedTile.GridZ), null);
 
             if (structure.GetType() == typeof(Settlement))
             {
@@ -166,17 +169,17 @@ namespace Populous
         /// <summary>
         /// Populates the terrain with trees and rocks.
         /// </summary>
-        public void PlaceTreesAndRocks() => PlaceTreesAndRocks(m_TreeProbability, m_RockProbability);
+        public void PlaceTreesAndRocks() 
+            => PlaceTreesAndRocks(m_TreeProbability, m_RockProbability, 0, Terrain.Instance.TilesPerSide - 1);
 
-        public void PlaceVolcanoRocks() => PlaceTreesAndRocks(0, m_VolcanoRockProbability);
+        public void PlaceVolcanoRocks(MapPoint center, int radius) 
+            => PlaceTreesAndRocks(0, m_VolcanoRockProbability, center.GridX - radius, center.GridZ + radius);
 
         /// <summary>
         /// Populates the terrain with trees and rocks.
         /// </summary>
         /// <param name="treeProbability">The probability of placing a tree.</param>
-        /// <param name="whiteRockProbability">The probability of placing a white rock.</param>
-        /// <param name="blackRockProbability">The probability of placing a black rock.</param>
-        private void PlaceTreesAndRocks(float treeProbability, float[] rockProbabilities)
+        private void PlaceTreesAndRocks(float treeProbability, float[] rockProbabilities, int areaStart, int areaEnd)
         {
             //if (!IsHost) return;
 
@@ -185,9 +188,11 @@ namespace Populous
 
             Random random = new(!GameData.Instance ? 0 : GameData.Instance.MapSeed);
 
-            for (int z = 0; z < Terrain.Instance.TilesPerSide; ++z)
+            areaStart = Mathf.Clamp(areaStart, 0, Terrain.Instance.TilesPerSide - 1);
+            areaEnd = Mathf.Clamp(areaEnd, 0, Terrain.Instance.TilesPerSide - 1);
+            for (int z = areaStart; z <= areaEnd; ++z)
             {
-                for (int x = 0; x < Terrain.Instance.TilesPerSide; ++x)
+                for (int x = areaStart; x <= areaEnd; ++x)
                 {
                     if (Terrain.Instance.IsTileOccupied((x, z)) || Terrain.Instance.IsTileUnderwater((x, z)))
                         continue;
@@ -195,7 +200,6 @@ namespace Populous
                     List<MapPoint> occupiedPoints = Terrain.Instance.GetTileCorners((x, z));
 
                     double randomValue = random.NextDouble();
-
                     bool spawned = false;
                     for (int i = 0; i < rockIndices.Length; ++i)
                     {
@@ -205,11 +209,16 @@ namespace Populous
                             spawned = true;
                             break;
                         }
+
+                        if (treeProbability <= rockProbabilities[i] && randomValue < treeProbability)
+                        {
+                            SpawnStructure(m_TreePrefab, (x, z), occupiedPoints);
+                            spawned = true;
+                            break;
+                        }
                     }
 
-                    if (spawned) return;
-
-                    if (randomValue < treeProbability)
+                    if (!spawned && randomValue < treeProbability)
                         SpawnStructure(m_TreePrefab, (x, z), occupiedPoints);
                 }
             }
@@ -228,7 +237,7 @@ namespace Populous
             //if (!IsServer) return;
 
             m_TeamSymbols = new TeamSymbol[m_FlagPrefabs.Length];
-            for (int i = 0; i < m_FlagPrefabs.Length; ++i)
+            for (int i = 1; i < m_FlagPrefabs.Length; ++i)
             {
                 GameObject flagObject = Instantiate(m_FlagPrefabs[i], Vector3.zero, Quaternion.identity);
                 //flagObject.GetComponent<NetworkObject>().Spawn(true);
@@ -237,9 +246,10 @@ namespace Populous
 
                 flag.Team = i == 0 ? Team.RED : Team.BLUE;
                 flagObject.transform.Rotate(new Vector3(1, -90, 1));
-
                 flagObject.transform.position = GameController.Instance.GetLeaderObject(flag.Team).transform.position;
+                flag.OccupiedTile = new(transform.position.x, transform.position.z, getClosestPoint: false);
                 GameController.Instance.OnTerrainModified += flag.ReactToTerrainChange;
+                GameController.Instance.OnFlood += flag.ReactToTerrainChange;
             }
         }
 
@@ -255,7 +265,15 @@ namespace Populous
         /// </summary>
         /// <param name="team">The <c>Team</c> the symbol whose position should be changed belongs to.</param>
         /// <param name="position">The position that the symbol should be set to.</param>
-        public void SetSymbolPosition(Team team, Vector3 position) => m_TeamSymbols[(int)team].SetSymbolPositionClient/*Rpc*/(position);
+        public void SetSymbolPosition(Team team, Vector3 position) 
+        {
+            TeamSymbol symbol = m_TeamSymbols[(int)team];
+            if (position == symbol.transform.position) return;
+
+            symbol.OccupiedTile = new(position.x, position.z, getClosestPoint: false);
+
+            symbol.SetSymbolPositionClient/*Rpc*/(position); 
+        }
 
         #endregion
 

@@ -35,7 +35,7 @@ namespace Populous
                 (otherUnit.Class != UnitClass.KNIGHT && m_Unit.Strength >= otherUnit.Strength)))
             {
                 m_Unit.GainStrength(1);
-                UnitManager.Instance.DespawnUnit(otherUnit.gameObject);
+                UnitManager.Instance.DespawnUnit(otherUnit.gameObject, hasDied: false);
             }
 
             if (otherUnit.Team == m_EnemyTeam && m_Team == Team.RED && !m_Unit.IsInFight && !otherUnit.IsInFight)

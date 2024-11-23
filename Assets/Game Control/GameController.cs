@@ -117,8 +117,17 @@ namespace Populous
         /// </summary>
         public int VolcanoRadius { get => m_VolcanoRadius; }
 
+        /// <summary>
+        /// An array containing the index of the next fight the player's camera will focus on if the Zoom to Fight action is performed.
+        /// </summary>
         private readonly int[] m_FightIndex = new int[2];
+        /// <summary>
+        /// An array containing the index of the next knight the player's camera will focus on if the Zoom to Knight action is performed.
+        /// </summary>
         private readonly int[] m_KnightsIndex = new int[2];
+        /// <summary>
+        /// An array containing the index of the next settlement the player's camera will focus on if the Zoom to Settlement action is performed.
+        /// </summary>
         private readonly int[] m_SettlementIndex = new int[2];
 
         /// <summary>
@@ -525,7 +534,7 @@ namespace Populous
                 CreateKnight(team);
 
             if (power == Power.FLOOD)
-                FloodServerRpc();
+                CauseFloodServerRpc();
 
             if (power == Power.ARMAGHEDDON)
                 StartArmagheddon();
@@ -552,31 +561,35 @@ namespace Populous
         #endregion
 
 
-
-
         #region Powers
 
-        #region MoldTerrain
+        #region Mold Terrain
 
         /// <summary>
-        /// Executes the Mold Terrain power from the server.
+        /// Executes the Mold Terrain power, modifying the given point on the terrain..
         /// </summary>
         /// <param name="point">The <c>MapPoint</c> which should be modified.</param>
-        /// <param name="lower">Whether the point should be lowered or elevated.</param>
-        public void MoldTerrain(MapPoint point, bool lower)
+        /// <param name="lower">True if the point should be lowered, false if the point should be elevated.</param>
+        //[ServerRpc(RequireOwnership = false)]
+        public void MoldTerrain/*ServerRpc*/(MapPoint point, bool lower)
         {
-            Terrain.Instance.ModifyTerrain(point, lower);
+            if (point.Y == Terrain.Instance.MaxHeight)
+                return;
 
-            //MoldTerrainServerRpc(point, lower);
+            MoldTerrainClient/*Rpc*/(point, lower);
         }
 
-        [ServerRpc(RequireOwnership = false)]
-        private void MoldTerrainServerRpc(MapPoint point, bool lower)
-            => MoldTerrainClientRpc(point, lower);
-
-        [ClientRpc]
-        private void MoldTerrainClientRpc(MapPoint point, bool lower)
-            => Terrain.Instance.ModifyTerrain(point, lower);
+        /// <summary>
+        /// Executes the Mold Terrain power on the client.
+        /// </summary>
+        /// <param name="point">The <c>MapPoint</c> which should be modified.</param>
+        /// <param name="lower">True if the point should be lowered, false if the point should be elevated.</param>
+        //[ClientRpc]
+        private void MoldTerrainClient/*Rpc*/(MapPoint point, bool lower)
+        {
+            Terrain.Instance.ModifyTerrain(point, lower);
+            CameraController.Instance.UpdateCameraHeight();
+        }
 
         #endregion
 
@@ -683,13 +696,24 @@ namespace Populous
 
         #region Knight
 
-        public void CreateKnight(Team team)
+        //[ServerRpc(RequireOwnership = false)]
+        public void CreateKnight/*ServerRpc*/(Team team)
         {
-            if (!HasLeader(team))
-                return;
+            if (!HasLeader(team)) return;
 
-            UnitManager.Instance.CreateKnight(team);
-            StructureManager.Instance.SetSymbolPosition(team, UnitManager.Instance.GetNewestKnight(team).ClosestMapPoint.ToWorldPosition());
+            Unit knight = UnitManager.Instance.CreateKnight(team);
+            StructureManager.Instance.SetSymbolPosition(team, knight.ClosestMapPoint.ToWorldPosition());
+
+            //CameraController.Instance.SetCameraLookPositionClientRpc(
+            //    new Vector3(knight.transform.position.x, 0, knight.transform.position.z),
+            //    new ClientRpcParams
+            //    {
+            //        Send = new ClientRpcSendParams
+            //        {
+            //            TargetClientIds = new ulong[] { GameData.Instance.GetNetworkIdByTeam(knight.Team) }
+            //        }
+            //    }
+            //);
         }
 
         #endregion
@@ -705,7 +729,7 @@ namespace Populous
         public void VolcanoServerRpc(MapPoint point)
         {
             VolcanoClientRpc(point);
-            StructureManager.Instance.PlaceVolcanoRocks();
+            StructureManager.Instance.PlaceVolcanoRocks(point, m_VolcanoRadius);
         }
 
         [ClientRpc]
@@ -721,23 +745,21 @@ namespace Populous
         /// Executes the Flood power on server.
         /// </summary>
         [ServerRpc(RequireOwnership = false)]
-        public void FloodServerRpc()
+        public void CauseFloodServerRpc()
         {
             if (Terrain.Instance.WaterLevel == Terrain.Instance.MaxHeight)
                 return;
 
-            FloodClientRpc();
+            CauseFloodClientRpc();
+            OnFlood?.Invoke();
         }
 
         [ClientRpc]
-        private void FloodClientRpc()
+        private void CauseFloodClientRpc()
         {
             Terrain.Instance.RaiseWaterLevel();
             Water.Instance.Raise();
-            Frame.Instance.Raise();
-
-            if (IsHost)
-                OnFlood?.Invoke();
+            CameraController.Instance.UpdateCameraHeight();
         }
 
         #endregion
@@ -751,6 +773,7 @@ namespace Populous
         }
 
         #endregion
+
 
         #endregion
     }

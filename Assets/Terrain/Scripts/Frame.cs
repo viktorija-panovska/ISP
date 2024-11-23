@@ -36,9 +36,6 @@ namespace Populous
 
             transform.localScale = newScale * 5;
             transform.position = new Vector3(Terrain.Instance.UnitsPerSide / 2, -1, Terrain.Instance.UnitsPerSide / 2);
-
-            GetComponent<BoxCollider>().center = transform.position;
-            GetComponent<BoxCollider>().size = new Vector3(newSize, 0.1f, newSize);
         }
 
         /// <summary>

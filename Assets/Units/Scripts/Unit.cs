@@ -28,7 +28,12 @@ namespace Populous
         /// <summary>
         /// The <c>MapPoint</c> on the terrain grid which is closest to the current position of the unit.
         /// </summary>
-        public MapPoint ClosestMapPoint { get => new(gameObject.transform.position.x, gameObject.transform.position.z); }
+        public MapPoint ClosestMapPoint { get => new(gameObject.transform.position.x, gameObject.transform.position.z, getClosestPoint: true); }
+
+        /// <summary>
+        /// The tile the unit is currently on.
+        /// </summary>
+        public MapPoint Tile { get => new(gameObject.transform.position.x, gameObject.transform.position.z, getClosestPoint: false); }
 
         private Team m_Team;
         /// <summary>
@@ -83,7 +88,7 @@ namespace Populous
         public void Setup(Team team, int strength, bool canEnterSettlement)
         {
             m_Team = team;
-            m_Strength = team == Team.RED ? 1 : 2/*strength*/;
+            m_Strength = team == Team.BLUE ? 2 : 1/*strength*/;
             m_CanEnterSettlement = canEnterSettlement;
 
             m_MovementHandler = GetComponent<UnitMovementHandler>();
@@ -120,7 +125,10 @@ namespace Populous
                 ToggleLeaderSign(true);
 
             if (m_Class == UnitClass.KNIGHT)
+            {
+                SetBehavior(UnitBehavior.FIGHT);
                 ToggleKnightSword(true);
+            }
         } 
 
         /// <summary>
@@ -129,7 +137,7 @@ namespace Populous
         /// <param name="unitBehavior">The <c>UnitBehavior</c> that should be set.</param>
         public void SetBehavior(UnitBehavior unitBehavior)
         {
-            if (m_Behavior == unitBehavior) return;
+            if (m_Behavior == unitBehavior || m_Class == UnitClass.KNIGHT) return;
 
             m_Behavior = unitBehavior;
 
@@ -202,7 +210,7 @@ namespace Populous
             UpdateUnitUI();
 
             if (m_Strength == 0)
-                UnitManager.Instance.DespawnUnit(gameObject, isDamaged);
+                UnitManager.Instance.DespawnUnit(gameObject, hasDied: isDamaged);
         }
 
         #endregion
@@ -270,11 +278,12 @@ namespace Populous
                 height = startHeight < endHeight ? startHeight + height : endHeight + height;
             }
 
-            // TODO: ones on the edges shouldn't disappear if they haven't been sunk
-            if (height <= Terrain.Instance.WaterLevel)
-                UnitManager.Instance.DespawnUnit(gameObject);
+            if (Terrain.Instance.IsTileUnderwater((Tile.GridX, Tile.GridZ)))
+                UnitManager.Instance.DespawnUnit(gameObject, hasDied: true);
             else
                 SetHeight/*ClientRpc*/(height);
+
+            m_MovementHandler.UpdateTargetPointHeight();
         }
 
         /// <summary>

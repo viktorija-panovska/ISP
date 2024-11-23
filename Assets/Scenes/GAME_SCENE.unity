@@ -578,7 +578,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_UnitPrefab: {fileID: 4803634603491590232, guid: fb550bad1c970ed4c9b4ceb3be5cb1b5, type: 3}
-  m_StartingUnits: 2
+  m_StartingUnits: 1
   m_MaxPopulation: 100
   m_MaxUnitStrength: 100
   m_UnitDecayRate: 20
@@ -792,7 +792,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &853453184
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1412,7 +1412,9 @@ GameObject:
   - component: {fileID: 1022207669}
   - component: {fileID: 1022207668}
   - component: {fileID: 1022207671}
-  m_Layer: 0
+  - component: {fileID: 1022207673}
+  - component: {fileID: 1022207672}
+  m_Layer: 4
   m_Name: Water
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1496,6 +1498,35 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 197e01eef785e0740afe09ed21f53ffc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!65 &1022207672
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1022207666}
+  m_Material: {fileID: 0}
+  m_IsTrigger: 0
+  m_Enabled: 1
+  serializedVersion: 2
+  m_Size: {x: 10, y: 2.220446e-16, z: 10}
+  m_Center: {x: 0, y: 0, z: 0}
+--- !u!54 &1022207673
+Rigidbody:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1022207666}
+  serializedVersion: 2
+  m_Mass: 0.0000001
+  m_Drag: 0
+  m_AngularDrag: 0.05
+  m_UseGravity: 0
+  m_IsKinematic: 1
+  m_Interpolate: 0
+  m_Constraints: 126
+  m_CollisionDetection: 1
 --- !u!1 &1376303146
 GameObject:
   m_ObjectHideFlags: 0
@@ -1615,7 +1646,7 @@ MonoBehaviour:
   - 0.1
   - 0.3
   m_VolcanoRockProbability:
-  - 0.6
+  - 1
   - 0
   m_TreePrefab: {fileID: 4129105199172733369, guid: 751eb7a7dc0adeb459e2d14c061257fa, type: 3}
   m_RockPrefab:
@@ -1682,7 +1713,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_ChunkPrefab: {fileID: 3529950447808904562, guid: 4757c215c126a194e9349a71efc65037, type: 3}
-  m_ChunksPerSide: 1
+  m_ChunksPerSide: 2
   m_TilesPerChunkSide: 3
   m_UnitsPerTileSide: 50
   m_MaxHeightSteps: 7
@@ -2173,7 +2204,7 @@ RectTransform:
   m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 0}
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
@@ -5109,7 +5140,7 @@ BoxCollider:
   m_IsTrigger: 1
   m_Enabled: 1
   serializedVersion: 2
-  m_Size: {x: 1, y: 0.1, z: 1}
+  m_Size: {x: 5, y: 0.1, z: 5}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &8369249607625618001
 GameObject:
@@ -5123,8 +5154,9 @@ GameObject:
   - component: {fileID: 8369249607625618006}
   - component: {fileID: 8369249607625618007}
   - component: {fileID: 8369249607625618000}
+  - component: {fileID: 8369249607625618008}
   - component: {fileID: 8369249607625618004}
-  m_Layer: 0
+  m_Layer: 9
   m_Name: Frame
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -5208,6 +5240,22 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!54 &8369249607625618008
+Rigidbody:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8369249607625618001}
+  serializedVersion: 2
+  m_Mass: 0.0000001
+  m_Drag: 0
+  m_AngularDrag: 0.05
+  m_UseGravity: 0
+  m_IsKinematic: 1
+  m_Interpolate: 0
+  m_Constraints: 126
+  m_CollisionDetection: 1
 --- !u!114 &9197906121872724060
 MonoBehaviour:
   m_ObjectHideFlags: 0

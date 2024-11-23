@@ -1,5 +1,6 @@
 using UnityEngine;
 
+
 namespace Populous
 {
     /// <summary>
@@ -21,6 +22,18 @@ namespace Populous
             // if we don't have a leader, set the first unit that reached the symbol to be the leader.
             if (GameController.Instance.HasLeader(m_Team)) return;
             GameController.Instance.SetLeader(unit.gameObject, unit.Team);
+        }
+
+        /// <inheritdoc />
+        public override void ReactToTerrainChange()
+        {
+            m_OccupiedTile = new(transform.position.x, transform.position.z, getClosestPoint: false);
+            int height = Terrain.Instance.GetPointHeight((m_OccupiedTile.GridX, m_OccupiedTile.GridZ));
+
+            if (height < Terrain.Instance.WaterLevel)
+                height = Terrain.Instance.WaterLevel;
+
+            SetHeight/*ClientRpc*/(height);
         }
 
         /// <summary>

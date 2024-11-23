@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace Populous
@@ -26,6 +27,14 @@ namespace Populous
         /// </summary>
         private Structure[,] m_StructureOnTile;
 
+        /// <summary>
+        /// The directions of the neighbors to check when computing the height of a vertex.
+        /// </summary>
+        private readonly (int, int)[] m_HeightCheckDirections = new (int, int)[] 
+        { 
+            (-1, -1), (-1, 0), (-1, 1), (0, -1), (1, -1) 
+        };
+
 
         /// <summary>
         /// Sets up the properties of the chunk and generates its mesh.
@@ -40,7 +49,7 @@ namespace Populous
 
             SetVisibility(false);
             m_MeshData = GenerateMeshData();
-            SetVertexHeights();
+            //SetVertexHeights();
             SetMesh();
         }
 
@@ -120,7 +129,9 @@ namespace Populous
                 for (int x = 0; x <= Terrain.Instance.TilesPerChunkSide; ++x)
                 {
                     if ((x == 0 && ChunkIndex.X > 0) || (z == 0 && ChunkIndex.Z > 0)) continue;
-                    SetPointHeight((x, z), CalculateVertexHeight((x, z)));
+
+                    int height = CalculateVertexHeight((x, z));
+                    SetPointHeight((x, z), height);
                 }
             }
 
@@ -140,48 +151,50 @@ namespace Populous
                 Terrain.Instance.MapGenerator.GetHeightAtPosition(ChunkPosition + m_MeshData.Vertices[vertexIndex]) * Terrain.Instance.MaxHeightSteps
             ) * Terrain.Instance.StepHeight;
 
-            // Vertex (0, 0) in chunk (0, 0)
-            if (pointInChunk.x == 0 && pointInChunk.z == 0)
+            // Vertex (0, 0) in chunk (0, 0), so the very first vertex
+            if (ChunkIndex == (0, 0) && pointInChunk == (0, 0))
                 return height;
 
-            // first row in chunk (0, 0)
-            if (pointInChunk.z == 0 && ChunkIndex.X == 0)
+            // the bottommost row of the terrain
+            if (ChunkIndex.Z == 0 && pointInChunk.z == 0 && pointInChunk.x > 0)
             {
                 int lastHeight = GetMeshHeightAtPoint((pointInChunk.x - 1, pointInChunk.z));
-                height = Mathf.Clamp(height, lastHeight - Terrain.Instance.StepHeight, lastHeight + Terrain.Instance.StepHeight);
+                return Mathf.Clamp(height, lastHeight - Terrain.Instance.StepHeight, lastHeight + Terrain.Instance.StepHeight);
             }
-            else
+
+            List<int> neighborHeights = new();
+
+            foreach ((int dx, int dz) in m_HeightCheckDirections)
             {
-                List<(int, int)> directions = new(new (int, int)[] { (-1, -1), (-1, 0), (0, -1), (1, -1) });
+                (int x, int z) neighbor = (pointInChunk.x + dx, pointInChunk.z + dz);
 
-                if (pointInChunk.x == 1 && ChunkIndex.X > 0)
-                    directions.Add((-1, 1));
+                if (neighbor.x < 0 || neighbor.x > Terrain.Instance.TilesPerChunkSide ||
+                    neighbor.z < 0 || neighbor.z > Terrain.Instance.TilesPerChunkSide ||
+                    (ChunkIndex.X == 0 && dz == 1))
+                    continue;
 
-                List<int> neighborHeights = new();
-
-                foreach ((int neighborX, int neighborZ) in directions)
-                    if (pointInChunk.x + neighborX >= 0 && pointInChunk.x + neighborX <= Terrain.Instance.TilesPerChunkSide &&
-                        pointInChunk.z + neighborZ >= 0 && pointInChunk.z + neighborZ <= Terrain.Instance.TilesPerChunkSide)
-                        neighborHeights.Add(GetMeshHeightAtPoint((pointInChunk.x + neighborX, pointInChunk.z + neighborZ)));
-
-                if (neighborHeights.TrueForAll(EqualToFirst))
-                    height = Mathf.Clamp(
-                        height,
-                        Mathf.Max(0, neighborHeights[0] - Terrain.Instance.StepHeight),
-                        Mathf.Min(neighborHeights[0] + Terrain.Instance.StepHeight, Terrain.Instance.MaxHeight));
-                else
-                {
-                    int[] neighborHeightsArray = neighborHeights.ToArray();
-                    int minHeight = Mathf.Min(neighborHeightsArray);
-                    int maxHeight = Mathf.Max(neighborHeightsArray);
-
-                    if (Mathf.Abs(minHeight - maxHeight) > Terrain.Instance.StepHeight)
-                        height = minHeight + Terrain.Instance.StepHeight;
-                    else
-                        height = Mathf.Clamp(height, minHeight, maxHeight);
-                }
-                bool EqualToFirst(int x) => x == neighborHeights[0];
+                neighborHeights.Add(GetMeshHeightAtPoint(neighbor));
             }
+
+            // if all the neighbors are at the same height, we can go one up or one down.
+            bool EqualToFirst(int x) => x == neighborHeights[0];
+            if (neighborHeights.TrueForAll(EqualToFirst))
+            {
+                height = Mathf.Clamp(height, 
+                    Mathf.Max(0, neighborHeights[0] - Terrain.Instance.StepHeight), 
+                    Mathf.Min(neighborHeights[0] + Terrain.Instance.StepHeight, Terrain.Instance.MaxHeight)    
+                );
+
+                return height;
+            }
+
+            int minHeight = neighborHeights.Min();
+            int maxHeight = neighborHeights.Max();
+
+            if (Mathf.Abs(minHeight - maxHeight) > Terrain.Instance.StepHeight)
+                height = minHeight + Terrain.Instance.StepHeight;
+            else
+                height = Mathf.Clamp(height, minHeight, maxHeight);
 
             return height;
         }
@@ -234,8 +247,6 @@ namespace Populous
                 Terrain.Instance.MaxHeight
             ));
 
-            HandleStructures(point, pointInChunk);
-
             // Update neighboring vertices
             for (int zOffset = -1; zOffset <= 1; ++zOffset)
             {
@@ -266,9 +277,11 @@ namespace Populous
         /// </summary>
         public void RecomputeAllCenters()
         {
+
             for (int z = 0; z < Terrain.Instance.TilesPerChunkSide; ++z)
                 for (int x = 0; x < Terrain.Instance.TilesPerChunkSide; ++x)
                     SetCenterHeight((x, z), CalculateTileCenterHeight((x, z)));
+
         }
 
         /// <summary>
@@ -293,44 +306,6 @@ namespace Populous
 
                         SetCenterHeight(tile, newHeight);
                     }
-                }
-            }
-        }
-
-        /// <summary>
-        /// Checks the area surrounding the modified point for structures and notifies them to react to the change.
-        /// </summary>
-        /// <param name="point">The <c>MapPoint</c> whose height has been modified.</param>
-        /// <param name="pointInChunk">The coordinates of the point relative to the chunk.</param>
-        private void HandleStructures(MapPoint point, (int x, int z) pointInChunk)
-        {
-            // We check the tiles in a 5x5 square around the point for any settlements
-            for (int z = -2; z <= 2; ++z)
-            {
-                for (int x = -2; x <= 2; ++x)
-                {
-                    (int x, int z) tile = (pointInChunk.x + x, pointInChunk.z + z);
-
-                    if (tile.x < 0 || tile.x >= Terrain.Instance.TilesPerChunkSide || tile.z < 0 || tile.z >= Terrain.Instance.TilesPerChunkSide)
-                        continue;
-
-                    Structure structure = GetStructureOnTile((point.GridX + x, point.GridZ + z));
-                    if (!structure) continue;
-
-                    bool movedSettlement = false;
-                    // We are checking if there is something on the tiles that share the point.
-                    if (z <= 0 && z >= -1 && x <= 0 && x >= -1)
-                    {
-                        structure.ReactToTerrainChange();
-                        if (structure.GetType() == typeof(Settlement))
-                            movedSettlement = true;
-                    }
-
-                    // if the settlement is not on one of the tiles that share the modified point but it is in the affected area
-                    // it means that by modifying the point height a new flat tile might have been introduced or one might have
-                    // been removed, so we want the settlement to recalculate its fields.
-                    if (!movedSettlement && structure.GetType() == typeof(Settlement))
-                        ((Settlement)structure).ShouldTryUpdateType = true;
                 }
             }
         }

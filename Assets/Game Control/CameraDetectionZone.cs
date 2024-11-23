@@ -23,7 +23,7 @@ namespace Populous
 
             if (team == Team.RED && other.gameObject.layer == LayerData.TeamLayers[(int)Team.RED] ||
                 team == Team.BLUE && other.gameObject.layer == LayerData.TeamLayers[(int)Team.BLUE])
-                PlayerController.Instance.VisibleUnitsAndStructures++;
+                PlayerController.Instance.AddVisibleUnitOrStructure();
         }
 
         private void OnTriggerExit(Collider other)
@@ -41,7 +41,7 @@ namespace Populous
 
             if (team == Team.RED && other.gameObject.layer == LayerData.TeamLayers[(int)Team.RED] ||
                 team == Team.BLUE && other.gameObject.layer == LayerData.TeamLayers[(int)Team.BLUE])
-                PlayerController.Instance.VisibleUnitsAndStructures--;
+                PlayerController.Instance.RemoveVisibleUnitOrStructure();
         }
     }
 }

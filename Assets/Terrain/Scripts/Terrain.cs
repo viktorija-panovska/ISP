@@ -41,6 +41,8 @@ namespace Populous
         /// </summary>
         public int WaterLevel { get => m_WaterLevel; }
 
+        // modified points
+        (int lowestX, int lowestZ, int highestX, int highestZ) m_ModifiedPointRange;
 
         #region Public getters and setters for serialized fields
 
@@ -164,6 +166,9 @@ namespace Populous
         /// <param name="lower">Whether the point should be lowered or elevated.</param>
         public void ModifyTerrain(MapPoint point, bool lower)
         {
+            m_ModifiedPointRange.lowestX = m_ModifiedPointRange.lowestZ = TilesPerSide;
+            m_ModifiedPointRange.highestX = m_ModifiedPointRange.highestZ = 0;
+
             m_ModifiedChunks = new();
             ChangePointHeight(point, lower);
 
@@ -171,7 +176,6 @@ namespace Populous
                 GetChunkByIndex(chunkIndex).SetMesh();
 
             m_ModifiedChunks = new();
-
             GameController.Instance.OnTerrainModified?.Invoke();
         }
 
@@ -180,37 +184,36 @@ namespace Populous
         /// </summary>
         /// <param name="point">The <c>MapPoint</c> which should be modified.</param>
         /// <param name="lower">Whether the point should be lowered or elevated.</param>
-        public void ChangePointHeight(MapPoint point, bool lower)
+        public void ChangePointHeight(MapPoint point, bool lower, int? height = null)
         {
             foreach ((int, int) chunkIndex in point.TouchingChunks)
             {
                 if (!m_ModifiedChunks.Contains(chunkIndex))
                     m_ModifiedChunks.Add(chunkIndex);
 
-                GetChunkByIndex(chunkIndex).ChangeHeight(point, lower);
+                if (height.HasValue)
+                    GetChunkByIndex(chunkIndex).SetVertexHeight(point, height.Value);
+                else
+                    GetChunkByIndex(chunkIndex).ChangeHeight(point, lower);
             }
 
+            m_ModifiedPointRange.lowestX = Mathf.Min(point.GridX, m_ModifiedPointRange.lowestX);
+            m_ModifiedPointRange.lowestZ = Mathf.Min(point.GridZ, m_ModifiedPointRange.lowestZ);
+            m_ModifiedPointRange.highestX = Mathf.Max(point.GridX, m_ModifiedPointRange.highestX);
+            m_ModifiedPointRange.highestZ = Mathf.Max(point.GridZ, m_ModifiedPointRange.highestZ);
+
             if (point.IsOnEdge)
-                TerrainBorder.Instance.ModifyWall(point);
+                TerrainBorder.Instance.ModifyWallAtPoint(point);
         }
 
-        /// <summary>
-        /// Sets the height of the given point to the given value.
-        /// </summary>
-        /// <param name="point">The <c>MapPoint</c> which should be modified.</param>
-        /// <param name="height">The value that the point height should be set to.</param>
-        public void SetPointHeight(MapPoint point, int height)
+        public (int lowestX, int lowestZ, int highestX, int highestZ) GetAffectedTileRange()
         {
-            foreach ((int, int) chunkIndex in point.TouchingChunks)
-            {
-                if (!m_ModifiedChunks.Contains(chunkIndex))
-                    m_ModifiedChunks.Add(chunkIndex);
-
-                GetChunkByIndex(chunkIndex).SetVertexHeight(point, height);
-            }
-
-            if (point.IsOnEdge)
-                TerrainBorder.Instance.ModifyWall(point);
+            return (
+                Mathf.Clamp(m_ModifiedPointRange.lowestX - 1, 0, m_ModifiedPointRange.lowestX),
+                Mathf.Clamp(m_ModifiedPointRange.lowestZ - 1, 0, m_ModifiedPointRange.lowestZ),
+                m_ModifiedPointRange.highestX,
+                m_ModifiedPointRange.highestZ
+            );
         }
 
 
@@ -263,6 +266,9 @@ namespace Populous
         /// <param name="randomizerSeed">The seed for the randomizer used when choosing random lowering steps.</param>
         public void CauseEarthquake(MapPoint center, int radius, int randomizerSeed)
         {
+            m_ModifiedPointRange.lowestX = m_ModifiedPointRange.lowestZ = TilesPerSide;
+            m_ModifiedPointRange.highestX = m_ModifiedPointRange.highestZ = 0;
+
             m_ModifiedChunks = new();
             Random random = new(randomizerSeed);
 
@@ -276,7 +282,7 @@ namespace Populous
 
             for (int distance = radius - 1; distance >= 0; --distance)
                 foreach (MapPoint point in GetPointsAtDistance(center, distance))
-                    SetPointHeight(point, m_WaterLevel);
+                    ChangePointHeight(point, false, m_WaterLevel);
 
             for (int distance = radius - 1; distance >= 0; --distance)
                 foreach (MapPoint point in GetPointsAtDistance(center, distance))
@@ -291,6 +297,7 @@ namespace Populous
             }
 
             m_ModifiedChunks = new();
+            GameController.Instance.OnTerrainModified?.Invoke();
         }
 
         /// <summary>
@@ -300,6 +307,9 @@ namespace Populous
         /// <param name="radius">The number of tiles in each direction that the elevation should affect.</param>
         public void CauseVolcano(MapPoint center, int radius)
         {
+            m_ModifiedPointRange.lowestX = m_ModifiedPointRange.lowestZ = TilesPerSide;
+            m_ModifiedPointRange.highestX = m_ModifiedPointRange.highestZ = 0;
+
             m_ModifiedChunks = new();
 
             int maxHeightOnEdge = -1;
@@ -319,7 +329,7 @@ namespace Populous
 
             for (int distance = radius - 1; distance >= 0; --distance)
                 foreach (MapPoint point in GetPointsAtDistance(center, distance))
-                    SetPointHeight(point, maxHeightOnEdge + (radius - distance) * m_StepHeight);
+                    ChangePointHeight(point, false, maxHeightOnEdge + (radius - distance) * m_StepHeight);
 
             foreach ((int, int) chunkIndex in m_ModifiedChunks)
             {
@@ -329,6 +339,7 @@ namespace Populous
             }
 
             m_ModifiedChunks = new();
+            GameController.Instance.OnTerrainModified?.Invoke();
         }
 
         #endregion
@@ -525,10 +536,33 @@ namespace Populous
             int dx = end.GridX - start.GridX;
             int dz = end.GridZ - start.GridZ;
 
+            // we are not moving diagonally
             if (Mathf.Abs(dx) != Mathf.Abs(dz))
-                return true;
+            {
+                // we wnat to check if the unit is going into the water or just along the shore
+                if (start.Y == 0 && end.Y == 0)
+                {
+                    // if there is water on both sides of the line the unit is travelling, then it is going into the water
+                    (int x, int z)[] diagonals = new (int, int)[2];
+                    if (dz == 0) diagonals = new (int, int)[2] { (end.GridX, end.GridZ - 1), (end.GridX, end.GridZ + 1) };
+                    if (dx == 0) diagonals = new (int, int)[2] { (end.GridX - 1, end.GridZ), (end.GridX + 1, end.GridZ) };
 
-            // we'd be crossing water
+                    foreach ((int x, int z) diagonal in diagonals)
+                    {
+                        if (diagonal.x < 0 || diagonal.x > TilesPerSide || diagonal.z < 0 || diagonal.z > TilesPerSide)
+                            continue;
+
+                        if (GetPointHeight(diagonal) > 0)
+                            return true;
+                    }
+                    return false;
+                }
+
+                // otherwise it's fine
+                return true;
+            }
+
+            // we'll be crossing water
             if (start.Y == 0 && end.Y == 0)
                 return false;
 
@@ -556,6 +590,7 @@ namespace Populous
         }
 
         #endregion
+
 
 
         /// <summary>

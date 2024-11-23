@@ -24,16 +24,16 @@ namespace Populous
 
 
         /// <summary>
-        /// Sets the size and position of the water plane based on the size of the terrain.
+        /// Sets the currentSize and position of the water plane based on the currentSize of the terrain.
         /// </summary>
         public void Create()
         {
             float newSize = Terrain.Instance.UnitsPerSide;
-            Vector3 size = GetComponent<Renderer>().bounds.size;
+            Vector3 currentSize = GetComponent<Renderer>().bounds.size;
 
             Vector3 newScale = transform.localScale;
-            newScale.x = newSize * newScale.x / size.x;
-            newScale.z = newSize * newScale.z / size.z;
+            newScale.x = newSize * newScale.x / currentSize.x;
+            newScale.z = newSize * newScale.z / currentSize.z;
 
             transform.localScale = newScale;
             transform.position = new Vector3(Terrain.Instance.UnitsPerSide / 2, 1, Terrain.Instance.UnitsPerSide / 2);

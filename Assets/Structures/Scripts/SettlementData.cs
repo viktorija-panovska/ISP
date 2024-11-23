@@ -8,7 +8,7 @@ namespace Populous
     public enum SettlementType
     {
         /// <summary>
-        /// A tent, a settlement with no tiles of fields and surrounded by rocks.
+        /// A tent, a settlement with no tiles of fields and with rocks in the vicinity.
         /// </summary>
         TENT,
         /// <summary>

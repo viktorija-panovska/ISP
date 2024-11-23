@@ -37,9 +37,14 @@ namespace Populous
         /// </summary>
         public readonly int Y
         {
-            get => m_TouchingChunks == null
-                ? Terrain.Instance.GetPointHeight((m_GridX, m_GridZ))
-                : Terrain.Instance.GetPointHeight(m_TouchingChunks[0], (m_GridX, m_GridZ));
+            get
+            {
+                int y = m_TouchingChunks == null
+                        ? Terrain.Instance.GetPointHeight((m_GridX, m_GridZ))
+                        : Terrain.Instance.GetPointHeight(m_TouchingChunks[0], (m_GridX, m_GridZ));
+
+                return Mathf.Clamp(y, Terrain.Instance.WaterLevel, Terrain.Instance.MaxHeight);
+            }
         }
 
         private List<(int x, int z)> m_TouchingChunks;
@@ -117,8 +122,13 @@ namespace Populous
         /// </summary>
         /// <param name="x">The x coordinate of the world position.</param>
         /// <param name="z">The y coordinate of the world position.</param>
-        public MapPoint(float x, float z)
-            : this(Mathf.RoundToInt(x / Terrain.Instance.UnitsPerTileSide), Mathf.RoundToInt(z / Terrain.Instance.UnitsPerTileSide)) { }
+        /// <param name="getClosestPoint">True if the created point should be the closest grid point to the given position, 
+        /// false if the point should represent the tile the unit is on.</param>
+        public MapPoint(float x, float z, bool getClosestPoint)
+            : this(
+                  getClosestPoint ? Mathf.RoundToInt(x / Terrain.Instance.UnitsPerTileSide) : Mathf.Clamp(Mathf.FloorToInt(x / Terrain.Instance.UnitsPerTileSide), 0, Terrain.Instance.UnitsPerChunkSide),
+                  getClosestPoint ? Mathf.RoundToInt(z / Terrain.Instance.UnitsPerTileSide) : Mathf.Clamp(Mathf.FloorToInt(z / Terrain.Instance.UnitsPerTileSide), 0, Terrain.Instance.UnitsPerChunkSide)
+              ) { }
 
         /// <summary>
         /// A constructor for <c>MapPoint</c>, to be used when we have a tuple of the point's position on the grid.

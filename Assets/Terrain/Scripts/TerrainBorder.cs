@@ -31,6 +31,12 @@ namespace Populous
 
             m_Instance = this;
         }
+        
+        public override void OnDestroy()
+        {
+            GameController.Instance.OnFlood -= ModifyAllWalls;
+            base.OnDestroy();
+        }
 
 
         #region Create Border Walls
@@ -55,6 +61,8 @@ namespace Populous
                 m_WallData[i].SetMesh(m_Walls[i], m_WallMaterial);
                 PositionWall(m_Walls[i].transform, directions[i]);
             }
+
+            GameController.Instance.OnFlood += ModifyAllWalls;
         }
 
         /// <summary>
@@ -128,9 +136,6 @@ namespace Populous
             }
         }
 
-        #endregion
-
-
         /// <summary>
         /// Gets the height of the point of the terrain matching the given point on the border wall.
         /// </summary>
@@ -163,14 +168,33 @@ namespace Populous
             return height >= Terrain.Instance.WaterLevel ? height : Terrain.Instance.WaterLevel;
         }
 
+        #endregion
+
 
         #region Modify Border Walls
+
+        /// <summary>
+        /// Modifies the heights of the points on all four walls.
+        /// </summary>
+        public void ModifyAllWalls()
+        {
+            for (int z = 0; z <= Terrain.Instance.TilesPerSide; ++z)
+            {
+                for (int x = 0; x <= Terrain.Instance.TilesPerSide; ++x)
+                {
+                    MapPoint point = new(x, z);
+                    if (point.IsOnEdge)
+                        ModifyWallAtPoint(point);
+                }
+            }
+        }
+
 
         /// <summary>
         /// Modifies the shape of the border walls in response to the changing height of a point on the edge of the terrain.
         /// </summary>
         /// <param name="point">The <c>MapPoint</c> on the terrain whose height has been changed.</param>
-        public void ModifyWall(MapPoint point)
+        public void ModifyWallAtPoint(MapPoint point)
         {
             if (!point.IsOnEdge) return;
 

@@ -82,12 +82,6 @@ namespace Populous
         /// </summary>
         public bool IsBurnedDown { get => m_IsBurnedDown; }
 
-        private bool m_ShouldTryUpdateType = true;
-        /// <summary>
-        /// True if the settlement should check if there are any new m_Fields or missing ones, false otherwise.
-        /// </summary>
-        public bool ShouldTryUpdateType { set => m_ShouldTryUpdateType = value; }
-
         private bool m_IsDestroyed = false;
         private int m_Fields;
 
@@ -139,8 +133,6 @@ namespace Populous
                 );
                 sign.transform.localPosition = new Vector3(-Terrain.Instance.UnitsPerTileSide / 2, 0, Terrain.Instance.UnitsPerTileSide / 2);
             }
-
-            //StartCoroutine(FillSettlement());
         }
 
 
@@ -164,23 +156,34 @@ namespace Populous
         /// <inheritdoc />
         public override void ReactToTerrainChange()
         {
+            (int lowestX, int lowestZ, int highestX, int highestZ) = Terrain.Instance.GetAffectedTileRange();
+
+            if (m_OccupiedTile.GridX < lowestX || m_OccupiedTile.GridZ < lowestZ || 
+                m_OccupiedTile.GridX > highestX || m_OccupiedTile.GridZ > highestZ)
+            {
+                if (m_OccupiedTile.GridX >= lowestX - 2 && m_OccupiedTile.GridZ >= lowestZ - 2 && 
+                    m_OccupiedTile.GridX <= highestX + 2 && m_OccupiedTile.GridZ <= highestZ + 2)
+                    SetType();
+
+                return;
+            }
+
             if (ShouldDestroyStructure())
             {
                 m_IsDestroyed = true;
                 OnSettlementDestroyed?.Invoke(this);
-                ReleaseUnit(m_CurrentSettlementData.UnitStrength);
+
+                if (Terrain.Instance.IsTileUnderwater((m_OccupiedTile.GridX, m_OccupiedTile.GridZ)))
+                    UnitManager.Instance.RemovePopulation(m_Team, m_FollowersInSettlement);
+                else
+                    ReleaseUnit(m_CurrentSettlementData.UnitStrength);
+
                 StructureManager.Instance.DespawnStructure(gameObject);
                 return;
             }
 
             if (m_DestroyMethod == DestroyMethod.DROWN)
-            {
-                SetHeightClientRpc(
-                    GetType() == typeof(TeamSymbol)
-                    ? Terrain.Instance.GetPointHeight(m_OccupiedTile)
-                    : Terrain.Instance.GetTileCenterHeight(m_OccupiedTile)
-                );
-            }
+                SetHeight/*ClientRpc*/(Terrain.Instance.GetTileCenterHeight((m_OccupiedTile.GridX, m_OccupiedTile.GridZ)));
         }
 
         /// <inheritdoc />
@@ -196,12 +199,12 @@ namespace Populous
         /// </summary>
         public void SetType()
         {
-            if (/*!IsHost || */!m_ShouldTryUpdateType) return;
-            m_ShouldTryUpdateType = false;
+            //if (!IsHost) return;
 
             m_Fields = CreateFields();
             // formula for getting the index of the settlement from the number of m_Fields
             int settlementIndex = Mathf.Clamp(Mathf.CeilToInt((m_Fields + 1) / 2f), 0, m_SettlementData.Length);
+
             SettlementData newSettlement = m_SettlementData[settlementIndex];
 
             if (m_CurrentSettlementData && m_CurrentSettlementData.Type == newSettlement.Type)
@@ -254,6 +257,7 @@ namespace Populous
             m_IsBurnedDown = true;
             Team = Team.NONE;
             m_DestroyMethod = DestroyMethod.DROWN;
+            UnitManager.Instance.RemovePopulation(m_Team, m_FollowersInSettlement);
 
             if (m_CurrentSettlementData)
             {
@@ -302,7 +306,7 @@ namespace Populous
                 {
                     if ((x, z) == (0, 0)) continue;
 
-                    (int x, int z) tile = (OccupiedTile.x + x, OccupiedTile.z + z);
+                    (int x, int z) tile = (OccupiedTile.GridX + x, OccupiedTile.GridZ + z);
 
                     if (tile.x < 0 || tile.x >= Terrain.Instance.TilesPerSide || tile.z < 0 || tile.z >= Terrain.Instance.TilesPerSide)
                         continue;
@@ -311,7 +315,6 @@ namespace Populous
                     if (!structure || structure.GetType() != typeof(Settlement)) continue;
 
                     Settlement settlement = (Settlement)structure;
-                    settlement.ShouldTryUpdateType = true;
                     settlement.SetType();
                 }
             }
@@ -334,7 +337,7 @@ namespace Populous
             {
                 for (int x = -2; x <= 2; ++x)
                 {
-                    (int x, int z) neighborTile = (m_OccupiedTile.x + x, m_OccupiedTile.z + z);
+                    (int x, int z) neighborTile = (m_OccupiedTile.GridX + x, m_OccupiedTile.GridZ + z);
 
                     if ((x, z) == (0, 0) || (x != 0 && z != 0 && Mathf.Abs(x) != Mathf.Abs(z)) ||
                         neighborTile.x < 0 || neighborTile.x >= Terrain.Instance.TilesPerSide ||
@@ -428,7 +431,7 @@ namespace Populous
                 {
                     if (x == 0 || z == 0 || Mathf.Abs(x) == Mathf.Abs(z)) continue;
 
-                    (int x, int z) neighborTile = (m_OccupiedTile.x + x, m_OccupiedTile.z + z);
+                    (int x, int z) neighborTile = (m_OccupiedTile.GridX + x, m_OccupiedTile.GridZ + z);
                     Structure structure = Terrain.Instance.GetStructureOnTile(neighborTile);
                     Field field = null;
                     if (structure && structure.GetType() == typeof(Field))
@@ -451,7 +454,7 @@ namespace Populous
                     if (x == 0 || z == 0 || Mathf.Abs(x) == Mathf.Abs(z))
                         continue;
 
-                    (int x, int z) neighborTile = (m_OccupiedTile.x + x, m_OccupiedTile.z + z);
+                    (int x, int z) neighborTile = (m_OccupiedTile.GridX + x, m_OccupiedTile.GridZ + z);
                     Structure structure = Terrain.Instance.GetStructureOnTile(neighborTile);
 
                     if (!structure || structure.GetType() != typeof(Field))
@@ -514,11 +517,11 @@ namespace Populous
             if (m_ContainsLeader)
             {
                 GameController.Instance.RemoveLeader(m_Team);
-                UnitManager.Instance.SpawnUnit(new MapPoint(m_OccupiedTile.x, m_OccupiedTile.z), m_Team, strength, true);
+                UnitManager.Instance.SpawnUnit(new MapPoint(m_OccupiedTile.GridX, m_OccupiedTile.GridZ), m_Team, unitClass: UnitClass.LEADER, strength);
             }
             else
             {
-                UnitManager.Instance.SpawnUnit(new MapPoint(m_OccupiedTile.x, m_OccupiedTile.z), m_Team, strength, false);
+                UnitManager.Instance.SpawnUnit(new MapPoint(m_OccupiedTile.GridX, m_OccupiedTile.GridZ), m_Team, unitClass: UnitClass.WALKER, strength);
             }
 
         }

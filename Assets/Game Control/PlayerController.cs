@@ -31,7 +31,7 @@ namespace Populous
         /// <summary>
         /// Gets the number of units and structures of the player's team currently visible to the player.
         /// </summary>
-        public int VisibleUnitsAndStructures { get => m_VisibleUnitsAndStructures; set => m_VisibleUnitsAndStructures = value; }
+        public int VisibleUnitsAndStructures { get => m_VisibleUnitsAndStructures; }
 
         /// <summary>
         /// The <c>MapPoint</c> representing the nearest point on the terrain to the player's 
@@ -77,7 +77,7 @@ namespace Populous
         }
 
 
-
+        
         #region Input Events
 
         /// <summary>
@@ -101,7 +101,8 @@ namespace Populous
             switch (m_ActivePower)
             {
                 case Power.MOLD_TERRAIN:
-                    GameController.Instance.MoldTerrain/*ServerRpc*/(m_NearestPoint.Value, lower: false);
+                    //if (m_VisibleUnitsAndStructures > 0)
+                        GameController.Instance.MoldTerrain/*ServerRpc*/(m_NearestPoint.Value, lower: false);
                     break;
 
                 case Power.GUIDE_FOLLOWERS:                    
@@ -121,6 +122,8 @@ namespace Populous
                     break;
             }
 
+            m_ActivePower = Power.MOLD_TERRAIN;
+            SwitchActiveMarker((int)m_ActivePower);
         }
 
         /// <summary>
@@ -381,7 +384,7 @@ namespace Populous
                     hit.point.x - m_ClickerLeeway < 0 && hit.point.x + m_ClickerLeeway > Terrain.Instance.UnitsPerSide ||
                     hit.point.z - m_ClickerLeeway < 0 && hit.point.z + m_ClickerLeeway > Terrain.Instance.UnitsPerSide
                 ? null
-                : new MapPoint(hit.point.x, hit.point.z);
+                : new MapPoint(hit.point.x, hit.point.z, getClosestPoint: true);
 
             SetupMarker();
         }
@@ -444,11 +447,15 @@ namespace Populous
             if (!isActivated)
             {
                 GameUI.Instance.NotEnoughManna(power);
+                SwitchActiveMarker(0);
                 return;
             }
 
+            if (power == Power.KNIGHT || power == Power.FLOOD)
+                power = Power.MOLD_TERRAIN;
+
             m_ActivePower = power;
-            SwitchActiveMarker((int)power);
+            SwitchActiveMarker((int)m_ActivePower);
         }
 
         /// <summary>
@@ -461,5 +468,9 @@ namespace Populous
             m_ActiveBehavior = behavior;
             UnitManager.Instance.ChangeUnitBehavior/*ServerRpc*/(m_ActiveBehavior, m_Team);
         }
+
+        public void AddVisibleUnitOrStructure() => m_VisibleUnitsAndStructures++;
+
+        public void RemoveVisibleUnitOrStructure() => m_VisibleUnitsAndStructures--;
     }
 }

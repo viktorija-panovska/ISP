@@ -151,7 +151,7 @@ namespace Populous
         /// <param name="strength">The initial strength of the unit.</param>
         /// <param name="isLeader">True if the created unit is a knight, false otherwise.</param>
         /// <returns>The <c>GameObject</c> of the newly spawned unit.</returns>
-        public GameObject SpawnUnit(MapPoint location, Team team, int strength = 1, bool isLeader = false, bool canEnterSettlement = false)
+        public GameObject SpawnUnit(MapPoint location, Team team, UnitClass unitClass = UnitClass.WALKER, int strength = 1, bool canEnterSettlement = false)
         {
             if (/*!IsServer || */m_Population[(int)team] == m_MaxPopulation) 
                 return null;
@@ -169,6 +169,7 @@ namespace Populous
             OnNewLeaderGained += unit.NewLeaderUnitGained;
             OnRemoveReferencesToUnit += unit.RemoveRefrencesToUnit;
             GameController.Instance.OnTerrainModified += unit.RecomputeHeight;
+            GameController.Instance.OnFlood += unit.RecomputeHeight;
             StructureManager.Instance.OnRemoveReferencesToSettlement += unit.RemoveRefrencesToSettlement;
 
             if (team == Team.RED)
@@ -185,8 +186,11 @@ namespace Populous
             unit.Setup(team, strength, canEnterSettlement);
             unit.SetBehavior(m_ActiveBehavior[(int)team]);
 
-            if (isLeader)
+            if (unitClass == UnitClass.LEADER)
                 GameController.Instance.SetLeader(unitObject, team);
+
+            if (unitClass == UnitClass.KNIGHT)
+                unit.SetClass(UnitClass.KNIGHT);
 
             //NetworkObject networkUnit = unitObject.GetComponent<NetworkObject>();
             //networkUnit.Spawn(true);
@@ -229,12 +233,13 @@ namespace Populous
         /// <param name="unitObject">The <c>GameObject</c> of the unit to be destroyed.</param>
         /// <param name="hasDied">True if the unit is being despawned because it died, 
         /// false if it is being despawned because it entered a settlement.</param>
-        public void DespawnUnit(GameObject unitObject, bool hasDied = true)
+        public void DespawnUnit(GameObject unitObject, bool hasDied)
         {
             //if (!IsServer) return;
 
             Unit unit = unitObject.GetComponent<Unit>();
             GameController.Instance.OnTerrainModified -= unit.RecomputeHeight;
+            GameController.Instance.OnFlood -= unit.RecomputeHeight;
 
             if (unit.Team == Team.RED)
                 OnRedBehaviorChange -= unit.SetBehavior;
@@ -340,7 +345,7 @@ namespace Populous
 
             int unitsToSpawn = m_StartingUnits <= m_MaxPopulation ? m_StartingUnits : m_MaxPopulation;
 
-            for (int team = 0; team <= 1; ++team)
+            for (int team = 1; team <= 1; ++team)
             {
                 List<(int, int)> spawns = team == 0 ? redSpawns : blueSpawns;
                 List<int> spawnIndices = Enumerable.Range(0, spawns.Count).ToList();
@@ -360,7 +365,7 @@ namespace Populous
                             new MapPoint(spawn.x, spawn.z), 
                             team == 0 ? Team.RED : Team.BLUE, 
                             strength: m_StartingUnitStrength, 
-                            isLeader: spawned == leader, 
+                            unitClass: spawned == leader ? UnitClass.LEADER : UnitClass.WALKER, 
                             canEnterSettlement: true
                         );
                         spawned++;
@@ -377,7 +382,7 @@ namespace Populous
                         new MapPoint(point.x, point.z),
                         team == 0 ? Team.RED : Team.BLUE,
                         strength: m_StartingUnitStrength,
-                        isLeader: spawned == leader,
+                        unitClass: spawned == leader ? UnitClass.LEADER : UnitClass.WALKER,
                         canEnterSettlement: true
                     );
                     spawned++;
@@ -434,12 +439,6 @@ namespace Populous
         /// <returns>A <c>Unit</c> of the Knight class from the given team.</returns>
         public Unit GetKnight(int index, Team team) => index >= m_Knights[(int)team].Count ? null : m_Knights[(int)team][index];
         /// <summary>
-        /// Gets the last knight of the given team entered in the list of knights.
-        /// </summary>
-        /// <param name="team">The <c>Team</c> that the returned knight should belong to.</param>
-        /// <returns>A <c>Unit</c> of the Knight class from the given team.</returns>
-        public Unit GetNewestKnight(Team team) => m_Knights[(int)team].Count == 0 ? null : m_Knights[(int)team][^1];
-        /// <summary>
         /// Returns the number of knights in the given team.
         /// </summary>
         /// <param name="team">The <c>Team</c> that the returned knight should belong to.</param>
@@ -450,13 +449,13 @@ namespace Populous
         /// Turns the knight of the given team into a knight, if a knight exists.
         /// </summary>
         /// <param name="team">The <c>Team</c> that the new knight should belong to.</param>
-        public void CreateKnight(Team team)
+        public Unit CreateKnight(Team team)
         {
-            if (!GameController.Instance.HasLeader(team)) return;
+            Unit knight = null;
 
             if (GameController.Instance.HasUnitLeader(team))
             {
-                Unit knight = GameController.Instance.GetLeaderUnit(team);
+                knight = GameController.Instance.GetLeaderUnit(team);
                 GameController.Instance.RemoveLeader(team);
                 knight.SetClass(UnitClass.KNIGHT);
                 m_Knights[(int)team].Add(knight);
@@ -464,9 +463,13 @@ namespace Populous
 
             if (GameController.Instance.IsLeaderInSettlement(team))
             {
-
+                Settlement settlement = GameController.Instance.GetLeaderSettlement(team);
+                GameController.Instance.RemoveLeader(team);
+                knight = SpawnUnit(settlement.OccupiedTile, team, unitClass: UnitClass.KNIGHT, strength: settlement.FollowersInSettlement).GetComponent<Unit>();
+                StructureManager.Instance.DespawnStructure(settlement.gameObject);
             }
 
+            return knight;
         }
 
         /// <summary>
@@ -633,7 +636,7 @@ namespace Populous
 
             settlement.IsAttacked = true;
             unit.ToggleMovement(true);
-            Unit other = SpawnUnit(unit.ClosestMapPoint, settlement.Team, settlement.UnitStrength, false).GetComponent<Unit>();
+            Unit other = SpawnUnit(unit.ClosestMapPoint, settlement.Team, unitClass: UnitClass.WALKER, strength: settlement.UnitStrength).GetComponent<Unit>();
 
             if (!other)
             {

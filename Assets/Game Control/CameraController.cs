@@ -102,9 +102,39 @@ namespace Populous
         public void SetCameraLookPositionClientRpc(Vector3 position, ClientRpcParams clientRpcParams = default)
             => m_FollowTarget.transform.position = position;
 
+        public void SetCameraLookPosition(Vector3 position)
+            => m_FollowTarget.transform.position = position;
+
         [ClientRpc]
         public void SetCameraHeightClientRpc(int height)
             => m_FollowTarget.position = new Vector3(m_FollowTarget.position.x, height, m_FollowTarget.position.z);
+
+        public void UpdateCameraHeight()
+        {
+            float height = GetNewCameraHeight();
+
+            if (height == m_FollowTarget.position.y)
+                return;
+
+            m_FollowTarget.position = new Vector3(m_FollowTarget.position.x, height, m_FollowTarget.position.z);
+        }
+
+        private float GetNewCameraHeight()
+        {
+            float height = m_FollowTarget.position.y;
+
+            if (Physics.Raycast(Camera.main.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0.5f)), out RaycastHit hitInfo,
+                maxDistance: Mathf.Infinity, layerMask: LayerMask.GetMask(LayerData.TERRAIN_LAYER_NAME, LayerData.FRAME_LAYER_NAME)) &&
+                Mathf.Abs(m_FollowTarget.position.y - hitInfo.point.y) > m_CameraHeightDeadzone)
+            {
+                if (hitInfo.collider.gameObject.layer == LayerData.FrameLayer)
+                    height = new MapPoint(hitInfo.point.x, hitInfo.point.z, getClosestPoint: true).Y;
+                else
+                    height = Mathf.Clamp(hitInfo.point.y, Terrain.Instance.WaterLevel, Terrain.Instance.MaxHeight);
+            }
+
+            return height;
+        }
 
 
         #region Camera Movement
@@ -118,16 +148,9 @@ namespace Populous
             if (newPosition.x < 0 || newPosition.x > Terrain.Instance.UnitsPerSide || newPosition.z < 0 || newPosition.z > Terrain.Instance.UnitsPerSide)
                 return;
 
-            float height = 0;
+            float y = Mathf.SmoothDamp(m_FollowTarget.position.y, GetNewCameraHeight(), ref m_CameraHeightChangeVelocity, 0.2f);
 
-            if (Physics.Raycast(Camera.main.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0.5f)), out RaycastHit hitInfo,
-                maxDistance: Mathf.Infinity, layerMask: LayerMask.GetMask(LayerData.TERRAIN_LAYER_NAME)) &&
-                Mathf.Abs(m_FollowTarget.position.y - hitInfo.point.y) > m_CameraHeightDeadzone)
-                height = hitInfo.point.y;
-
-            height = Mathf.SmoothDamp(m_FollowTarget.position.y, height, ref m_CameraHeightChangeVelocity, 0.2f);
-
-            m_FollowTarget.position = new Vector3(newPosition.x, height, newPosition.z);
+            m_FollowTarget.position = new Vector3(newPosition.x, y, newPosition.z);
         }
 
         /// <summary>
