@@ -1411,9 +1411,9 @@ GameObject:
   - component: {fileID: 1022207670}
   - component: {fileID: 1022207669}
   - component: {fileID: 1022207668}
-  - component: {fileID: 1022207671}
   - component: {fileID: 1022207673}
   - component: {fileID: 1022207672}
+  - component: {fileID: 1022207671}
   m_Layer: 4
   m_Name: Water
   m_TagString: Untagged
@@ -1641,12 +1641,12 @@ MonoBehaviour:
   m_SwampPrefab: {fileID: 2078980801612766481, guid: 1b6608c92976575459e954002fd6d823, type: 3}
   m_FieldPrefab: {fileID: 3158639387827070285, guid: ba884a45874a4d746b90f0d5881b0241, type: 3}
   m_SettlementPrefab: {fileID: 3435573214129474652, guid: b7c76e4edb289ac42bc4cbef75e3ef48, type: 3}
-  m_TreeProbability: 0.9
+  m_TreeProbability: 0.4
   m_RockProbability:
   - 0.1
   - 0.3
   m_VolcanoRockProbability:
-  - 1
+  - 0.6
   - 0
   m_TreePrefab: {fileID: 4129105199172733369, guid: 751eb7a7dc0adeb459e2d14c061257fa, type: 3}
   m_RockPrefab:
@@ -2081,7 +2081,7 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1853441060}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0

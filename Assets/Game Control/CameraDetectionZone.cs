@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Populous
@@ -8,6 +9,20 @@ namespace Populous
     /// </summary>
     public class CameraDetectionZone : MonoBehaviour
     {
+        private static CameraDetectionZone m_Instance;
+        public static CameraDetectionZone Instance { get => m_Instance; }
+
+        private readonly HashSet<int> m_VisibleTeamObjectIds = new();
+
+
+        private void Awake()
+        {
+            if (m_Instance)
+                Destroy(gameObject);
+
+            m_Instance = this;
+        }
+
         private void OnTriggerEnter(Collider other)
         {
             // Handle chunk spawning
@@ -23,7 +38,10 @@ namespace Populous
 
             if (team == Team.RED && other.gameObject.layer == LayerData.TeamLayers[(int)Team.RED] ||
                 team == Team.BLUE && other.gameObject.layer == LayerData.TeamLayers[(int)Team.BLUE])
+            {
+                m_VisibleTeamObjectIds.Add(other.gameObject.GetInstanceID());
                 PlayerController.Instance.AddVisibleUnitOrStructure();
+            }
         }
 
         private void OnTriggerExit(Collider other)
@@ -41,7 +59,20 @@ namespace Populous
 
             if (team == Team.RED && other.gameObject.layer == LayerData.TeamLayers[(int)Team.RED] ||
                 team == Team.BLUE && other.gameObject.layer == LayerData.TeamLayers[(int)Team.BLUE])
+            {
+                m_VisibleTeamObjectIds.Remove(other.gameObject.GetInstanceID());
                 PlayerController.Instance.RemoveVisibleUnitOrStructure();
+            }
+        }
+
+
+        public void RemoveVisibleObject(int objectId)
+        {
+            if (!m_VisibleTeamObjectIds.Contains(objectId))
+                return;
+
+            m_VisibleTeamObjectIds.Remove(objectId);
+            PlayerController.Instance.RemoveVisibleUnitOrStructure();
         }
     }
 }

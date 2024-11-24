@@ -146,6 +146,7 @@ namespace Populous
         /// Action to be called when a flood occurs.
         /// </summary>
         public Action OnFlood;
+        public Action OnArmageddon;
 
 
 
@@ -314,7 +315,7 @@ namespace Populous
         #endregion
 
 
-        #region Point Camera at Object
+        #region Camera
 
         /// <summary>
         /// Sends the camera of the player of the given team to the location of the team's symbol.
@@ -459,6 +460,10 @@ namespace Populous
             m_KnightsIndex[teamIndex] = GameUtils.GetNextArrayIndex(m_KnightsIndex[teamIndex], 1, UnitManager.Instance.GetKnightsNumber(team));
         }
 
+        //[ClientRpc]
+        public void RemoveVisibleObject/*ClientRpc*/(int objectId, ClientRpcParams clientParams = default)
+            => CameraDetectionZone.Instance.RemoveVisibleObject(objectId);
+
         #endregion
 
 
@@ -534,10 +539,10 @@ namespace Populous
                 CreateKnight(team);
 
             if (power == Power.FLOOD)
-                CauseFloodServerRpc();
+                CauseFlood();
 
             if (power == Power.ARMAGHEDDON)
-                StartArmagheddon();
+                StartArmageddon();
 
             NotifyActivatePower/*ClientRpc*/(power, powerActivated);//, new ClientRpcParams
             //{
@@ -596,8 +601,8 @@ namespace Populous
 
         #region Guide Followers
 
-        //[ServerRpc(RequireOwnership = false)]
-        public void MoveFlag/*ServerRpc*/(MapPoint point, Team team)
+        [ServerRpc(RequireOwnership = false)]
+        public void MoveFlagServerRpc(MapPoint point, Team team)
         {
             if (!HasLeader(team)) return;
 
@@ -641,7 +646,7 @@ namespace Populous
         /// </summary>
         /// <param name="tile">The <c>MapPoint</c> at the center of the area affected by the Swamp power.</param>
         [ServerRpc(RequireOwnership = false)]
-        public void SwampServerRpc(MapPoint tile)
+        public void CreateSwampServerRpc(MapPoint tile)
         {
             List<(int, int)> flatTiles = new();
             for (int z = -m_SwampRadius; z < m_SwampRadius; ++z)
@@ -663,12 +668,6 @@ namespace Populous
                         if (structureType == typeof(Rock) || structureType == typeof(Tree) ||
                             structureType == typeof(Swamp) || structureType == typeof(Settlement))
                             continue;
-
-                        if (structureType == typeof(Field))
-                        {
-                            //((Field)structure).OnFieldDestroyed?.Invoke();
-                            StructureManager.Instance.DespawnStructure(structure.gameObject);
-                        }
                     }
 
                     flatTiles.Add(neighborTile);
@@ -679,6 +678,7 @@ namespace Populous
             List<int> tiles = Enumerable.Range(0, flatTiles.Count).ToList();
             int swampTiles = random.Next(Mathf.RoundToInt(flatTiles.Count * 0.5f), flatTiles.Count);
 
+            HashSet<Settlement> affectedSettlements = new();
             int count = tiles.Count;
             foreach ((int x, int z) flatTile in flatTiles)
             {
@@ -687,8 +687,23 @@ namespace Populous
                 (tiles[count], tiles[randomIndex]) = (tiles[randomIndex], tiles[count]);
 
                 if (tiles[count] <= swampTiles)
+                {
+                    Structure structure = Terrain.Instance.GetStructureOnTile(flatTile);
+
+                    if (structure && structure.GetType() == typeof(Field))
+                    {
+                        affectedSettlements.UnionWith(((Field)structure).SettlementsServed);
+                        StructureManager.Instance.DespawnStructure(structure.gameObject);
+                    }
+                    else if (structure)
+                        continue;
+
                     StructureManager.Instance.SpawnSwamp(flatTile);
+                }
             }
+
+            foreach (Settlement settlement in affectedSettlements)
+                settlement.SetType();
         }
 
         #endregion
@@ -744,8 +759,7 @@ namespace Populous
         /// <summary>
         /// Executes the Flood power on server.
         /// </summary>
-        [ServerRpc(RequireOwnership = false)]
-        public void CauseFloodServerRpc()
+        public void CauseFlood()
         {
             if (Terrain.Instance.WaterLevel == Terrain.Instance.MaxHeight)
                 return;
@@ -763,13 +777,22 @@ namespace Populous
         }
 
         #endregion
-        
+
 
         #region Armagheddon
 
-        public void StartArmagheddon()
+        public void StartArmageddon()
         {
+            foreach (Team team in Enum.GetValues(typeof(Team)))
+            {
+                if (team == Team.NONE) break;
 
+                StructureManager.Instance.SetSymbolPosition(team, Terrain.Instance.TerrainCenter.ToWorldPosition());
+                UnitManager.Instance.ChangeUnitBehavior(UnitBehavior.GO_TO_SYMBOL, team);
+            }
+
+            // destroy all settlements
+            OnArmageddon?.Invoke();
         }
 
         #endregion

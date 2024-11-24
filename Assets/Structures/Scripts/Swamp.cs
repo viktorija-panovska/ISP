@@ -11,8 +11,8 @@ namespace Populous
 
         private void OnTriggerEnter(Collider other)
         {
-            if (other.gameObject.layer == LayerData.RedTeamLayer || other.gameObject.layer == LayerData.BlueTeamLayer)
-                Debug.Log("Unit Entered Swamp");
+            if ((other.gameObject.layer == LayerData.RedTeamLayer || other.gameObject.layer == LayerData.BlueTeamLayer) && other.GetComponent<Unit>())
+                UnitManager.Instance.DespawnUnit(other.gameObject, hasDied: true);
         }
     }
 }

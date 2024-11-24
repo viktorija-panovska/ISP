@@ -27,11 +27,11 @@ namespace Populous
             }
         }
 
-        /// <summary>
-        /// A list of the settlements that this field belongs to.
-        /// </summary>
         private readonly HashSet<Settlement> m_SettlementsServed = new();
-
+        /// <summary>
+        /// Gets a list of the settlements that this field belongs to.
+        /// </summary>
+        public HashSet<Settlement> SettlementsServed { get => m_SettlementsServed; }
 
         private void Start() => m_DestroyMethod = DestroyMethod.TERRAIN_CHANGE;
 

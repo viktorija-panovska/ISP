@@ -86,6 +86,16 @@ namespace Populous
             }
         }
 
+        private bool? m_IsOnShore;
+        public bool IsOnShore
+        {
+            get 
+            {
+                m_IsOnShore ??= IsPointOnShore();
+                return m_IsOnShore.Value;
+            }
+        }
+
         /// <summary>
         /// True if the point is on the edge of the terrain, false otherwise.
         /// </summary>
@@ -149,6 +159,7 @@ namespace Populous
             m_TouchingChunks = null;
             m_Neighbors = null;
             m_TileCorners = null;
+            m_IsOnShore = null;
         }
 
         #endregion
@@ -343,6 +354,17 @@ namespace Populous
                     corners.Add(new(GridX + x, GridZ + z));
 
             return corners;
+        }
+
+        private bool IsPointOnShore()
+        {
+            if (Y > 0) return false;
+
+            foreach (var neighbor in Neighbors)
+                if (neighbor.Y > 0)
+                    return true;
+
+            return false;
         }
 
         #endregion

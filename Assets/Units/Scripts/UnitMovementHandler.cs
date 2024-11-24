@@ -744,12 +744,17 @@ namespace Populous
             List<MapPoint> neighbors = point.Neighbors;
             MapPoint? neighbor = null;
 
-            while (!neighbor.HasValue)
+            int neighborsCount = neighbors.Count;
+            for (int i = 0; i < neighborsCount; ++i)
             {
                 MapPoint choice = neighbors[random.Next(neighbors.Count)];
+
                 neighbors.Remove(choice);
                 if (Terrain.Instance.CanCrossTile(point, choice))
+                {
                     neighbor = choice;
+                    break;
+                }
             }
 
             return neighbor.Value;

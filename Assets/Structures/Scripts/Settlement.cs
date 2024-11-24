@@ -170,15 +170,7 @@ namespace Populous
 
             if (ShouldDestroyStructure())
             {
-                m_IsDestroyed = true;
-                OnSettlementDestroyed?.Invoke(this);
-
-                if (Terrain.Instance.IsTileUnderwater((m_OccupiedTile.GridX, m_OccupiedTile.GridZ)))
-                    UnitManager.Instance.RemovePopulation(m_Team, m_FollowersInSettlement);
-                else
-                    ReleaseUnit(m_CurrentSettlementData.UnitStrength);
-
-                StructureManager.Instance.DespawnStructure(gameObject);
+                DestroySettlement();
                 return;
             }
 
@@ -272,6 +264,19 @@ namespace Populous
             GetComponent<BoxCollider>().size = Vector3.zero;
 
             OnSettlementBurned?.Invoke();
+        }
+
+        public void DestroySettlement()
+        {
+            m_IsDestroyed = true;
+            OnSettlementDestroyed?.Invoke(this);
+
+            if (Terrain.Instance.IsTileUnderwater((m_OccupiedTile.GridX, m_OccupiedTile.GridZ)))
+                UnitManager.Instance.RemovePopulation(m_Team, m_FollowersInSettlement);
+            else
+                ReleaseUnit(m_CurrentSettlementData.UnitStrength);
+
+            StructureManager.Instance.DespawnStructure(gameObject);
         }
 
         #endregion

@@ -108,6 +108,7 @@ namespace Populous
                 //SetupSettlementClientRpc(structureObject.GetComponent<NetworkObject>().NetworkObjectId, $"{team} Settlement", LayerMask.NameToLayer(GameController.Instance.TeamLayers[(int)team]));
                 structureObject.name = $"{team} Settlement";
                 structureObject.layer = LayerData.TeamLayers[(int)team];
+                GameController.Instance.OnArmageddon += settlement.DestroySettlement;
                 //settlement.StartFillingSettlement();
             }
 
@@ -154,6 +155,15 @@ namespace Populous
                 Settlement settlement = (Settlement)structure;
                 RemoveSettlementPosition(structure.transform.position, structure.Team);
                 OnRemoveReferencesToSettlement?.Invoke(settlement);
+                GameController.Instance.OnArmageddon -= settlement.DestroySettlement;
+                GameController.Instance.RemoveVisibleObject/*ClientRpc*/(settlement.GetInstanceID()//, new ClientRpcParams
+                //{
+                //    Send = new ClientRpcSendParams
+                //    {
+                //        TargetClientIds = new ulong[] { GameData.Instance.GetNetworkIdByTeam(unit.Team) }
+                //    }
+                //}
+                );
             }
 
             structure.Cleanup();
@@ -237,7 +247,7 @@ namespace Populous
             //if (!IsServer) return;
 
             m_TeamSymbols = new TeamSymbol[m_FlagPrefabs.Length];
-            for (int i = 1; i < m_FlagPrefabs.Length; ++i)
+            for (int i = 0; i < m_FlagPrefabs.Length; ++i)
             {
                 GameObject flagObject = Instantiate(m_FlagPrefabs[i], Vector3.zero, Quaternion.identity);
                 //flagObject.GetComponent<NetworkObject>().Spawn(true);
@@ -246,7 +256,7 @@ namespace Populous
 
                 flag.Team = i == 0 ? Team.RED : Team.BLUE;
                 flagObject.transform.Rotate(new Vector3(1, -90, 1));
-                flagObject.transform.position = GameController.Instance.GetLeaderObject(flag.Team).transform.position;
+                flagObject.transform.position = Terrain.Instance.TerrainCenter.ToWorldPosition();
                 flag.OccupiedTile = new(transform.position.x, transform.position.z, getClosestPoint: false);
                 GameController.Instance.OnTerrainModified += flag.ReactToTerrainChange;
                 GameController.Instance.OnFlood += flag.ReactToTerrainChange;
@@ -272,7 +282,7 @@ namespace Populous
 
             symbol.OccupiedTile = new(position.x, position.z, getClosestPoint: false);
 
-            symbol.SetSymbolPositionClient/*Rpc*/(position); 
+            symbol.SetSymbolPositionClient/*Rpc*/(symbol.OccupiedTile.ToWorldPosition()); 
         }
 
         #endregion
@@ -301,6 +311,14 @@ namespace Populous
         public void SwitchTeam(Settlement settlement, Team team)
         {
             RemoveSettlementPosition(settlement.transform.position, settlement.Team);
+            GameController.Instance.RemoveVisibleObject/*ClientRpc*/(settlement.GetInstanceID()//, new ClientRpcParams
+            //{
+            //    Send = new ClientRpcSendParams
+            //    {
+            //        TargetClientIds = new ulong[] { GameData.Instance.GetNetworkIdByTeam(settlement.Team) }
+            //    }
+            //}
+            );
 
             settlement.ChangeTeam(team);
             //SetupSettlementClientRpc(settlement.GetComponent<NetworkObject>().NetworkObjectId, $"{team} Settlement", LayerMask.NameToLayer(GameController.Instance.TeamLayers[(int)team]));

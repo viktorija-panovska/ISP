@@ -35,6 +35,9 @@ namespace Populous
         private IHeightMapGenerator m_MapGenerator;
         public IHeightMapGenerator MapGenerator { get => m_MapGenerator; }
 
+        private MapPoint m_TerrainCenter;
+        public MapPoint TerrainCenter { get => m_TerrainCenter; }
+
         private int m_WaterLevel;
         /// <summary>
         /// Gets the current height of the water.
@@ -43,6 +46,7 @@ namespace Populous
 
         // modified points
         (int lowestX, int lowestZ, int highestX, int highestZ) m_ModifiedPointRange;
+
 
         #region Public getters and setters for serialized fields
 
@@ -99,7 +103,8 @@ namespace Populous
 
             m_Instance = this;
 
-            m_ChunkMap = new TerrainChunk[m_ChunksPerSide, m_ChunksPerSide];           
+            m_ChunkMap = new TerrainChunk[m_ChunksPerSide, m_ChunksPerSide];
+            m_TerrainCenter = new(UnitsPerSide / 2, UnitsPerSide / 2, getClosestPoint: true);
         }
 
 
@@ -583,7 +588,7 @@ namespace Populous
                 return false;
 
             Structure structure = GetStructureOnTile((x, z));
-            if (!structure || structure.GetType() == typeof(Field))
+            if (!structure || structure.GetType() == typeof(Field) || structure.GetType() == typeof(Swamp))
                 return true;
 
             return false;

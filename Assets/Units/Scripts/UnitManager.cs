@@ -261,6 +261,14 @@ namespace Populous
             if (unit.Class == UnitClass.KNIGHT)
                 DestroyKnight(unit.Team, unit);
 
+            GameController.Instance.RemoveVisibleObject/*ClientRpc*/(unitObject.GetInstanceID()//, new ClientRpcParams
+            //{
+            //    Send = new ClientRpcSendParams
+            //    {
+            //        TargetClientIds = new ulong[] { GameData.Instance.GetNetworkIdByTeam(unit.Team) }
+            //    }
+            //}
+            );
             OnRemoveReferencesToUnit?.Invoke(unit);
 
             //unitObject.GetComponent<NetworkObject>().Despawn();
@@ -345,7 +353,7 @@ namespace Populous
 
             int unitsToSpawn = m_StartingUnits <= m_MaxPopulation ? m_StartingUnits : m_MaxPopulation;
 
-            for (int team = 1; team <= 1; ++team)
+            for (int team = 0; team <= 1; ++team)
             {
                 List<(int, int)> spawns = team == 0 ? redSpawns : blueSpawns;
                 List<int> spawnIndices = Enumerable.Range(0, spawns.Count).ToList();

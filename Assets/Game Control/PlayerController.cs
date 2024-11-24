@@ -73,7 +73,7 @@ namespace Populous
         private void Update()
         {
             if (m_ActivePower != Power.KNIGHT && m_ActivePower != Power.FLOOD && m_ActivePower != Power.ARMAGHEDDON)
-                FindNearestClickablePoint();
+                FindNearestPoint();
         }
 
 
@@ -96,17 +96,18 @@ namespace Populous
         /// <param name="context">Details about the input action which triggered this event.</param>
         public void OnLeftClick(InputAction.CallbackContext context)
         {
-            if (!context.performed || !m_NearestPoint.HasValue) return;
+            if (!context.performed || !m_NearestPoint.HasValue || m_ActivePower == Power.ARMAGHEDDON) return;
 
             switch (m_ActivePower)
             {
                 case Power.MOLD_TERRAIN:
-                    //if (m_VisibleUnitsAndStructures > 0)
-                        GameController.Instance.MoldTerrain/*ServerRpc*/(m_NearestPoint.Value, lower: false);
+                    if (m_VisibleUnitsAndStructures <= 0) return;
+                    GameController.Instance.MoldTerrain/*ServerRpc*/(m_NearestPoint.Value, lower: false);
                     break;
 
-                case Power.GUIDE_FOLLOWERS:                    
-                    GameController.Instance.MoveFlag/*ServerRpc*/(m_NearestPoint.Value, m_Team);
+                case Power.GUIDE_FOLLOWERS:
+                    if (m_NearestPoint.Value.Y <= Terrain.Instance.WaterLevel && !m_NearestPoint.Value.IsOnShore) return;
+                    GameController.Instance.MoveFlagServerRpc(m_NearestPoint.Value, m_Team);
                     break;
 
                 case Power.EARTHQUAKE:
@@ -114,7 +115,7 @@ namespace Populous
                     break;
 
                 case Power.SWAMP:
-                    GameController.Instance.SwampServerRpc(m_NearestPoint.Value);
+                    GameController.Instance.CreateSwampServerRpc(m_NearestPoint.Value);
                     break;
 
                 case Power.VOLCANO:
@@ -133,7 +134,6 @@ namespace Populous
         public void OnRightClick(InputAction.CallbackContext context)
         {
             if (!context.performed || m_ActivePower != Power.MOLD_TERRAIN || !m_NearestPoint.HasValue) return;
-
             GameController.Instance.MoldTerrain/*ServerRpc*/(m_NearestPoint.Value, lower: true);
         }
 
@@ -191,7 +191,7 @@ namespace Populous
         /// <param name="context">Details about the input action which triggered this event.</param>
         public void OnMoldTerrainSelected(InputAction.CallbackContext context)
         {
-            if (!context.performed) return;
+            if (!context.performed || m_ActivePower == Power.ARMAGHEDDON) return;
             TryActivatePower(Power.MOLD_TERRAIN);
         }
 
@@ -201,7 +201,7 @@ namespace Populous
         /// <param name="context">Details about the input action which triggered this event.</param>
         public void OnGuideFollowersSelected(InputAction.CallbackContext context)
         {
-            if (!context.performed) return;
+            if (!context.performed || m_ActivePower == Power.ARMAGHEDDON) return;
             TryActivatePower(Power.GUIDE_FOLLOWERS);
         }
 
@@ -211,7 +211,7 @@ namespace Populous
         /// <param name="context">Details about the input action which triggered this event.</param>
         public void OnEarthquakeSelected(InputAction.CallbackContext context)
         {
-            if (!context.performed) return;
+            if (!context.performed || m_ActivePower == Power.ARMAGHEDDON) return;
             TryActivatePower(Power.EARTHQUAKE);
         }
 
@@ -221,7 +221,7 @@ namespace Populous
         /// <param name="context">Details about the input action which triggered this event.</param>
         public void OnSwampSelected(InputAction.CallbackContext context)
         {
-            if (!context.performed) return;
+            if (!context.performed || m_ActivePower == Power.ARMAGHEDDON) return;
             TryActivatePower(Power.SWAMP);
         }
 
@@ -231,7 +231,7 @@ namespace Populous
         /// <param name="context">Details about the input action which triggered this event.</param>
         public void OnKnightSelected(InputAction.CallbackContext context)
         {
-            if (!context.performed) return;
+            if (!context.performed || m_ActivePower == Power.ARMAGHEDDON) return;
             TryActivatePower(Power.KNIGHT);
         }
 
@@ -241,7 +241,7 @@ namespace Populous
         /// <param name="context">Details about the input action which triggered this event.</param>
         public void OnVolcanoSelected(InputAction.CallbackContext context)
         {
-            if (!context.performed) return;
+            if (!context.performed || m_ActivePower == Power.ARMAGHEDDON) return;
             TryActivatePower(Power.VOLCANO);
         }
 
@@ -251,7 +251,7 @@ namespace Populous
         /// <param name="context">Details about the input action which triggered this event.</param>
         public void OnFloodSelected(InputAction.CallbackContext context)
         {
-            if (!context.performed) return;
+            if (!context.performed || m_ActivePower == Power.ARMAGHEDDON) return;
             TryActivatePower(Power.FLOOD);
         }
 
@@ -276,7 +276,7 @@ namespace Populous
         /// <param name="context">Details about the input action which triggered this event.</param>
         public void OnGoToFlagSelected(InputAction.CallbackContext context)
         {
-            if (!context.performed) return;
+            if (!context.performed || m_ActivePower == Power.ARMAGHEDDON) return;
             SetUnitBehavior(UnitBehavior.GO_TO_SYMBOL);
         }
 
@@ -286,7 +286,7 @@ namespace Populous
         /// <param name="context">Details about the input action which triggered this event.</param>
         public void OnSettleSelected(InputAction.CallbackContext context)
         {
-            if (!context.performed) return;
+            if (!context.performed || m_ActivePower == Power.ARMAGHEDDON) return;
             SetUnitBehavior(UnitBehavior.SETTLE);
         }
 
@@ -296,7 +296,7 @@ namespace Populous
         /// <param name="context">Details about the input action which triggered this event.</param>
         public void OnGatherSelected(InputAction.CallbackContext context)
         {
-            if (!context.performed) return;
+            if (!context.performed || m_ActivePower == Power.ARMAGHEDDON) return;
             SetUnitBehavior(UnitBehavior.GATHER);
         }
 
@@ -306,7 +306,7 @@ namespace Populous
         /// <param name="context">Details about the input action which triggered this event.</param>
         public void OnFightSelected(InputAction.CallbackContext context)
         {
-            if (!context.performed) return;
+            if (!context.performed || m_ActivePower == Power.ARMAGHEDDON) return;
             SetUnitBehavior(UnitBehavior.FIGHT);
         }
 
@@ -376,15 +376,16 @@ namespace Populous
         /// Finds the nearest point on the terrain that can be clicked. The points that 
         /// can be clicked are the points at the intersections of the terrain grid.
         /// </summary>
-        private void FindNearestClickablePoint()
+        private void FindNearestPoint()
         {
-            m_NearestPoint =
-                !Physics.Raycast(Camera.main.ScreenPointToRay(Mouse.current.position.ReadValue()), out RaycastHit hit,
-                    maxDistance: Mathf.Infinity, layerMask: LayerMask.GetMask(LayerData.TERRAIN_LAYER_NAME)) ||
-                    hit.point.x - m_ClickerLeeway < 0 && hit.point.x + m_ClickerLeeway > Terrain.Instance.UnitsPerSide ||
-                    hit.point.z - m_ClickerLeeway < 0 && hit.point.z + m_ClickerLeeway > Terrain.Instance.UnitsPerSide
-                ? null
-                : new MapPoint(hit.point.x, hit.point.z, getClosestPoint: true);
+            if (Physics.Raycast(Camera.main.ScreenPointToRay(Mouse.current.position.ReadValue()), out RaycastHit hit,
+                maxDistance: Mathf.Infinity, layerMask: LayerMask.GetMask(LayerData.TERRAIN_LAYER_NAME, LayerData.WATER_LAYER_NAME)) ||
+                hit.point.x - m_ClickerLeeway < 0 && hit.point.x + m_ClickerLeeway > Terrain.Instance.UnitsPerSide ||
+                hit.point.z - m_ClickerLeeway < 0 && hit.point.z + m_ClickerLeeway > Terrain.Instance.UnitsPerSide)
+                m_NearestPoint = new(hit.point.x, hit.point.z, getClosestPoint: true);
+            else
+                m_NearestPoint = null;
+
 
             SetupMarker();
         }
@@ -418,9 +419,10 @@ namespace Populous
             );
 
             m_Markers[m_ActiveMarkerIndex].GetComponent<MeshRenderer>().material.color =
-                (m_ActivePower != Power.MOLD_TERRAIN || m_VisibleUnitsAndStructures > 0) 
-                ? m_HighlightMarkerColor 
-                : m_GrayedOutMarkerColor;
+                (m_ActivePower == Power.MOLD_TERRAIN && m_VisibleUnitsAndStructures <= 0) ||
+                (m_ActivePower == Power.GUIDE_FOLLOWERS && m_NearestPoint.Value.Y <= Terrain.Instance.WaterLevel && !m_NearestPoint.Value.IsOnShore)
+                ? m_GrayedOutMarkerColor
+                : m_HighlightMarkerColor;
         }
 
         #endregion
