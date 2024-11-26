@@ -3,6 +3,7 @@ using System.Collections;
 using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using static Steamworks.InventoryItem;
 
 namespace Populous
 {
@@ -563,6 +564,7 @@ namespace Populous
                     continue;
 
                 AddFollowers(1);
+                UnitManager.Instance.AddPopulation(m_Team, 1);
             }
         }
 

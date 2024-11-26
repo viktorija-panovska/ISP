@@ -71,6 +71,7 @@ namespace Populous
         /// </summary>
         public static UnitManager Instance { get => m_Instance; }
 
+        public int StartingUnits { get => m_StartingUnits; }
         /// <summary>
         /// The maximum number of units of one team that can be active at a time.
         /// </summary>
@@ -206,8 +207,6 @@ namespace Populous
             unitObject.name = $"{team} Unit";
             unitObject.layer = LayerData.TeamLayers[(int)team];
 
-            GameController.Instance.AddManna(team);
-
             return unitObject;
         }
 
@@ -293,7 +292,10 @@ namespace Populous
         /// <param name="team">The <c>Team</c> the population should be added to.</param>
         /// <param name="amount">The amount of population that should be added.</param>
         public void AddPopulation(Team team, int amount = 1)
-            => SetPopulation(team, Mathf.Clamp(m_Population[(int)team] + amount, 0, m_MaxPopulation));
+        {
+            SetPopulation(team, Mathf.Clamp(m_Population[(int)team] + amount, 0, m_MaxPopulation));
+            GameController.Instance.AddManna(team);
+        }
 
         /// <summary>
         /// Removes the given amount from the population of the given team.
@@ -313,7 +315,7 @@ namespace Populous
             if (amount == m_Population[(int)team]) return;
             m_Population[(int)team] = amount;
 
-            //UpdatePopulationUIClientRpc(team, amount);
+            UpdatePopulationUI/*ClientRpc*/(team, amount);
 
             if (m_Population[(int)team] == 0)
                 GameController.Instance.GameOver(loser: team);
@@ -325,8 +327,8 @@ namespace Populous
         /// <param name="team">The <c>Team</c> whose population should be updated.</param>
         /// <param name="maxPopulation">The maximum value of the population.</param>
         /// <param name="currentPopulation">The current value of the population.</param>
-        [ClientRpc]
-        private void UpdatePopulationUIClientRpc(Team team, int currentPopulation)
+        //[ClientRpc]
+        private void UpdatePopulationUI/*ClientRpc*/(Team team, int currentPopulation)
             => GameUI.Instance.UpdatePopulationBar(team, currentPopulation);
 
         #endregion
@@ -353,7 +355,7 @@ namespace Populous
 
             int unitsToSpawn = m_StartingUnits <= m_MaxPopulation ? m_StartingUnits : m_MaxPopulation;
 
-            for (int team = 0; team <= 1; ++team)
+            for (int team = 1; team <= 1; ++team)
             {
                 List<(int, int)> spawns = team == 0 ? redSpawns : blueSpawns;
                 List<int> spawnIndices = Enumerable.Range(0, spawns.Count).ToList();

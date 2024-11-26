@@ -47,6 +47,15 @@ namespace Populous
         ARMAGHEDDON
     }
 
+    public enum CameraSnap
+    {
+        Symbol,
+        Leader,
+        Settlement,
+        Fight,
+        Knight
+    }
+
 
     /// <summary>
     /// The <c>GameController</c> class is a <c>MonoBehavior</c> that controls the flow of the game.
@@ -58,7 +67,7 @@ namespace Populous
 
         [Header("Manna")]
         [SerializeField] private int m_MaxManna = 100;
-        [SerializeField] private int[] m_PowerActivationThreshold = new int[Enum.GetNames(typeof(Power)).Length];
+        [SerializeField] private float[] m_PowerActivationPercent = new float[Enum.GetNames(typeof(Power)).Length];
         [SerializeField] private int[] m_PowerMannaCost = new int[Enum.GetNames(typeof(Power)).Length];
 
         [Header("Powers")]
@@ -160,11 +169,18 @@ namespace Populous
 
         private void Start()
         {
+            SetupUI/*ClientRpc*/(UnitManager.Instance.MaxPopulation, m_MaxManna, 
+                UnitManager.Instance.MaxUnitStrength, UnitManager.Instance.StartingUnits);
+
             Terrain.Instance.CreateTerrain();
             StructureManager.Instance.PlaceTreesAndRocks();
             UnitManager.Instance.SpawnStartingUnits();
             StructureManager.Instance.SpawnTeamSymbols();
         }
+
+        //[ClientRpc]
+        private void SetupUI/*ClientRpc*/(int maxPopulation, int maxManna, int maxUnitStrength, int startingUnits)
+            => GameUI.Instance.Setup(maxPopulation, maxManna, maxUnitStrength, startingUnits);
 
 
 
@@ -325,10 +341,8 @@ namespace Populous
         [ServerRpc(RequireOwnership = false)]
         public void ShowTeamSymbolServerRpc(Team team, ServerRpcParams serverRpcParams = default)
         {
-            Vector3 flagPosition = StructureManager.Instance.GetSymbolPosition(team);
-
             CameraController.Instance.SetCameraLookPositionClientRpc(
-                new Vector3(flagPosition.x, 0, flagPosition.z),
+                StructureManager.Instance.GetSymbolPosition(team),
                 new ClientRpcParams
                 {
                     Send = new ClientRpcSendParams
@@ -352,13 +366,12 @@ namespace Populous
 
             if (!leader)
             {
-                ShowTeamSymbolServerRpc(team);
+                NotifyCannotSnapClientRpc(CameraSnap.Leader);
                 return;
             }
 
-            Vector3 leaderPosition = leader.transform.position;
             CameraController.Instance.SetCameraLookPositionClientRpc(
-                new Vector3(leaderPosition.x, 0, leaderPosition.z),
+                leader.transform.position,
                 new ClientRpcParams
                 {
                     Send = new ClientRpcSendParams
@@ -381,7 +394,11 @@ namespace Populous
             int teamIndex = (int)team;
 
             Vector3? position = StructureManager.Instance.GetSettlementLocation(m_SettlementIndex[teamIndex], team);
-            if (!position.HasValue) return;
+            if (!position.HasValue)
+            {
+                NotifyCannotSnapClientRpc(CameraSnap.Settlement);
+                return;
+            }
 
             CameraController.Instance.SetCameraLookPositionClientRpc(
                 new Vector3(position.Value.x, 0, position.Value.z),
@@ -409,7 +426,11 @@ namespace Populous
             int teamIndex = (int)team;
 
             Vector3? position = UnitManager.Instance.GetFightLocation(m_FightIndex[(int)team]);
-            if (!position.HasValue) return;
+            if (!position.HasValue)
+            {
+                NotifyCannotSnapClientRpc(CameraSnap.Fight);
+                return;
+            }
 
             CameraController.Instance.SetCameraLookPositionClientRpc(
                 new Vector3(position.Value.x, 0, position.Value.z),
@@ -440,7 +461,7 @@ namespace Populous
             Unit knight = UnitManager.Instance.GetKnight(m_KnightsIndex[teamIndex], team);
             if (!knight)
             {
-                ShowSettlementsServerRpc(team);
+                NotifyCannotSnapClientRpc(CameraSnap.Knight);
                 return;
             }
 
@@ -460,6 +481,10 @@ namespace Populous
             m_KnightsIndex[teamIndex] = GameUtils.GetNextArrayIndex(m_KnightsIndex[teamIndex], 1, UnitManager.Instance.GetKnightsNumber(team));
         }
 
+        [ClientRpc]
+        private void NotifyCannotSnapClientRpc(CameraSnap snapOption)
+            => GameUI.Instance.CannotSnapToOption(snapOption);
+
         //[ClientRpc]
         public void RemoveVisibleObject/*ClientRpc*/(int objectId, ClientRpcParams clientParams = default)
             => CameraDetectionZone.Instance.RemoveVisibleObject(objectId);
@@ -474,7 +499,7 @@ namespace Populous
         /// </summary>
         /// <param name="team">The <c>Team</c> manna should be added to.</param>
         /// <param name="amount">The amount of manna to be added.</param>
-        public void AddManna(Team team, int amount = 1)
+        public void AddManna(Team team, int amount = 100)
             => SetManna(team, Mathf.Clamp(m_Manna[(int)team] + amount, 0, m_MaxManna));
 
         /// <summary>
@@ -496,20 +521,21 @@ namespace Populous
 
             m_Manna[(int)team] = amount;
 
-            int activePowers = 0;
-            foreach (int threshold in m_PowerActivationThreshold)
+            int activePowers = -1;
+            foreach (float threshold in m_PowerActivationPercent)
             {
-                if (amount > threshold) break;
+                if (amount < threshold * m_MaxManna) break;
                 activePowers++;
             }
 
-            //UpdateMannaUIClientRpc(amount, activePowers, new ClientRpcParams
+            UpdateMannaUI/*ClientRpc*/(amount, activePowers//, new ClientRpcParams
             //{
             //    Send = new ClientRpcSendParams
             //    {
             //        TargetClientIds = new ulong[] { GameData.Instance.GetNetworkIdByTeam(team) }
             //    }
-            //});
+            //}
+            );
         }
 
         /// <summary>
@@ -518,8 +544,8 @@ namespace Populous
         /// <param name="manna"></param>
         /// <param name="activePowers"></param>
         /// <param name="clientParams"></param>
-        [ClientRpc]
-        private void UpdateMannaUIClientRpc(int manna, int activePowers, ClientRpcParams clientParams = default)
+        //[ClientRpc]
+        private void UpdateMannaUI/*ClientRpc*/(int manna, int activePowers, ClientRpcParams clientParams = default)
             => GameUI.Instance.UpdateMannaBar(manna, activePowers);
 
         /// <summary>
@@ -531,18 +557,22 @@ namespace Populous
         public void TryActivatePower/*ServerRpc*/(Team team, Power power)
         {
             bool powerActivated = true;
-            if (m_Manna[(int)team] < m_PowerMannaCost[(int)power] || (power == Power.KNIGHT && !HasLeader(team)) ||
-                power == Power.FLOOD && Terrain.Instance.HasReachedMaxWaterLevel())
+            if (m_Manna[(int)team] < m_PowerActivationPercent[(int)power] * m_MaxManna || 
+                (power == Power.KNIGHT && !HasLeader(team)) || 
+                (power == Power.FLOOD && Terrain.Instance.HasReachedMaxWaterLevel()))
                 powerActivated = false;
 
-            if (power == Power.KNIGHT)
-                CreateKnight(team);
+            if (powerActivated)
+            {
+                if (power == Power.KNIGHT)
+                    CreateKnight(team);
 
-            if (power == Power.FLOOD)
-                CauseFlood();
+                if (power == Power.FLOOD)
+                    CauseFlood();
 
-            if (power == Power.ARMAGHEDDON)
-                StartArmageddon();
+                if (power == Power.ARMAGHEDDON)
+                    StartArmageddon();
+            }
 
             NotifyActivatePower/*ClientRpc*/(power, powerActivated);//, new ClientRpcParams
             //{

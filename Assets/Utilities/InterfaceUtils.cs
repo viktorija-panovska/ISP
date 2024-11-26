@@ -20,6 +20,12 @@ namespace Populous
         public static void FlashWrong(UIImage image)
             => image.DOColor(new Color(255, 0, 0, 145), 0.5f).SetLoops(2, LoopType.Yoyo);
 
+        public static void ClickIcon(UIImage image)
+            => image.DOColor(new Color(0, 255, 0, 145), 0.15f).SetLoops(1).OnComplete(() => image.DOColor(Color.white, 0.15f));
+
+        public static void ShowActiveIcon(UIImage image, bool isActive)
+            => image.color = isActive ? new Color(0, 255, 0, 145) : new Color(255, 255, 255);
+
         /// <summary>
         /// Smoothly transitions the color of an image from it's current color to a new color.
         /// </summary>

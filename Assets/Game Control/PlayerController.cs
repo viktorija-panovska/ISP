@@ -51,6 +51,8 @@ namespace Populous
         /// </summary>
         private int m_ActiveMarkerIndex = 0;
 
+        public bool InputEnabled { get => m_ActivePower != Power.ARMAGHEDDON; }
+
 
 
         private void Awake()
@@ -123,8 +125,7 @@ namespace Populous
                     break;
             }
 
-            m_ActivePower = Power.MOLD_TERRAIN;
-            SwitchActiveMarker((int)m_ActivePower);
+            SetActivePower(Power.MOLD_TERRAIN);
         }
 
         /// <summary>
@@ -191,7 +192,7 @@ namespace Populous
         /// <param name="context">Details about the input action which triggered this event.</param>
         public void OnMoldTerrainSelected(InputAction.CallbackContext context)
         {
-            if (!context.performed || m_ActivePower == Power.ARMAGHEDDON) return;
+            if (!context.performed || !InputEnabled) return;
             TryActivatePower(Power.MOLD_TERRAIN);
         }
 
@@ -201,7 +202,7 @@ namespace Populous
         /// <param name="context">Details about the input action which triggered this event.</param>
         public void OnGuideFollowersSelected(InputAction.CallbackContext context)
         {
-            if (!context.performed || m_ActivePower == Power.ARMAGHEDDON) return;
+            if (!context.performed || !InputEnabled) return;
             TryActivatePower(Power.GUIDE_FOLLOWERS);
         }
 
@@ -211,7 +212,7 @@ namespace Populous
         /// <param name="context">Details about the input action which triggered this event.</param>
         public void OnEarthquakeSelected(InputAction.CallbackContext context)
         {
-            if (!context.performed || m_ActivePower == Power.ARMAGHEDDON) return;
+            if (!context.performed || !InputEnabled) return;
             TryActivatePower(Power.EARTHQUAKE);
         }
 
@@ -221,7 +222,7 @@ namespace Populous
         /// <param name="context">Details about the input action which triggered this event.</param>
         public void OnSwampSelected(InputAction.CallbackContext context)
         {
-            if (!context.performed || m_ActivePower == Power.ARMAGHEDDON) return;
+            if (!context.performed || !InputEnabled) return;
             TryActivatePower(Power.SWAMP);
         }
 
@@ -231,7 +232,7 @@ namespace Populous
         /// <param name="context">Details about the input action which triggered this event.</param>
         public void OnKnightSelected(InputAction.CallbackContext context)
         {
-            if (!context.performed || m_ActivePower == Power.ARMAGHEDDON) return;
+            if (!context.performed || !InputEnabled) return;
             TryActivatePower(Power.KNIGHT);
         }
 
@@ -241,7 +242,7 @@ namespace Populous
         /// <param name="context">Details about the input action which triggered this event.</param>
         public void OnVolcanoSelected(InputAction.CallbackContext context)
         {
-            if (!context.performed || m_ActivePower == Power.ARMAGHEDDON) return;
+            if (!context.performed || !InputEnabled) return;
             TryActivatePower(Power.VOLCANO);
         }
 
@@ -251,7 +252,7 @@ namespace Populous
         /// <param name="context">Details about the input action which triggered this event.</param>
         public void OnFloodSelected(InputAction.CallbackContext context)
         {
-            if (!context.performed || m_ActivePower == Power.ARMAGHEDDON) return;
+            if (!context.performed || !InputEnabled) return;
             TryActivatePower(Power.FLOOD);
         }
 
@@ -261,7 +262,7 @@ namespace Populous
         /// <param name="context">Details about the input action which triggered this event.</param>
         public void OnArmagheddonSelected(InputAction.CallbackContext context)
         {
-            if (!context.performed) return;
+            if (!context.performed || !InputEnabled) return;
             TryActivatePower(Power.ARMAGHEDDON);
         }
 
@@ -276,7 +277,7 @@ namespace Populous
         /// <param name="context">Details about the input action which triggered this event.</param>
         public void OnGoToFlagSelected(InputAction.CallbackContext context)
         {
-            if (!context.performed || m_ActivePower == Power.ARMAGHEDDON) return;
+            if (!context.performed || !InputEnabled) return;
             SetUnitBehavior(UnitBehavior.GO_TO_SYMBOL);
         }
 
@@ -286,7 +287,7 @@ namespace Populous
         /// <param name="context">Details about the input action which triggered this event.</param>
         public void OnSettleSelected(InputAction.CallbackContext context)
         {
-            if (!context.performed || m_ActivePower == Power.ARMAGHEDDON) return;
+            if (!context.performed || !InputEnabled) return;
             SetUnitBehavior(UnitBehavior.SETTLE);
         }
 
@@ -296,7 +297,7 @@ namespace Populous
         /// <param name="context">Details about the input action which triggered this event.</param>
         public void OnGatherSelected(InputAction.CallbackContext context)
         {
-            if (!context.performed || m_ActivePower == Power.ARMAGHEDDON) return;
+            if (!context.performed || !InputEnabled) return;
             SetUnitBehavior(UnitBehavior.GATHER);
         }
 
@@ -306,7 +307,7 @@ namespace Populous
         /// <param name="context">Details about the input action which triggered this event.</param>
         public void OnFightSelected(InputAction.CallbackContext context)
         {
-            if (!context.performed || m_ActivePower == Power.ARMAGHEDDON) return;
+            if (!context.performed || !InputEnabled) return;
             SetUnitBehavior(UnitBehavior.FIGHT);
         }
 
@@ -323,6 +324,7 @@ namespace Populous
         {
             if (!context.performed) return;
             GameController.Instance.ShowTeamSymbolServerRpc(m_Team);
+            GameUI.Instance.ClickCameraSnap(CameraSnap.Symbol);
         }
 
         /// <summary>
@@ -333,6 +335,7 @@ namespace Populous
         {
             if (!context.performed) return;
             GameController.Instance.ShowLeaderServerRpc(m_Team);
+            GameUI.Instance.ClickCameraSnap(CameraSnap.Leader);
         }
 
         /// <summary>
@@ -343,6 +346,7 @@ namespace Populous
         {
             if (!context.performed) return;
             GameController.Instance.ShowSettlementsServerRpc(m_Team);
+            GameUI.Instance.ClickCameraSnap(CameraSnap.Settlement);
         }
 
         /// <summary>
@@ -353,6 +357,7 @@ namespace Populous
         {
             if (!context.performed) return;
             GameController.Instance.ShowFightsServerRpc(m_Team);
+            GameUI.Instance.ClickCameraSnap(CameraSnap.Fight);
         }
 
         /// <summary>
@@ -363,6 +368,7 @@ namespace Populous
         {
             if (!context.performed) return;
             GameController.Instance.ShowKnightsServerRpc(m_Team);
+            GameUI.Instance.ClickCameraSnap(CameraSnap.Knight);
         }
 
         #endregion
@@ -433,7 +439,7 @@ namespace Populous
         /// Checks with the server if this the given power can be activated for this player.
         /// </summary>
         /// <param name="power">The <c>Power</c> that the player wants to activate.</param>
-        private void TryActivatePower(Power power)
+        public void TryActivatePower(Power power)
         {
             if (power == m_ActivePower && power != Power.KNIGHT && power != Power.FLOOD) return;
             GameController.Instance.TryActivatePower/*ServerRpc*/(m_Team, power);
@@ -449,13 +455,19 @@ namespace Populous
             if (!isActivated)
             {
                 GameUI.Instance.NotEnoughManna(power);
-                SwitchActiveMarker(0);
+                SetActivePower(Power.MOLD_TERRAIN);
                 return;
             }
 
             if (power == Power.KNIGHT || power == Power.FLOOD)
                 power = Power.MOLD_TERRAIN;
 
+            SetActivePower(power);
+        }
+
+        private void SetActivePower(Power power)
+        {
+            GameUI.Instance.SetActivePowerIcon(currentPower: power, lastPower: m_ActivePower);
             m_ActivePower = power;
             SwitchActiveMarker((int)m_ActivePower);
         }
@@ -464,9 +476,10 @@ namespace Populous
         /// Sets the behavior of the units of this player's team to the given behavior.
         /// </summary>
         /// <param name="behavior">The new behavior that should be applied to all the units.</param>
-        private void SetUnitBehavior(UnitBehavior behavior)
+        public void SetUnitBehavior(UnitBehavior behavior)
         {
             if (behavior == m_ActiveBehavior) return;
+            GameUI.Instance.SetActiveBehaviorIcon(currentBehavior: behavior, lastBehavior: m_ActiveBehavior);
             m_ActiveBehavior = behavior;
             UnitManager.Instance.ChangeUnitBehavior/*ServerRpc*/(m_ActiveBehavior, m_Team);
         }

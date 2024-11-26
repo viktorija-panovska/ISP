@@ -109,7 +109,7 @@ namespace Populous
                 structureObject.name = $"{team} Settlement";
                 structureObject.layer = LayerData.TeamLayers[(int)team];
                 GameController.Instance.OnArmageddon += settlement.DestroySettlement;
-                //settlement.StartFillingSettlement();
+                settlement.StartFillingSettlement();
             }
 
             return structureObject;
