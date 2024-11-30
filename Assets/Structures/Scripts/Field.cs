@@ -45,14 +45,14 @@ namespace Populous
         /// <summary>
         /// Adds the given settlement to the list of settlements this field belongs to.
         /// </summary>
-        /// <param name="settlement">The <c>Settlement</c> that should be added.</param>
+        /// <param name="settlement">The <c>SETTLEMENT</c> that should be added.</param>
         public void AddSettlementServed(Settlement settlement) => m_SettlementsServed.Add(settlement);
 
         /// <summary>
         /// Removes the given settlement from the list of settlements this field belongs 
         /// to and removes the field if there are no more settlements that own it.
         /// </summary>
-        /// <param name="settlement">The <c>Settlement</c> that should be removed.</param>
+        /// <param name="settlement">The <c>SETTLEMENT</c> that should be removed.</param>
         public void RemoveSettlementServed(Settlement settlement)
         {
             m_SettlementsServed.Remove(settlement);
@@ -64,7 +64,7 @@ namespace Populous
         /// <summary>
         /// Checks whether the given settlement owns this field.
         /// </summary>
-        /// <param name="settlement">The <c>Settlement</c> that should be checked.</param>
+        /// <param name="settlement">The <c>SETTLEMENT</c> that should be checked.</param>
         /// <returns>True if this field serves the given settlement, false otherwise.</returns>
         public bool IsServingSettlement(Settlement settlement) => m_SettlementsServed.Contains(settlement);
 

@@ -270,6 +270,7 @@ namespace Populous
             );
             OnRemoveReferencesToUnit?.Invoke(unit);
 
+            GameController.Instance.RemoveFocusedObject(unit);
             //unitObject.GetComponent<NetworkObject>().Despawn();
             Destroy(unitObject);
         }
@@ -446,7 +447,7 @@ namespace Populous
         /// </summary>
         /// <param name="index">The index of the knight that should be returned.</param>
         /// <param name="team">The <c>Team</c> that the returned knight should belong to.</param>
-        /// <returns>A <c>Unit</c> of the Knight class from the given team.</returns>
+        /// <returns>A <c>Unit</c> of the KNIGHT class from the given team.</returns>
         public Unit GetKnight(int index, Team team) => index >= m_Knights[(int)team].Count ? null : m_Knights[(int)team][index];
         /// <summary>
         /// Returns the number of knights in the given team.
@@ -486,7 +487,7 @@ namespace Populous
         /// Destroys the given knight.
         /// </summary>
         /// <param name="team">The <c>Team</c> the knight that should be destroyed belongs to.</param>
-        /// <param name="knight">The <c>Unit</c> of the Knight class that should be destroyed.</param>
+        /// <param name="knight">The <c>Unit</c> of the KNIGHT class that should be destroyed.</param>
         public void DestroyKnight(Team team, Unit knight)
         {
             m_Knights[(int)team].Remove(knight);
@@ -566,7 +567,7 @@ namespace Populous
         /// </summary>
         /// <param name="red">The <c>Unit</c> from the red team.</param>
         /// <param name="blue">The <c>Unit</c> from the blue team.</param>
-        /// <param name="settlementDefense">A <c>Settlement</c> if the fight occured due to an attempt to claim a settlement, null otherwise.</param>
+        /// <param name="settlementDefense">A <c>SETTLEMENT</c> if the fight occured due to an attempt to claim a settlement, null otherwise.</param>
         public void StartFight(Unit red, Unit blue, Settlement settlementDefense = null)
         {
             m_Fights.Add(m_NextFightId, (red, blue));
@@ -599,7 +600,7 @@ namespace Populous
         /// </summary>
         /// <param name="red">The <c>Unit</c> from the red team.</param>
         /// <param name="blue">The <c>Unit</c> from the blue team.</param>
-        /// <param name="settlementDefense">A <c>Settlement</c> if the fight occured due to an attempt to claim a settlement, null otherwise.</param>
+        /// <param name="settlementDefense">A <c>SETTLEMENT</c> if the fight occured due to an attempt to claim a settlement, null otherwise.</param>
         /// <returns>An <c>IEnumerator</c> which waits for a number of seconds before simulating another attack.</returns>
         private IEnumerator Fight(Unit red, Unit blue, Settlement settlementDefense = null)
         {
@@ -639,7 +640,7 @@ namespace Populous
         /// Handles the attack of a unit on a settlement from the enemy team.
         /// </summary>
         /// <param name="unit">the <c>Unit</c> which is attacking the settlement.</param>
-        /// <param name="settlement">The <c>Settlement</c> that is being attacked.</param>
+        /// <param name="settlement">The <c>SETTLEMENT</c> that is being attacked.</param>
         public void AttackSettlement(Unit unit, Settlement settlement)
         {
             if (settlement.IsAttacked) return;
@@ -661,7 +662,7 @@ namespace Populous
         /// Handles the aftermath of the attack by a unit on the enemy settlement.
         /// </summary>
         /// <param name="winner">The <c>Unit</c> that won the battle for the settlement.</param>
-        /// <param name="settlement">The <c>Settlement</c> that was being attacked.</param>
+        /// <param name="settlement">The <c>SETTLEMENT</c> that was being attacked.</param>
         private void ResolveSettlementAttack(Unit winner, Settlement settlement)
         {
             if (winner.Team == settlement.Team) return;
@@ -701,7 +702,7 @@ namespace Populous
         /// <param name="parameters">RPC data for the server RPC.</param>
         //[ClientRpc]
         private void ToggleFightUIClient/*Rpc*/(bool show, int redStrength, int blueStrength, ClientRpcParams parameters = default)
-            => GameUI.Instance.ToggleFightUI(show, redStrength, blueStrength);
+            => Debug.Log("Fight UI");//GameUI.Instance.ToggleFightUI(show, redStrength, blueStrength);
 
         /// <summary>
         /// Updates the fight info on the UI.
@@ -721,7 +722,7 @@ namespace Populous
         /// <param name="parameters">RPC data for the server RPC.</param>
         //[ClientRpc]
         private void UpdateFightUIClient/*Rpc*/(int redStrength, int blueStrength, ClientRpcParams parameters = default)
-            => GameUI.Instance.UpdateFightUI(redStrength, blueStrength);
+            => Debug.Log("Fight UI"); //GameUI.Instance.UpdateFightUI(redStrength, blueStrength);
 
         #endregion
     }

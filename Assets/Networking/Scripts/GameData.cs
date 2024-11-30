@@ -137,7 +137,9 @@ namespace Populous
             return null;
         }
 
-        public ulong GetNetworkIdByTeam(Team team) => m_NetworkIds[(int)team];
+        public ulong GetNetworkIdByTeam(Team team) => GetNetworkIdByTeam((int)team);
+        public ulong GetNetworkIdByTeam(int team) => m_NetworkIds[team];
+
 
         #endregion
 

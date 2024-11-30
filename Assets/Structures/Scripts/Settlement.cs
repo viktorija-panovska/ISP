@@ -3,17 +3,18 @@ using System.Collections;
 using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.EventSystems;
-using static Steamworks.InventoryItem;
 
 namespace Populous
 {
     /// <summary>
-    /// The <c>Settlement</c> class is a <c>Structure</c> that represents a settlement built by one of the teams on the terrain.
+    /// The <c>SETTLEMENT</c> class is a <c>Structure</c> that represents a settlement built by one of the teams on the terrain.
     /// </summary>
-    public class Settlement : Structure, IPointerEnterHandler, IPointerExitHandler
+    public class Settlement : Structure, IFocusableObject
     {
         [SerializeField] private BoxCollider m_SettlementCollision;
         [SerializeField] private BoxCollider m_SettlementTrigger;
+        [SerializeField] private GameObject m_Highlight;
+        [SerializeField] private GameObject m_MinimapIcon;
 
         [Header("Settlements")]
         [SerializeField] private GameObject[] m_SettlementObjects;
@@ -23,6 +24,8 @@ namespace Populous
         [Header("Flag")]
         [SerializeField] private GameObject[] m_Flags;
         [SerializeField] private GameObject[] m_TeamSymbols;
+
+        public GameObject GameObject { get => gameObject; }
 
         /// <summary>
         /// Gets and sets the team that the settlement belongs to.
@@ -40,6 +43,9 @@ namespace Populous
                     m_Flags[(int)m_Team].SetActive(true);//.GetComponent<ObjectActivator>().SetActiveClientRpc(false);
             }
         }
+
+        public SettlementType Type { get => m_CurrentSettlementData.Type; }
+        public int Capacity { get => m_CurrentSettlementData.Capacity; }
 
         /// <summary>
         /// The index of the type of settlement currently active.
@@ -114,6 +120,7 @@ namespace Populous
                 );
 
             GameUtils.ResizeGameObject(m_RuinedSettlement, Terrain.Instance.UnitsPerTileSide, scaleY: true);
+            GameUtils.ResizeGameObject(m_Highlight, Terrain.Instance.UnitsPerTileSide * 1.5f);
 
             foreach (GameObject flag in m_Flags)
             {
@@ -134,6 +141,8 @@ namespace Populous
                 );
                 sign.transform.localPosition = new Vector3(-Terrain.Instance.UnitsPerTileSide / 2, 0, Terrain.Instance.UnitsPerTileSide / 2);
             }
+
+            SetupMinimapIcon();
         }
 
 
@@ -164,7 +173,7 @@ namespace Populous
             {
                 if (m_OccupiedTile.GridX >= lowestX - 2 && m_OccupiedTile.GridZ >= lowestZ - 2 && 
                     m_OccupiedTile.GridX <= highestX + 2 && m_OccupiedTile.GridZ <= highestZ + 2)
-                    SetType();
+                    SetSettlementType();
 
                 return;
             }
@@ -190,7 +199,7 @@ namespace Populous
         /// <summary>
         /// Sets the type of settlement currently active based on the number of m_Fields available around it.
         /// </summary>
-        public void SetType()
+        public void SetSettlementType()
         {
             //if (!IsHost) return;
 
@@ -228,6 +237,8 @@ namespace Populous
 
             // change the size of the collider
             SetCollider/*ClientRpc*/(colliderSize);
+
+            GameController.Instance.UpdateFocusedSettlement(this, updateType: true);
         }
 
         /// <summary>
@@ -263,6 +274,7 @@ namespace Populous
 
             //SetColliderClientRpc(Vector3.zero);
             GetComponent<BoxCollider>().size = Vector3.zero;
+            m_MinimapIcon.SetActive(false);
 
             OnSettlementBurned?.Invoke();
         }
@@ -298,6 +310,8 @@ namespace Populous
             OnSettlementTeamChanged?.Invoke(m_Team);
 
             UpdateSharedSettlements();
+            SetupMinimapIcon();
+            GameController.Instance.UpdateFocusedSettlement(this, updateTeam: true);
         }
 
         /// <summary>
@@ -321,7 +335,7 @@ namespace Populous
                     if (!structure || structure.GetType() != typeof(Settlement)) continue;
 
                     Settlement settlement = (Settlement)structure;
-                    settlement.SetType();
+                    settlement.SetSettlementType();
                 }
             }
         }
@@ -500,7 +514,7 @@ namespace Populous
         private void SetFollowerCount(int amount)
         {
             m_FollowersInSettlement = Mathf.Clamp(amount, 0, m_CurrentSettlementData.Capacity);
-            UpdateUnitUIClient(m_CurrentSettlementIndex, m_CurrentSettlementData.Capacity, m_FollowersInSettlement);
+            GameController.Instance.UpdateFocusedSettlement(this, updateFollowers: true);
 
             if (m_FollowersInSettlement == 0)
                 StructureManager.Instance.DespawnStructure(gameObject);
@@ -584,71 +598,32 @@ namespace Populous
         #region UI
 
         /// <summary>
-        /// Called when the mouse cursor hovers over the settlement.
+        /// Called when the mouse cursor hovers over the unit.
         /// </summary>
         /// <param name="eventData">Event data for the pointer event.</param>
-        public void OnPointerEnter(PointerEventData eventData) => ToggleSettlementUIServer/*Rpc*/(true);
+        public void OnPointerEnter(PointerEventData eventData) => SetHighlight(true);
 
         /// <summary>
-        /// Called when the mouse cursor stops hovering over the settlement.
+        /// Called when the mouse cursor stops hovering over the unit.
         /// </summary>
         /// <param name="eventData">Event data for the pointer event.</param>
-        public void OnPointerExit(PointerEventData eventData) => ToggleSettlementUIServer/*Rpc*/(false);
-
-
-        /// <summary>
-        /// Shows or hides the info for the settlement on the UI.
-        /// </summary>
-        /// <param name="show">True if the UI should be active, false otherwise.</param>
-        /// <param name="parameters">RPC data for the server RPC.</param>
-        //[ServerRpc(RequireOwnership = false)]
-        private void ToggleSettlementUIServer/*Rpc*/(bool show, ServerRpcParams parameters = default)
+        public void OnPointerExit(PointerEventData eventData)
         {
-            if (m_IsBurnedDown) return;
+            if (this == (object)GameController.Instance.GetFocusedObject(m_Team))
+                return;
 
-            ToggleSettlementUIClient/*Rpc*/(show, m_CurrentSettlementIndex, m_CurrentSettlementData.Capacity, 
-                m_FollowersInSettlement, GameController.Instance.TeamColors[(int)m_Team],
-                new ClientRpcParams()
-                {
-                    Send = new ClientRpcSendParams
-                    {
-                        TargetClientIds = new ulong[] { parameters.Receive.SenderClientId }
-                    }
-                }
-            );
+            SetHighlight(false);
         }
 
-        /// <summary>
-        /// Shows or hides the info for the settlement on the UI.
-        /// </summary>
-        /// <param name="show">True if the UI should be active, false otherwise.</param>
-        /// <param name="settlementIndex">The index of the settlement.</param>
-        /// <param name="maxCapacity">The maximum value of the capacity of the settlement.</param>
-        /// <param name="currentCapacity">The current value of the capacity of the settlement.</param>
-        /// <param name="teamColor">The color of the capacity bar.</param>
-        /// <param name="parameters">RPC data for the client RPC.</param>
-        //[ClientRpc]
-        private void ToggleSettlementUIClient/*Rpc*/(bool show, int settlementIndex, int maxCapacity, int currentCapacity, Color teamColor, ClientRpcParams parameters = default)
-        {
-            GameUI.Instance.ToggleSettlementUI(
-                show,
-                settlementIndex,
-                maxCapacity,
-                currentCapacity,
-                teamColor
-            );
-        }
+        public void SetHighlight(bool isActive) => m_Highlight.SetActive(isActive);
 
-        /// <summary>
-        /// Updates the settlement info on the UI.
-        /// </summary>
-        /// <param name="settlementIndex">The index of the settlement.</param>
-        /// <param name="maxCapacity">The maximum value of the capacity of the settlement.</param>
-        /// <param name="currentCapacity">The current value of the capacity of the settlement.</param>
-        /// <param name="parameters">RPC data for the client RPC.</param>
-        //[ClientRpc]
-        private void UpdateUnitUIClient/*Rpc*/(int settlementIndex, int maxCapacity, int currentCapacity, ClientRpcParams parameters = default)
-            => GameUI.Instance.UpdateSettlementUI(settlementIndex, maxCapacity, currentCapacity);
+        private void SetupMinimapIcon()
+        {
+            float scale = Terrain.Instance.UnitsPerSide / GameUI.Instance.MinimapIconScale;
+
+            m_MinimapIcon.transform.localScale = new(scale, m_MinimapIcon.transform.localScale.y, scale);
+            m_MinimapIcon.GetComponent<MeshRenderer>().material.color = GameUI.Instance.MinimapSettlementColors[(int)m_Team];
+        }
 
         #endregion
     }

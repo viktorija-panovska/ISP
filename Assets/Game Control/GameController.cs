@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Unity.Netcode;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using Random = System.Random;
 
 
@@ -30,7 +31,7 @@ namespace Populous
         /// </summary>
         SWAMP,
         /// <summary>
-        /// The power to upgrade the leader into a Knight.
+        /// The power to upgrade the leader into a KNIGHT.
         /// </summary>
         KNIGHT,
         /// <summary>
@@ -49,12 +50,21 @@ namespace Populous
 
     public enum CameraSnap
     {
-        Symbol,
-        Leader,
-        Settlement,
-        Fight,
-        Knight
+        FOCUSED_OBJECT,
+        SYMBOL,
+        LEADER,
+        SETTLEMENT,
+        FIGHT,
+        KNIGHT
     }
+
+
+    public interface IFocusableObject : IPointerEnterHandler, IPointerExitHandler
+    {
+        public GameObject GameObject { get; }
+        public void SetHighlight(bool isHighlightOn);
+    }
+
 
 
     /// <summary>
@@ -126,16 +136,17 @@ namespace Populous
         /// </summary>
         public int VolcanoRadius { get => m_VolcanoRadius; }
 
+        private readonly IFocusableObject[] m_FocusedObject = new IFocusableObject[2];
         /// <summary>
-        /// An array containing the index of the next fight the player's camera will focus on if the Zoom to Fight action is performed.
+        /// An array containing the index of the next fight the player's camera will focus on if the Zoom to FIGHT action is performed.
         /// </summary>
         private readonly int[] m_FightIndex = new int[2];
         /// <summary>
-        /// An array containing the index of the next knight the player's camera will focus on if the Zoom to Knight action is performed.
+        /// An array containing the index of the next knight the player's camera will focus on if the Zoom to KNIGHT action is performed.
         /// </summary>
         private readonly int[] m_KnightsIndex = new int[2];
         /// <summary>
-        /// An array containing the index of the next settlement the player's camera will focus on if the Zoom to Settlement action is performed.
+        /// An array containing the index of the next settlement the player's camera will focus on if the Zoom to SETTLEMENT action is performed.
         /// </summary>
         private readonly int[] m_SettlementIndex = new int[2];
 
@@ -273,7 +284,7 @@ namespace Populous
         /// <returns>The <c>Unit</c> of the team's leader, null if the leader is not part of a unit..</returns>
         public Unit GetLeaderUnit(Team team) => m_LeaderUnits[(int)team];
         /// <summary>
-        /// Gets the <c>Settlement</c> the team leader is part of, if such a settlement exists.
+        /// Gets the <c>SETTLEMENT</c> the team leader is part of, if such a settlement exists.
         /// </summary>
         /// <param name="team">The <c>Team</c> whose leader should be returned.</param>
         /// <returns>The <c>Unit</c> of the team's leader, null if the leader is not part of a settlement..</returns>
@@ -331,7 +342,224 @@ namespace Populous
         #endregion
 
 
+        #region Focused Object
+
+        //[ServerRpc(RequireOwnership = false)]
+        public void SetFocusedObject/*ServerRpc*/(GameObject focusedObject, Team team, ServerRpcParams serverRpcParams = default)
+        {
+            if (/*!focusedObject.TryGet(out NetworkObject networkObject) || */focusedObject.GetComponent<IFocusableObject>() == null)
+                return;
+
+            IFocusableObject focusObject = focusedObject.GetComponent<IFocusableObject>();
+            IFocusableObject lastFocusedObject = m_FocusedObject[(int)team];
+
+            if (m_FocusedObject[(int)team] != null)
+            {
+                lastFocusedObject.SetHighlight(false);
+                m_FocusedObject[(int)team] = null;
+                HideFocusedData/*ClientRpc*/(new ClientRpcParams
+                {
+                    Send = new ClientRpcSendParams
+                    {
+                        TargetClientIds = new ulong[] { serverRpcParams.Receive.SenderClientId }
+                    }
+                });
+            }
+
+            if (lastFocusedObject == focusObject) return;
+
+            m_FocusedObject[(int)team] = focusObject;
+
+            if (focusObject.GetType() == typeof(Unit))
+            {
+                Unit unit = (Unit)focusObject;
+
+                ShowFocusedUnitData/*ClientRpc*/(
+                    unit.Team, unit.Class, unit.Strength, new ClientRpcParams
+                    {
+                        Send = new ClientRpcSendParams
+                        {
+                            TargetClientIds = new ulong[] { serverRpcParams.Receive.SenderClientId }
+                        }
+                    }
+                );
+            }
+
+            if (focusObject.GetType() == typeof(Settlement))
+            {
+                Settlement settlement = (Settlement)focusObject;
+
+                ShowFocusedSettlementData/*ClientRpc*/(
+                    settlement.Team, settlement.Type, settlement.FollowersInSettlement, settlement.Capacity, new ClientRpcParams
+                    {
+                        Send = new ClientRpcSendParams
+                        {
+                            TargetClientIds = new ulong[] { serverRpcParams.Receive.SenderClientId }
+                        }
+                    }
+                );
+            }
+        }
+
+        public IFocusableObject GetFocusedObject(Team team) => m_FocusedObject[(int)team];
+
+        public bool IsFocusedObject(IFocusableObject focusable) => Array.Exists(m_FocusedObject, x => x == focusable);
+
+        public int GetPlayerFocusingOnObject(IFocusableObject focusable) => Array.IndexOf(m_FocusedObject, focusable);
+
+
+        //[ClientRpc]
+        private void ShowFocusedUnitData/*ClientRpc*/(Team team, UnitClass unitClass, int strength, ClientRpcParams clientParams = default)
+            => GameUI.Instance.ShowFocusedUnit(team, unitClass, strength);
+
+        //[ClientRpc]
+        private void ShowFocusedSettlementData/*ClientRpc*/(Team team, SettlementType type, int unitsInSettlement, int maxUnitsInSettlement, ClientRpcParams clientParams = default)
+            => GameUI.Instance.ShowFocusedSettlement(team, type, unitsInSettlement, maxUnitsInSettlement);
+
+        //[ClientRpc]
+        private void HideFocusedData/*ClientRpc*/(ClientRpcParams clientParams = default) => GameUI.Instance.HideFocusedData();
+
+        public void RemoveFocusedObject(IFocusableObject focusable)
+        {
+            int index = GetPlayerFocusingOnObject(focusable);
+            // nobody is focusing on the object
+            if (index < 0) return;
+
+            m_FocusedObject[index] = null;
+            HideFocusedData/*ClientRpc*/(//new ClientRpcParams
+            //    { 
+            //        Send = new ClientRpcSendParams
+            //        {
+            //            TargetClientIds = new ulong[] { GameData.Instance.GetNetworkIdByTeam(index) }
+            //        }
+            //    }
+            );
+        }
+
+
+        public void UpdateFocusedUnit(Unit unit, bool updateClass = false, bool updateStrength = false)
+        {
+            int index = GetPlayerFocusingOnObject(unit);
+            if (index < 0) return;
+
+            if (updateClass)
+            {
+                UpdateFocusedUnitClass/*ClientRpc*/(unit.Class//, new ClientRpcParams
+                //    { 
+                //        Send = new ClientRpcSendParams
+                //        {
+                //            TargetClientIds = new ulong[] { GameData.Instance.GetNetworkIdByTeam(index) }
+                //        }
+                //    }
+                );
+            }
+
+            if (updateStrength)
+            {
+                UpdateFocusedUnitStrength/*ClientRpc*/(unit.Strength//, new ClientRpcParams
+                //    { 
+                //        Send = new ClientRpcSendParams
+                //        {
+                //            TargetClientIds = new ulong[] { GameData.Instance.GetNetworkIdByTeam(index) }
+                //        }
+                //    }
+                );
+            }
+        }
+
+        //[ClientRpc]
+        private void UpdateFocusedUnitClass/*ClientRpc*/(UnitClass unitClass, ClientRpcParams clientParams = default)
+            => GameUI.Instance.UpdateFocusedUnitClass(unitClass);
+
+        //[ClientRpc]
+        private void UpdateFocusedUnitStrength/*ClientRpc*/(int strength, ClientRpcParams clientParams = default)
+            => GameUI.Instance.UpdateFocusedUnitStrength(strength);
+
+        public void UpdateFocusedSettlement(Settlement settlement, bool updateTeam = false, bool updateType = false, bool updateFollowers = false)
+        {
+            int index = GetPlayerFocusingOnObject(settlement);
+            if (index < 0) return;
+
+            if (updateTeam)
+            {
+                UpdateFocusedSettlementTeam/*ClientRpc*/(settlement.Team//, new ClientRpcParams
+                //    { 
+                //        Send = new ClientRpcSendParams
+                //        {
+                //            TargetClientIds = new ulong[] { GameData.Instance.GetNetworkIdByTeam(index) }
+                //        }
+                //    }
+                );
+            }
+
+            if (updateType)
+            {
+                UpdateFocusedSettlementType/*ClientRpc*/(settlement.Type, settlement.Capacity//, new ClientRpcParams
+                //    { 
+                //        Send = new ClientRpcSendParams
+                //        {
+                //            TargetClientIds = new ulong[] { GameData.Instance.GetNetworkIdByTeam(index) }
+                //        }
+                //    }
+                );
+            }
+
+            if (updateFollowers)
+            {
+                UpdateFocusedSettlementFollowers/*ClientRpc*/(settlement.FollowersInSettlement//, new ClientRpcParams
+                //    { 
+                //        Send = new ClientRpcSendParams
+                //        {
+                //            TargetClientIds = new ulong[] { GameData.Instance.GetNetworkIdByTeam(index) }
+                //        }
+                //    }
+                );
+            }
+        }
+
+        //[ClientRpc]
+        private void UpdateFocusedSettlementTeam/*ClientRpc*/(Team team, ClientRpcParams clientParams = default)
+            => GameUI.Instance.UpdateFocusedSettlementTeam(team);
+
+        //[ClientRpc]
+        private void UpdateFocusedSettlementType/*ClientRpc*/(SettlementType type, int maxUnitsInSettlement, ClientRpcParams clientParams = default)
+            => GameUI.Instance.UpdateFocusedSettlementType(type, maxUnitsInSettlement);
+
+        //[ClientRpc]
+        private void UpdateFocusedSettlementFollowers/*ClientRpc*/(int followers, ClientRpcParams clientParams = default)
+            => GameUI.Instance.UpdateFocusedSettlementFollowers(followers);
+
+        #endregion
+
+
         #region Camera
+
+        /// <summary>
+        /// Sends the camera of the player of the given team to the location of the focused object.
+        /// </summary>
+        /// <param name="serverRpcParams">RPC data for the client RPC.</param>
+        [ServerRpc(RequireOwnership = false)]
+        public void ShowFocusedObjectServerRpc(Team team, ServerRpcParams serverRpcParams = default)
+        {
+            IFocusableObject focusable = GetFocusedObject(team);
+
+            if (focusable == null)
+            {
+                NotifyCannotSnapClientRpc(CameraSnap.FOCUSED_OBJECT);
+                return;
+            }
+
+            CameraController.Instance.SetCameraLookPositionClientRpc(
+                focusable.GameObject.transform.position,
+                new ClientRpcParams
+                {
+                    Send = new ClientRpcSendParams
+                    {
+                        TargetClientIds = new ulong[] { serverRpcParams.Receive.SenderClientId }
+                    }
+                }
+            );
+        }
 
         /// <summary>
         /// Sends the camera of the player of the given team to the location of the team's symbol.
@@ -366,7 +594,7 @@ namespace Populous
 
             if (!leader)
             {
-                NotifyCannotSnapClientRpc(CameraSnap.Leader);
+                NotifyCannotSnapClientRpc(CameraSnap.LEADER);
                 return;
             }
 
@@ -396,7 +624,7 @@ namespace Populous
             Vector3? position = StructureManager.Instance.GetSettlementLocation(m_SettlementIndex[teamIndex], team);
             if (!position.HasValue)
             {
-                NotifyCannotSnapClientRpc(CameraSnap.Settlement);
+                NotifyCannotSnapClientRpc(CameraSnap.SETTLEMENT);
                 return;
             }
 
@@ -428,7 +656,7 @@ namespace Populous
             Vector3? position = UnitManager.Instance.GetFightLocation(m_FightIndex[(int)team]);
             if (!position.HasValue)
             {
-                NotifyCannotSnapClientRpc(CameraSnap.Fight);
+                NotifyCannotSnapClientRpc(CameraSnap.FIGHT);
                 return;
             }
 
@@ -461,7 +689,7 @@ namespace Populous
             Unit knight = UnitManager.Instance.GetKnight(m_KnightsIndex[teamIndex], team);
             if (!knight)
             {
-                NotifyCannotSnapClientRpc(CameraSnap.Knight);
+                NotifyCannotSnapClientRpc(CameraSnap.KNIGHT);
                 return;
             }
 
@@ -499,7 +727,7 @@ namespace Populous
         /// </summary>
         /// <param name="team">The <c>Team</c> manna should be added to.</param>
         /// <param name="amount">The amount of manna to be added.</param>
-        public void AddManna(Team team, int amount = 100)
+        public void AddManna(Team team, int amount = 1)
             => SetManna(team, Mathf.Clamp(m_Manna[(int)team] + amount, 0, m_MaxManna));
 
         /// <summary>
@@ -733,7 +961,7 @@ namespace Populous
             }
 
             foreach (Settlement settlement in affectedSettlements)
-                settlement.SetType();
+                settlement.SetSettlementType();
         }
 
         #endregion

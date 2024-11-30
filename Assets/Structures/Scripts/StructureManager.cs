@@ -99,13 +99,13 @@ namespace Populous
             GameController.Instance.OnTerrainModified += structure.ReactToTerrainChange;
             GameController.Instance.OnFlood += structure.ReactToTerrainChange;
 
-            // Settlement properties
+            // SETTLEMENT properties
             if (structure.GetType() == typeof(Settlement))
             {
                 Settlement settlement = (Settlement)structure;
-                settlement.SetType();
+                settlement.SetSettlementType();
                 AddSettlementPosition(structure.transform.position, team);
-                //SetupSettlementClientRpc(structureObject.GetComponent<NetworkObject>().NetworkObjectId, $"{team} Settlement", LayerMask.NameToLayer(GameController.Instance.TeamLayers[(int)team]));
+                //SetupSettlementClientRpc(structureObject.GetComponent<NetworkObject>().NetworkObjectId, $"{team} SETTLEMENT", LayerMask.NameToLayer(GameController.Instance.TeamLayers[(int)team]));
                 structureObject.name = $"{team} Settlement";
                 structureObject.layer = LayerData.TeamLayers[(int)team];
                 GameController.Instance.OnArmageddon += settlement.DestroySettlement;
@@ -164,6 +164,7 @@ namespace Populous
                 //    }
                 //}
                 );
+                GameController.Instance.RemoveFocusedObject(settlement);
             }
 
             structure.Cleanup();
@@ -306,7 +307,7 @@ namespace Populous
         /// <summary>
         /// Switches the team the given settlement belongs to.
         /// </summary>
-        /// <param name="settlement">The <c>Settlement</c> whose team should be switched.</param>
+        /// <param name="settlement">The <c>SETTLEMENT</c> whose team should be switched.</param>
         /// <param name="team">The new <c>Team</c> the settlement should belong to.</param>
         public void SwitchTeam(Settlement settlement, Team team)
         {
@@ -321,7 +322,7 @@ namespace Populous
             );
 
             settlement.ChangeTeam(team);
-            //SetupSettlementClientRpc(settlement.GetComponent<NetworkObject>().NetworkObjectId, $"{team} Settlement", LayerMask.NameToLayer(GameController.Instance.TeamLayers[(int)team]));
+            //SetupSettlementClientRpc(settlement.GetComponent<NetworkObject>().NetworkObjectId, $"{team} SETTLEMENT", LayerMask.NameToLayer(GameController.Instance.TeamLayers[(int)team]));
             settlement.gameObject.name = $"{team} Settlement";
             settlement.gameObject.layer = LayerData.TeamLayers[(int)team];
 
@@ -331,7 +332,7 @@ namespace Populous
         /// <summary>
         /// Burns the given settlement down.
         /// </summary>
-        /// <param name="settlement">The <c>Settlement</c> that should be burned down.</param>
+        /// <param name="settlement">The <c>SETTLEMENT</c> that should be burned down.</param>
         public void BurnSettlement(Settlement settlement)
         {
             settlement.BurnSettlementDown();

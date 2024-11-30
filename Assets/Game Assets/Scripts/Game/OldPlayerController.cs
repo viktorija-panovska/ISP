@@ -25,7 +25,7 @@ public enum Power
     /// </summary>
     SWAMP,
     /// <summary>
-    /// The power to upgrade the leader into a Knight.
+    /// The power to upgrade the leader into a KNIGHT.
     /// </summary>
     KNIGHT,
     /// <summary>

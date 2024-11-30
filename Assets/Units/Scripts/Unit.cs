@@ -2,6 +2,7 @@ using System.Collections;
 using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.UI;
 
 namespace Populous
 {
@@ -9,11 +10,13 @@ namespace Populous
     /// The <c>Unit</c> class is a <c>MonoBehavior</c> which represents and handles the functioning of one unit.
     /// Units are an abstraction of the population of the world, where one unit represents a group of people.
     /// </summary>
-    public class Unit : NetworkBehaviour, IPointerEnterHandler, IPointerExitHandler
+    public class Unit : NetworkBehaviour, IFocusableObject
     {
         [SerializeField] private GameObject[] m_LeaderSigns;
         [SerializeField] private GameObject m_KnightSword;
         [SerializeField] private float m_SecondsUntilEnteringEnabled = 0.5f;
+        [SerializeField] private GameObject m_Highlight;
+        [SerializeField] private GameObject m_MinimapIcon;
 
         [Header("Detectors")]
         [SerializeField] private UnitCloseRangeDetector m_CloseRangeDetector;
@@ -23,6 +26,7 @@ namespace Populous
         [SerializeField] private int m_MidRangeTilesPerSide = 1;
         [SerializeField] private int m_WideRangeTilesPerSide = 20;
 
+        public GameObject GameObject { get => gameObject; }
         private UnitMovementHandler m_MovementHandler;
 
         /// <summary>
@@ -91,6 +95,8 @@ namespace Populous
             m_Strength = team == Team.BLUE ? 2 : 1/*strength*/;
             m_CanEnterSettlement = canEnterSettlement;
 
+            SetupMinimapIcon();
+
             m_MovementHandler = GetComponent<UnitMovementHandler>();
             m_MovementHandler.InitializeMovement();
 
@@ -129,7 +135,9 @@ namespace Populous
                 SetBehavior(UnitBehavior.FIGHT);
                 ToggleKnightSword(true);
             }
-        } 
+
+            GameController.Instance.UpdateFocusedUnit(this, updateClass: true);
+        }
 
         /// <summary>
         /// Sets the current state of the unit to the given state.
@@ -197,7 +205,7 @@ namespace Populous
         public void GainStrength(int amount)
         {
             m_Strength += amount;
-            UpdateUnitUI();
+            GameController.Instance.UpdateFocusedUnit(this, updateStrength: true);
         }
 
         /// <summary>
@@ -207,7 +215,7 @@ namespace Populous
         public void LoseStrength(int amount, bool isDamaged = true) 
         { 
             m_Strength -= amount;
-            UpdateUnitUI();
+            GameController.Instance.UpdateFocusedUnit(this, updateStrength: true);
 
             if (m_Strength == 0)
                 UnitManager.Instance.DespawnUnit(gameObject, hasDied: isDamaged);
@@ -369,79 +377,29 @@ namespace Populous
         /// Called when the mouse cursor hovers over the unit.
         /// </summary>
         /// <param name="eventData">Event data for the pointer event.</param>
-        public void OnPointerEnter(PointerEventData eventData) => ToggleUnitUIServer/*Rpc*/(true);
+        public void OnPointerEnter(PointerEventData eventData) => SetHighlight(true);
 
         /// <summary>
         /// Called when the mouse cursor stops hovering over the unit.
         /// </summary>
         /// <param name="eventData">Event data for the pointer event.</param>
-        public void OnPointerExit(PointerEventData eventData) => ToggleUnitUIServer/*Rpc*/(false);
-
-
-        /// <summary>
-        /// Shows or hides the info for the unit on the UI.
-        /// </summary>
-        /// <param name="show">True if the UI should be active, false otherwise.</param>
-        /// <param name="parameters">RPC data for the server RPC.</param>
-        //[ServerRpc(RequireOwnership = false)]
-        private void ToggleUnitUIServer/*Rpc*/(bool show, ServerRpcParams parameters = default)
+        public void OnPointerExit(PointerEventData eventData)
         {
-            if (IsInFight)
-                UnitManager.Instance.ToggleFightUI(show, m_FightId, parameters.Receive.SenderClientId);
-            else
-            {
-                ToggleUnitUIClient/*Rpc*/(show, UnitManager.Instance.MaxUnitStrength, m_Strength, GameController.Instance.TeamColors[(int)m_Team],
-                    new ClientRpcParams()
-                    {
-                        Send = new ClientRpcSendParams
-                        {
-                            TargetClientIds = new ulong[] { parameters.Receive.SenderClientId }
-                        }
-                    }
-                );
-            }
+            if (this == (object)GameController.Instance.GetFocusedObject(m_Team))
+                return;
+
+            SetHighlight(false);
         }
 
-        /// <summary>
-        /// Shows or hides the info for the unit on the UI.
-        /// </summary>
-        /// <param name="show">True if the UI should be active, false otherwise.</param>
-        /// <param name="maxStrength">The maximum value of the strength bar.</param>
-        /// <param name="currentStrength">The current value of the strength bar.</param>
-        /// <param name="teamColor">The color of the strength bar.</param>
-        /// <param name="parameters">RPC data for the client RPC.</param>
-        //[ClientRpc]
-        private void ToggleUnitUIClient/*Rpc*/(bool show, int maxStrength, int currentStrength, Color teamColor, ClientRpcParams parameters = default)
-        {
-            GameUI.Instance.ToggleUnitUI(
-                show,
-                maxStrength,
-                currentStrength,
-                teamColor,
-                transform.position + Vector3.up * GetComponent<Renderer>().bounds.size.y
-            );
-        }
+        public void SetHighlight(bool isActive) => m_Highlight.SetActive(isActive);
 
-        /// <summary>
-        /// Updates the unit info on the UI.
-        /// </summary>
-        private void UpdateUnitUI()
+        private void SetupMinimapIcon()
         {
-            if (IsInFight)
-                UnitManager.Instance.UpdateFightUI(m_FightId);
-            else
-                UpdateUnitUIClient/*Rpc*/(UnitManager.Instance.MaxUnitStrength, m_Strength);
-        }
+            float scale = Terrain.Instance.UnitsPerSide / GameUI.Instance.MinimapIconScale;
 
-        /// <summary>
-        /// Updates the unit info on the UI.
-        /// </summary>
-        /// <param name="maxStrength">The maximum value of the strength bar.</param>
-        /// <param name="currentStrength">The current value of the strength bar.</param>
-        /// <param name="parameters">RPC data for the client RPC.</param>
-        //[ClientRpc]
-        private void UpdateUnitUIClient/*Rpc*/(int maxStrength, int currentStrength, ClientRpcParams parameters = default)
-            => GameUI.Instance.UpdateUnitUI(maxStrength, currentStrength);
+            m_MinimapIcon.transform.localScale = new(scale, m_MinimapIcon.transform.localScale.y, scale);
+            m_MinimapIcon.GetComponent<MeshRenderer>().material.color = GameUI.Instance.MinimapUnitColors[(int)m_Team];
+        }
 
         #endregion
 
@@ -462,7 +420,7 @@ namespace Populous
         /// <summary>
         /// Removes the references to the given settlement wherever they appear.
         /// </summary>
-        /// <param name="settlement">The <c>Settlement</c> that should be removed.</param>
+        /// <param name="settlement">The <c>SETTLEMENT</c> that should be removed.</param>
         public void RemoveRefrencesToSettlement(Settlement settlement)
             => m_WideRangeDetector.RemoveObject(settlement.gameObject);
 

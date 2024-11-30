@@ -12,6 +12,7 @@ namespace Populous
         [SerializeField] private CinemachineVirtualCamera m_VirtualCamera;
         [SerializeField] private Transform m_FollowTarget;
         [SerializeField] private BoxCollider m_DetectionZone;
+        [SerializeField] private Camera m_MinimapCamera;
 
         [Header("Movement")]
         [SerializeField] private float m_MovementSpeed;
@@ -62,7 +63,11 @@ namespace Populous
             m_Instance = this;
         }
 
-        private void Start() => ResizeDetectionZone();
+        private void Start()
+        {
+            SetupMinimapCamera();
+            ResizeDetectionZone();
+        }
 
         private void Update()
         {
@@ -102,8 +107,8 @@ namespace Populous
         public void SetCameraLookPositionClientRpc(Vector3 position, ClientRpcParams clientRpcParams = default)
             => m_FollowTarget.transform.position = position;
 
-        public void SetCameraLookPosition(Vector3 position)
-            => m_FollowTarget.transform.position = position;
+        public void SetCameraLookPosition(Vector3 position) => m_FollowTarget.transform.position = position;
+
 
         [ClientRpc]
         public void SetCameraHeightClientRpc(int height)
@@ -180,5 +185,17 @@ namespace Populous
         }
 
         #endregion
+
+
+        #region Minimap Camera
+
+        public void SetupMinimapCamera()
+        {
+            m_MinimapCamera.transform.position = new(Terrain.Instance.UnitsPerSide / 2, 300, Terrain.Instance.UnitsPerSide / 2);
+            m_MinimapCamera.orthographicSize = Terrain.Instance.UnitsPerSide / 2;
+        }
+
+        #endregion
+
     }
 }

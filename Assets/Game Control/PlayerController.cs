@@ -1,5 +1,7 @@
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.UI;
 
 namespace Populous
 {
@@ -54,7 +56,6 @@ namespace Populous
         public bool InputEnabled { get => m_ActivePower != Power.ARMAGHEDDON; }
 
 
-
         private void Awake()
         {
             if (m_Instance)
@@ -79,7 +80,6 @@ namespace Populous
         }
 
 
-        
         #region Input Events
 
         /// <summary>
@@ -87,10 +87,10 @@ namespace Populous
         /// </summary>
         /// <param name="context">Details about the input action which triggered this event.</param>
         public void OnPause(InputAction.CallbackContext context)
-        {
-            if (!context.performed) return;
-            GameController.Instance.TogglePauseGameServerRpc();
-        }
+            {
+                if (!context.performed) return;
+                GameController.Instance.TogglePauseGameServerRpc();
+            }
 
         /// <summary>
         /// Executes all events triggered by a left click, if the player's cursor is near a clickable point.
@@ -98,7 +98,20 @@ namespace Populous
         /// <param name="context">Details about the input action which triggered this event.</param>
         public void OnLeftClick(InputAction.CallbackContext context)
         {
-            if (!context.performed || !m_NearestPoint.HasValue || m_ActivePower == Power.ARMAGHEDDON) return;
+            if (!context.performed || GameUI.Instance.IsPointerOnUI) return;
+
+            if (Physics.Raycast(
+                Camera.main.ScreenPointToRay(Mouse.current.position.ReadValue()),
+                out RaycastHit hitInfo,
+                Mathf.Infinity,
+                LayerMask.GetMask(LayerData.RED_TEAM_LAYER_NAME, LayerData.BLUE_TEAM_LAYER_NAME, LayerData.UI_LAYER_NAME)))
+            {
+                GameController.Instance.SetFocusedObject/*ServerRpc*/(hitInfo.collider.gameObject, m_Team);
+
+                return;
+            }
+
+            if (!m_NearestPoint.HasValue || m_ActivePower == Power.ARMAGHEDDON) return;
 
             switch (m_ActivePower)
             {
@@ -134,7 +147,7 @@ namespace Populous
         /// <param name="context">Details about the input action which triggered this event.</param>
         public void OnRightClick(InputAction.CallbackContext context)
         {
-            if (!context.performed || m_ActivePower != Power.MOLD_TERRAIN || !m_NearestPoint.HasValue) return;
+            if (!context.performed || GameUI.Instance.IsPointerOnUI || m_ActivePower != Power.MOLD_TERRAIN || !m_NearestPoint.HasValue) return;
             GameController.Instance.MoldTerrain/*ServerRpc*/(m_NearestPoint.Value, lower: true);
         }
 
@@ -227,7 +240,7 @@ namespace Populous
         }
 
         /// <summary>
-        /// Activates the Knight power.
+        /// Activates the KNIGHT power.
         /// </summary>
         /// <param name="context">Details about the input action which triggered this event.</param>
         public void OnKnightSelected(InputAction.CallbackContext context)
@@ -302,7 +315,7 @@ namespace Populous
         }
 
         /// <summary>
-        /// Activates the Fight unit behavior.
+        /// Activates the FIGHT unit behavior.
         /// </summary>
         /// <param name="context">Details about the input action which triggered this event.</param>
         public void OnFightSelected(InputAction.CallbackContext context)
@@ -317,6 +330,17 @@ namespace Populous
         #region Zoom Inputs
 
         /// <summary>
+        /// Triggers camera to show the object this player is focusing on.
+        /// </summary>
+        /// <param name="context">Details about the input action which triggered this event.</param>
+        public void OnShowFocusedObject(InputAction.CallbackContext context)
+        {
+            if (!context.performed) return;
+            GameController.Instance.ShowFocusedObjectServerRpc(m_Team);
+            GameUI.Instance.ClickCameraSnap(CameraSnap.FOCUSED_OBJECT);
+        }
+
+        /// <summary>
         /// Triggers camera to show the player's team's symbol.
         /// </summary>
         /// <param name="context">Details about the input action which triggered this event.</param>
@@ -324,7 +348,7 @@ namespace Populous
         {
             if (!context.performed) return;
             GameController.Instance.ShowTeamSymbolServerRpc(m_Team);
-            GameUI.Instance.ClickCameraSnap(CameraSnap.Symbol);
+            GameUI.Instance.ClickCameraSnap(CameraSnap.SYMBOL);
         }
 
         /// <summary>
@@ -335,7 +359,7 @@ namespace Populous
         {
             if (!context.performed) return;
             GameController.Instance.ShowLeaderServerRpc(m_Team);
-            GameUI.Instance.ClickCameraSnap(CameraSnap.Leader);
+            GameUI.Instance.ClickCameraSnap(CameraSnap.LEADER);
         }
 
         /// <summary>
@@ -346,7 +370,7 @@ namespace Populous
         {
             if (!context.performed) return;
             GameController.Instance.ShowSettlementsServerRpc(m_Team);
-            GameUI.Instance.ClickCameraSnap(CameraSnap.Settlement);
+            GameUI.Instance.ClickCameraSnap(CameraSnap.SETTLEMENT);
         }
 
         /// <summary>
@@ -357,7 +381,7 @@ namespace Populous
         {
             if (!context.performed) return;
             GameController.Instance.ShowFightsServerRpc(m_Team);
-            GameUI.Instance.ClickCameraSnap(CameraSnap.Fight);
+            GameUI.Instance.ClickCameraSnap(CameraSnap.FIGHT);
         }
 
         /// <summary>
@@ -368,7 +392,7 @@ namespace Populous
         {
             if (!context.performed) return;
             GameController.Instance.ShowKnightsServerRpc(m_Team);
-            GameUI.Instance.ClickCameraSnap(CameraSnap.Knight);
+            GameUI.Instance.ClickCameraSnap(CameraSnap.KNIGHT);
         }
 
         #endregion
@@ -432,7 +456,6 @@ namespace Populous
         }
 
         #endregion
-
 
 
         /// <summary>
