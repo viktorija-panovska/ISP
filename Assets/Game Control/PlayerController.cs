@@ -121,8 +121,9 @@ namespace Populous
                     break;
 
                 case Power.GUIDE_FOLLOWERS:
-                    if (m_NearestPoint.Value.Y <= Terrain.Instance.WaterLevel && !m_NearestPoint.Value.IsOnShore) return;
-                    GameController.Instance.MoveFlagServerRpc(m_NearestPoint.Value, m_Team);
+                    //if (m_NearestPoint.Value.Y <= Terrain.Instance.WaterLevel && !m_NearestPoint.Value.IsOnShore) return;
+                    //GameController.Instance.MoveFlagServerRpc(m_NearestPoint.Value, m_Team);
+                    StructureManager.Instance.SpawnRedHouse(m_NearestPoint.Value);
                     break;
 
                 case Power.EARTHQUAKE:
@@ -246,7 +247,9 @@ namespace Populous
         public void OnKnightSelected(InputAction.CallbackContext context)
         {
             if (!context.performed || !InputEnabled) return;
-            TryActivatePower(Power.KNIGHT);
+
+            GameController.Instance.CreateKnight(m_Team);
+            //TryActivatePower(Power.KNIGHT);
         }
 
         /// <summary>
@@ -475,12 +478,12 @@ namespace Populous
         /// <param name="isActivated">True if the power has been activated, false otherwise.</param>
         public void ReceivePowerActivation(Power power, bool isActivated)
         {
-            if (!isActivated)
-            {
-                GameUI.Instance.NotEnoughManna(power);
-                SetActivePower(Power.MOLD_TERRAIN);
-                return;
-            }
+            //if (!isActivated)
+            //{
+            //    GameUI.Instance.NotEnoughManna(power);
+            //    SetActivePower(Power.MOLD_TERRAIN);
+            //    return;
+            //}
 
             if (power == Power.KNIGHT || power == Power.FLOOD)
                 power = Power.MOLD_TERRAIN;

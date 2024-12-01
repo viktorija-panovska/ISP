@@ -414,7 +414,7 @@ MonoBehaviour:
   m_MidRangeDetector: {fileID: 6128104503836289826}
   m_WideRangeDetector: {fileID: 4125043769463975922}
   m_CloseRangeRadius: 15
-  m_MidRangeTilesPerSide: 1
+  m_MidRangeTilesPerSide: 3
   m_WideRangeTilesPerSide: 20
 --- !u!114 &7064862365862757736
 MonoBehaviour:

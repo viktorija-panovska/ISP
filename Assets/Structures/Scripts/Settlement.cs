@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Drawing;
 using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -43,6 +44,9 @@ namespace Populous
                     m_Flags[(int)m_Team].SetActive(true);//.GetComponent<ObjectActivator>().SetActiveClientRpc(false);
             }
         }
+        
+        private Team m_PreviousTeam;
+        public Team PreviousTeam { get => m_PreviousTeam; }
 
         public SettlementType Type { get => m_CurrentSettlementData.Type; }
         public int Capacity { get => m_CurrentSettlementData.Capacity; }
@@ -99,7 +103,7 @@ namespace Populous
         /// <summary>
         /// Action to be called when the settlement is burned.
         /// </summary>
-        private Action OnSettlementBurned;
+        private Action<Settlement> OnSettlementBurned;
         /// <summary>
         /// Action to be called when the settlement's team has been changed.
         /// </summary>
@@ -180,7 +184,7 @@ namespace Populous
 
             if (ShouldDestroyStructure())
             {
-                DestroySettlement();
+                DestroySettlement(updateNeighbors: false);
                 return;
             }
 
@@ -259,6 +263,9 @@ namespace Populous
         public void BurnSettlementDown()
         {
             m_IsBurnedDown = true;
+            OnSettlementBurned?.Invoke(this);
+
+            m_PreviousTeam = m_Team;
             Team = Team.NONE;
             m_DestroyMethod = DestroyMethod.DROWN;
             UnitManager.Instance.RemovePopulation(m_Team, m_FollowersInSettlement);
@@ -273,13 +280,16 @@ namespace Populous
             m_RuinedSettlement.SetActive(true);//.GetComponent<ObjectActivator>().SetActiveClientRpc(true);
 
             //SetColliderClientRpc(Vector3.zero);
-            GetComponent<BoxCollider>().size = Vector3.zero;
+            m_SettlementCollision.size = Vector3.zero;
+            m_SettlementTrigger.size = Vector3.zero;
             m_MinimapIcon.SetActive(false);
 
-            OnSettlementBurned?.Invoke();
+            UpdateSharedSettlements();
         }
 
-        public void DestroySettlement()
+        public void DestroyIndividualSettlement() => DestroySettlement(updateNeighbors: false);
+
+        public void DestroySettlement(bool updateNeighbors)
         {
             m_IsDestroyed = true;
             OnSettlementDestroyed?.Invoke(this);
@@ -288,6 +298,9 @@ namespace Populous
                 UnitManager.Instance.RemovePopulation(m_Team, m_FollowersInSettlement);
             else
                 ReleaseUnit(m_CurrentSettlementData.UnitStrength);
+
+            if (updateNeighbors)
+                UpdateSharedSettlements();
 
             StructureManager.Instance.DespawnStructure(gameObject);
         }
@@ -305,6 +318,7 @@ namespace Populous
         {
             if (newTeam == m_Team) return;
 
+            m_PreviousTeam = m_Team;
             Team = newTeam;
             RemoveFollowers(m_FollowersInSettlement - 1);
             OnSettlementTeamChanged?.Invoke(m_Team);

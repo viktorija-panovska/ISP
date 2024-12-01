@@ -33,6 +33,10 @@ namespace Populous
             /// </summary>
             GO_TO_FLAT_SPACE,
             /// <summary>
+            /// The unit is travelling to a settlement.
+            /// </summary>
+            GO_TO_SETTLEMENT,
+            /// <summary>
             /// The unit is travelling to its faction symbol.
             /// </summary>
             GO_TO_SYMBOL
@@ -101,9 +105,9 @@ namespace Populous
 
         // Follow
         /// <summary>
-        /// A <c>MapPoint</c> representing a flat tile the unit has found and is moving towards, null if there is no such tile.
+        /// A <c>MapPoint</c> representing the tile the unit is moving towards, null if there is no such tile.
         /// </summary>
-        private MapPoint? m_FoundFlatTile;
+        private MapPoint? m_TargetTile;
         /// <summary>
         /// The target this unit is going after, null if no such target exists.
         /// </summary>
@@ -182,34 +186,13 @@ namespace Populous
         /// </summary>
         private void ChooseNextAction()
         {
-            // Knights bypass any other movement commands.
-            if (m_Unit.Class == UnitClass.KNIGHT)
-            {
-                if (m_CurrentMoveState == MoveState.FOLLOW)
-                    GetNextStepToFollowTarget();
-                else
-                {
-                    GameObject leader = GameController.Instance.GetLeaderObject(m_Unit.Team == Team.RED ? Team.BLUE : Team.RED);
-                    if (!leader)
-                    {
-                        Roam();
-                        return;
-                    }
-
-                    Unit leaderUnit = leader.GetComponent<Unit>();
-                    if (leaderUnit)
-                        FollowUnit(leaderUnit);
-                    else
-                        SetPath(leader.transform.position);
-                }
-
-                return;
-            }
-
-            if (m_CurrentMoveState == MoveState.GO_TO_FLAT_SPACE && m_FoundFlatTile.HasValue &&
-                Terrain.Instance.IsTileFlat((m_FoundFlatTile.Value.GridX, m_FoundFlatTile.Value.GridZ)) &&
-                !Terrain.Instance.IsTileOccupied((m_FoundFlatTile.Value.GridX, m_FoundFlatTile.Value.GridZ)))
-                FlatTileReached(m_FoundFlatTile.Value);
+            if (m_CurrentMoveState == MoveState.GO_TO_FLAT_SPACE && m_TargetTile.HasValue &&
+                Terrain.Instance.IsTileFlat((m_TargetTile.Value.GridX, m_TargetTile.Value.GridZ)) &&
+                !Terrain.Instance.IsTileOccupied((m_TargetTile.Value.GridX, m_TargetTile.Value.GridZ)))
+                FlatTileReached();
+            else if (m_CurrentMoveState == MoveState.GO_TO_SETTLEMENT && m_TargetTile.HasValue &&
+                Terrain.Instance.HasTileSettlement((m_TargetTile.Value.GridX, m_TargetTile.Value.GridZ)))
+                SettlementReached();
             else if (m_CurrentMoveState == MoveState.FOLLOW && m_TargetUnit)
                 GetNextStepToFollowTarget();
             else if (m_CurrentMoveState == MoveState.GO_TO_SYMBOL && m_SymbolReached)
@@ -272,7 +255,7 @@ namespace Populous
                 if (targetTile.HasValue)
                 {
                     SwitchMoveState(MoveState.GO_TO_FLAT_SPACE);
-                    m_FoundFlatTile = targetTile;
+                    m_TargetTile = targetTile;
                     SetPath(targetTile.Value.GetClosestTileCorner(currentLocation).ToWorldPosition());
                     return true;
                 }
@@ -281,18 +264,29 @@ namespace Populous
             // If we are battling or gathering, go in the direction of other units, if some are detected.
             if (m_Unit.Behavior == UnitBehavior.FIGHT || m_Unit.Behavior == UnitBehavior.GATHER)
             {
-                Unit targetToFollow = m_Unit.GetFollowTarget();
+                Unit unitInRange = m_Unit.GetUnitInRange();
 
                 // if we have another unit that's close enough, follow it.
-                if (targetToFollow)
+                if (unitInRange)
                 {
-                    FollowUnit(targetToFollow);
+                    FollowUnit(unitInRange);
                     return true;
                 }
 
-                Vector3 direction = m_Unit.GetUnitsDirection();
+                Settlement settlementInRange = m_Unit.GetSettlementInRange();
 
-                if (direction != Vector3.zero)
+                if (settlementInRange)
+                {
+                    SwitchMoveState(MoveState.GO_TO_SETTLEMENT);
+                    m_TargetTile = settlementInRange.OccupiedTile;
+                    SetPath(m_TargetTile.Value.GetClosestTileCorner(currentLocation).ToWorldPosition());
+                    return true;
+                }
+                
+                Vector3 direction = m_Unit.GetEnemyDirection();
+
+                // to avoid just going back and forth
+                if (direction != Vector3.zero && (-direction.x, -direction.z) != m_CurrentRoamDirection)
                 {
                     m_CurrentRoamDirection = (Mathf.RoundToInt(direction.x), Mathf.RoundToInt(direction.z));
                     SetPath(ChooseNextRoamTarget(currentLocation).ToWorldPosition());
@@ -464,14 +458,14 @@ namespace Populous
                 if (availableDirections.Count == 0)
                     AddValidDirections(new (int, int)[] {
                         m_RoamDirections[currentDirection],
-                        m_RoamDirections[Helpers.NextArrayIndex(currentDirection, -3, m_RoamDirections.Length)],
-                        m_RoamDirections[Helpers.NextArrayIndex(currentDirection, +3, m_RoamDirections.Length)]
+                        m_RoamDirections[GameUtils.GetNextArrayIndex(currentDirection, -3, m_RoamDirections.Length)],
+                        m_RoamDirections[GameUtils.GetNextArrayIndex(currentDirection, +3, m_RoamDirections.Length)]
                     });
 
                 // only backtrack the way we came if there are no other options
                 if (availableDirections.Count == 0)
                     AddValidDirections(new (int, int)[] {
-                        m_RoamDirections[Helpers.NextArrayIndex(currentDirection, +4, m_RoamDirections.Length)]
+                        m_RoamDirections[GameUtils.GetNextArrayIndex(currentDirection, +4, m_RoamDirections.Length)]
                     });
             }
 
@@ -543,13 +537,7 @@ namespace Populous
         /// Gets the path from the current position to the given end position and sets it up as the current path the unit should follow.
         /// </summary>
         /// <param name="end"></param>
-        private void SetPath(Vector3 end) {
-            //Debug.LogWarning("SET PATH: " + m_Unit.ClosestMapPoint + " " + end);
-            List<MapPoint> path = Pathfinder.FindPath(m_Unit.ClosestMapPoint, new(end.x, end.z, getClosestPoint: true));
-
-            //Debug.Log(path == null);
-            SetPath(path); 
-        }
+        private void SetPath(Vector3 end) => SetPath(Pathfinder.FindPath(m_Unit.ClosestMapPoint, new(end.x, end.z, getClosestPoint: true))); 
 
         /// <summary>
         /// Sets the path the unit should follow and initializes the movement along it.
@@ -714,13 +702,35 @@ namespace Populous
         /// Sets the unit's actions when it has reached a flat tile.
         /// </summary>
         /// <param name="tile">The <c>MapPoint</c> representing the found free tile.</param>
-        private void FlatTileReached(MapPoint tile)
+        private void FlatTileReached()
         {
             SwitchMoveState(MoveState.STOP);
-            StructureManager.Instance.CreateSettlement(tile, m_Unit.Team);
+            StructureManager.Instance.CreateSettlement(m_TargetTile.Value, m_Unit.Team);
 
-            // TODO enter house
-            m_FoundFlatTile = null;
+            m_TargetTile = null;
+            SwitchMoveState(MoveState.ROAM);
+        }
+
+        private void SettlementReached()
+        {
+            m_TargetTile = null;
+            SwitchMoveState(MoveState.ROAM);
+        }
+
+        public void StopMovingToTile(MapPoint tile)
+        {
+            if (m_TargetTile != tile) return;
+
+            m_TargetTile = null;
+            SwitchMoveState(MoveState.ROAM);
+        }
+
+        public void CheckIfTargetTileFlat()
+        {
+            if (!m_TargetTile.HasValue || Terrain.Instance.IsTileFlat((m_TargetTile.Value.GridX, m_TargetTile.Value.GridZ)))
+                return;
+
+            m_TargetTile = null;
             SwitchMoveState(MoveState.ROAM);
         }
 

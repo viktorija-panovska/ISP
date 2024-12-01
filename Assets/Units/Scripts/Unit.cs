@@ -101,7 +101,7 @@ namespace Populous
             m_MovementHandler.InitializeMovement();
 
             m_CloseRangeDetector.Setup(this);
-            m_WideRangeDetector.Setup(team, m_WideRangeTilesPerSide);
+            m_WideRangeDetector.Setup(this, m_WideRangeTilesPerSide);
             m_MidRangeDetector.Setup(this, m_MidRangeTilesPerSide);
 
             if (m_CanEnterSettlement == false)
@@ -134,6 +134,7 @@ namespace Populous
             {
                 SetBehavior(UnitBehavior.FIGHT);
                 ToggleKnightSword(true);
+                m_WideRangeDetector.SetDetectorSize(Terrain.Instance.TilesPerSide);
             }
 
             GameController.Instance.UpdateFocusedUnit(this, updateClass: true);
@@ -145,12 +146,12 @@ namespace Populous
         /// <param name="unitBehavior">The <c>UnitBehavior</c> that should be set.</param>
         public void SetBehavior(UnitBehavior unitBehavior)
         {
-            if (m_Behavior == unitBehavior || m_Class == UnitClass.KNIGHT) return;
+            if (m_Behavior == unitBehavior) return;
 
             m_Behavior = unitBehavior;
 
             m_MidRangeDetector.StateChange(unitBehavior);
-            m_WideRangeDetector.StateChange(unitBehavior);
+            m_WideRangeDetector.BehaviorChange(unitBehavior);
             m_MovementHandler.SetRoam();
 
             UnitManager.Instance.ResetGridSteps(m_Team);
@@ -322,19 +323,51 @@ namespace Populous
         /// </summary>
         /// <returns>A <c>Vector3</c> representing the direction of the other units, 
         /// zero vector if no units are detected in the vicinity.</returns>
-        public Vector3 GetUnitsDirection() => m_WideRangeDetector.GetAverageDirection();
+        public Vector3 GetEnemyDirection() => m_WideRangeDetector.GetAverageDirection();
 
         /// <summary>
         /// Gets a unit that this unit can follow.
         /// </summary>
         /// <returns>A <c>Unit</c> to be followed if one is found, null otherwise.</returns>
-        public Unit GetFollowTarget() => m_MidRangeDetector.GetTarget();
+        public Unit GetUnitInRange()
+        {
+            GameObject target = m_MidRangeDetector.GetTarget();
+            if (!target) return null;
+            return target.GetComponent<Unit>();
+        }
+
+        public Settlement GetSettlementInRange()
+        {
+            GameObject target = m_MidRangeDetector.GetTarget();
+            if (!target) return null;
+            return target.GetComponent<Settlement>();
+        }
 
         /// <summary>
         /// Stops this unit from following its target, if that target is the given <c>GameObject</c>.
         /// </summary>
         /// <param name="target">The <c>GameObject</c> that should be checked against the target.</param>
-        public void LoseTarget(Unit target) => m_MovementHandler.StopFollowingUnit(target);
+        public void LoseTarget(GameObject target) 
+        {
+            Unit unit = target.GetComponent<Unit>();
+            if (unit)
+            {
+                m_MovementHandler.StopFollowingUnit(unit);
+                return;
+            }
+
+            Settlement settlement = target.GetComponent<Settlement>();
+            if (settlement)
+                m_MovementHandler.StopMovingToTile(settlement.OccupiedTile);
+        }
+
+        public void CheckIfTargetTileFlat()
+        {
+            Debug.Log("check tile");
+
+            if (m_Behavior != UnitBehavior.SETTLE) return;
+            m_MovementHandler.CheckIfTargetTileFlat();
+        }
 
         /// <summary>
         /// Reacts to a new unit being assigned as the leader of the team, if this unit isn't the leader.
@@ -414,7 +447,7 @@ namespace Populous
         {
             m_MovementHandler.StopFollowingUnit(unit);
             m_WideRangeDetector.RemoveObject(unit.gameObject);
-            m_MidRangeDetector.RemoveTarget(unit);
+            m_MidRangeDetector.RemoveTarget(unit.gameObject);
         }
 
         /// <summary>
@@ -422,7 +455,10 @@ namespace Populous
         /// </summary>
         /// <param name="settlement">The <c>SETTLEMENT</c> that should be removed.</param>
         public void RemoveRefrencesToSettlement(Settlement settlement)
-            => m_WideRangeDetector.RemoveObject(settlement.gameObject);
+        {
+            m_WideRangeDetector.RemoveObject(settlement.gameObject);
+            m_MidRangeDetector.RemoveTarget(settlement.gameObject);
+        }
 
         #endregion
     }

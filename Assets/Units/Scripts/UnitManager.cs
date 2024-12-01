@@ -169,7 +169,9 @@ namespace Populous
             Unit unit = unitObject.GetComponent<Unit>();
             OnNewLeaderGained += unit.NewLeaderUnitGained;
             OnRemoveReferencesToUnit += unit.RemoveRefrencesToUnit;
+            GameController.Instance.OnTerrainModified += unit.CheckIfTargetTileFlat;
             GameController.Instance.OnTerrainModified += unit.RecomputeHeight;
+            GameController.Instance.OnFlood += unit.CheckIfTargetTileFlat;
             GameController.Instance.OnFlood += unit.RecomputeHeight;
             StructureManager.Instance.OnRemoveReferencesToSettlement += unit.RemoveRefrencesToSettlement;
 
@@ -238,7 +240,9 @@ namespace Populous
 
             Unit unit = unitObject.GetComponent<Unit>();
             GameController.Instance.OnTerrainModified -= unit.RecomputeHeight;
+            GameController.Instance.OnTerrainModified -= unit.CheckIfTargetTileFlat;
             GameController.Instance.OnFlood -= unit.RecomputeHeight;
+            GameController.Instance.OnFlood -= unit.CheckIfTargetTileFlat;
 
             if (unit.Team == Team.RED)
                 OnRedBehaviorChange -= unit.SetBehavior;
@@ -477,7 +481,7 @@ namespace Populous
                 Settlement settlement = GameController.Instance.GetLeaderSettlement(team);
                 GameController.Instance.RemoveLeader(team);
                 knight = SpawnUnit(settlement.OccupiedTile, team, unitClass: UnitClass.KNIGHT, strength: settlement.FollowersInSettlement).GetComponent<Unit>();
-                StructureManager.Instance.DespawnStructure(settlement.gameObject);
+                settlement.DestroySettlement(updateNeighbors: true);
             }
 
             return knight;

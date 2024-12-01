@@ -1077,7 +1077,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &557728089
 Transform:
   m_ObjectHideFlags: 0
@@ -2572,8 +2572,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_ChunkPrefab: {fileID: 3529950447808904562, guid: 4757c215c126a194e9349a71efc65037, type: 3}
-  m_ChunksPerSide: 3
-  m_TilesPerChunkSide: 6
+  m_ChunksPerSide: 2
+  m_TilesPerChunkSide: 3
   m_UnitsPerTileSide: 50
   m_MaxHeightSteps: 7
   m_StepHeight: 20

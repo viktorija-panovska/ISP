@@ -14,7 +14,7 @@ namespace Populous
         private Team m_Team = Team.NONE;
         private Team m_EnemyTeam = Team.NONE;
 
-        private Unit m_Target;
+        private GameObject m_Target;
         private BoxCollider m_Collider;
 
 
@@ -32,9 +32,9 @@ namespace Populous
             m_Collider = GetComponent<BoxCollider>();
             m_Collider.enabled = false;
             m_Collider.size = new Vector3(
-                tilesPerSide * Terrain.Instance.UnitsPerTileSide,
+                2 * tilesPerSide * Terrain.Instance.UnitsPerTileSide,
                 Terrain.Instance.MaxHeight,
-                tilesPerSide * Terrain.Instance.UnitsPerTileSide
+                2 * tilesPerSide * Terrain.Instance.UnitsPerTileSide
             );
             m_Collider.center = new Vector3(0, m_Collider.size.y / 4, m_Collider.size.x / 2);
         }
@@ -46,12 +46,7 @@ namespace Populous
                 (m_Target && Vector3.Distance(other.transform.position, transform.position) >= Vector3.Distance(m_Target.transform.position, transform.position))))
                 return;
 
-            Unit unit = other.GetComponent<Unit>();
-
-            if (unit && unit.IsInFight)
-                return;
-
-            m_Target = unit;
+            m_Target = other.gameObject;
         }
 
         private void OnTriggerExit(Collider other)
@@ -60,11 +55,7 @@ namespace Populous
                 (m_UnitState == UnitBehavior.GATHER && (other.gameObject.layer != LayerData.TeamLayers[(int)m_Team])))
                 return;
 
-            Unit unit = other.GetComponent<Unit>();
-
-            if (!unit || unit != m_Target) return;
-
-            RemoveTarget(unit);
+            RemoveTarget(other.gameObject);
         }
 
         /// <summary>
@@ -87,19 +78,18 @@ namespace Populous
         /// Returns the unit that has been detected as a target to follow.
         /// </summary>
         /// <returns>The target <c>Unit</c>, null if there is no target.</returns>
-        public Unit GetTarget() => m_Target;
+        public GameObject GetTarget() => m_Target;
 
         /// <summary>
         /// Removes the target if it matches the given game object.
         /// </summary>
         /// <param name="gameObject">The <c>GameObject</c> that should be checked against the target.</param>
-        public void RemoveTarget(Unit unit)
+        public void RemoveTarget(GameObject gameObject)
         {
-            if (m_Target == unit.gameObject)
-            {
-                m_Unit.LoseTarget(m_Target);
-                m_Target = null;
-            }
+            if (m_Target != gameObject) return;
+
+            m_Unit.LoseTarget(gameObject);
+            m_Target = null;
         }
     }
 }

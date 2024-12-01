@@ -508,6 +508,8 @@ namespace Populous
         /// <returns>True if the tile is occupied by a structure, false otherwise.</returns>
         public bool IsTileOccupied((int x, int z) chunkIndex, (int x, int z) tile) => GetChunkByIndex(chunkIndex).IsTileOccupied(tile);
 
+        public bool HasTileSettlement((int x, int z) tile) => GetStructureOnTile(tile).GetType() == typeof(Settlement);
+
         /// <summary>
         /// Gets the <c>Structure</c> occupying the given tile.
         /// </summary>

@@ -40,7 +40,7 @@ namespace Populous
         /// <summary>
         /// An array of lists of the tiles occupied by settlements for each team.
         /// </summary>
-        private readonly List<Vector3>[] m_SettlementLocations = new List<Vector3>[] { new(), new() };
+        private readonly List<Vector2>[] m_SettlementLocations = new List<Vector2>[] { new(), new() };
 
         /// <summary>
         /// Action to be called when a settlement is despawned to remove references to it from other objects.
@@ -104,11 +104,11 @@ namespace Populous
             {
                 Settlement settlement = (Settlement)structure;
                 settlement.SetSettlementType();
-                AddSettlementPosition(structure.transform.position, team);
+                AddSettlementPosition(new Vector2(settlement.transform.position.x, settlement.transform.position.z), team);
                 //SetupSettlementClientRpc(structureObject.GetComponent<NetworkObject>().NetworkObjectId, $"{team} SETTLEMENT", LayerMask.NameToLayer(GameController.Instance.TeamLayers[(int)team]));
                 structureObject.name = $"{team} Settlement";
                 structureObject.layer = LayerData.TeamLayers[(int)team];
-                GameController.Instance.OnArmageddon += settlement.DestroySettlement;
+                GameController.Instance.OnArmageddon += settlement.DestroyIndividualSettlement;
                 settlement.StartFillingSettlement();
             }
 
@@ -153,9 +153,9 @@ namespace Populous
             if (structure.GetType() == typeof(Settlement))
             {
                 Settlement settlement = (Settlement)structure;
-                RemoveSettlementPosition(structure.transform.position, structure.Team);
+                RemoveSettlementPosition(new Vector2(settlement.transform.position.x, settlement.transform.position.z), settlement.Team == Team.NONE ? settlement.PreviousTeam : settlement.Team);
                 OnRemoveReferencesToSettlement?.Invoke(settlement);
-                GameController.Instance.OnArmageddon -= settlement.DestroySettlement;
+                GameController.Instance.OnArmageddon -= settlement.DestroyIndividualSettlement;
                 GameController.Instance.RemoveVisibleObject/*ClientRpc*/(settlement.GetInstanceID()//, new ClientRpcParams
                 //{
                 //    Send = new ClientRpcSendParams
@@ -291,7 +291,7 @@ namespace Populous
 
         #region Settlements
 
-        public void SpawnBlueHouse(MapPoint tile) => CreateSettlement(tile, Team.BLUE);
+        public void SpawnRedHouse(MapPoint tile) => CreateSettlement(tile, Team.RED);
 
         /// <summary>
         /// Creates a settlement of the given team on the given tile.
@@ -360,14 +360,14 @@ namespace Populous
         /// </summary>
         /// <param name="position">The position of the settlement.</param>
         /// <param name="team">The <c>Team</c> whose settlement should be added.</param>
-        public void AddSettlementPosition(Vector3 position, Team team) => m_SettlementLocations[(int)team].Add(position);
+        public void AddSettlementPosition(Vector2 position, Team team) => m_SettlementLocations[(int)team].Add(position);
 
         /// <summary>
         /// Removes the position of a settlement the given team to the settlement locations list.
         /// </summary>
         /// <param name="position">The position of the settlement.</param>
         /// <param name="team">The <c>Team</c> whose settlement should be removed.</param>
-        public void RemoveSettlementPosition(Vector3 position, Team team) => m_SettlementLocations[(int)team].Remove(position);
+        public void RemoveSettlementPosition(Vector2 position, Team team) => m_SettlementLocations[(int)team].Remove(position);
 
         #endregion
 

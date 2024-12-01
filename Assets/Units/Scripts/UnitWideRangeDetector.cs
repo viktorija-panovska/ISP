@@ -9,7 +9,7 @@ namespace Populous
     /// <remarks>The wide range detector is used to find a direction this team should move in to find other team when there aren't any close to it.</remarks>
     public class UnitWideRangeDetector : MonoBehaviour
     {
-        private UnitBehavior m_UnitState = UnitBehavior.SETTLE;
+        private Unit m_Unit;
         private Team m_Team = Team.NONE;
         private Team m_EnemyTeam = Team.NONE;
 
@@ -21,25 +21,19 @@ namespace Populous
         /// </summary>
         /// <param name="team">The <c>Team</c> this unit belongs to.</param>
         /// <param name="tilesPerSide">The size of one side of the detector, in tiles.</param>
-        public void Setup(Team team, int tilesPerSide)
+        public void Setup(Unit unit, int tilesPerSide)
         {
-            m_Team = team;
-            m_EnemyTeam = team == Team.RED ? Team.BLUE : Team.RED;
+            m_Unit = unit;
+            m_Team = unit.Team;
+            m_EnemyTeam = m_Team == Team.RED ? Team.BLUE : Team.RED;
 
-            m_Collider = GetComponent<BoxCollider>();
-            m_Collider.enabled = false;
-            m_Collider.size = new Vector3(
-                tilesPerSide * Terrain.Instance.UnitsPerTileSide,
-                Terrain.Instance.MaxHeight,
-                tilesPerSide * Terrain.Instance.UnitsPerTileSide
-            );
-            m_Collider.center = new Vector3(0, Terrain.Instance.MaxHeight / 2, 0);
+            SetDetectorSize(tilesPerSide);
         }
 
         private void OnTriggerEnter(Collider other)
         {
-            if ((m_UnitState == UnitBehavior.FIGHT && other.gameObject.layer != LayerData.TeamLayers[(int)m_EnemyTeam]) ||
-                (m_UnitState == UnitBehavior.GATHER && other.gameObject.layer != LayerData.TeamLayers[(int)m_Team]))
+            if ((m_Unit.Behavior == UnitBehavior.FIGHT && other.gameObject.layer != LayerData.TeamLayers[(int)m_EnemyTeam]) ||
+                (m_Unit.Behavior == UnitBehavior.GATHER && other.gameObject.layer != LayerData.TeamLayers[(int)m_Team]))
                 return;
 
             if (other.gameObject.GetComponent<Unit>() || other.gameObject.GetComponent<Settlement>())
@@ -48,12 +42,25 @@ namespace Populous
 
         private void OnTriggerExit(Collider other)
         {
-            if ((m_UnitState == UnitBehavior.FIGHT && other.gameObject.layer != LayerData.TeamLayers[(int)m_EnemyTeam]) ||
-                (m_UnitState == UnitBehavior.GATHER && other.gameObject.layer != LayerData.TeamLayers[(int)m_Team]))
+            if ((m_Unit.Behavior == UnitBehavior.FIGHT && other.gameObject.layer != LayerData.TeamLayers[(int)m_EnemyTeam]) ||
+                (m_Unit.Behavior == UnitBehavior.GATHER && other.gameObject.layer != LayerData.TeamLayers[(int)m_Team]))
                 return;
 
             if (other.gameObject.GetComponent<Unit>())
                 m_NearbyObjects.Remove(other.gameObject);
+        }
+
+
+        public void SetDetectorSize(int tilesPerSide)
+        {
+            m_Collider = GetComponent<BoxCollider>();
+            m_Collider.enabled = false;
+            m_Collider.size = new Vector3(
+                tilesPerSide * Terrain.Instance.UnitsPerTileSide,
+                Terrain.Instance.MaxHeight,
+                tilesPerSide * Terrain.Instance.UnitsPerTileSide
+            );
+            m_Collider.center = new Vector3(0, Terrain.Instance.MaxHeight / 2, 0);
         }
 
         /// <summary>
@@ -68,23 +75,22 @@ namespace Populous
             Vector3 sum = Vector3.zero;
 
             foreach (GameObject gameObject in m_NearbyObjects)
-                sum += gameObject.transform.position;
+                sum += gameObject.transform.position * Vector3.Distance(gameObject.transform.position, m_Unit.transform.position);
 
             return ((sum / m_NearbyObjects.Count) - transform.position).normalized;
         }
 
         /// <summary>
-        /// Changes the current active state of this unit to the given state.
+        /// Changes the current active behavior of this unit to the given behavior.
         /// </summary>
-        /// <param name="state">The <c>UnitBehavior</c> that this unit's state should be set to.</param>
-        public void StateChange(UnitBehavior state)
+        /// <param name="behavior">The <c>UnitBehavior</c> that this unit's behavior should be set to.</param>
+        public void BehaviorChange(UnitBehavior behavior)
         {
-            if (state == m_UnitState) return;
+            if (behavior == m_Unit.Behavior) return;
 
-            m_UnitState = state;
             m_NearbyObjects = new();
 
-            if (state == UnitBehavior.GATHER || state == UnitBehavior.FIGHT)
+            if (behavior == UnitBehavior.GATHER || behavior == UnitBehavior.FIGHT)
                 m_Collider.enabled = true;
             else
                 m_Collider.enabled = false;

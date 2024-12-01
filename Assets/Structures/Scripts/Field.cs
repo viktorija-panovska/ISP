@@ -27,7 +27,7 @@ namespace Populous
             }
         }
 
-        private readonly HashSet<Settlement> m_SettlementsServed = new();
+        private HashSet<Settlement> m_SettlementsServed = new();
         /// <summary>
         /// Gets a list of the settlements that this field belongs to.
         /// </summary>
@@ -40,6 +40,8 @@ namespace Populous
         {
             foreach (Settlement settlement in m_SettlementsServed)
                 settlement.RemoveField(this);
+
+            m_SettlementsServed = new();
         }
 
         /// <summary>
@@ -71,7 +73,11 @@ namespace Populous
         /// <summary>
         /// Makes this field unusable by any settlement.
         /// </summary>
-        public void BurnField() => OnTeamChanged(Team.NONE);
+        public void BurnField(Settlement burnedSettlement)
+        {
+            OnTeamChanged(Team.NONE);
+            Cleanup();
+        }
 
         /// <summary>
         /// Changes the team this field belongs to.
