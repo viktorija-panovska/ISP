@@ -49,11 +49,6 @@ namespace Populous
         /// </summary>
         public int ZoomDirection { get => m_ZoomDirection; set => m_ZoomDirection = Mathf.Clamp(value, -1, 1); }
 
-        /// <summary>
-        /// Velocity used when computing the smoothdamp function for the change in camera height.
-        /// </summary>
-        private float m_CameraHeightChangeVelocity;
-
 
         private void Awake()
         {
@@ -110,39 +105,7 @@ namespace Populous
         public void SetCameraLookPosition(Vector3 position) => m_FollowTarget.transform.position = position;
 
 
-        [ClientRpc]
-        public void SetCameraHeightClientRpc(int height)
-            => m_FollowTarget.position = new Vector3(m_FollowTarget.position.x, height, m_FollowTarget.position.z);
-
-        public void UpdateCameraHeight()
-        {
-            float height = GetNewCameraHeight();
-
-            if (height == m_FollowTarget.position.y)
-                return;
-
-            m_FollowTarget.position = new Vector3(m_FollowTarget.position.x, height, m_FollowTarget.position.z);
-        }
-
-        private float GetNewCameraHeight()
-        {
-            float height = m_FollowTarget.position.y;
-
-            if (Physics.Raycast(Camera.main.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0.5f)), out RaycastHit hitInfo,
-                maxDistance: Mathf.Infinity, layerMask: LayerMask.GetMask(LayerData.TERRAIN_LAYER_NAME, LayerData.FRAME_LAYER_NAME)) &&
-                Mathf.Abs(m_FollowTarget.position.y - hitInfo.point.y) > m_CameraHeightDeadzone)
-            {
-                if (hitInfo.collider.gameObject.layer == LayerData.FrameLayer)
-                    height = new MapPoint(hitInfo.point.x, hitInfo.point.z, getClosestPoint: true).Y;
-                else
-                    height = Mathf.Clamp(hitInfo.point.y, Terrain.Instance.WaterLevel, Terrain.Instance.MaxHeight);
-            }
-
-            return height;
-        }
-
-
-        #region Camera Movement
+        #region Main Camera Movement
 
         /// <summary>
         /// Moves the camera according to the movement vector and speed.
@@ -153,9 +116,7 @@ namespace Populous
             if (newPosition.x < 0 || newPosition.x > Terrain.Instance.UnitsPerSide || newPosition.z < 0 || newPosition.z > Terrain.Instance.UnitsPerSide)
                 return;
 
-            float y = Mathf.SmoothDamp(m_FollowTarget.position.y, GetNewCameraHeight(), ref m_CameraHeightChangeVelocity, 0.2f);
-
-            m_FollowTarget.position = new Vector3(newPosition.x, y, newPosition.z);
+            m_FollowTarget.position = new Vector3(newPosition.x, 0, newPosition.z);
         }
 
         /// <summary>

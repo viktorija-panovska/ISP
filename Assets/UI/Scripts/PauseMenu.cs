@@ -8,18 +8,18 @@ namespace Populous
     /// <summary>
     /// This class contains methods which define the behavior of the Pause Menu UI.
     /// </summary>
-    public class PauseMenuController : MonoBehaviour
+    public class PauseMenu : MonoBehaviour
     {
         [SerializeField] private Texture2D m_CursorTexture;
         [SerializeField] private GameObject m_MenuCanvas;
         [SerializeField] private TMP_Text m_MapSeedField;
         [SerializeField] private Button[] m_Buttons;
 
-        private static PauseMenuController m_Instance;
+        private static PauseMenu m_Instance;
         /// <summary>
         /// Gets an instance of the class.
         /// </summary>
-        public static PauseMenuController Instance { get => m_Instance; }
+        public static PauseMenu Instance { get => m_Instance; }
 
 
         #region MonoBehavior
@@ -79,7 +79,7 @@ namespace Populous
         /// Calls the <see cref="PlayerController"/> to unpause the game.
         /// </summary>
         public void Unpause()
-            => GameController.Instance.TogglePauseGameServerRpc();
+            => GameController.Instance.TogglePauseGame_ServerRpc();
 
         /// <summary>
         /// Calls the <see cref="ConnectionManager"/> to disconnect the player from the game.

@@ -42,17 +42,17 @@ namespace Populous
         /// </summary>
         protected DestroyMethod m_DestroyMethod;
 
-        protected MapPoint m_OccupiedTile;
+        protected TerrainPoint m_OccupiedTile;
         /// <summary>
         /// Gets the index of the tile on the terrain grid that the structure occupies.
         /// </summary>
-        public MapPoint OccupiedTile { get => m_OccupiedTile; set { m_OccupiedTile = value; } }
+        public TerrainPoint OccupiedTile { get => m_OccupiedTile; set { m_OccupiedTile = value; } }
 
-        protected Dictionary<MapPoint, int> m_OccupiedPointHeights = new();
+        protected Dictionary<TerrainPoint, int> m_OccupiedPointHeights = new();
         /// <summary>
         /// Gets and sets the points the structure occupies and their heights at the time of the structure's creation.
         /// </summary>
-        public Dictionary<MapPoint, int> OccupiedPointHeights { get => m_OccupiedPointHeights; set { m_OccupiedPointHeights = value; } }
+        public Dictionary<TerrainPoint, int> OccupiedPointHeights { get => m_OccupiedPointHeights; set { m_OccupiedPointHeights = value; } }
 
 
         /// <summary>
@@ -86,7 +86,7 @@ namespace Populous
                 int height = Terrain.Instance.GetTileCenterHeight((m_OccupiedTile.GridX, m_OccupiedTile.GridZ));
 
                 var corners = m_OccupiedPointHeights.Keys.ToArray();
-                foreach (MapPoint point in corners)
+                foreach (TerrainPoint point in corners)
                     m_OccupiedPointHeights[point] = height;
 
                 SetHeight/*ClientRpc*/(height);
@@ -105,7 +105,7 @@ namespace Populous
             if (m_DestroyMethod == DestroyMethod.DROWN)
                 return Terrain.Instance.IsTileUnderwater((m_OccupiedTile.GridX, m_OccupiedTile.GridZ));
 
-            foreach ((MapPoint point, int height) in m_OccupiedPointHeights)
+            foreach ((TerrainPoint point, int height) in m_OccupiedPointHeights)
                 if (point.Y != height)
                     return true;
 

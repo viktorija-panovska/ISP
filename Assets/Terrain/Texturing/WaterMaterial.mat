@@ -100,7 +100,7 @@ Material:
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
     - _SrcBlend: 1
-    - _TextureScale: 50
+    - _TextureScale: 10
     - _UVSec: 0
     - _WaveAmp: 0.01
     - _WaveAmplitude: 0.01

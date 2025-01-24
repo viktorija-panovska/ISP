@@ -88,7 +88,8 @@ namespace Populous
 
         private NetworkList<PlayerInfo> m_PlayersInfo;
 
-        private readonly ulong[] m_NetworkIds = new ulong[Enum.GetValues(typeof(Team)).Length];
+        private readonly ulong[] m_NetworkIdForTeam = new ulong[ConnectionManager.MAX_PLAYERS];
+        private readonly Team[] m_TeamForNetworkId = new Team[ConnectionManager.MAX_PLAYERS];
 
 
         private void Awake()
@@ -138,13 +139,18 @@ namespace Populous
         }
 
         public ulong GetNetworkIdByTeam(Team team) => GetNetworkIdByTeam((int)team);
-        public ulong GetNetworkIdByTeam(int team) => m_NetworkIds[team];
+        public ulong GetNetworkIdByTeam(int team) => m_NetworkIdForTeam[team];
 
+        public Team GetTeamByNetworkId(ulong networkId) => m_TeamForNetworkId[networkId];
 
         #endregion
 
 
         #region Modify Player Info List
+
+        [ServerRpc(RequireOwnership = false)]
+        public void AddPlayerInfoServerRpc(ulong networkId, ulong steamId, Team team)
+            => AddPlayerInfo(new PlayerInfo(networkId, steamId, team));
 
         public bool AddCurrentPlayerInfo(Team team)
             => AddPlayerInfo(new PlayerInfo(NetworkManager.Singleton.LocalClientId, SteamClient.SteamId, team));
@@ -155,15 +161,11 @@ namespace Populous
                 return false;
 
             m_PlayersInfo.Add(playerInfo);
-            m_NetworkIds[(int)playerInfo.Team] = playerInfo.NetworkId;
+            m_NetworkIdForTeam[(int)playerInfo.Team] = playerInfo.NetworkId;
+            m_TeamForNetworkId[playerInfo.NetworkId] = playerInfo.Team;
             return true;
         }
 
-        [ServerRpc(RequireOwnership = false)]
-        public void AddPlayerInfoServerRpc(ulong networkId, ulong steamId, Team team)
-        {
-            AddPlayerInfo(new PlayerInfo(networkId, steamId, team));
-        }
 
         public bool RemovePlayerInfoByNetworkId(ulong networkId)
         {
@@ -209,7 +211,6 @@ namespace Populous
 
         public void SubscribeToPlayersInfoList(Action<NetworkListEvent<PlayerInfo>> method)
         {
-            Debug.Log("Subscribe");
             m_PlayersInfo.OnListChanged += new NetworkList<PlayerInfo>.OnListChangedDelegate(method);
         }
 
@@ -217,7 +218,6 @@ namespace Populous
         {
             m_PlayersInfo.OnListChanged -= new NetworkList<PlayerInfo>.OnListChangedDelegate(method);
         }
-
 
         public void ResetData()
         {

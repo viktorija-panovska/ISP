@@ -30,14 +30,14 @@ namespace Populous
         private UnitMovementHandler m_MovementHandler;
 
         /// <summary>
-        /// The <c>MapPoint</c> on the terrain grid which is closest to the current position of the unit.
+        /// The <c>TerrainPoint</c> on the terrain grid which is closest to the current position of the unit.
         /// </summary>
-        public MapPoint ClosestMapPoint { get => new(gameObject.transform.position.x, gameObject.transform.position.z, getClosestPoint: true); }
+        public TerrainPoint ClosestMapPoint { get => new(gameObject.transform.position.x, gameObject.transform.position.z, getClosestPoint: true); }
 
         /// <summary>
         /// The tile the unit is currently on.
         /// </summary>
-        public MapPoint Tile { get => new(gameObject.transform.position.x, gameObject.transform.position.z, getClosestPoint: false); }
+        public TerrainPoint Tile { get => new(gameObject.transform.position.x, gameObject.transform.position.z, getClosestPoint: false); }
 
         private Team m_Team;
         /// <summary>
@@ -363,8 +363,6 @@ namespace Populous
 
         public void CheckIfTargetTileFlat()
         {
-            Debug.Log("check tile");
-
             if (m_Behavior != UnitBehavior.SETTLE) return;
             m_MovementHandler.CheckIfTargetTileFlat();
         }

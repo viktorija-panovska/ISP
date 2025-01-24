@@ -147,12 +147,12 @@ namespace Populous
         /// <summary>
         /// Creates a unit of the given team at the given location and spawns it on the network.
         /// </summary>
-        /// <param name="location">The <c>MapPoint</c> at which the new unit should be spawned.</param>
+        /// <param name="location">The <c>TerrainPoint</c> at which the new unit should be spawned.</param>
         /// <param name="team">The team the new unit should belong to.</param>
         /// <param name="strength">The initial strength of the unit.</param>
         /// <param name="isLeader">True if the created unit is a knight, false otherwise.</param>
         /// <returns>The <c>GameObject</c> of the newly spawned unit.</returns>
-        public GameObject SpawnUnit(MapPoint location, Team team, UnitClass unitClass = UnitClass.WALKER, int strength = 1, bool canEnterSettlement = false)
+        public GameObject SpawnUnit(TerrainPoint location, Team team, UnitClass unitClass = UnitClass.WALKER, int strength = 1, bool canEnterSettlement = false)
         {
             if (/*!IsServer || */m_Population[(int)team] == m_MaxPopulation) 
                 return null;
@@ -348,6 +348,7 @@ namespace Populous
         {
             //if (!IsHost) return;
 
+            Debug.Log("Spawn");
             ResetGridSteps(Team.RED);
             ResetGridSteps(Team.BLUE);
 
@@ -360,7 +361,7 @@ namespace Populous
 
             int unitsToSpawn = m_StartingUnits <= m_MaxPopulation ? m_StartingUnits : m_MaxPopulation;
 
-            for (int team = 1; team <= 1; ++team)
+            for (int team = 0; team <= 1; ++team)
             {
                 List<(int, int)> spawns = team == 0 ? redSpawns : blueSpawns;
                 List<int> spawnIndices = Enumerable.Range(0, spawns.Count).ToList();
@@ -377,7 +378,7 @@ namespace Populous
                     if (spawnIndices[count] < unitsToSpawn)
                     {
                         SpawnUnit(
-                            new MapPoint(spawn.x, spawn.z), 
+                            new TerrainPoint(spawn.x, spawn.z), 
                             team == 0 ? Team.RED : Team.BLUE, 
                             strength: m_StartingUnitStrength, 
                             unitClass: spawned == leader ? UnitClass.LEADER : UnitClass.WALKER, 
@@ -394,7 +395,7 @@ namespace Populous
                 {
                     (int x, int z) point = spawns[random.Next(spawns.Count)];
                     SpawnUnit(
-                        new MapPoint(point.x, point.z),
+                        new TerrainPoint(point.x, point.z),
                         team == 0 ? Team.RED : Team.BLUE,
                         strength: m_StartingUnitStrength,
                         unitClass: spawned == leader ? UnitClass.LEADER : UnitClass.WALKER,
@@ -508,8 +509,7 @@ namespace Populous
         /// </summary>
         /// <param name="behavior">The <c>UnitBehavior</c> that should be applied to all units in the team.</param>
         /// <param name="team">The <c>Team</c> whose units should be targeted.</param>
-        //[ServerRpc(RequireOwnership = false)]
-        public void ChangeUnitBehavior/*ServerRpc*/(UnitBehavior behavior, Team team)
+        public void ChangeUnitBehavior(UnitBehavior behavior, Team team)
         {
             if (m_ActiveBehavior[(int)team] == behavior) return;
 

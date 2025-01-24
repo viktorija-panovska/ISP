@@ -394,6 +394,10 @@ PrefabInstance:
       propertyPath: GlobalObjectIdHash
       value: 3742806796
       objectReference: {fileID: 0}
+    - target: {fileID: 5305546545227515207, guid: 9a957342fdb92f14f9b707cb95d5f2f0, type: 3}
+      propertyPath: InScenePlacedSourceGlobalObjectIdHash
+      value: 195011304
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 9a957342fdb92f14f9b707cb95d5f2f0, type: 3}
 --- !u!1 &80913601
@@ -1564,13 +1568,28 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 593a2fe42fa9d37498c96f9a383b6521, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  RunInBackground: 1
-  LogLevel: 1
   NetworkConfig:
     ProtocolVersion: 0
     NetworkTransport: {fileID: 477241448}
     PlayerPrefab: {fileID: 0}
-    NetworkPrefabs:
+    Prefabs:
+      NetworkPrefabsLists: []
+    TickRate: 30
+    ClientConnectionBufferTimeout: 10
+    ConnectionApproval: 1
+    ConnectionData: 
+    EnableTimeResync: 0
+    TimeResyncInterval: 30
+    EnsureNetworkVariableLengthSafety: 0
+    EnableSceneManagement: 1
+    ForceSamePrefabs: 1
+    RecycleNetworkIds: 1
+    NetworkIdRecycleDelay: 120
+    RpcHashSize: 0
+    LoadSceneTimeOut: 120
+    SpawnTimeout: 1
+    EnableNetworkLogs: 1
+    OldPrefabList:
     - Override: 0
       Prefab: {fileID: 5305546545227515200, guid: 9a957342fdb92f14f9b707cb95d5f2f0, type: 3}
       SourcePrefabToOverride: {fileID: 0}
@@ -1631,21 +1650,18 @@ MonoBehaviour:
       SourcePrefabToOverride: {fileID: 0}
       SourceHashToOverride: 0
       OverridingTargetPrefab: {fileID: 0}
-    TickRate: 30
-    ClientConnectionBufferTimeout: 10
-    ConnectionApproval: 1
-    ConnectionData: 
-    EnableTimeResync: 0
-    TimeResyncInterval: 30
-    EnsureNetworkVariableLengthSafety: 0
-    EnableSceneManagement: 1
-    ForceSamePrefabs: 1
-    RecycleNetworkIds: 1
-    NetworkIdRecycleDelay: 120
-    RpcHashSize: 0
-    LoadSceneTimeOut: 120
-    SpawnTimeout: 1
-    EnableNetworkLogs: 1
+    - Override: 0
+      Prefab: {fileID: 4203157915049651181, guid: 9419e4d818d1f414bbc5b44e41e45d22, type: 3}
+      SourcePrefabToOverride: {fileID: 0}
+      SourceHashToOverride: 0
+      OverridingTargetPrefab: {fileID: 0}
+    - Override: 0
+      Prefab: {fileID: 3529950447808904562, guid: 4757c215c126a194e9349a71efc65037, type: 3}
+      SourcePrefabToOverride: {fileID: 0}
+      SourceHashToOverride: 0
+      OverridingTargetPrefab: {fileID: 0}
+  RunInBackground: 1
+  LogLevel: 1
 --- !u!114 &477241448
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1661,7 +1677,6 @@ MonoBehaviour:
   m_ProtocolType: 0
   m_MaxPacketQueueSize: 128
   m_MaxPayloadSize: 6144
-  m_MaxSendQueueSize: 98304
   m_HeartbeatTimeoutMS: 500
   m_ConnectTimeoutMS: 1000
   m_MaxConnectAttempts: 60
@@ -6825,6 +6840,10 @@ PrefabInstance:
     - target: {fileID: 8191125906679830513, guid: 3c5a5e2bdc4852243aaace8010e631bb, type: 3}
       propertyPath: GlobalObjectIdHash
       value: 1350963646
+      objectReference: {fileID: 0}
+    - target: {fileID: 8191125906679830513, guid: 3c5a5e2bdc4852243aaace8010e631bb, type: 3}
+      propertyPath: InScenePlacedSourceGlobalObjectIdHash
+      value: 4119392747
       objectReference: {fileID: 0}
     - target: {fileID: 8191125906679830514, guid: 3c5a5e2bdc4852243aaace8010e631bb, type: 3}
       propertyPath: m_Name

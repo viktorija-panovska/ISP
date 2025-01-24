@@ -13,6 +13,7 @@ namespace Populous
         public static CameraDetectionZone Instance { get => m_Instance; }
 
         private readonly HashSet<int> m_VisibleTeamObjectIds = new();
+        public int VisibleTeamObjects { get =>  m_VisibleTeamObjectIds.Count; }
 
 
         private void Awake()
@@ -38,10 +39,7 @@ namespace Populous
 
             if (team == Team.RED && other.gameObject.layer == LayerData.TeamLayers[(int)Team.RED] ||
                 team == Team.BLUE && other.gameObject.layer == LayerData.TeamLayers[(int)Team.BLUE])
-            {
                 m_VisibleTeamObjectIds.Add(other.gameObject.GetInstanceID());
-                PlayerController.Instance.AddVisibleUnitOrStructure();
-            }
         }
 
         private void OnTriggerExit(Collider other)
@@ -59,10 +57,7 @@ namespace Populous
 
             if (team == Team.RED && other.gameObject.layer == LayerData.TeamLayers[(int)Team.RED] ||
                 team == Team.BLUE && other.gameObject.layer == LayerData.TeamLayers[(int)Team.BLUE])
-            {
                 m_VisibleTeamObjectIds.Remove(other.gameObject.GetInstanceID());
-                PlayerController.Instance.RemoveVisibleUnitOrStructure();
-            }
         }
 
 
@@ -72,7 +67,6 @@ namespace Populous
                 return;
 
             m_VisibleTeamObjectIds.Remove(objectId);
-            PlayerController.Instance.RemoveVisibleUnitOrStructure();
         }
     }
 }

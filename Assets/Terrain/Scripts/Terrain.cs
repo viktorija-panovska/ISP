@@ -32,11 +32,10 @@ namespace Populous
         private TerrainChunk[,] m_ChunkMap;
         private HashSet<(int, int)> m_ModifiedChunks;
 
-        private IHeightMapGenerator m_MapGenerator;
-        public IHeightMapGenerator MapGenerator { get => m_MapGenerator; }
+        public INoiseGenerator MapGenerator { get => GetComponent<INoiseGenerator>(); }
 
-        private MapPoint m_TerrainCenter;
-        public MapPoint TerrainCenter { get => m_TerrainCenter; }
+        private TerrainPoint m_TerrainCenter;
+        public TerrainPoint TerrainCenter { get => m_TerrainCenter; }
 
         private int m_WaterLevel;
         /// <summary>
@@ -108,7 +107,6 @@ namespace Populous
         }
 
 
-
         #region Terrain Generation
 
         /// <summary>
@@ -116,9 +114,11 @@ namespace Populous
         /// </summary>
         public void CreateTerrain()
         {
-            m_MapGenerator = new HeightMapGenerator(!GameData.Instance ? 0 : GameData.Instance.MapSeed);
+            MapGenerator.Setup();
+
             GenerateTerrain();
             SetupTerrainShader();
+            GameUI.Instance.SetInitialMinimapTexture();
 
             Frame.Instance.Create();
             Water.Instance.Create();
@@ -151,10 +151,7 @@ namespace Populous
         /// </summary>
         private void SetupTerrainShader()
         {
-            m_TerrainMaterial.SetFloat("minHeight", 0);
-            m_TerrainMaterial.SetFloat("maxHeight", MaxHeight);
             m_TerrainMaterial.SetInt("waterLevel", m_WaterLevel);
-            m_TerrainMaterial.SetInt("stepHeight", m_StepHeight);
         }
 
         #endregion
@@ -164,12 +161,12 @@ namespace Populous
         #region Terrain Modificiation
 
         /// <summary>
-        /// Calls the <see cref="ChangePointHeight(MapPoint, bool)"/> to modify the terrain, 
+        /// Calls the <see cref="ChangePointHeight(TerrainPoint, bool)"/> to modify the terrain, 
         /// then resets the meshes of all the chunks that have been modified..
         /// </summary>
-        /// <param name="point">The <c>MapPoint</c> which should be modified.</param>
+        /// <param name="point">The <c>TerrainPoint</c> which should be modified.</param>
         /// <param name="lower">Whether the point should be lowered or elevated.</param>
-        public void ModifyTerrain(MapPoint point, bool lower)
+        public void ModifyTerrain(TerrainPoint point, bool lower)
         {
             m_ModifiedPointRange.lowestX = m_ModifiedPointRange.lowestZ = TilesPerSide;
             m_ModifiedPointRange.highestX = m_ModifiedPointRange.highestZ = 0;
@@ -187,9 +184,9 @@ namespace Populous
         /// <summary>
         /// Elevates or lowers the given point on the terrain in all the chunks the point belongs to.
         /// </summary>
-        /// <param name="point">The <c>MapPoint</c> which should be modified.</param>
+        /// <param name="point">The <c>TerrainPoint</c> which should be modified.</param>
         /// <param name="lower">Whether the point should be lowered or elevated.</param>
-        public void ChangePointHeight(MapPoint point, bool lower, int? height = null)
+        public void ChangePointHeight(TerrainPoint point, bool lower, int? height = null)
         {
             foreach ((int, int) chunkIndex in point.TouchingChunks)
             {
@@ -234,10 +231,10 @@ namespace Populous
         /// <summary>
         /// Gets all points that are a given number of tiles away from the given center point.
         /// </summary>
-        /// <param name="center">The <c>MapPoint</c> at the center.</param>
+        /// <param name="center">The <c>TerrainPoint</c> at the center.</param>
         /// <param name="distance">The distance in tiles from the center to the points that should be returned.</param>
         /// <returns></returns>
-        private IEnumerable<MapPoint> GetPointsAtDistance(MapPoint center, int distance)
+        private IEnumerable<TerrainPoint> GetPointsAtDistance(TerrainPoint center, int distance)
         {
             for (int z = -distance; z <= distance; ++z)
             {
@@ -258,7 +255,7 @@ namespace Populous
                     if (targetX < 0 || targetX > TilesPerSide)
                         continue;
 
-                    yield return new MapPoint(targetX, targetZ);
+                    yield return new TerrainPoint(targetX, targetZ);
                 }
             }
         }
@@ -266,33 +263,75 @@ namespace Populous
         /// <summary>
         /// Lowers the terrain within the given number of tiles from the given center point. nearly to the water level.
         /// </summary>
-        /// <param name="center">The <c>MapPoint</c> at the center.</param>
+        /// <param name="center">The <c>TerrainPoint</c> at the center.</param>
         /// <param name="radius">The number of tiles in each direction that the lowering should affect.</param>
         /// <param name="randomizerSeed">The seed for the randomizer used when choosing random lowering steps.</param>
-        public void CauseEarthquake(MapPoint center, int radius, int randomizerSeed)
+        public void CauseEarthquake(TerrainPoint center, int radius, int randomizerSeed)
         {
             m_ModifiedPointRange.lowestX = m_ModifiedPointRange.lowestZ = TilesPerSide;
             m_ModifiedPointRange.highestX = m_ModifiedPointRange.highestZ = 0;
 
             m_ModifiedChunks = new();
-            Random random = new(randomizerSeed);
 
-            foreach (MapPoint point in GetPointsAtDistance(center, radius))
+            Random random = new(randomizerSeed);
+            Dictionary<(int, int), int> newHeights = new();
+
+            for (int z = -radius; z <= radius; ++z)
             {
-                int randomStep = random.Next(0, 2);
-                int steps = Mathf.Abs((randomStep * m_StepHeight) - point.Y) / m_StepHeight;
-                for (int i = 0; i < steps; ++i)
-                    ChangePointHeight(point, lower: point.Y - (randomStep * m_StepHeight) > 0);
+                for (int x = -radius; x <= radius; ++x)
+                {
+                    if (center.GridX + x < 0 || center.GridX + x > TilesPerSide ||
+                        center.GridZ + z < 0 || center.GridZ + z > TilesPerSide)
+                        continue;
+
+                    TerrainPoint point = new(center.GridX + x, center.GridZ + z);
+                    int randomStep = random.Next(0, 2);
+                    ChangePointHeight(point, false, m_WaterLevel + (randomStep * m_StepHeight));
+
+                    newHeights.Add((point.GridX, point.GridZ), m_WaterLevel);
+                }
             }
 
-            for (int distance = radius - 1; distance >= 0; --distance)
-                foreach (MapPoint point in GetPointsAtDistance(center, distance))
-                    ChangePointHeight(point, false, m_WaterLevel);
+            int distance = radius;
 
-            for (int distance = radius - 1; distance >= 0; --distance)
-                foreach (MapPoint point in GetPointsAtDistance(center, distance))
-                    if (random.Next(0, 2) == 1)
-                        ChangePointHeight(point, lower: false);
+            // updating the points around the affected area in case they break the height property
+            int changedHeightsInIter = 1;
+            while (changedHeightsInIter > 0)
+            {
+                changedHeightsInIter = 0;
+                distance++;
+
+                foreach (TerrainPoint point in GetPointsAtDistance(center, distance))
+                {
+                    foreach (TerrainPoint neighbor in point.Neighbors)
+                    {
+                        if (Mathf.Abs(neighbor.Y - point.Y) > m_StepHeight)
+                        {
+                            int x = point.GridX, z = point.GridZ;
+
+                            if (point.GridX == center.GridX - distance)
+                                x++;
+
+                            if (point.GridX == center.GridX + distance)
+                                x--;
+
+                            if (point.GridZ == center.GridZ - distance)
+                                z++;
+
+                            if (point.GridZ == center.GridZ + distance)
+                                z--;
+
+                            if ((x, z) == (point.GridX, point.GridZ))
+                                continue;
+
+                            ChangePointHeight(point, false, newHeights[(x, z)] + m_StepHeight);
+                            changedHeightsInIter++;
+                            break;
+                        }
+                    }
+                    newHeights.Add((point.GridX, point.GridZ), point.Y);
+                }
+            }
 
             foreach ((int, int) chunkIndex in m_ModifiedChunks)
             {
@@ -308,10 +347,11 @@ namespace Populous
         /// <summary>
         /// Elevates the terrain within the given number of tiles of the given center point to form a steep mountain.
         /// </summary>
-        /// <param name="center">The <c>MapPoint</c> at the center of the elevation.</param>
+        /// <param name="center">The <c>TerrainPoint</c> at the center of the elevation.</param>
         /// <param name="radius">The number of tiles in each direction that the elevation should affect.</param>
-        public void CauseVolcano(MapPoint center, int radius)
+        public void CauseVolcano(TerrainPoint center, int radius)
         {
+            // for updating structures
             m_ModifiedPointRange.lowestX = m_ModifiedPointRange.lowestZ = TilesPerSide;
             m_ModifiedPointRange.highestX = m_ModifiedPointRange.highestZ = 0;
 
@@ -319,22 +359,39 @@ namespace Populous
 
             int maxHeightOnEdge = -1;
 
-            foreach (MapPoint point in GetPointsAtDistance(center, radius))
+            foreach (TerrainPoint point in GetPointsAtDistance(center, radius))
                 if (point.Y > maxHeightOnEdge)
                     maxHeightOnEdge = point.Y;
 
             maxHeightOnEdge += m_StepHeight;
 
-            foreach (MapPoint point in GetPointsAtDistance(center, radius))
-            {
-                int steps = Mathf.Abs(maxHeightOnEdge - point.Y) / m_StepHeight;
-                for (int i = 0; i < steps; ++i)
-                    ChangePointHeight(point, lower: false);
-            }
-
-            for (int distance = radius - 1; distance >= 0; --distance)
-                foreach (MapPoint point in GetPointsAtDistance(center, distance))
+            int distance;
+            for (distance = 0; distance <= radius; ++distance)
+                foreach (TerrainPoint point in GetPointsAtDistance(center, distance))
                     ChangePointHeight(point, false, maxHeightOnEdge + (radius - distance) * m_StepHeight);
+
+            distance = radius;
+
+            // updating the points around the affected area in case they break the height property
+            int changedHeightsInIter = 1;
+            while (changedHeightsInIter > 0)
+            {
+                changedHeightsInIter = 0;
+                distance++;
+
+                foreach (TerrainPoint point in GetPointsAtDistance(center, distance))
+                {
+                    foreach (TerrainPoint neighbor in point.Neighbors)
+                    {
+                        if (Mathf.Abs(neighbor.Y - point.Y) > m_StepHeight)
+                        {
+                            ChangePointHeight(point, false, maxHeightOnEdge + (radius - distance) * m_StepHeight);
+                            changedHeightsInIter++;
+                            break;
+                        }
+                    }
+                }
+            }
 
             foreach ((int, int) chunkIndex in m_ModifiedChunks)
             {
@@ -452,8 +509,8 @@ namespace Populous
         /// Gets the coordinates on the terrain of the points on the corners of the given tile.
         /// </summary>
         /// <param name="tile">The (x, z) coordinates of the tile whose corners should be returned.</param>
-        /// <returns>A list of <c>MapPoint</c>s representing the corners of the tile.</returns>
-        public List<MapPoint> GetTileCorners((int x, int z) tile)
+        /// <returns>A list of <c>TerrainPoint</c>s representing the corners of the tile.</returns>
+        public List<TerrainPoint> GetTileCorners((int x, int z) tile)
         {
             if (tile.x >= TilesPerSide)
                 tile.x -= 1;
@@ -486,7 +543,7 @@ namespace Populous
         /// <returns>True if the tile is underwater, false otherwise.</returns>
         public bool IsTileUnderwater((int x, int z) tile)
         {
-            foreach (MapPoint point in GetTileCorners(tile))
+            foreach (TerrainPoint point in GetTileCorners(tile))
                 if (point.Y > m_WaterLevel)
                     return false;
 
@@ -535,10 +592,10 @@ namespace Populous
         /// <summary>
         /// Checks whether when moving from one point of a tile to another, a <c>Structure</c> or water is crossed.
         /// </summary>
-        /// <param name="start">A <c>MapPoint</c> representing the starting point.</param>
-        /// <param name="end">A <c>MapPoint</c> representing the end point.</param>
+        /// <param name="start">A <c>TerrainPoint</c> representing the starting point.</param>
+        /// <param name="end">A <c>TerrainPoint</c> representing the end point.</param>
         /// <returns>True if no <c>Structure</c> or water is crossed, false otherwise.</returns>
-        public bool CanCrossTile(MapPoint start, MapPoint end)
+        public bool CanCrossTile(TerrainPoint start, TerrainPoint end)
         {
             int dx = end.GridX - start.GridX;
             int dz = end.GridZ - start.GridZ;

@@ -8,8 +8,10 @@ namespace Populous
 {
     public class GameUI : MonoBehaviour
     {
-        [SerializeField] private Slider[] m_PopulationBars;
+        #region Inspector Fields
+
         [SerializeField] private Slider m_MannaBar;
+        [SerializeField] private Slider[] m_PopulationBars;
         [SerializeField] private Button[] m_PowerIcons;
         [SerializeField] private Button[] m_BehaviorIcons;
         [SerializeField] private Button[] m_CameraSnapIcons;
@@ -32,9 +34,14 @@ namespace Populous
 
         [Header("Minimap")]
         [SerializeField] private RectTransform m_Minimap;
+        [SerializeField] private Renderer m_MinimapRenderer;
         [SerializeField] private int m_MinimapIconScale;
         [SerializeField] private Color[] m_MinimapUnitColors;
         [SerializeField] private Color[] m_MinimapSettlementColors;
+
+        #endregion
+
+
 
         public int MinimapIconScale { get => m_MinimapIconScale; }
         public Color[] MinimapUnitColors { get => m_MinimapUnitColors; }
@@ -58,6 +65,7 @@ namespace Populous
         private int m_CurrentlyShownSettlementImage = -1;
         private int m_MaxUnitsInFocusedSettlement = -1;
 
+        private Texture2D m_MinimapTexture;
 
 
         #region MonoBehavior
@@ -70,23 +78,22 @@ namespace Populous
             m_Instance = this;
         }
 
-        #endregion
-
-
-        public void Setup(int maxPopulation, int maxManna, int maxUnitStrength, int startingUnits)
+        private void Start()
         {
-            m_MaxPopulation = maxPopulation;
-            m_MaxManna = maxManna;
-            m_MaxUnitStrength = maxUnitStrength;
+            m_MaxPopulation = UnitManager.Instance.MaxPopulation;
+            m_MaxManna = GameController.Instance.MaxManna;
+            m_MaxUnitStrength = UnitManager.Instance.MaxUnitStrength;
 
             foreach (var bar in m_PopulationBars)
-                bar.value = (float)startingUnits / maxPopulation;
+                bar.value = (float)UnitManager.Instance.StartingUnits / m_MaxPopulation;
 
             SetActiveBehaviorIcon(UnitBehavior.SETTLE, UnitBehavior.SETTLE);
 
             UpdateMannaBar(0, 0);
             SetActivePowerIcon(Power.MOLD_TERRAIN, Power.MOLD_TERRAIN);
         }
+
+        #endregion
 
 
         #region Population Bars
@@ -107,7 +114,7 @@ namespace Populous
                 m_PowerIcons[i].interactable = i <= activePowers;
         }
 
-        public void NotEnoughManna(Power power)
+        public void ShowNotEnoughManna(Power power)
             => InterfaceUtils.FlashWrong(m_PowerIcons[(int)power].GetComponent<Image>());
 
         public void SetActivePowerIcon(Power currentPower, Power lastPower)
@@ -202,188 +209,6 @@ namespace Populous
             => InterfaceUtils.ClickIcon(m_CameraSnapIcons[(int)snapOption].GetComponent<Image>());
 
 
-        #region Button Clicks
-
-        #region Powers Inputs
-
-        /// <summary>
-        /// Activates the Mold Terrain power.
-        /// </summary>
-        public void OnMoldTerrainClicked()
-        {
-            if (!PlayerController.Instance.InputEnabled) return;
-            PlayerController.Instance.TryActivatePower(Power.MOLD_TERRAIN);
-        }
-
-        /// <summary>
-        /// Activates the Guide Followers power.
-        /// </summary>
-        public void OnGuideFollowersClicked()
-        {
-            if (!PlayerController.Instance.InputEnabled) return;
-            PlayerController.Instance.TryActivatePower(Power.GUIDE_FOLLOWERS);
-        }
-
-        /// <summary>
-        /// Activates the Earthquake power.
-        /// </summary>
-        public void OnEarthquakeClicked()
-        {
-            if (!PlayerController.Instance.InputEnabled) return;
-            PlayerController.Instance.TryActivatePower(Power.EARTHQUAKE);
-        }
-
-        /// <summary>
-        /// Activates the Swamp power.
-        /// </summary>
-        public void OnSwampClicked()
-        {
-            if (!PlayerController.Instance.InputEnabled) return;
-            PlayerController.Instance.TryActivatePower(Power.SWAMP);
-        }
-
-        /// <summary>
-        /// Activates the KNIGHT power.
-        /// </summary>
-        public void OnKnightClicked()
-        {
-            if (!PlayerController.Instance.InputEnabled) return;
-            PlayerController.Instance.TryActivatePower(Power.KNIGHT);
-        }
-
-        /// <summary>
-        /// Activates the Volcano power.
-        /// </summary>
-        public void OnVolcanoClicked()
-        {
-            if (!PlayerController.Instance.InputEnabled) return;
-            PlayerController.Instance.TryActivatePower(Power.VOLCANO);
-        }
-
-        /// <summary>
-        /// Activates the Flood power.
-        /// </summary>
-        public void OnFloodClicked()
-        {
-            if (!PlayerController.Instance.InputEnabled) return;
-            PlayerController.Instance.TryActivatePower(Power.FLOOD);
-        }
-
-        /// <summary>
-        /// Activates the Armagheddon power.
-        /// </summary>
-        public void OnArmagheddonClicked()
-        {
-            if (!PlayerController.Instance.InputEnabled) return;
-            PlayerController.Instance.TryActivatePower(Power.ARMAGHEDDON);
-        }
-
-        #endregion
-
-
-        #region Influence Behavior Inputs
-
-        /// <summary>
-        /// Activates the Go To Flag unit behavior.
-        /// </summary>
-        public void OnGoToFlagClicked()
-        {
-            if (!PlayerController.Instance.InputEnabled) return;
-            PlayerController.Instance.SetUnitBehavior(UnitBehavior.GO_TO_SYMBOL);
-        }
-
-        /// <summary>
-        /// Activates the Settle unit behavior.
-        /// </summary>
-        public void OnSettleClicked()
-        {
-            if (!PlayerController.Instance.InputEnabled) return;
-            PlayerController.Instance.SetUnitBehavior(UnitBehavior.SETTLE);
-        }
-
-        /// <summary>
-        /// Activates the Gather unit behavior.
-        /// </summary>
-        public void OnGatherClicked()
-        {
-            if (!PlayerController.Instance.InputEnabled) return;
-            PlayerController.Instance.SetUnitBehavior(UnitBehavior.GATHER);
-        }
-
-        /// <summary>
-        /// Activates the FIGHT unit behavior.
-        /// </summary>
-        public void OnFightClicked()
-        {
-            if (!PlayerController.Instance.InputEnabled) return;
-            PlayerController.Instance.SetUnitBehavior(UnitBehavior.FIGHT);
-        }
-
-        #endregion
-
-
-        #region Zoom Inputs
-
-        /// <summary>
-        /// Triggers camera to show the object the player is focusing on.
-        /// </summary>
-        public void OnShowFocusedObjectClicked()
-        {
-            if (!PlayerController.Instance.InputEnabled) return;
-            GameController.Instance.ShowFocusedObjectServerRpc(PlayerController.Instance.Team);
-        }
-
-        /// <summary>
-        /// Triggers camera to show the player's team's symbol.
-        /// </summary>
-        public void OnShowFlagClicked()
-        {
-            if (!PlayerController.Instance.InputEnabled) return;
-            GameController.Instance.ShowTeamSymbolServerRpc(PlayerController.Instance.Team);
-        }
-
-        /// <summary>
-        /// Triggers camera to show the player's team's leader.
-        /// </summary>
-        public void OnShowLeaderClicked()
-        {
-            if (!PlayerController.Instance.InputEnabled) return;
-            GameController.Instance.ShowLeaderServerRpc(PlayerController.Instance.Team);
-        }
-
-        /// <summary>
-        /// Triggers camera to show the player's team's settlements.
-        /// </summary>
-        public void OnShowSettlementsClicked()
-        {
-            if (!PlayerController.Instance.InputEnabled) return;
-            GameController.Instance.ShowSettlementsServerRpc(PlayerController.Instance.Team);
-        }
-
-        /// <summary>
-        /// Triggers camera to show the fights currenly happening..
-        /// </summary>
-        public void OnShowFightsClicked()
-        {
-            if (!PlayerController.Instance.InputEnabled) return;
-            GameController.Instance.ShowFightsServerRpc(PlayerController.Instance.Team);
-        }
-
-        /// <summary>
-        /// Triggers camera to show the player's team's knights.
-        /// </summary>
-        public void OnShowKnightsClicked()
-        {
-            if (!PlayerController.Instance.InputEnabled) return;
-            GameController.Instance.ShowKnightsServerRpc(PlayerController.Instance.Team);
-        }
-
-        #endregion
-
-
-        #endregion
-
-
         public void SetIsPointerOnUI(bool isOnUI) => m_IsPointerOnUI = isOnUI;
 
         public void ShowTooltip(string message)
@@ -404,6 +229,45 @@ namespace Populous
 
         public void HideTooltip() => m_TooltipBox.gameObject.SetActive(false);
 
+
+        #region Minimap
+
+        public void SetInitialMinimapTexture()
+        {
+            m_MinimapTexture = new(Terrain.Instance.TilesPerSide + 1, Terrain.Instance.TilesPerSide + 1);
+
+            Color32[] colors = new Color32[m_MinimapTexture.width * m_MinimapTexture.height];
+
+            for (int z = 0; z <= Terrain.Instance.TilesPerSide; ++z)
+                for (int x = 0; x <= Terrain.Instance.TilesPerSide; ++x)
+                    colors[z * m_MinimapTexture.width + x] = Terrain.Instance.GetPointHeight((x, z)) > Terrain.Instance.WaterLevel ? Color.green : Color.blue;
+
+            m_MinimapTexture.filterMode = FilterMode.Point;
+            m_MinimapTexture.wrapMode = TextureWrapMode.Clamp;
+            m_MinimapTexture.SetPixels32(colors);
+            m_MinimapTexture.Apply();
+
+            m_MinimapRenderer.sharedMaterial.mainTexture = m_MinimapTexture;
+            m_MinimapRenderer.transform.position = new Vector3(Terrain.Instance.UnitsPerSide / 2, 0, Terrain.Instance.UnitsPerSide / 2);
+            GameUtils.ResizeGameObject(m_MinimapRenderer.gameObject, Terrain.Instance.UnitsPerSide);
+        }
+
+        public void UpdateMinimapTexture()
+        {
+            Color32[] colors = new Color32[m_MinimapTexture.width * m_MinimapTexture.height];
+
+            for (int i = 0; i < 6; ++i)
+                colors[i] = Color.white;
+
+            m_MinimapTexture.SetPixels32(0, 0, 5, 5, colors);
+            m_MinimapTexture.Apply();
+        }
+
+
+        #endregion
+
+
+
         public void OnMinimapClicked()
         {
             Vector2 minimapBottomLeft = (Vector2)m_Minimap.position - new Vector2(m_Minimap.rect.width / 2, m_Minimap.rect.height / 2);
@@ -411,7 +275,7 @@ namespace Populous
             Vector2 mousePosition = Mouse.current.position.ReadValue();
             Vector2 positionOnTerrain = new Vector2(mousePosition.x - minimapBottomLeft.x, mousePosition.y - minimapBottomLeft.y) * scale;
 
-            MapPoint closestPoint = new(positionOnTerrain.x, positionOnTerrain.y, getClosestPoint: true);
+            TerrainPoint closestPoint = new(positionOnTerrain.x, positionOnTerrain.y, getClosestPoint: true);
             CameraController.Instance.SetCameraLookPosition(closestPoint.ToWorldPosition());
         }
     }

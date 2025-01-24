@@ -551,11 +551,11 @@ namespace Populous
             if (m_ContainsLeader)
             {
                 GameController.Instance.RemoveLeader(m_Team);
-                UnitManager.Instance.SpawnUnit(new MapPoint(m_OccupiedTile.GridX, m_OccupiedTile.GridZ), m_Team, unitClass: UnitClass.LEADER, strength);
+                UnitManager.Instance.SpawnUnit(new TerrainPoint(m_OccupiedTile.GridX, m_OccupiedTile.GridZ), m_Team, unitClass: UnitClass.LEADER, strength);
             }
             else
             {
-                UnitManager.Instance.SpawnUnit(new MapPoint(m_OccupiedTile.GridX, m_OccupiedTile.GridZ), m_Team, unitClass: UnitClass.WALKER, strength);
+                UnitManager.Instance.SpawnUnit(new TerrainPoint(m_OccupiedTile.GridX, m_OccupiedTile.GridZ), m_Team, unitClass: UnitClass.WALKER, strength);
             }
 
         }

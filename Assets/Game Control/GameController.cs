@@ -4,6 +4,7 @@ using System.Linq;
 using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.Networking.Types;
 using Random = System.Random;
 
 
@@ -84,7 +85,12 @@ namespace Populous
         [SerializeField] private int m_EarthquakeRadius = 3;
         [SerializeField] private int m_SwampRadius = 3;
         [SerializeField] private int m_VolcanoRadius = 3;
-        [SerializeField, Range(0, 1)] private float m_VolcanoRockDensity = 0.4f;
+
+
+
+
+
+
 
 
         private static GameController m_Instance;
@@ -93,10 +99,13 @@ namespace Populous
         /// </summary>
         public static GameController Instance { get => m_Instance; }
 
-        /// <summary>
-        /// True if the player is the host of the game, false otherwise.
-        /// </summary>
-        public bool IsPlayerHosting { get => IsHost; }
+
+
+
+
+        public int MaxManna { get => m_MaxManna; }
+
+
         /// <summary>
         /// An array of the colors of each team. 
         /// </summary>
@@ -104,10 +113,6 @@ namespace Populous
         public Color[] TeamColors { get => m_TeamColors; }
 
         private bool m_IsPaused;
-        /// <summary>
-        /// True if the game is paused, false otherwise.
-        /// </summary>
-        public bool IsPaused { get => m_IsPaused; }
 
         /// <summary>
         /// An array of the leaders in each team that are part of a unit, null if the team's leader is not in a unit.
@@ -180,19 +185,14 @@ namespace Populous
 
         private void Start()
         {
-            SetupUI/*ClientRpc*/(UnitManager.Instance.MaxPopulation, m_MaxManna, 
-                UnitManager.Instance.MaxUnitStrength, UnitManager.Instance.StartingUnits);
-
+            // for each player
+            PlayerController.Instance.SetPlayerInfo(GameData.Instance.GetPlayerInfoByNetworkId(NetworkManager.Singleton.LocalClientId));
             Terrain.Instance.CreateTerrain();
-            StructureManager.Instance.PlaceTreesAndRocks();
-            UnitManager.Instance.SpawnStartingUnits();
-            StructureManager.Instance.SpawnTeamSymbols();
+
+            //StructureManager.Instance.PlaceTreesAndRocks();
+            //UnitManager.Instance.SpawnStartingUnits();
+            //StructureManager.Instance.SpawnTeamSymbols();
         }
-
-        //[ClientRpc]
-        private void SetupUI/*ClientRpc*/(int maxPopulation, int maxManna, int maxUnitStrength, int startingUnits)
-            => GameUI.Instance.Setup(maxPopulation, maxManna, maxUnitStrength, startingUnits);
-
 
 
         #region Pause Game
@@ -201,11 +201,9 @@ namespace Populous
         /// Pauses the game if it is unpaused and unpauses the game if it is paused for both players.
         /// </summary>
         [ServerRpc(RequireOwnership = false)]
-        public void TogglePauseGameServerRpc()
+        public void TogglePauseGame_ServerRpc()
         {
             m_IsPaused = !m_IsPaused;
-            Time.timeScale = m_IsPaused ? 0 : 1;
-
             SetPauseGameClientRpc(m_IsPaused);
         }
 
@@ -215,15 +213,7 @@ namespace Populous
         /// <param name="isPaused">True if the game is paused, false otherwise.</param>
         [ClientRpc]
         private void SetPauseGameClientRpc(bool isPaused)
-        {
-            if (!IsHost)
-                Time.timeScale = isPaused ? 0 : 1;
-
-            if (isPaused)
-                PauseMenuController.Instance.ShowPauseMenu();
-            else
-                PauseMenuController.Instance.HidePauseMenu();
-        }
+            => PlayerController.Instance.SetPause(isPaused);
 
         #endregion
 
@@ -344,13 +334,13 @@ namespace Populous
 
         #region Focused Object
 
-        //[ServerRpc(RequireOwnership = false)]
-        public void SetFocusedObject/*ServerRpc*/(GameObject focusedObject, Team team, ServerRpcParams serverRpcParams = default)
+        [ServerRpc(RequireOwnership = false)]
+        public void SetFocusedObject_ServerRpc(NetworkObjectReference focusedObject, Team team, ServerRpcParams serverRpcParams = default)
         {
-            if (/*!focusedObject.TryGet(out NetworkObject networkObject) || */focusedObject.GetComponent<IFocusableObject>() == null)
+            if (!focusedObject.TryGet(out NetworkObject networkObject) || networkObject.GetComponent<IFocusableObject>() == null)
                 return;
 
-            IFocusableObject focusObject = focusedObject.GetComponent<IFocusableObject>();
+            IFocusableObject focusObject = networkObject.GetComponent<IFocusableObject>();
             IFocusableObject lastFocusedObject = m_FocusedObject[(int)team];
 
             if (m_FocusedObject[(int)team] != null)
@@ -539,7 +529,7 @@ namespace Populous
         /// </summary>
         /// <param name="serverRpcParams">RPC data for the client RPC.</param>
         [ServerRpc(RequireOwnership = false)]
-        public void ShowFocusedObjectServerRpc(Team team, ServerRpcParams serverRpcParams = default)
+        public void ShowFocusedObject_ServerRpc(Team team, ServerRpcParams serverRpcParams = default)
         {
             IFocusableObject focusable = GetFocusedObject(team);
 
@@ -567,7 +557,7 @@ namespace Populous
         /// <param name="team">The <c>Team</c> whose camera should be moved.</param>
         /// <param name="serverRpcParams">RPC data for the client RPC.</param>
         [ServerRpc(RequireOwnership = false)]
-        public void ShowTeamSymbolServerRpc(Team team, ServerRpcParams serverRpcParams = default)
+        public void ShowTeamSymbol_ServerRpc(Team team, ServerRpcParams serverRpcParams = default)
         {
             CameraController.Instance.SetCameraLookPositionClientRpc(
                 StructureManager.Instance.GetSymbolPosition(team),
@@ -588,7 +578,7 @@ namespace Populous
         /// <param name="team">The <c>Team</c> whose camera should be moved.</param>
         /// <param name="serverRpcParams">RPC data for the client RPC.</param>
         [ServerRpc(RequireOwnership = false)]
-        public void ShowLeaderServerRpc(Team team, ServerRpcParams serverRpcParams = default)
+        public void ShowLeader_ServerRpc(Team team, ServerRpcParams serverRpcParams = default)
         {
             GameObject leader = GetLeaderObject(team);
 
@@ -617,7 +607,7 @@ namespace Populous
         /// <param name="team">The <c>Team</c> whose camera should be moved.</param>
         /// <param name="serverRpcParams">RPC data for the client RPC.</param>
         [ServerRpc(RequireOwnership = false)]
-        public void ShowSettlementsServerRpc(Team team, ServerRpcParams serverRpcParams = default)
+        public void ShowSettlements_ServerRpc(Team team, ServerRpcParams serverRpcParams = default)
         {
             int teamIndex = (int)team;
 
@@ -649,7 +639,7 @@ namespace Populous
         /// <param name="team">The <c>Team</c> whose camera should be moved.</param>
         /// <param name="serverRpcParams">RPC data for the client RPC.</param>
         [ServerRpc(RequireOwnership = false)]
-        public void ShowFightsServerRpc(Team team, ServerRpcParams serverRpcParams = default)
+        public void ShowFights_ServerRpc(Team team, ServerRpcParams serverRpcParams = default)
         {
             int teamIndex = (int)team;
 
@@ -682,7 +672,7 @@ namespace Populous
         /// <param name="team">The <c>Team</c> whose camera should be moved.</param>
         /// <param name="serverRpcParams">RPC data for the client RPC.</param>
         [ServerRpc(RequireOwnership = false)]
-        public void ShowKnightsServerRpc(Team team, ServerRpcParams serverRpcParams = default)
+        public void ShowKnights_ServerRpc(Team team, ServerRpcParams serverRpcParams = default)
         {
             int teamIndex = (int)team;
 
@@ -781,12 +771,13 @@ namespace Populous
         /// </summary>
         /// <param name="team">The <c>Team</c> the player controls.</param>
         /// <param name="power">The <c>Power</c> the player wants to activate.</param>
-        //[ServerRpc(RequireOwnership = false)]
-        public void TryActivatePower/*ServerRpc*/(Team team, Power power)
+        [ServerRpc(RequireOwnership = false)]
+        public void TryActivatePower_ServerRpc(Team team, Power power)
         {
             bool powerActivated = true;
-            if (m_Manna[(int)team] < m_PowerActivationPercent[(int)power] * m_MaxManna || 
-                (power == Power.KNIGHT && !HasLeader(team)) || 
+
+            if (m_Manna[(int)team] < m_PowerActivationPercent[(int)power] * m_MaxManna ||
+                (power == Power.KNIGHT && !HasLeader(team)) ||
                 (power == Power.FLOOD && Terrain.Instance.HasReachedMaxWaterLevel()))
                 powerActivated = false;
 
@@ -802,13 +793,13 @@ namespace Populous
                     StartArmageddon();
             }
 
-            NotifyActivatePower/*ClientRpc*/(power, powerActivated);//, new ClientRpcParams
-            //{
-            //    Send = new ClientRpcSendParams
-            //    {
-            //        TargetClientIds = new ulong[] { GameData.Instance.GetNetworkIdByTeam(team) }
-            //    }
-            //});
+            SendPowerActivationInfo_ClientRpc(power, powerActivated, new ClientRpcParams
+            {
+                Send = new ClientRpcSendParams
+                {
+                    TargetClientIds = new ulong[] { GameData.Instance.GetNetworkIdByTeam(team) }
+                }
+            });
         }
 
         /// <summary>
@@ -817,11 +808,12 @@ namespace Populous
         /// <param name="power">The <c>Power</c> the player wants to activate.</param>
         /// <param name="isActivated">True if the power is activated, false otherwise.</param>
         /// <param name="clientParams">RPC info for the client RPC.</param>
-        //[ClientRpc]
-        private void NotifyActivatePower/*ClientRpc*/(Power power, bool isActivated, ClientRpcParams clientParams = default)
-            => PlayerController.Instance.ReceivePowerActivation(power, isActivated);
+        [ClientRpc]
+        private void SendPowerActivationInfo_ClientRpc(Power power, bool isActivated, ClientRpcParams clientParams = default)
+            => PlayerController.Instance.ReceivePowerActivationInfo(power, isActivated);
 
         #endregion
+
 
 
         #region Powers
@@ -831,27 +823,26 @@ namespace Populous
         /// <summary>
         /// Executes the Mold Terrain power, modifying the given point on the terrain..
         /// </summary>
-        /// <param name="point">The <c>MapPoint</c> which should be modified.</param>
+        /// <param name="point">The <c>TerrainPoint</c> which should be modified.</param>
         /// <param name="lower">True if the point should be lowered, false if the point should be elevated.</param>
-        //[ServerRpc(RequireOwnership = false)]
-        public void MoldTerrain/*ServerRpc*/(MapPoint point, bool lower)
+        [ServerRpc(RequireOwnership = false)]
+        public void MoldTerrain_ServerRpc(TerrainPoint point, bool lower)
         {
             if (point.Y == Terrain.Instance.MaxHeight)
                 return;
 
-            MoldTerrainClient/*Rpc*/(point, lower);
+            MoldTerrainClientRpc(point, lower);
         }
 
         /// <summary>
         /// Executes the Mold Terrain power on the client.
         /// </summary>
-        /// <param name="point">The <c>MapPoint</c> which should be modified.</param>
+        /// <param name="point">The <c>TerrainPoint</c> which should be modified.</param>
         /// <param name="lower">True if the point should be lowered, false if the point should be elevated.</param>
-        //[ClientRpc]
-        private void MoldTerrainClient/*Rpc*/(MapPoint point, bool lower)
+        [ClientRpc]
+        private void MoldTerrainClientRpc(TerrainPoint point, bool lower)
         {
             Terrain.Instance.ModifyTerrain(point, lower);
-            CameraController.Instance.UpdateCameraHeight();
         }
 
         #endregion
@@ -860,7 +851,7 @@ namespace Populous
         #region Guide Followers
 
         [ServerRpc(RequireOwnership = false)]
-        public void MoveFlagServerRpc(MapPoint point, Team team)
+        public void MoveFlag_ServerRpc(TerrainPoint point, Team team)
         {
             if (!HasLeader(team)) return;
 
@@ -885,13 +876,13 @@ namespace Populous
         /// <summary>
         /// Executes the Earthquake power on server.
         /// </summary>
-        /// <param name="point">The <c>MapPoint</c> at the center of the earthquake.</param>
+        /// <param name="point">The <c>TerrainPoint</c> at the center of the earthquake.</param>
         [ServerRpc(RequireOwnership = false)]
-        public void EarthquakeServerRpc(MapPoint point)
+        public void Earthquake_ServerRpc(TerrainPoint point)
             => EarthquakeClientRpc(point, new Random().Next());
 
         [ClientRpc]
-        private void EarthquakeClientRpc(MapPoint point, int randomizerSeed)
+        private void EarthquakeClientRpc(TerrainPoint point, int randomizerSeed)
             => Terrain.Instance.CauseEarthquake(point, m_EarthquakeRadius, randomizerSeed);
 
         #endregion
@@ -902,9 +893,9 @@ namespace Populous
         /// <summary>
         /// Executes the Swamp power on the server.
         /// </summary>
-        /// <param name="tile">The <c>MapPoint</c> at the center of the area affected by the Swamp power.</param>
+        /// <param name="tile">The <c>TerrainPoint</c> at the center of the area affected by the Swamp power.</param>
         [ServerRpc(RequireOwnership = false)]
-        public void CreateSwampServerRpc(MapPoint tile)
+        public void CreateSwamp_ServerRpc(TerrainPoint tile)
         {
             List<(int, int)> flatTiles = new();
             for (int z = -m_SwampRadius; z < m_SwampRadius; ++z)
@@ -997,16 +988,16 @@ namespace Populous
         /// <summary>
         /// Executes the Volcano power on server.
         /// </summary>
-        /// <param name="point">The <c>MapPoint</c> at the center of the volcano.</param>
+        /// <param name="point">The <c>TerrainPoint</c> at the center of the volcano.</param>
         [ServerRpc(RequireOwnership = false)]
-        public void VolcanoServerRpc(MapPoint point)
+        public void Volcano_ServerRpc(TerrainPoint point)
         {
             VolcanoClientRpc(point);
             StructureManager.Instance.PlaceVolcanoRocks(point, m_VolcanoRadius);
         }
 
         [ClientRpc]
-        private void VolcanoClientRpc(MapPoint point)
+        private void VolcanoClientRpc(TerrainPoint point)
             => Terrain.Instance.CauseVolcano(point, m_VolcanoRadius);
 
         #endregion
@@ -1031,7 +1022,6 @@ namespace Populous
         {
             Terrain.Instance.RaiseWaterLevel();
             Water.Instance.Raise();
-            CameraController.Instance.UpdateCameraHeight();
         }
 
         #endregion
@@ -1057,5 +1047,17 @@ namespace Populous
 
 
         #endregion
+
+
+        /// <summary>
+        /// Switches the behavior of all the units in the given team to the given behavior.
+        /// </summary>
+        /// <param name="behavior">The <c>UnitBehavior</c> that should be applied to all units in the team.</param>
+        /// <param name="team">The <c>Team</c> whose units should be targeted.</param>
+        [ServerRpc(RequireOwnership = false)]
+        public void ChangeUnitBehavior_ServerRpc(UnitBehavior behavior, Team team)
+        {
+            UnitManager.Instance.ChangeUnitBehavior(behavior, team);
+        }
     }
 }

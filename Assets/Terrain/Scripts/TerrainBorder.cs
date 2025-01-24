@@ -182,7 +182,7 @@ namespace Populous
             {
                 for (int x = 0; x <= Terrain.Instance.TilesPerSide; ++x)
                 {
-                    MapPoint point = new(x, z);
+                    TerrainPoint point = new(x, z);
                     if (point.IsOnEdge)
                         ModifyWallAtPoint(point);
                 }
@@ -193,8 +193,8 @@ namespace Populous
         /// <summary>
         /// Modifies the shape of the border walls in response to the changing height of a point on the edge of the terrain.
         /// </summary>
-        /// <param name="point">The <c>MapPoint</c> on the terrain whose height has been changed.</param>
-        public void ModifyWallAtPoint(MapPoint point)
+        /// <param name="point">The <c>TerrainPoint</c> on the terrain whose height has been changed.</param>
+        public void ModifyWallAtPoint(TerrainPoint point)
         {
             if (!point.IsOnEdge) return;
 

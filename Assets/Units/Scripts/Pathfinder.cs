@@ -13,17 +13,17 @@ namespace Populous
         /// <summary>
         /// Finds a sequence of points this unit should travel through to get to the desired target.
         /// </summary>
-        /// <param name="start">The <c>MapPoint</c> that this unit is at.</param>
-        /// <param name="end">The <c>MapPoint</c> that should be reached.</param>
-        /// <returns>A list of <c>MapPoint</c>s making up the path.</returns>
-        public static List<MapPoint> FindPath(MapPoint start, MapPoint end) { return null; }
+        /// <param name="start">The <c>TerrainPoint</c> that this unit is at.</param>
+        /// <param name="end">The <c>TerrainPoint</c> that should be reached.</param>
+        /// <returns>A list of <c>TerrainPoint</c>s making up the path.</returns>
+        public static List<TerrainPoint> FindPath(TerrainPoint start, TerrainPoint end) { return null; }
         /// <summary>
         /// Finds the next point that this unit should go to on its path to follow the given target.
         /// </summary>
-        /// <param name="start">The <c>MapPoint</c> that this unit is at.</param>
-        /// <param name="target">The <c>MapPoint</c> that the unit that should be followed is at.</param>
-        /// <returns>A <c>MapPoint</c> which this unit should go to next, null if no such point is found.</returns>
-        public static MapPoint? Follow(MapPoint start, MapPoint target) { return null; }
+        /// <param name="start">The <c>TerrainPoint</c> that this unit is at.</param>
+        /// <param name="target">The <c>TerrainPoint</c> that the unit that should be followed is at.</param>
+        /// <returns>A <c>TerrainPoint</c> which this unit should go to next, null if no such point is found.</returns>
+        public static TerrainPoint? Follow(TerrainPoint start, TerrainPoint target) { return null; }
     }
 
 
@@ -40,7 +40,7 @@ namespace Populous
             /// <summary>
             /// The point on the terrain grid this node represents.
             /// </summary>
-            public MapPoint Location;
+            public TerrainPoint Location;
             /// <summary>
             /// The <c>PathNode</c> that we came from.
             /// </summary>
@@ -65,7 +65,7 @@ namespace Populous
             /// <param name="prevNode">The <c>PathNode</c> that we came from.</param>
             /// <param name="gCost">The movement cost to get from the start to this node.</param>
             /// <param name="hCost">The estimated movement cost to get from this node to the end.</param>
-            public PathNode(MapPoint location, PathNode prevNode, float gCost = float.MaxValue, float hCost = 0)
+            public PathNode(TerrainPoint location, PathNode prevNode, float gCost = float.MaxValue, float hCost = 0)
             {
                 Location = location;
                 PrevNode = prevNode;
@@ -82,10 +82,10 @@ namespace Populous
         /// <summary>
         /// Finds a sequence of points this unit should travel through to get to the desired target.
         /// </summary>
-        /// <param name="start">The <c>MapPoint</c> that this unit is at.</param>
-        /// <param name="end">The <c>MapPoint</c> that should be reached.</param>
-        /// <returns>A list of <c>MapPoint</c>s making up the path.</returns>
-        public static List<MapPoint> FindPath(MapPoint start, MapPoint end)
+        /// <param name="start">The <c>TerrainPoint</c> that this unit is at.</param>
+        /// <param name="end">The <c>TerrainPoint</c> that should be reached.</param>
+        /// <returns>A list of <c>TerrainPoint</c>s making up the path.</returns>
+        public static List<TerrainPoint> FindPath(TerrainPoint start, TerrainPoint end)
         {
             Dictionary<Vector2, PathNode> nodes = new();
             List<Vector2> openList = new();
@@ -141,12 +141,12 @@ namespace Populous
         /// <summary>
         /// Finds the next point that this unit should go to on its path to follow the given target.
         /// </summary>
-        /// <param name="start">The <c>MapPoint</c> that this unit is at.</param>
-        /// <param name="target">The <c>MapPoint</c> that the unit that should be followed is at.</param>
-        /// <returns>A <c>MapPoint</c> which this unit should go to next, null if no such point is found.</returns>
-        public static MapPoint? Follow(MapPoint start, MapPoint target)
+        /// <param name="start">The <c>TerrainPoint</c> that this unit is at.</param>
+        /// <param name="target">The <c>TerrainPoint</c> that the unit that should be followed is at.</param>
+        /// <returns>A <c>TerrainPoint</c> which this unit should go to next, null if no such point is found.</returns>
+        public static TerrainPoint? Follow(TerrainPoint start, TerrainPoint target)
         {
-            MapPoint? next = null;
+            TerrainPoint? next = null;
             float minCost = GetDistanceCost(start, target);
 
             for (int zOffset = -1; zOffset <= 1; ++zOffset)
@@ -161,7 +161,7 @@ namespace Populous
                     if (x < 0 || x > Terrain.Instance.TilesPerSide || z < 0 || z > Terrain.Instance.TilesPerSide)
                         continue;
 
-                    MapPoint newLocation = new(x, z);
+                    TerrainPoint newLocation = new(x, z);
 
                     if (!newLocation.IsOnEdge && !Terrain.Instance.CanCrossTile(start, newLocation))
                         continue;
@@ -180,7 +180,7 @@ namespace Populous
         }
 
 
-        private static Vector2 GetKey(MapPoint location) => new(location.GridX, location.GridZ);
+        private static Vector2 GetKey(TerrainPoint location) => new(location.GridX, location.GridZ);
 
 
         private static Vector2 GetNodeWithLowestFCost(Dictionary<Vector2, PathNode> allNodes, List<Vector2> openList)
@@ -212,7 +212,7 @@ namespace Populous
                     if (x < 0 || x > Terrain.Instance.TilesPerSide || z < 0 || z > Terrain.Instance.TilesPerSide)
                         continue;
 
-                    MapPoint newLocation = new(x, z);
+                    TerrainPoint newLocation = new(x, z);
 
                     if (!Terrain.Instance.CanCrossTile(currentNode.Location, newLocation))
                         continue;
@@ -230,7 +230,7 @@ namespace Populous
         }
 
 
-        private static float GetDistanceCost(MapPoint start, MapPoint end)
+        private static float GetDistanceCost(TerrainPoint start, TerrainPoint end)
         {
             float x = Mathf.Abs(start.GridX - end.GridX);
             float z = Mathf.Abs(start.GridZ - end.GridZ);
@@ -239,9 +239,9 @@ namespace Populous
         }
 
 
-        private static List<MapPoint> GetPath(PathNode endNode)
+        private static List<TerrainPoint> GetPath(PathNode endNode)
         {
-            List<MapPoint> path = new() { endNode.Location };
+            List<TerrainPoint> path = new() { endNode.Location };
 
             PathNode currentNode = endNode;
             while (currentNode.PrevNode != null)

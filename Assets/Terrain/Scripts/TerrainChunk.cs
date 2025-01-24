@@ -47,9 +47,9 @@ namespace Populous
             name = "Chunk " + ChunkIndex.X + " " + ChunkIndex.Z;
             m_StructureOnTile = new Structure[Terrain.Instance.TilesPerChunkSide, Terrain.Instance.TilesPerChunkSide];
 
-            SetVisibility(false);
+            SetVisibility(true);
             m_MeshData = GenerateMeshData();
-            //SetVertexHeights();
+            SetVertexHeights();
             SetMesh();
         }
 
@@ -82,7 +82,7 @@ namespace Populous
 
                         Vector3 vertex = new(
                             (x + MeshData.VertexOffsets[index].x) * Terrain.Instance.UnitsPerTileSide,
-                            20,
+                            0,
                             (z + MeshData.VertexOffsets[index].z) * Terrain.Instance.UnitsPerTileSide
                         );
                         meshData.AddVertex(vertexIndex + i, vertex);
@@ -146,21 +146,13 @@ namespace Populous
         private int CalculateVertexHeight((int x, int z) pointInChunk)
         {
             int vertexIndex = GetPointIndex(pointInChunk);
+            float noiseHeight = Terrain.Instance.MapGenerator.GetNoiseAtPosition(ChunkPosition + m_MeshData.Vertices[vertexIndex]) * Terrain.Instance.MaxHeight;
 
-            int height = Mathf.FloorToInt(
-                Terrain.Instance.MapGenerator.GetHeightAtPosition(ChunkPosition + m_MeshData.Vertices[vertexIndex]) * Terrain.Instance.MaxHeightSteps
-            ) * Terrain.Instance.StepHeight;
+            int height = Mathf.FloorToInt(noiseHeight / Terrain.Instance.StepHeight) * Terrain.Instance.StepHeight;
 
             // Vertex (0, 0) in chunk (0, 0), so the very first vertex
             if (ChunkIndex == (0, 0) && pointInChunk == (0, 0))
                 return height;
-
-            // the bottommost row of the terrain
-            if (ChunkIndex.Z == 0 && pointInChunk.z == 0 && pointInChunk.x > 0)
-            {
-                int lastHeight = GetMeshHeightAtPoint((pointInChunk.x - 1, pointInChunk.z));
-                return Mathf.Clamp(height, lastHeight - Terrain.Instance.StepHeight, lastHeight + Terrain.Instance.StepHeight);
-            }
 
             List<int> neighborHeights = new();
 
@@ -170,7 +162,7 @@ namespace Populous
 
                 if (neighbor.x < 0 || neighbor.x > Terrain.Instance.TilesPerChunkSide ||
                     neighbor.z < 0 || neighbor.z > Terrain.Instance.TilesPerChunkSide ||
-                    (ChunkIndex.X == 0 && dz == 1))
+                    (dz == 1 && (ChunkIndex.X == 0 || neighbor.x > 0)))
                     continue;
 
                 neighborHeights.Add(GetMeshHeightAtPoint(neighbor));
@@ -180,9 +172,9 @@ namespace Populous
             bool EqualToFirst(int x) => x == neighborHeights[0];
             if (neighborHeights.TrueForAll(EqualToFirst))
             {
-                height = Mathf.Clamp(height, 
-                    Mathf.Max(0, neighborHeights[0] - Terrain.Instance.StepHeight), 
-                    Mathf.Min(neighborHeights[0] + Terrain.Instance.StepHeight, Terrain.Instance.MaxHeight)    
+                height = Mathf.Clamp(height,
+                    Mathf.Max(0, neighborHeights[0] - Terrain.Instance.StepHeight),
+                    Mathf.Min(neighborHeights[0] + Terrain.Instance.StepHeight, Terrain.Instance.MaxHeight)
                 );
 
                 return height;
@@ -216,7 +208,6 @@ namespace Populous
                 return Mathf.Max(cornerHeights);
             else
                 return Mathf.Min(cornerHeights) + (Terrain.Instance.StepHeight / 2);
-
         }
 
         #endregion
@@ -231,13 +222,13 @@ namespace Populous
         public void SetVisibility(bool isVisible) => GetComponent<MeshRenderer>().enabled = isVisible;
 
         /// <summary>
-        /// Changes the height at the given <c>MapPoint</c> and propagates the changes if needed 
+        /// Changes the height at the given <c>TerrainPoint</c> and propagates the changes if needed 
         /// so that the one step height difference between two points is maintained.
         /// </summary>
-        /// <param name="point">The <c>MapPoint</c> whose height should be changed.</param>
+        /// <param name="point">The <c>TerrainPoint</c> whose height should be changed.</param>
         /// <param name="lower">True if the height of the pointInChunk should be lowered by one step, false if it should be elevated by one step.</param>
         /// <param name="steps"></param>
-        public void ChangeHeight(MapPoint point, bool lower)
+        public void ChangeHeight(TerrainPoint point, bool lower)
         {
             (int x, int z) pointInChunk = GetPointInChunk((point.GridX, point.GridZ));
 
@@ -252,7 +243,7 @@ namespace Populous
             {
                 for (int xOffset = -1; xOffset <= 1; ++xOffset)
                 {
-                    MapPoint neighbor = new(point.GridX + xOffset, point.GridZ + zOffset);
+                    TerrainPoint neighbor = new(point.GridX + xOffset, point.GridZ + zOffset);
 
                     if ((xOffset, zOffset) == (0, 0) || !Terrain.Instance.IsPointInBounds(new(point.GridX + xOffset, point.GridZ + zOffset)))
                         continue;
@@ -266,22 +257,20 @@ namespace Populous
         }
 
         /// <summary>
-        /// Sets the height at a given <c>MapPoint</c>.
+        /// Sets the height at a given <c>TerrainPoint</c>.
         /// </summary>
-        /// <param name="point">The <c>MapPoint</c> whose height should be changed.</param>
-        /// <param name="height">The value the height at the <c>MapPoint</c> should be set to.</param>
-        public void SetVertexHeight(MapPoint point, int height) => SetPointHeight(GetPointInChunk((point.GridX, point.GridZ)), height);
+        /// <param name="point">The <c>TerrainPoint</c> whose height should be changed.</param>
+        /// <param name="height">The value the height at the <c>TerrainPoint</c> should be set to.</param>
+        public void SetVertexHeight(TerrainPoint point, int height) => SetPointHeight(GetPointInChunk((point.GridX, point.GridZ)), height);
 
         /// <summary>
         /// Recalculates the heights of the centers of all the tiles in the terrain chunk.
         /// </summary>
         public void RecomputeAllCenters()
         {
-
             for (int z = 0; z < Terrain.Instance.TilesPerChunkSide; ++z)
                 for (int x = 0; x < Terrain.Instance.TilesPerChunkSide; ++x)
                     SetCenterHeight((x, z), CalculateTileCenterHeight((x, z)));
-
         }
 
         /// <summary>
@@ -363,10 +352,10 @@ namespace Populous
         }
 
         /// <summary>
-        /// Sets the height of all the vertices at the given pointInChunk to the given height..
+        /// Sets the height of all the vertices at the given point to the given height.
         /// </summary>
-        /// <param name="pointInChunk">The (x, z) coordinates in relation to the chunk of the pointInChunk whose height should be set.</param>
-        /// <param name="height">The value the height of the pointInChunk should be set to.</param>
+        /// <param name="pointInChunk">The (x, z) coordinates in relation to the chunk of the point whose height should be set.</param>
+        /// <param name="height">The value the height of the point should be set to.</param>
         private void SetPointHeight((int x, int z) pointInChunk, int height)
         {
             int vertexIndex = 0;

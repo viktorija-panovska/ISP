@@ -21,11 +21,13 @@ namespace Populous
         [SerializeField] private GameObject m_SettlementPrefab;
 
         [Header("Trees and Rocks Properties")]
-        [SerializeField, Range(0, 1)] private float m_TreeProbability;
-        [SerializeField, Range(0, 1)] private float[] m_RockProbability;
-        [SerializeField, Range(0, 1)] private float[] m_VolcanoRockProbability;
+        [SerializeField, Range(0, 1)] private float m_TreePercentage;
+        [SerializeField, Range(0, 1)] private float m_BlackRockPercentage;
+        [SerializeField, Range(0, 1)] private float m_WhiteRockPercentage;
+        [SerializeField, Range(0, 1)] private float m_VolcanoRockPercentage;
         [SerializeField] private GameObject m_TreePrefab;
-        [SerializeField] private GameObject[] m_RockPrefab;
+        [SerializeField] private GameObject m_BlackRockPrefab;
+        [SerializeField] private GameObject m_WhiteRockPrefab;
 
         private static StructureManager m_Instance;
         /// <summary>
@@ -75,7 +77,7 @@ namespace Populous
         /// <param name="occupiedPoints">A list of the points that the created structure should occupy.</param>
         /// <param name="team">The team the created structure should belong to.</param>
         /// <returns>The <c>GameObject</c> of the created structure.</returns>
-        public GameObject SpawnStructure(GameObject prefab, (int x, int z) tile, List<MapPoint> occupiedPoints, Team team = Team.NONE)
+        public GameObject SpawnStructure(GameObject prefab, (int x, int z) tile, List<TerrainPoint> occupiedPoints, Team team = Team.NONE)
         {
             //if (!IsServer) return null;
 
@@ -94,7 +96,7 @@ namespace Populous
             Structure structure = structureObject.GetComponent<Structure>();
             structure.Team = team;
             structure.OccupiedPointHeights = occupiedPoints.ToDictionary(x => x, x => x.Y);
-            structure.OccupiedTile = new MapPoint(tile.x, tile.z);
+            structure.OccupiedTile = new TerrainPoint(tile.x, tile.z);
             Terrain.Instance.SetOccupiedTile(tile, structure);
             GameController.Instance.OnTerrainModified += structure.ReactToTerrainChange;
             GameController.Instance.OnFlood += structure.ReactToTerrainChange;
@@ -180,58 +182,44 @@ namespace Populous
         /// <summary>
         /// Populates the terrain with trees and rocks.
         /// </summary>
-        public void PlaceTreesAndRocks() 
-            => PlaceTreesAndRocks(m_TreeProbability, m_RockProbability, 0, Terrain.Instance.TilesPerSide - 1);
+        public void PlaceTreesAndRocks()
+            => PlaceTreesAndRocks(m_TreePercentage, m_BlackRockPercentage, m_WhiteRockPercentage, 0, Terrain.Instance.TilesPerSide);
 
-        public void PlaceVolcanoRocks(MapPoint center, int radius) 
-            => PlaceTreesAndRocks(0, m_VolcanoRockProbability, center.GridX - radius, center.GridZ + radius);
+        public void PlaceVolcanoRocks(TerrainPoint center, int radius) 
+            => PlaceTreesAndRocks(0, 0, m_VolcanoRockPercentage, center.GridX - radius, center.GridX + radius);
 
-        /// <summary>
-        /// Populates the terrain with trees and rocks.
-        /// </summary>
-        /// <param name="treeProbability">The probability of placing a tree.</param>
-        private void PlaceTreesAndRocks(float treeProbability, float[] rockProbabilities, int areaStart, int areaEnd)
+        private void PlaceTreesAndRocks(float treePercent, float blackRockPercent, float whiteRockPercent, int areaStart, int areaEnd)
         {
-            //if (!IsHost) return;
-
-            int[] rockIndices = Enumerable.Range(0, rockProbabilities.Length).ToArray();
-            Array.Sort(rockProbabilities, rockIndices);
-
             Random random = new(!GameData.Instance ? 0 : GameData.Instance.MapSeed);
 
-            areaStart = Mathf.Clamp(areaStart, 0, Terrain.Instance.TilesPerSide - 1);
-            areaEnd = Mathf.Clamp(areaEnd, 0, Terrain.Instance.TilesPerSide - 1);
-            for (int z = areaStart; z <= areaEnd; ++z)
+            int totalTiles = (areaEnd - areaStart) * (areaEnd - areaStart);
+
+            int lastTreeIndex = Mathf.RoundToInt(totalTiles * treePercent);
+            int lastBlackRockIndex = lastTreeIndex + Mathf.RoundToInt(totalTiles * blackRockPercent);
+            int lastWhiteRockIndex = lastBlackRockIndex + Mathf.RoundToInt(totalTiles * whiteRockPercent);
+
+            List<int> spawnIndices = Enumerable.Range(0, totalTiles).ToList();
+            int count = spawnIndices.Count;
+
+            for (int i = 0; i < totalTiles; ++i)
             {
-                for (int x = areaStart; x <= areaEnd; ++x)
-                {
-                    if (Terrain.Instance.IsTileOccupied((x, z)) || Terrain.Instance.IsTileUnderwater((x, z)))
-                        continue;
+                (int x, int z) tile = (areaStart + i % (areaEnd - areaStart), areaStart + Mathf.FloorToInt((float)i / (areaEnd - areaStart)));
 
-                    List<MapPoint> occupiedPoints = Terrain.Instance.GetTileCorners((x, z));
+                count--;
+                int randomIndex = random.Next(count + 1);
+                (spawnIndices[count], spawnIndices[randomIndex]) = (spawnIndices[randomIndex], spawnIndices[count]);
 
-                    double randomValue = random.NextDouble();
-                    bool spawned = false;
-                    for (int i = 0; i < rockIndices.Length; ++i)
-                    {
-                        if (randomValue < rockProbabilities[i] && (treeProbability > rockProbabilities[i] || randomValue >= treeProbability))
-                        {
-                            SpawnStructure(m_RockPrefab[rockIndices[i]], (x, z), occupiedPoints);
-                            spawned = true;
-                            break;
-                        }
+                if (Terrain.Instance.IsTileUnderwater(tile))
+                    continue;
 
-                        if (treeProbability <= rockProbabilities[i] && randomValue < treeProbability)
-                        {
-                            SpawnStructure(m_TreePrefab, (x, z), occupiedPoints);
-                            spawned = true;
-                            break;
-                        }
-                    }
+                if (spawnIndices[count] < lastTreeIndex)
+                    SpawnStructure(m_TreePrefab, tile, Terrain.Instance.GetTileCorners(tile));
 
-                    if (!spawned && randomValue < treeProbability)
-                        SpawnStructure(m_TreePrefab, (x, z), occupiedPoints);
-                }
+                else if (spawnIndices[count] < lastBlackRockIndex)
+                    SpawnStructure(m_BlackRockPrefab, tile, Terrain.Instance.GetTileCorners(tile));
+
+                else if (spawnIndices[count] < lastWhiteRockIndex)
+                    SpawnStructure(m_WhiteRockPrefab, tile, Terrain.Instance.GetTileCorners(tile));
             }
         }
 
@@ -291,14 +279,12 @@ namespace Populous
 
         #region Settlements
 
-        public void SpawnRedHouse(MapPoint tile) => CreateSettlement(tile, Team.RED);
-
         /// <summary>
         /// Creates a settlement of the given team on the given tile.
         /// </summary>
         /// <param name="tile">The tile that the settlement should be created on.</param>
         /// <param name="team">The team the settlement should belong to.</param>
-        public void CreateSettlement(MapPoint tile, Team team) 
+        public void CreateSettlement(TerrainPoint tile, Team team) 
         {
             if (tile.IsLastPoint) return;
             SpawnStructure(m_SettlementPrefab, (tile.GridX, tile.GridZ), tile.TileCorners, team); 
