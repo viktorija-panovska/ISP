@@ -3,95 +3,51 @@ using System.Collections.Generic;
 using System.Linq;
 using Unity.Netcode;
 using UnityEngine;
-using UnityEngine.EventSystems;
-using UnityEngine.Networking.Types;
+
 using Random = System.Random;
 
 
 namespace Populous
 {
     /// <summary>
-    /// Powers the player can use to influence the world.
-    /// </summary>
-    public enum Power
-    {
-        /// <summary>
-        /// The power to either elevate or lower a point on the terrain.
-        /// </summary>
-        MOLD_TERRAIN,
-        /// <summary>
-        /// The power to place a beacon that the followers will flock to.
-        /// </summary>
-        GUIDE_FOLLOWERS,
-        /// <summary>
-        /// The power to lower all the points in a set area.
-        /// </summary>
-        EARTHQUAKE,
-        /// <summary>
-        /// The power to place a swamp at a point which will destroy any follower that walks into it.
-        /// </summary>
-        SWAMP,
-        /// <summary>
-        /// The power to upgrade the leader into a KNIGHT.
-        /// </summary>
-        KNIGHT,
-        /// <summary>
-        /// The power to elevate the terrain in a set area and scatter rocks across it.
-        /// </summary>
-        VOLCANO,
-        /// <summary>
-        /// The power to increase the water height by one level.
-        /// </summary>
-        FLOOD,
-        /// <summary>
-        /// The power to 
-        /// </summary>
-        ARMAGHEDDON
-    }
-
-    public enum CameraSnap
-    {
-        FOCUSED_OBJECT,
-        SYMBOL,
-        LEADER,
-        SETTLEMENT,
-        FIGHT,
-        KNIGHT
-    }
-
-
-    public interface IFocusableObject : IPointerEnterHandler, IPointerExitHandler
-    {
-        public GameObject GameObject { get; }
-        public void SetHighlight(bool isHighlightOn);
-    }
-
-
-
-    /// <summary>
-    /// The <c>GameController</c> class is a <c>MonoBehavior</c> that controls the flow of the game.
+    /// The <c>GameController</c> class controls the flow of the game and the executes the players actions or passes them along to the systems that can execute them.
     /// </summary>
     [RequireComponent(typeof(NetworkObject))]
     public class GameController : NetworkBehaviour
     {
+        #region Inspector Fields
+
+        [Tooltip("The marker objects corresponding to each power. The index of each marker in this array corresponds to the value of its corresponding power in the Power enum.")]
         [SerializeField] private Color[] m_TeamColors;
 
+
         [Header("Manna")]
+
+        [Tooltip("The maximum amount of manna a player can have.")]
         [SerializeField] private int m_MaxManna = 100;
+
+        [Tooltip("The percentage of manna that is required to be full in order to have access to the Power with the value of the index in the Power enum.")]
         [SerializeField] private float[] m_PowerActivationPercent = new float[Enum.GetNames(typeof(Power)).Length];
+
+        [Tooltip("The amount of manna spent after using the Power with the value of the index in the Power enum.")]
         [SerializeField] private int[] m_PowerMannaCost = new int[Enum.GetNames(typeof(Power)).Length];
 
+
         [Header("Powers")]
+
+        [Tooltip("Half the number of tiles on one side of the square area of effect of the Earthquake.")]
         [SerializeField] private int m_EarthquakeRadius = 3;
+
+        [Tooltip("Half the number of tiles on one side of the square area of effect of the Swamp.")]
         [SerializeField] private int m_SwampRadius = 3;
+
+        [Tooltip("Half the number of tiles on one side of the square area of effect of the Volcano.")]
         [SerializeField] private int m_VolcanoRadius = 3;
 
+        #endregion
 
 
-
-
-
-
+        #region Class Fields
 
         private static GameController m_Instance;
         /// <summary>
@@ -99,20 +55,46 @@ namespace Populous
         /// </summary>
         public static GameController Instance { get => m_Instance; }
 
-
-
-
-
-        public int MaxManna { get => m_MaxManna; }
-
-
         /// <summary>
         /// An array of the colors of each team. 
         /// </summary>
         /// <remarks>The color at each index is the color of the team with that index.</remarks>
         public Color[] TeamColors { get => m_TeamColors; }
 
-        private bool m_IsPaused;
+
+        #region Manna
+
+        /// <summary>
+        /// Gets the maximum amount of manna a player can have.
+        /// </summary>
+        public int MaxManna { get => m_MaxManna; }
+        /// <summary>
+        /// An array of the amount of manna each team has.
+        /// </summary>
+        private readonly int[] m_Manna = new int[Enum.GetValues(typeof(Team)).Length];
+
+        #endregion
+
+
+        #region Powers
+
+        /// <summary>
+        /// Gets half the number of tiles on a side of the area of effect of the Earthquake.
+        /// </summary>
+        public int EarthquakeRadius { get => m_EarthquakeRadius; }
+        /// <summary>
+        /// Gets half the number of tiles on a side of the area of effect of the Swamp.
+        /// </summary>
+        public int SwampRadius { get => m_SwampRadius; }
+        /// <summary>
+        /// Gets half the number of tiles on a side of the area of effect of the Volcano.
+        /// </summary>
+        public int VolcanoRadius { get => m_VolcanoRadius; }
+
+        #endregion
+
+
+        #region Leader
 
         /// <summary>
         /// An array of the leaders in each team that are part of a unit, null if the team's leader is not in a unit.
@@ -123,62 +105,78 @@ namespace Populous
         /// </summary>
         private readonly Settlement[] m_LeaderSettlements = new Settlement[Enum.GetValues(typeof(Team)).Length];
 
-        /// <summary>
-        /// An array of the amount of manna each team has.
-        /// </summary>
-        private readonly int[] m_Manna = new int[Enum.GetValues(typeof(Team)).Length];
+        #endregion
+
+
+        #region Inspected Object
 
         /// <summary>
-        /// Gets the radius of the area of effect of the Earthquake power, in tiles.
+        /// Each cell represents one of the teams, and designates whether the Inspect Mode is active or not for that team.
         /// </summary>
-        public int EarthquakeRadius { get => m_EarthquakeRadius; }
+        private bool[] m_IsInspectModeActive = new bool[2];
         /// <summary>
-        /// Gets the radius of the area of effect of the Swamp power, in tiles.
+        /// Each cell represents one of the teams, and the object in the cell is the object that team's player is inspecting.
         /// </summary>
-        public int SwampRadius { get => m_SwampRadius; }
-        /// <summary>
-        /// Gets the radius of the area of effect of the Volcano power, in tiles.
-        /// </summary>
-        public int VolcanoRadius { get => m_VolcanoRadius; }
+        private readonly IInspectableObject[] m_InspectedObjects = new IInspectableObject[2];
 
-        private readonly IFocusableObject[] m_FocusedObject = new IFocusableObject[2];
+        #endregion
+
+
+        #region Camera Snap
+
         /// <summary>
-        /// An array containing the index of the next fight the player's camera will focus on if the Zoom to FIGHT action is performed.
+        /// An array containing the index of the next fight the player's camera will snap to if the Zoom to FIGHT action is performed.
         /// </summary>
         private readonly int[] m_FightIndex = new int[2];
         /// <summary>
-        /// An array containing the index of the next knight the player's camera will focus on if the Zoom to KNIGHT action is performed.
+        /// An array containing the index of the next knight the player's camera will snap to if the Zoom to KNIGHT action is performed.
         /// </summary>
         private readonly int[] m_KnightsIndex = new int[2];
         /// <summary>
-        /// An array containing the index of the next settlement the player's camera will focus on if the Zoom to SETTLEMENT action is performed.
+        /// An array containing the index of the next settlement the player's camera will snap to if the Zoom to SETTLEMENT action is performed.
         /// </summary>
         private readonly int[] m_SettlementIndex = new int[2];
+
+        #endregion
+
+        #endregion
+
+
+        #region Actions
 
         /// <summary>
         /// Action to be called when the heights of the terrain have been modified.
         /// </summary>
         public Action OnTerrainModified;
         /// <summary>
-        /// Action to be called when the symbol of the red team is moved.
+        /// Action to be called when the unit magnet of the red team is moved.
         /// </summary>
-        public Action OnRedSymbolMoved;
+        public Action OnRedMagnetMoved;
         /// <summary>
-        /// Action to be called when the symbol of the blue team is moved.
+        /// Action to be called when the unit magnet of the blue team is moved.
         /// </summary>
-        public Action OnBlueSymbolMoved;
+        public Action OnBlueMagnetMoved;
         /// <summary>
-        /// Action to be called when a flood occurs.
+        /// Action to be called when the Flood power is used.
         /// </summary>
         public Action OnFlood;
+        /// <summary>
+        /// Action to be called when the Armageddon power is used.
+        /// </summary>
         public Action OnArmageddon;
 
+        #endregion
 
+
+        #region Event Functions
 
         private void Awake()
         {
-            if (m_Instance)
+            if (m_Instance && m_Instance != this)
+            {
                 Destroy(gameObject);
+                return;
+            }
 
             m_Instance = this;
         }
@@ -186,62 +184,73 @@ namespace Populous
         private void Start()
         {
             // for each player
-            PlayerController.Instance.SetPlayerInfo(GameData.Instance.GetPlayerInfoByNetworkId(NetworkManager.Singleton.LocalClientId));
+            PlayerInfo playerInfo = new(0, 0, Team.RED);
+            PlayerController.Instance.SetPlayerInfo(playerInfo); //PlayerController.Instance.SetPlayerInfo(GameData.Instance.GetPlayerInfoByNetworkId(NetworkManager.Singleton.LocalClientId));
             Terrain.Instance.CreateTerrain();
 
-            //StructureManager.Instance.PlaceTreesAndRocks();
-            //UnitManager.Instance.SpawnStartingUnits();
-            //StructureManager.Instance.SpawnTeamSymbols();
+            if (!IsHost) return;
+
+            // just on server
+            StructureManager.Instance.PlaceTreesAndRocks();
+            UnitManager.Instance.SpawnStartingUnits();
+            StructureManager.Instance.SpawnUnitMagnets();
         }
 
+        #endregion
 
-        #region Pause Game
+
+        #region Game Flow
 
         /// <summary>
-        /// Pauses the game if it is unpaused and unpauses the game if it is paused for both players.
+        /// Notifies all clients to set the state of their game to paused or unpaused.
         /// </summary>
+        /// <param name="isPaused">True if the game should be paused, false otherwise.</param>
         [ServerRpc(RequireOwnership = false)]
-        public void TogglePauseGame_ServerRpc()
-        {
-            m_IsPaused = !m_IsPaused;
-            SetPauseGameClientRpc(m_IsPaused);
-        }
+        public void SetPause_ServerRpc(bool isPaused) => SetPause_ClientRpc(isPaused);
 
         /// <summary>
         /// Pauses the game if it is unpaused and unpauses the game if it is paused for the client.
         /// </summary>
         /// <param name="isPaused">True if the game is paused, false otherwise.</param>
         [ClientRpc]
-        private void SetPauseGameClientRpc(bool isPaused)
-            => PlayerController.Instance.SetPause(isPaused);
+        private void SetPause_ClientRpc(bool isPaused) => PlayerController.Instance.SetPause(isPaused);
 
-        #endregion
-
-
-        #region End Game
-
-        public void GameOver(Team loser)
-        {
-            Time.timeScale = 0;
-            GameOverClientRpc(loser == Team.RED ? Team.BLUE : Team.RED, loser);
-        }
-
+        /// <summary>
+        /// Notifies all clients to end the game.
+        /// </summary>
+        /// <param name="winner">The <c>Team</c> that won the game.</param>
         [ClientRpc]
-        private void GameOverClientRpc(Team winner, Team loser)
-        {
-            if (!IsHost)
-                Time.timeScale = 0;
-
-            EndGameMenuController.Instance.ShowEndGameMenu(winner);
-        }
+        public void EndGame_ClientRpc(Team winner) => PlayerController.Instance.EndGame(winner);
 
         #endregion
+
+
+        #region Units
+
+        /// <summary>
+        /// Triggers the change of the behavior of all the units of the given team to the given behavior.
+        /// </summary>
+        /// <param name="behavior">The <c>UnitBehavior</c> that should be applied to all units in the team.</param>
+        /// <param name="team">The <c>Team</c> whose units should be targeted.</param>
+        [ServerRpc(RequireOwnership = false)]
+        public void ChangeUnitBehavior_ServerRpc(UnitBehavior behavior, Team team)
+            => UnitManager.Instance.ChangeUnitBehavior(behavior, team);
+
+        /// <summary>
+        /// Notifies that the object with the given ID is not visible anymore.
+        /// </summary>
+        /// <remarks>Used when an object is despawned.</remarks>
+        /// <param name="objectId">The ID of the object that is not visible anymore.</param>
+        /// <param name="clientParams">RPC parameters for the client RPC.</param>
+        [ClientRpc]
+        public void RemoveVisibleObject_ClientRpc(int objectId, ClientRpcParams clientParams = default)
+            => CameraDetectionZone.Instance.RemoveVisibleObject(objectId);
 
 
         #region Leader
 
         /// <summary>
-        /// Checks whether the given team has an active leader.
+        /// Checks whether the given team has a leader.
         /// </summary>
         /// <param name="team">The <c>Team</c> whose leader should be checked.</param>
         /// <returns>True if the team has a leader, false otherwise.</returns>
@@ -260,8 +269,7 @@ namespace Populous
         public bool IsLeaderInSettlement(Team team) => m_LeaderSettlements[(int)team];
 
         /// <summary>
-        /// Gets the <c>GameObject</c> of the leader of the team, 
-        /// regardless of whether it is part of a unit or a settlement.
+        /// Gets the <c>GameObject</c> of the leader of the team, regardless of whether it is part of a unit or a settlement.
         /// </summary>
         /// <param name="team">The <c>Team</c> whose leader should be returned.</param>
         /// <returns>The <c>GameObject</c> of the team's leader, null if the team doesn't have a leader.</returns>
@@ -274,7 +282,7 @@ namespace Populous
         /// <returns>The <c>Unit</c> of the team's leader, null if the leader is not part of a unit..</returns>
         public Unit GetLeaderUnit(Team team) => m_LeaderUnits[(int)team];
         /// <summary>
-        /// Gets the <c>SETTLEMENT</c> the team leader is part of, if such a settlement exists.
+        /// Gets the <c>Settlement</c> the team leader is part of, if such a settlement exists.
         /// </summary>
         /// <param name="team">The <c>Team</c> whose leader should be returned.</param>
         /// <returns>The <c>Unit</c> of the team's leader, null if the leader is not part of a settlement..</returns>
@@ -288,6 +296,7 @@ namespace Populous
         public void SetLeader(GameObject leaderObject, Team team)
         {
             if (!leaderObject) return;
+            // get rid of previous leader
             RemoveLeader(team);
 
             Unit leaderUnit = leaderObject.GetComponent<Unit>();
@@ -331,217 +340,27 @@ namespace Populous
 
         #endregion
 
-
-        #region Focused Object
-
-        [ServerRpc(RequireOwnership = false)]
-        public void SetFocusedObject_ServerRpc(NetworkObjectReference focusedObject, Team team, ServerRpcParams serverRpcParams = default)
-        {
-            if (!focusedObject.TryGet(out NetworkObject networkObject) || networkObject.GetComponent<IFocusableObject>() == null)
-                return;
-
-            IFocusableObject focusObject = networkObject.GetComponent<IFocusableObject>();
-            IFocusableObject lastFocusedObject = m_FocusedObject[(int)team];
-
-            if (m_FocusedObject[(int)team] != null)
-            {
-                lastFocusedObject.SetHighlight(false);
-                m_FocusedObject[(int)team] = null;
-                HideFocusedData/*ClientRpc*/(new ClientRpcParams
-                {
-                    Send = new ClientRpcSendParams
-                    {
-                        TargetClientIds = new ulong[] { serverRpcParams.Receive.SenderClientId }
-                    }
-                });
-            }
-
-            if (lastFocusedObject == focusObject) return;
-
-            m_FocusedObject[(int)team] = focusObject;
-
-            if (focusObject.GetType() == typeof(Unit))
-            {
-                Unit unit = (Unit)focusObject;
-
-                ShowFocusedUnitData/*ClientRpc*/(
-                    unit.Team, unit.Class, unit.Strength, new ClientRpcParams
-                    {
-                        Send = new ClientRpcSendParams
-                        {
-                            TargetClientIds = new ulong[] { serverRpcParams.Receive.SenderClientId }
-                        }
-                    }
-                );
-            }
-
-            if (focusObject.GetType() == typeof(Settlement))
-            {
-                Settlement settlement = (Settlement)focusObject;
-
-                ShowFocusedSettlementData/*ClientRpc*/(
-                    settlement.Team, settlement.Type, settlement.FollowersInSettlement, settlement.Capacity, new ClientRpcParams
-                    {
-                        Send = new ClientRpcSendParams
-                        {
-                            TargetClientIds = new ulong[] { serverRpcParams.Receive.SenderClientId }
-                        }
-                    }
-                );
-            }
-        }
-
-        public IFocusableObject GetFocusedObject(Team team) => m_FocusedObject[(int)team];
-
-        public bool IsFocusedObject(IFocusableObject focusable) => Array.Exists(m_FocusedObject, x => x == focusable);
-
-        public int GetPlayerFocusingOnObject(IFocusableObject focusable) => Array.IndexOf(m_FocusedObject, focusable);
-
-
-        //[ClientRpc]
-        private void ShowFocusedUnitData/*ClientRpc*/(Team team, UnitClass unitClass, int strength, ClientRpcParams clientParams = default)
-            => GameUI.Instance.ShowFocusedUnit(team, unitClass, strength);
-
-        //[ClientRpc]
-        private void ShowFocusedSettlementData/*ClientRpc*/(Team team, SettlementType type, int unitsInSettlement, int maxUnitsInSettlement, ClientRpcParams clientParams = default)
-            => GameUI.Instance.ShowFocusedSettlement(team, type, unitsInSettlement, maxUnitsInSettlement);
-
-        //[ClientRpc]
-        private void HideFocusedData/*ClientRpc*/(ClientRpcParams clientParams = default) => GameUI.Instance.HideFocusedData();
-
-        public void RemoveFocusedObject(IFocusableObject focusable)
-        {
-            int index = GetPlayerFocusingOnObject(focusable);
-            // nobody is focusing on the object
-            if (index < 0) return;
-
-            m_FocusedObject[index] = null;
-            HideFocusedData/*ClientRpc*/(//new ClientRpcParams
-            //    { 
-            //        Send = new ClientRpcSendParams
-            //        {
-            //            TargetClientIds = new ulong[] { GameData.Instance.GetNetworkIdByTeam(index) }
-            //        }
-            //    }
-            );
-        }
-
-
-        public void UpdateFocusedUnit(Unit unit, bool updateClass = false, bool updateStrength = false)
-        {
-            int index = GetPlayerFocusingOnObject(unit);
-            if (index < 0) return;
-
-            if (updateClass)
-            {
-                UpdateFocusedUnitClass/*ClientRpc*/(unit.Class//, new ClientRpcParams
-                //    { 
-                //        Send = new ClientRpcSendParams
-                //        {
-                //            TargetClientIds = new ulong[] { GameData.Instance.GetNetworkIdByTeam(index) }
-                //        }
-                //    }
-                );
-            }
-
-            if (updateStrength)
-            {
-                UpdateFocusedUnitStrength/*ClientRpc*/(unit.Strength//, new ClientRpcParams
-                //    { 
-                //        Send = new ClientRpcSendParams
-                //        {
-                //            TargetClientIds = new ulong[] { GameData.Instance.GetNetworkIdByTeam(index) }
-                //        }
-                //    }
-                );
-            }
-        }
-
-        //[ClientRpc]
-        private void UpdateFocusedUnitClass/*ClientRpc*/(UnitClass unitClass, ClientRpcParams clientParams = default)
-            => GameUI.Instance.UpdateFocusedUnitClass(unitClass);
-
-        //[ClientRpc]
-        private void UpdateFocusedUnitStrength/*ClientRpc*/(int strength, ClientRpcParams clientParams = default)
-            => GameUI.Instance.UpdateFocusedUnitStrength(strength);
-
-        public void UpdateFocusedSettlement(Settlement settlement, bool updateTeam = false, bool updateType = false, bool updateFollowers = false)
-        {
-            int index = GetPlayerFocusingOnObject(settlement);
-            if (index < 0) return;
-
-            if (updateTeam)
-            {
-                UpdateFocusedSettlementTeam/*ClientRpc*/(settlement.Team//, new ClientRpcParams
-                //    { 
-                //        Send = new ClientRpcSendParams
-                //        {
-                //            TargetClientIds = new ulong[] { GameData.Instance.GetNetworkIdByTeam(index) }
-                //        }
-                //    }
-                );
-            }
-
-            if (updateType)
-            {
-                UpdateFocusedSettlementType/*ClientRpc*/(settlement.Type, settlement.Capacity//, new ClientRpcParams
-                //    { 
-                //        Send = new ClientRpcSendParams
-                //        {
-                //            TargetClientIds = new ulong[] { GameData.Instance.GetNetworkIdByTeam(index) }
-                //        }
-                //    }
-                );
-            }
-
-            if (updateFollowers)
-            {
-                UpdateFocusedSettlementFollowers/*ClientRpc*/(settlement.FollowersInSettlement//, new ClientRpcParams
-                //    { 
-                //        Send = new ClientRpcSendParams
-                //        {
-                //            TargetClientIds = new ulong[] { GameData.Instance.GetNetworkIdByTeam(index) }
-                //        }
-                //    }
-                );
-            }
-        }
-
-        //[ClientRpc]
-        private void UpdateFocusedSettlementTeam/*ClientRpc*/(Team team, ClientRpcParams clientParams = default)
-            => GameUI.Instance.UpdateFocusedSettlementTeam(team);
-
-        //[ClientRpc]
-        private void UpdateFocusedSettlementType/*ClientRpc*/(SettlementType type, int maxUnitsInSettlement, ClientRpcParams clientParams = default)
-            => GameUI.Instance.UpdateFocusedSettlementType(type, maxUnitsInSettlement);
-
-        //[ClientRpc]
-        private void UpdateFocusedSettlementFollowers/*ClientRpc*/(int followers, ClientRpcParams clientParams = default)
-            => GameUI.Instance.UpdateFocusedSettlementFollowers(followers);
-
         #endregion
 
 
-        #region Camera
+        #region Camera Snap
 
         /// <summary>
-        /// Sends the camera of the player of the given team to the location of the focused object.
+        /// Sends the camera of the player of the given team to the location of the inspected object.
         /// </summary>
         /// <param name="serverRpcParams">RPC data for the client RPC.</param>
         [ServerRpc(RequireOwnership = false)]
-        public void ShowFocusedObject_ServerRpc(Team team, ServerRpcParams serverRpcParams = default)
+        public void ShowInspectedObject_ServerRpc(Team team, ServerRpcParams serverRpcParams = default)
         {
-            IFocusableObject focusable = GetFocusedObject(team);
+            IInspectableObject inspected = GetInspectedObject(team);
 
-            if (focusable == null)
+            if (inspected == null)
             {
-                NotifyCannotSnapClientRpc(CameraSnap.FOCUSED_OBJECT);
+                NotifyCannotSnap_ClientRpc(CameraSnap.INSPECTED_OBJECT);
                 return;
             }
 
-            CameraController.Instance.SetCameraLookPositionClientRpc(
-                focusable.GameObject.transform.position,
-                new ClientRpcParams
+            SetCameraLookPosition_ClientRpc(inspected.GameObject.transform.position, new()
                 {
                     Send = new ClientRpcSendParams
                     {
@@ -552,16 +371,14 @@ namespace Populous
         }
 
         /// <summary>
-        /// Sends the camera of the player of the given team to the location of the team's symbol.
+        /// Sends the camera of the player of the given team to the location of the unit magnet.
         /// </summary>
         /// <param name="team">The <c>Team</c> whose camera should be moved.</param>
         /// <param name="serverRpcParams">RPC data for the client RPC.</param>
         [ServerRpc(RequireOwnership = false)]
-        public void ShowTeamSymbol_ServerRpc(Team team, ServerRpcParams serverRpcParams = default)
+        public void ShowMagnet_ServerRpc(Team team, ServerRpcParams serverRpcParams = default)
         {
-            CameraController.Instance.SetCameraLookPositionClientRpc(
-                StructureManager.Instance.GetSymbolPosition(team),
-                new ClientRpcParams
+            SetCameraLookPosition_ClientRpc(StructureManager.Instance.GetMagnetPosition(team), new()
                 {
                     Send = new ClientRpcSendParams
                     {
@@ -573,7 +390,6 @@ namespace Populous
 
         /// <summary>
         /// Sends the camera of the player of the given team to the location of the team's leader.
-        /// If the team doesn't have a leader, sends the camera to the team's symbol.
         /// </summary>
         /// <param name="team">The <c>Team</c> whose camera should be moved.</param>
         /// <param name="serverRpcParams">RPC data for the client RPC.</param>
@@ -584,13 +400,11 @@ namespace Populous
 
             if (!leader)
             {
-                NotifyCannotSnapClientRpc(CameraSnap.LEADER);
+                NotifyCannotSnap_ClientRpc(CameraSnap.LEADER);
                 return;
             }
 
-            CameraController.Instance.SetCameraLookPositionClientRpc(
-                leader.transform.position,
-                new ClientRpcParams
+            SetCameraLookPosition_ClientRpc(leader.transform.position, new()
                 {
                     Send = new ClientRpcSendParams
                     {
@@ -601,8 +415,7 @@ namespace Populous
         }
 
         /// <summary>
-        /// Sends the camera of the player of the given team to the location of one 
-        /// of the team's settlements, cycling through them on repeated calls.
+        /// Sends the camera of the player of the given team to the location of one of the team's settlements, cycling through them on repeated calls.
         /// </summary>
         /// <param name="team">The <c>Team</c> whose camera should be moved.</param>
         /// <param name="serverRpcParams">RPC data for the client RPC.</param>
@@ -614,13 +427,11 @@ namespace Populous
             Vector3? position = StructureManager.Instance.GetSettlementLocation(m_SettlementIndex[teamIndex], team);
             if (!position.HasValue)
             {
-                NotifyCannotSnapClientRpc(CameraSnap.SETTLEMENT);
+                NotifyCannotSnap_ClientRpc(CameraSnap.SETTLEMENT);
                 return;
             }
 
-            CameraController.Instance.SetCameraLookPositionClientRpc(
-                new Vector3(position.Value.x, 0, position.Value.z),
-                new ClientRpcParams
+            SetCameraLookPosition_ClientRpc(new(position.Value.x, 0, position.Value.z), new()
                 {
                     Send = new ClientRpcSendParams
                     {
@@ -633,8 +444,7 @@ namespace Populous
         }
 
         /// <summary>
-        /// Sends the camera of the player of the given team to the location of one 
-        /// of the ongoing fights, cycling through them on repeated calls.
+        /// Sends the camera of the player of the given team to the location of one of the ongoing fights, cycling through them on repeated calls.
         /// </summary>
         /// <param name="team">The <c>Team</c> whose camera should be moved.</param>
         /// <param name="serverRpcParams">RPC data for the client RPC.</param>
@@ -646,13 +456,11 @@ namespace Populous
             Vector3? position = UnitManager.Instance.GetFightLocation(m_FightIndex[(int)team]);
             if (!position.HasValue)
             {
-                NotifyCannotSnapClientRpc(CameraSnap.FIGHT);
+                NotifyCannotSnap_ClientRpc(CameraSnap.FIGHT);
                 return;
             }
 
-            CameraController.Instance.SetCameraLookPositionClientRpc(
-                new Vector3(position.Value.x, 0, position.Value.z),
-                new ClientRpcParams
+            SetCameraLookPosition_ClientRpc(new(position.Value.x, 0, position.Value.z), new()
                 {
                     Send = new ClientRpcSendParams
                     {
@@ -665,9 +473,7 @@ namespace Populous
         }
 
         /// <summary>
-        /// Sends the camera of the player of the given team to the location of one 
-        /// of the team's knights, cycling through them on repeated calls. If the team
-        /// doesn't have any knights, sends the camera to one of the team's settlements.
+        /// Sends the camera of the player of the given team to the location of one of the team's knights, cycling through them on repeated calls.
         /// </summary>
         /// <param name="team">The <c>Team</c> whose camera should be moved.</param>
         /// <param name="serverRpcParams">RPC data for the client RPC.</param>
@@ -679,15 +485,13 @@ namespace Populous
             Unit knight = UnitManager.Instance.GetKnight(m_KnightsIndex[teamIndex], team);
             if (!knight)
             {
-                NotifyCannotSnapClientRpc(CameraSnap.KNIGHT);
+                NotifyCannotSnap_ClientRpc(CameraSnap.KNIGHT);
                 return;
             }
 
             Vector3 knightPosition = knight.transform.position;
 
-            CameraController.Instance.SetCameraLookPositionClientRpc(
-                new Vector3(knightPosition.x, 0, knightPosition.z),
-                new ClientRpcParams
+            SetCameraLookPosition_ClientRpc(new(knightPosition.x, 0, knightPosition.z), new()
                 {
                     Send = new ClientRpcSendParams
                     {
@@ -699,13 +503,21 @@ namespace Populous
             m_KnightsIndex[teamIndex] = GameUtils.GetNextArrayIndex(m_KnightsIndex[teamIndex], 1, UnitManager.Instance.GetKnightsNumber(team));
         }
 
+        /// <summary>
+        /// Sets the position of the follow target, and thus sets the point where the camera is looking.
+        /// </summary>
+        /// <param name="position">The new position of the follow target.</param>
+        /// <param name="clientRpcParams">RPC parameters for the client RPC.</param>
         [ClientRpc]
-        private void NotifyCannotSnapClientRpc(CameraSnap snapOption)
-            => GameUI.Instance.CannotSnapToOption(snapOption);
+        public void SetCameraLookPosition_ClientRpc(Vector3 position, ClientRpcParams clientRpcParams = default)
+            => CameraController.Instance.SetCameraLookPosition(position);
 
-        //[ClientRpc]
-        public void RemoveVisibleObject/*ClientRpc*/(int objectId, ClientRpcParams clientParams = default)
-            => CameraDetectionZone.Instance.RemoveVisibleObject(objectId);
+        /// <summary>
+        /// Triggers the client's UI to show that snapping the camera to the given object was impossible.
+        /// </summary>
+        /// <param name="snapOption">The camera snapping option that was attempted.</param>
+        [ClientRpc]
+        private void NotifyCannotSnap_ClientRpc(CameraSnap snapOption) => GameUI.Instance.NotifyCannotSnapCamera(snapOption);
 
         #endregion
 
@@ -717,16 +529,14 @@ namespace Populous
         /// </summary>
         /// <param name="team">The <c>Team</c> manna should be added to.</param>
         /// <param name="amount">The amount of manna to be added.</param>
-        public void AddManna(Team team, int amount = 1)
-            => SetManna(team, Mathf.Clamp(m_Manna[(int)team] + amount, 0, m_MaxManna));
+        public void AddManna(Team team, int amount = 1) => SetManna(team, Mathf.Clamp(m_Manna[(int)team] + amount, 0, m_MaxManna));
 
         /// <summary>
         /// Removes manna from the given team.
         /// </summary>
         /// <param name="team">The <c>Team</c> manna should be removed from.</param>
         /// <param name="amount">The amount of manna to be removed.</param>
-        public void RemoveManna(Team team, int amount = 1)
-            => SetManna(team, Mathf.Clamp(m_Manna[(int)team] - amount, 0, m_MaxManna));
+        public void RemoveManna(Team team, int amount = 1) => SetManna(team, Mathf.Clamp(m_Manna[(int)team] - amount, 0, m_MaxManna));
 
         /// <summary>
         /// Sets the manna of the given team to the given amount.
@@ -746,25 +556,26 @@ namespace Populous
                 activePowers++;
             }
 
-            UpdateMannaUI/*ClientRpc*/(amount, activePowers//, new ClientRpcParams
-            //{
-            //    Send = new ClientRpcSendParams
-            //    {
-            //        TargetClientIds = new ulong[] { GameData.Instance.GetNetworkIdByTeam(team) }
-            //    }
-            //}
+            UpdateMannaUI_ClientRpc(amount, activePowers, new ClientRpcParams
+                {
+                    Send = new ClientRpcSendParams
+                    {
+                        TargetClientIds = new ulong[] { GameData.Instance.GetNetworkIdByTeam(team) }
+                    }
+                }
             );
         }
 
         /// <summary>
-        /// Updates a player's UI 
+        /// Triggers the update of a player's UI with manna and power information.
         /// </summary>
-        /// <param name="manna"></param>
-        /// <param name="activePowers"></param>
-        /// <param name="clientParams"></param>
-        //[ClientRpc]
-        private void UpdateMannaUI/*ClientRpc*/(int manna, int activePowers, ClientRpcParams clientParams = default)
+        /// <param name="manna">The amount of manna the player has.</param>
+        /// <param name="activePowers">The number of active powers the player has.</param>
+        /// <param name="clientParams">RPC parameters for the client RPC.</param>
+        [ClientRpc]
+        private void UpdateMannaUI_ClientRpc(int manna, int activePowers, ClientRpcParams clientParams = default)
             => GameUI.Instance.UpdateMannaBar(manna, activePowers);
+
 
         /// <summary>
         /// Checks whether the player from the given team can use the given power.
@@ -787,10 +598,10 @@ namespace Populous
                     CreateKnight(team);
 
                 if (power == Power.FLOOD)
-                    CauseFlood();
+                    CauseFlood(team);
 
                 if (power == Power.ARMAGHEDDON)
-                    StartArmageddon();
+                    StartArmageddon(team);
             }
 
             SendPowerActivationInfo_ClientRpc(power, powerActivated, new ClientRpcParams
@@ -815,58 +626,62 @@ namespace Populous
         #endregion
 
 
-
         #region Powers
 
         #region Mold Terrain
 
         /// <summary>
-        /// Executes the Mold Terrain power, modifying the given point on the terrain..
+        /// Triggers the execution of the Mold Terrain power on both clients.
         /// </summary>
         /// <param name="point">The <c>TerrainPoint</c> which should be modified.</param>
-        /// <param name="lower">True if the point should be lowered, false if the point should be elevated.</param>
+        /// <param name="lower">True if the center should be lowered, false if the center should be elevated.</param>
         [ServerRpc(RequireOwnership = false)]
-        public void MoldTerrain_ServerRpc(TerrainPoint point, bool lower)
+        public void MoldTerrain_ServerRpc(Team team, TerrainPoint point, bool lower)
         {
-            if (point.Y == Terrain.Instance.MaxHeight)
-                return;
+            if (point.Y == Terrain.Instance.MaxHeight) return;
 
-            MoldTerrainClientRpc(point, lower);
+            RemoveManna(team, m_PowerMannaCost[(int)Power.MOLD_TERRAIN]);
+            MoldTerrain_ClientRpc(point, lower);
         }
 
         /// <summary>
         /// Executes the Mold Terrain power on the client.
         /// </summary>
         /// <param name="point">The <c>TerrainPoint</c> which should be modified.</param>
-        /// <param name="lower">True if the point should be lowered, false if the point should be elevated.</param>
+        /// <param name="lower">True if the center should be lowered, false if the center should be elevated.</param>
         [ClientRpc]
-        private void MoldTerrainClientRpc(TerrainPoint point, bool lower)
-        {
-            Terrain.Instance.ModifyTerrain(point, lower);
-        }
+        private void MoldTerrain_ClientRpc(TerrainPoint point, bool lower)
+            => Terrain.Instance.ModifyTerrain(point, lower);
 
         #endregion
 
 
-        #region Guide Followers
+        #region Move Magnet
 
+        /// <summary>
+        /// Sets a new position for the unit magnet of the given team.
+        /// </summary>
+        /// <param name="point">The <c>TerrainPoint</c> on which the magnet should be set.</param>
+        /// <param name="team">The <c>Team</c> whose magnet should be moved.</param>
         [ServerRpc(RequireOwnership = false)]
-        public void MoveFlag_ServerRpc(TerrainPoint point, Team team)
+        public void MoveMagnet_ServerRpc(Team team, TerrainPoint point)
         {
+            // the magnet can only be moved if there is a leader
             if (!HasLeader(team)) return;
 
-            StructureManager.Instance.SetSymbolPosition/*ClientRpc*/(team, new Vector3(
+            RemoveManna(team, m_PowerMannaCost[(int)Power.MOVE_MAGNET]);
+
+            StructureManager.Instance.SetMagnetPosition/*ClientRpc*/(team, new Vector3(
                 point.GridX * Terrain.Instance.UnitsPerTileSide,
                 point.Y,
                 point.GridZ * Terrain.Instance.UnitsPerTileSide
             ));
 
             if (team == Team.RED)
-                OnRedSymbolMoved?.Invoke();
+                OnRedMagnetMoved?.Invoke();
             else if (team == Team.BLUE)
-                OnBlueSymbolMoved?.Invoke();
+                OnBlueMagnetMoved?.Invoke();
         }
-
 
         #endregion
 
@@ -874,16 +689,25 @@ namespace Populous
         #region Earthquake
 
         /// <summary>
-        /// Executes the Earthquake power on server.
+        /// Triggers the execution of the Earthquake power on both clients.
         /// </summary>
-        /// <param name="point">The <c>TerrainPoint</c> at the center of the earthquake.</param>
+        /// <param name="team">The <c>Team</c> of the player that triggered the power.</param>
+        /// <param name="center">The <c>TerrainPoint</c> at the center of the earthquake.</param>
         [ServerRpc(RequireOwnership = false)]
-        public void Earthquake_ServerRpc(TerrainPoint point)
-            => EarthquakeClientRpc(point, new Random().Next());
+        public void CreateEarthquake_ServerRpc(Team team, TerrainPoint center)
+        {
+            RemoveManna(team, m_PowerMannaCost[(int)Power.EARTHQUAKE]);
+            CreateEarthquake_ClientRpc(center, new Random().Next());
+        }
 
+        /// <summary>
+        /// Executes the Earthquake power on the client.
+        /// </summary>
+        /// <param name="center">The <c>TerrainPoint</c> at the center of the earthquake.</param>
+        /// <param name="randomizerSeed">The seed used for the randomizer that sets the heights in the earthquake area.</param>
         [ClientRpc]
-        private void EarthquakeClientRpc(TerrainPoint point, int randomizerSeed)
-            => Terrain.Instance.CauseEarthquake(point, m_EarthquakeRadius, randomizerSeed);
+        private void CreateEarthquake_ClientRpc(TerrainPoint center, int randomizerSeed)
+            => Terrain.Instance.CauseEarthquake(center, m_EarthquakeRadius, randomizerSeed);
 
         #endregion
 
@@ -891,20 +715,24 @@ namespace Populous
         #region Swamp
 
         /// <summary>
-        /// Executes the Swamp power on the server.
+        /// Populates the tiles in the swamp area centered on the given center randomly with swamps.
         /// </summary>
-        /// <param name="tile">The <c>TerrainPoint</c> at the center of the area affected by the Swamp power.</param>
+        /// <param name="team">The <c>Team</c> of the player that triggered the power.</param>
+        /// <param name="center">The <c>TerrainPoint</c> at the center of the swamp.</param>
         [ServerRpc(RequireOwnership = false)]
-        public void CreateSwamp_ServerRpc(TerrainPoint tile)
+        public void CreateSwamp_ServerRpc(Team team, TerrainPoint center)
         {
+            RemoveManna(team, m_PowerMannaCost[(int)Power.SWAMP]);
+
+            // gets all the flat tiles in the swamp area
             List<(int, int)> flatTiles = new();
             for (int z = -m_SwampRadius; z < m_SwampRadius; ++z)
             {
                 for (int x = -m_SwampRadius; x < m_SwampRadius; ++x)
                 {
-                    (int x, int z) neighborTile = (tile.GridX + x, tile.GridZ + z);
-                    if (tile.GridX + x < 0 || tile.GridX + x >= Terrain.Instance.TilesPerSide ||
-                        tile.GridZ + z < 0 || tile.GridZ + z >= Terrain.Instance.TilesPerSide ||
+                    (int x, int z) neighborTile = (center.GridX + x, center.GridZ + z);
+                    if (center.GridX + x < 0 || center.GridX + x >= Terrain.Instance.TilesPerSide ||
+                        center.GridZ + z < 0 || center.GridZ + z >= Terrain.Instance.TilesPerSide ||
                         !Terrain.Instance.IsTileFlat(neighborTile))
                         continue;
 
@@ -923,6 +751,7 @@ namespace Populous
                 }
             }
 
+            // randomly places swamps in the area, using shuffle algorithm
             Random random = new();
             List<int> tiles = Enumerable.Range(0, flatTiles.Count).ToList();
             int swampTiles = random.Next(Mathf.RoundToInt(flatTiles.Count * 0.5f), flatTiles.Count);
@@ -941,6 +770,7 @@ namespace Populous
 
                     if (structure && structure.GetType() == typeof(Field))
                     {
+                        // gets settlements whose fields were destroyed
                         affectedSettlements.UnionWith(((Field)structure).SettlementsServed);
                         StructureManager.Instance.DespawnStructure(structure.gameObject);
                     }
@@ -950,7 +780,8 @@ namespace Populous
                     StructureManager.Instance.SpawnSwamp(flatTile);
                 }
             }
-
+            
+            // updates settlements whose fields were destroyed
             foreach (Settlement settlement in affectedSettlements)
                 settlement.SetSettlementType();
         }
@@ -960,24 +791,29 @@ namespace Populous
 
         #region Knight
 
-        //[ServerRpc(RequireOwnership = false)]
-        public void CreateKnight/*ServerRpc*/(Team team)
+        /// <summary>
+        /// Transforms the leader of the given team into a knight.
+        /// </summary>
+        /// <param name="team">The <c>Team</c> that should gain a knight.</param>
+        public void CreateKnight(Team team)
         {
+            // the team has to have a leader to turn into a knight.
             if (!HasLeader(team)) return;
 
-            Unit knight = UnitManager.Instance.CreateKnight(team);
-            StructureManager.Instance.SetSymbolPosition(team, knight.ClosestMapPoint.ToWorldPosition());
+            RemoveManna(team, m_PowerMannaCost[(int)Power.KNIGHT]);
 
-            //CameraController.Instance.SetCameraLookPositionClientRpc(
-            //    new Vector3(knight.transform.position.x, 0, knight.transform.position.z),
-            //    new ClientRpcParams
-            //    {
-            //        Send = new ClientRpcSendParams
-            //        {
-            //            TargetClientIds = new ulong[] { GameData.Instance.GetNetworkIdByTeam(knight.Team) }
-            //        }
-            //    }
-            //);
+            Unit knight = UnitManager.Instance.CreateKnight(team);
+            StructureManager.Instance.SetMagnetPosition(team, knight.ClosestMapPoint.ToWorldPosition());
+
+            // show the knight
+            SetCameraLookPosition_ClientRpc(new(knight.transform.position.x, 0, knight.transform.position.z), new()
+                {
+                    Send = new ClientRpcSendParams
+                    {
+                        TargetClientIds = new ulong[] { GameData.Instance.GetNetworkIdByTeam(knight.Team) }
+                    }
+                }
+            );
         }
 
         #endregion
@@ -986,19 +822,25 @@ namespace Populous
         #region Volcano
 
         /// <summary>
-        /// Executes the Volcano power on server.
+        /// Triggers the execution of the Volcano power on both clients.
         /// </summary>
-        /// <param name="point">The <c>TerrainPoint</c> at the center of the volcano.</param>
+        /// <param name="team">The <c>Team</c> of the player that triggered the power.</param>
+        /// <param name="center">The <c>TerrainPoint</c> at the center of the volcano.</param>
         [ServerRpc(RequireOwnership = false)]
-        public void Volcano_ServerRpc(TerrainPoint point)
+        public void CreateVolcano_ServerRpc(Team team, TerrainPoint center)
         {
-            VolcanoClientRpc(point);
-            StructureManager.Instance.PlaceVolcanoRocks(point, m_VolcanoRadius);
+            RemoveManna(team, m_PowerMannaCost[(int)Power.VOLCANO]);
+            CreateVolcano_ClientRpc(center);
+            StructureManager.Instance.PlaceVolcanoRocks(center, m_VolcanoRadius);
         }
 
+        /// <summary>
+        /// Executes the Volcano power on the client.
+        /// </summary>
+        /// <param name="center">The <c>TerrainPoint</c> at the center of the volcano.</param>
         [ClientRpc]
-        private void VolcanoClientRpc(TerrainPoint point)
-            => Terrain.Instance.CauseVolcano(point, m_VolcanoRadius);
+        private void CreateVolcano_ClientRpc(TerrainPoint center)
+            => Terrain.Instance.CauseVolcano(center, m_VolcanoRadius);
 
         #endregion
 
@@ -1006,19 +848,24 @@ namespace Populous
         #region Flood
 
         /// <summary>
-        /// Executes the Flood power on server.
+        /// Triggers the execution of the Flood power on the clients.
         /// </summary>
-        public void CauseFlood()
+        /// <param name="team">The <c>Team</c> of the player that triggered the power.</param>
+        public void CauseFlood(Team team)
         {
             if (Terrain.Instance.WaterLevel == Terrain.Instance.MaxHeight)
                 return;
 
-            CauseFloodClientRpc();
+            RemoveManna(team, m_PowerMannaCost[(int)Power.FLOOD]);
+            CauseFlood_ClientRpc();
             OnFlood?.Invoke();
         }
 
+        /// <summary>
+        /// Executes the Flood power on the client.
+        /// </summary>
         [ClientRpc]
-        private void CauseFloodClientRpc()
+        private void CauseFlood_ClientRpc()
         {
             Terrain.Instance.RaiseWaterLevel();
             Water.Instance.Raise();
@@ -1029,14 +876,20 @@ namespace Populous
 
         #region Armagheddon
 
-        public void StartArmageddon()
+        /// <summary>
+        /// Executes the Armageddon power.
+        /// </summary>
+        /// <param name="team">The <c>Team</c> of the player that triggered the power.</param>
+        public void StartArmageddon(Team team)
         {
-            foreach (Team team in Enum.GetValues(typeof(Team)))
-            {
-                if (team == Team.NONE) break;
+            RemoveManna(team, m_PowerMannaCost[(int)Power.ARMAGHEDDON]);
 
-                StructureManager.Instance.SetSymbolPosition(team, Terrain.Instance.TerrainCenter.ToWorldPosition());
-                UnitManager.Instance.ChangeUnitBehavior(UnitBehavior.GO_TO_SYMBOL, team);
+            foreach (Team teams in Enum.GetValues(typeof(Team)))
+            {
+                if (teams == Team.NONE) break;
+
+                StructureManager.Instance.SetMagnetPosition(teams, Terrain.Instance.TerrainCenter.ToWorldPosition());
+                UnitManager.Instance.ChangeUnitBehavior(UnitBehavior.GO_TO_MAGNET, teams);
             }
 
             // destroy all settlements
@@ -1045,19 +898,301 @@ namespace Populous
 
         #endregion
 
+        #endregion
+
+
+        #region Inspect Mode
+
+        /// <summary>
+        /// Sets whether the player of the given team is in Inspect Mode or not.
+        /// </summary>
+        /// <param name="team">The <c>Team</c> whose player Inspect Mode should be set for.</param>
+        /// <param name="isActive">True if the player is in Inspect Mode, false otherwise.</param>
+        [ServerRpc(RequireOwnership = false)]
+        public void SetInspectMode_ServerRpc(Team team, bool isActive) => m_IsInspectModeActive[(int)team] = isActive;
+
+        /// <summary>
+        /// Gets whether the player of the given team is in Insepct Mode or not.
+        /// </summary>
+        /// <param name="team">The <c>Team</c> that we are checking the mode for.</param>
+        /// <returns>True if the player is in Inspect Mode, false otherwise.</returns>
+        public bool IsInspectModeActiveForTeam(Team team) => m_IsInspectModeActive[(int)team];
+
+
+        #region Inspected Objects
+
+        /// <summary>
+        /// Gets the object the player of the given team is inspecting.
+        /// </summary>
+        /// <param name="team">The <c>Team</c> whose inspected object should be returned.</param>
+        /// <returns>The <c>IInspectableObject</c> that the player is inspecting.</returns>
+        public IInspectableObject GetInspectedObject(Team team) => m_InspectedObjects[(int)team];
+
+        /// <summary>
+        /// Gets the team of the player that is inspecting the given object.
+        /// </summary>
+        /// <param name="inspectedObject">The object that is being checked.</param>
+        /// <returns>The value of the team whose player is inspecting the object in the <c>Team</c> enum.</returns>
+        public int GetPlayerInspectingObject(IInspectableObject inspectedObject) => Array.IndexOf(m_InspectedObjects, inspectedObject);
+
+        /// <summary>
+        /// Sets the given object as the object being inspected by the player of the given team.
+        /// </summary>
+        /// <param name="team">The <c>Team</c> of the player that's inspecting the object.</param>
+        /// <param name="inspectedObject">A <c>NetworkObjectReference</c> of the object being inspected.</param>
+        /// <param name="serverRpcParams">RPC parameters for the server RPC.</param>
+        [ServerRpc(RequireOwnership = false)]
+        public void SetInspectedObject_ServerRpc(Team team, NetworkObjectReference inspectedObject, ServerRpcParams serverRpcParams = default)
+        {
+            if (!m_IsInspectModeActive[(int)team] || !inspectedObject.TryGet(out NetworkObject networkObject) || 
+                networkObject.GetComponent<IInspectableObject>() == null)
+                return;
+
+            IInspectableObject inspectObject = networkObject.GetComponent<IInspectableObject>();
+            IInspectableObject lastInspectedObject = m_InspectedObjects[(int)team];
+
+            // stop inspecting the last inspected object
+            if (lastInspectedObject != null)
+            {
+                lastInspectedObject.SetHighlight(false);
+                m_InspectedObjects[(int)team] = null;
+                lastInspectedObject.IsInspected = false;
+                HideInspectedObjectPanel_ClientRpc(new ClientRpcParams
+                {
+                    Send = new ClientRpcSendParams
+                    {
+                        TargetClientIds = new ulong[] { serverRpcParams.Receive.SenderClientId }
+                    }
+                });
+            }
+
+            // this will make it so clicking again on an inspected object will just stop inspecting it.
+            if (lastInspectedObject == inspectObject) return;
+
+            ClientRpcParams clientParams = new()
+            {
+                Send = new ClientRpcSendParams
+                {
+                    TargetClientIds = new ulong[] { serverRpcParams.Receive.SenderClientId }
+                }
+            };
+
+            m_InspectedObjects[(int)team] = inspectObject;
+            inspectObject.IsInspected = true;
+
+            if (inspectObject.GetType() == typeof(Unit))
+            {
+                Unit unit = (Unit)inspectObject;
+
+                if (unit.IsInFight)
+                {
+                    (Unit red, Unit blue) = UnitManager.Instance.GetFightParticipants(unit.FightId);
+                    ShowFightData_ClientRpc(red.Strength, blue.Strength, clientParams);
+                    return;
+                }
+
+                ShowUnitData_ClientRpc(unit.Team, unit.Class, unit.Strength, clientParams);
+            }
+
+            if (inspectObject.GetType() == typeof(Settlement))
+            {
+                Settlement settlement = (Settlement)inspectObject;
+                ShowSettlementData_ClientRpc(settlement.Team, settlement.Type, settlement.FollowersInSettlement, settlement.Capacity, clientParams);
+            }
+        }
+
+        /// <summary>
+        /// Stops inspecting the given object, if any player is inspecting it.
+        /// </summary>
+        /// <remarks>Called when the object is despawned.</remarks>
+        /// <param name="inspectedObject">The object that should be removed from being inspected.</param>
+        public void RemoveInspectedObject(IInspectableObject inspectedObject)
+        {
+            int index = GetPlayerInspectingObject(inspectedObject);
+            // nobody is inspecting the object
+            if (index < 0) return;
+
+            m_InspectedObjects[index] = null;
+            inspectedObject.IsInspected = false;
+
+            HideInspectedObjectPanel_ClientRpc(new ClientRpcParams
+                {
+                    Send = new ClientRpcSendParams
+                    {
+                        TargetClientIds = new ulong[] { GameData.Instance.GetNetworkIdByTeam(index) }
+                    }
+                }
+            );
+        }
 
         #endregion
 
 
+        #region Show Inspected UI
+
         /// <summary>
-        /// Switches the behavior of all the units in the given team to the given behavior.
+        /// Tells the client to show the given data on the Inspected Unit panel.
         /// </summary>
-        /// <param name="behavior">The <c>UnitBehavior</c> that should be applied to all units in the team.</param>
-        /// <param name="team">The <c>Team</c> whose units should be targeted.</param>
-        [ServerRpc(RequireOwnership = false)]
-        public void ChangeUnitBehavior_ServerRpc(UnitBehavior behavior, Team team)
+        /// <param name="team">The <c>Team</c> the unit belongs to.</param>
+        /// <param name="unitClass">The class of the unit.</param>
+        /// <param name="strength">The current strength of the unit.</param>
+        /// <param name="clientParams">RPC parameters for the client RPC.</param>
+        [ClientRpc]
+        private void ShowUnitData_ClientRpc(Team team, UnitClass unitClass, int strength, ClientRpcParams clientParams = default)
+            => GameUI.Instance.ShowUnitData(team, unitClass, strength);
+
+        /// <summary>
+        /// Tells the client to show the given data on the Inspected Settlement panel.
+        /// </summary>
+        /// <param name="team">The <c>Team</c> the settlement belongs to.</param>
+        /// <param name="type">The type of the settlement.</param>
+        /// <param name="unitsInSettlement">The number of units currently in the settlement.</param>
+        /// <param name="maxUnitsInSettlement">The maximum number of units for the settlement.</param>
+        /// <param name="clientParams">RPC parameters for the client RPC.</param>
+        [ClientRpc]
+        private void ShowSettlementData_ClientRpc(Team team, SettlementType type, int unitsInSettlement, int maxUnitsInSettlement, ClientRpcParams clientParams = default)
+            => GameUI.Instance.ShowSettlementData(team, type, unitsInSettlement, maxUnitsInSettlement);
+
+        /// <summary>
+        /// Tells the client to show the given data on the Inspected Fight panel.
+        /// </summary>
+        /// <param name="redStrength">The current strength of the red unit in the fight.</param>
+        /// <param name="blueStrength">The current strength of the blue unit in the fight.</param>
+        /// <param name="clientParams">RPC parameters for the client RPC.</param>
+        [ClientRpc]
+        private void ShowFightData_ClientRpc(int redStrength, int blueStrength, ClientRpcParams clientParams = default)
+            => GameUI.Instance.ShowFightData(redStrength, blueStrength);
+
+        /// <summary>
+        /// Tells the client to hide the inspected object panel.
+        /// </summary>
+        /// <param name="clientParams">RPC parameters for the client RPC.</param>
+        [ClientRpc]
+        private void HideInspectedObjectPanel_ClientRpc(ClientRpcParams clientParams = default) => GameUI.Instance.HideInspectedObjectPanel();
+
+        #endregion
+
+
+        #region Update Inspected UI
+
+        /// <summary>
+        /// Handles the update of the given unit data on the UI of the player focusing on the unit.
+        /// </summary>
+        /// <param name="unit">The unit whose UI data should be updated.</param>
+        /// <param name="updateClass">True if the unit's class should be updated, false otherwise.</param>
+        /// <param name="updateStrength">True if the unit's strength should be updated, false otherwise.</param>
+        public void UpdateInspectedUnit(Unit unit, bool updateClass = false, bool updateStrength = false)
         {
-            UnitManager.Instance.ChangeUnitBehavior(behavior, team);
+            int index = GetPlayerInspectingObject(unit);
+            if (index < 0) return;
+
+            ClientRpcParams clientParams = new()
+            {
+                Send = new ClientRpcSendParams
+                {
+                    TargetClientIds = new ulong[] { GameData.Instance.GetNetworkIdByTeam(index) }
+                }
+            };
+
+            if (updateClass)
+                UpdateInspectedUnitClass_ClientRpc(unit.Class, clientParams);
+
+            if (updateStrength && unit.IsInFight)
+                UpdateInspectedFight_ClientRpc(unit.Team, unit.Strength, clientParams);
+
+            if (updateStrength)
+                UpdateInspectedUnitStrength_ClientRpc(unit.Strength, clientParams);
         }
+
+        /// <summary>
+        /// Triggers the update of the inspected unit's class on the UI of the client.
+        /// </summary>
+        /// <param name="unitClass">The new class that should be set.</param>
+        /// <param name="clientParams">RPC parameters for the client RPC.</param>
+        [ClientRpc]
+        private void UpdateInspectedUnitClass_ClientRpc(UnitClass unitClass, ClientRpcParams clientParams = default)
+            => GameUI.Instance.UpdateUnitClass(unitClass);
+
+        /// <summary>
+        /// Triggers the update of the inspected unit's strength on the UI of the client.
+        /// </summary>
+        /// <param name="strength">The new strength that should be set.</param>
+        /// <param name="clientParams">RPC parameters for the client RPC.</param>
+        [ClientRpc]
+        private void UpdateInspectedUnitStrength_ClientRpc(int strength, ClientRpcParams clientParams = default)
+            => GameUI.Instance.UpdateUnitStrength(strength);
+
+        /// <summary>
+        /// Triggers the update of the strength of the unit of the given team in the inspected fight on the UI of the client.
+        /// </summary>
+        /// <param name="team">The <c>Team</c> whose unit's strength should be updated.</param>
+        /// <param name="strength">The new strength of the unit.</param>
+        /// <param name="clientParams">RPC parameters for the client RPC.</param>
+        [ClientRpc]
+        private void UpdateInspectedFight_ClientRpc(Team team, int strength, ClientRpcParams clientParams = default)
+            => GameUI.Instance.UpdateFight(team, strength);
+
+
+        /// <summary>
+        /// Handles the update of the given settlement data on the UI of the player focusing on the settlement.
+        /// </summary>
+        /// <param name="settlement">The settlement whose UI data should be updated.</param>
+        /// <param name="updateTeam">True if the settlement's team should be updated, false otherwise.</param>
+        /// <param name="updateType">True if the settlement's type should be updated, false otherwise.</param>
+        /// <param name="updateFollowers">True if the amount of followers in the settlement should be updated, false otherwise.</param>
+        public void UpdateInspectedSettlement(Settlement settlement, bool updateTeam = false, bool updateType = false, bool updateFollowers = false)
+        {
+            int index = GetPlayerInspectingObject(settlement);
+            if (index < 0) return;
+
+            ClientRpcParams clientParams = new()
+            {
+                Send = new ClientRpcSendParams
+                {
+                    TargetClientIds = new ulong[] { GameData.Instance.GetNetworkIdByTeam(index) }
+                }
+            };
+
+            if (updateTeam)
+                UpdateInspectedSettlementTeam_ClientRpc(settlement.Team, clientParams);
+
+            if (updateType)
+                UpdateInspectedSettlementType_ClientRpc(settlement.Type, settlement.Capacity, clientParams);
+
+            if (updateFollowers)
+                UpdateInspectedSettlementFollowers_ClientRpc(settlement.FollowersInSettlement, clientParams);
+        }
+
+        /// <summary>
+        /// Triggers the update of the inspected settlement's team on the UI of the client.
+        /// </summary>
+        /// <param name="team">The new <c>Team</c> of the settlement.</param>
+        /// <param name="clientParams">RPC parameters for the client RPC.</param>
+        [ClientRpc]
+        private void UpdateInspectedSettlementTeam_ClientRpc(Team team, ClientRpcParams clientParams = default)
+            => GameUI.Instance.UpdateSettlementTeam(team);
+
+        /// <summary>
+        /// Triggers the update of the inspected settlement's type on the UI of the client.
+        /// </summary>
+        /// <param name="type">The new type of the settlement.</param>
+        /// <param name="maxUnitsInSettlement">The new maximum amount of units in the settlement.</param>
+        /// <param name="clientParams">RPC parameters for the client RPC.</param>
+        [ClientRpc]
+        private void UpdateInspectedSettlementType_ClientRpc(SettlementType type, int maxUnitsInSettlement, ClientRpcParams clientParams = default)
+            => GameUI.Instance.UpdateSettlementType(type, maxUnitsInSettlement);
+
+        /// <summary>
+        /// Triggers the update of the number of followers in the inspected settlement on the UI of the client.
+        /// </summary>
+        /// <param name="followers">The new number of followers.</param>
+        /// <param name="clientParams">RPC parameters for the client RPC.</param>
+        [ClientRpc]
+        private void UpdateInspectedSettlementFollowers_ClientRpc(int followers, ClientRpcParams clientParams = default)
+            => GameUI.Instance.UpdateSettlementFollowers(followers);
+
+        #endregion
+
+        #endregion
     }
 }

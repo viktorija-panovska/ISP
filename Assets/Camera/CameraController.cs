@@ -7,7 +7,7 @@ namespace Populous
     /// <summary>
     /// The <c>CameraController</c> class is a <c>MonoBehavior</c> that handles the movement of the player's camera.
     /// </summary>
-    public class CameraController : NetworkBehaviour
+    public class CameraController : MonoBehaviour
     {
         [SerializeField] private CinemachineVirtualCamera m_VirtualCamera;
         [SerializeField] private Transform m_FollowTarget;
@@ -97,11 +97,6 @@ namespace Populous
         /// Sets the position of the follow target, and thus sets the point where the camera is looking.
         /// </summary>
         /// <param name="position">The new position of the follow target.</param>
-        /// <param name="clientRpcParams">RPC data for the client RPC.</param>
-        [ClientRpc]
-        public void SetCameraLookPositionClientRpc(Vector3 position, ClientRpcParams clientRpcParams = default)
-            => m_FollowTarget.transform.position = position;
-
         public void SetCameraLookPosition(Vector3 position) => m_FollowTarget.transform.position = position;
 
 

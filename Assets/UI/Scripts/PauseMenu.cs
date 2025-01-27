@@ -6,35 +6,51 @@ using UnityEngine.UI;
 namespace Populous
 {
     /// <summary>
-    /// This class contains methods which define the behavior of the Pause Menu UI.
+    /// The <c>PauseMenu</c> class controls the behavior of the pause menu.
     /// </summary>
     public class PauseMenu : MonoBehaviour
     {
-        [SerializeField] private Texture2D m_CursorTexture;
+        #region Inspector Fields
+
+        [Tooltip("The UI canvas that the menu is created on.")]
         [SerializeField] private GameObject m_MenuCanvas;
+
+        [Tooltip("The textbox that should contain the map seed.")]
         [SerializeField] private TMP_Text m_MapSeedField;
+
+        [Tooltip("All the buttons in the menu.")]
         [SerializeField] private Button[] m_Buttons;
+
+        #endregion
+
+
+        #region Class Fields
 
         private static PauseMenu m_Instance;
         /// <summary>
-        /// Gets an instance of the class.
+        /// Gets a singleton instance of the class.
         /// </summary>
         public static PauseMenu Instance { get => m_Instance; }
 
+        #endregion
 
-        #region MonoBehavior
+
+        #region Event Functions
 
         private void Awake()
         {
             if (m_Instance != null)
+            {
                 Destroy(gameObject);
+                return;
+            }
 
             m_Instance = this;
         }
 
         private void Start()
         {
-            //m_MapSeedField.text = GameData.Instance.MapSeed.ToString();
+            m_MapSeedField.text = GameData.Instance ? GameData.Instance.MapSeed.ToString() : "";
 
             foreach (Button button in m_Buttons)
                 button.onClick.AddListener(() => AudioController.Instance.PlaySound(SoundType.MENU_BUTTON));
@@ -52,23 +68,10 @@ namespace Populous
         #region Show/Hide
 
         /// <summary>
-        /// Activates the pause menu canvas.
+        /// Shows or hides the pause menu.
         /// </summary>
-        public void ShowPauseMenu()
-        {
-            m_MenuCanvas.SetActive(true);
-            Cursor.SetCursor(m_CursorTexture, Vector2.zero, CursorMode.Auto);
-            Cursor.visible = true;
-        }
-
-        /// <summary>
-        /// Deactivates the pause menu canvas.
-        /// </summary>
-        public void HidePauseMenu()
-        {
-            m_MenuCanvas.SetActive(false);
-            Cursor.visible = false;
-        }
+        /// <param name="show">True if the pause menu should be activated, false otherwise.</param>
+        public void TogglePauseMenu(bool show) => m_MenuCanvas.SetActive(show);
 
         #endregion
 
@@ -78,14 +81,12 @@ namespace Populous
         /// <summary>
         /// Calls the <see cref="PlayerController"/> to unpause the game.
         /// </summary>
-        public void Unpause()
-            => GameController.Instance.TogglePauseGame_ServerRpc();
+        public void Unpause() => GameController.Instance.SetPause_ServerRpc(isPaused: false);
 
         /// <summary>
         /// Calls the <see cref="ConnectionManager"/> to disconnect the player from the game.
         /// </summary>
-        public void LeaveGame()
-            => ConnectionManager.Instance.Disconnect();
+        public void LeaveGame() => ConnectionManager.Instance.Disconnect();
 
         #endregion
 
@@ -95,8 +96,7 @@ namespace Populous
         /// <summary>
         /// Calls the <see cref="AudioController"/> to play the button click sound.
         /// </summary>
-        public void PlayButtonSound()
-            => AudioController.Instance.PlaySound(SoundType.MENU_BUTTON);
+        public void PlayButtonSound() => AudioController.Instance.PlaySound(SoundType.MENU_BUTTON);
 
         #endregion
     }

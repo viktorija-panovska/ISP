@@ -158,15 +158,15 @@ namespace Populous
                 RemoveSettlementPosition(new Vector2(settlement.transform.position.x, settlement.transform.position.z), settlement.Team == Team.NONE ? settlement.PreviousTeam : settlement.Team);
                 OnRemoveReferencesToSettlement?.Invoke(settlement);
                 GameController.Instance.OnArmageddon -= settlement.DestroyIndividualSettlement;
-                GameController.Instance.RemoveVisibleObject/*ClientRpc*/(settlement.GetInstanceID()//, new ClientRpcParams
-                //{
-                //    Send = new ClientRpcSendParams
-                //    {
-                //        TargetClientIds = new ulong[] { GameData.Instance.GetNetworkIdByTeam(unit.Team) }
-                //    }
-                //}
-                );
-                GameController.Instance.RemoveFocusedObject(settlement);
+                //GameController.Instance.RemoveVisibleObject/*ClientRpc*/(settlement.GetInstanceID()//, new ClientRpcParams
+                ////{
+                ////    Send = new ClientRpcSendParams
+                ////    {
+                ////        TargetClientIds = new ulong[] { GameData.Instance.GetNetworkIdByTeam(unit.Team) }
+                ////    }
+                ////}
+                //);
+                GameController.Instance.RemoveInspectedObject(settlement);
             }
 
             structure.Cleanup();
@@ -231,7 +231,7 @@ namespace Populous
         /// <summary>
         /// Creates the team symbols for all the teams.
         /// </summary>
-        public void SpawnTeamSymbols()
+        public void SpawnUnitMagnets()
         {
             //if (!IsServer) return;
 
@@ -257,14 +257,14 @@ namespace Populous
         /// </summary>
         /// <param name="team">The <c>Team</c> the symbol whose position should be returned belongs to.</param>
         /// <returns>A <c>Vector3</c> of the position of the symbol.</returns>
-        public Vector3 GetSymbolPosition(Team team) => m_TeamSymbols[(int)team].transform.position;
+        public Vector3 GetMagnetPosition(Team team) => m_TeamSymbols[(int)team].transform.position;
 
         /// <summary>
         /// Sets the position of the symbol of the given team to the given team.
         /// </summary>
         /// <param name="team">The <c>Team</c> the symbol whose position should be changed belongs to.</param>
         /// <param name="position">The position that the symbol should be set to.</param>
-        public void SetSymbolPosition(Team team, Vector3 position) 
+        public void SetMagnetPosition(Team team, Vector3 position) 
         {
             TeamSymbol symbol = m_TeamSymbols[(int)team];
             if (position == symbol.transform.position) return;
@@ -298,14 +298,14 @@ namespace Populous
         public void SwitchTeam(Settlement settlement, Team team)
         {
             RemoveSettlementPosition(settlement.transform.position, settlement.Team);
-            GameController.Instance.RemoveVisibleObject/*ClientRpc*/(settlement.GetInstanceID()//, new ClientRpcParams
-            //{
-            //    Send = new ClientRpcSendParams
-            //    {
-            //        TargetClientIds = new ulong[] { GameData.Instance.GetNetworkIdByTeam(settlement.Team) }
-            //    }
-            //}
-            );
+            //GameController.Instance.RemoveVisibleObject/*ClientRpc*/(settlement.GetInstanceID()//, new ClientRpcParams
+            ////{
+            ////    Send = new ClientRpcSendParams
+            ////    {
+            ////        TargetClientIds = new ulong[] { GameData.Instance.GetNetworkIdByTeam(settlement.Team) }
+            ////    }
+            ////}
+            //);
 
             settlement.ChangeTeam(team);
             //SetupSettlementClientRpc(settlement.GetComponent<NetworkObject>().NetworkObjectId, $"{team} SETTLEMENT", LayerMask.NameToLayer(GameController.Instance.TeamLayers[(int)team]));

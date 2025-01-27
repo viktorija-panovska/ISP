@@ -294,7 +294,7 @@ namespace Populous
                 }
             }
 
-            if (m_Unit.Behavior == UnitBehavior.GO_TO_SYMBOL)
+            if (m_Unit.Behavior == UnitBehavior.GO_TO_MAGNET)
             {
                 GoToSymbol();
                 return true;
@@ -691,7 +691,7 @@ namespace Populous
             SwitchMoveState(MoveState.GO_TO_SYMBOL);
 
             if (m_Unit.Class == UnitClass.LEADER || !GameController.Instance.HasLeader(m_Unit.Team))
-                SetPath(StructureManager.Instance.GetSymbolPosition(m_Unit.Team));
+                SetPath(StructureManager.Instance.GetMagnetPosition(m_Unit.Team));
             else if (GameController.Instance.IsLeaderInSettlement(m_Unit.Team))
                 SetPath(GameController.Instance.GetLeaderSettlement(m_Unit.Team).transform.position);
             else

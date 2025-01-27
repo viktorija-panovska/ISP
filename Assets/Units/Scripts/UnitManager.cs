@@ -39,7 +39,7 @@ namespace Populous
         /// <summary>
         /// The unit goes to its faction's symbol.
         /// </summary>
-        GO_TO_SYMBOL,
+        GO_TO_MAGNET,
         /// <summary>
         /// The unit seeks out other units of its faction to combine with.
         /// </summary>
@@ -178,12 +178,12 @@ namespace Populous
             if (team == Team.RED)
             {
                 OnRedBehaviorChange += unit.SetBehavior;
-                GameController.Instance.OnRedSymbolMoved += unit.SymbolLocationChanged;
+                GameController.Instance.OnRedMagnetMoved += unit.SymbolLocationChanged;
             }
             else if (team == Team.BLUE)
             {
                 OnBlueBehaviorChange += unit.SetBehavior;
-                GameController.Instance.OnBlueSymbolMoved += unit.SymbolLocationChanged;
+                GameController.Instance.OnBlueMagnetMoved += unit.SymbolLocationChanged;
             }
 
             unit.Setup(team, strength, canEnterSettlement);
@@ -257,24 +257,24 @@ namespace Populous
                 {
                     GameController.Instance.RemoveManna(unit.Team, m_LeaderDeathManna);
                     GameController.Instance.AddManna(unit.Team == Team.RED ? Team.BLUE : Team.RED, m_LeaderDeathManna);
-                    StructureManager.Instance.SetSymbolPosition(unit.Team, unit.ClosestMapPoint.ToWorldPosition());
+                    StructureManager.Instance.SetMagnetPosition(unit.Team, unit.ClosestMapPoint.ToWorldPosition());
                 }
             }
 
             if (unit.Class == UnitClass.KNIGHT)
                 DestroyKnight(unit.Team, unit);
 
-            GameController.Instance.RemoveVisibleObject/*ClientRpc*/(unitObject.GetInstanceID()//, new ClientRpcParams
+            //GameController.Instance.RemoveVisibleObject/*ClientRpc*/(unitObject.GetInstanceID()//, new ClientRpcParams
             //{
             //    Send = new ClientRpcSendParams
             //    {
             //        TargetClientIds = new ulong[] { GameData.Instance.GetNetworkIdByTeam(unit.Team) }
             //    }
             //}
-            );
+            //);
             OnRemoveReferencesToUnit?.Invoke(unit);
 
-            GameController.Instance.RemoveFocusedObject(unit);
+            GameController.Instance.RemoveInspectedObject(unit);
             //unitObject.GetComponent<NetworkObject>().Despawn();
             Destroy(unitObject);
         }
@@ -323,7 +323,7 @@ namespace Populous
             UpdatePopulationUI/*ClientRpc*/(team, amount);
 
             if (m_Population[(int)team] == 0)
-                GameController.Instance.GameOver(loser: team);
+                GameController.Instance.EndGame_ClientRpc(winner: team == Team.RED ? Team.BLUE : Team.RED); ;
         }
 
         /// <summary>
@@ -566,6 +566,8 @@ namespace Populous
         /// <returns>The number of fights.</returns>
         public int GetFightsNumber() => m_FightIds.Count;
 
+        public (Unit red, Unit blue) GetFightParticipants(int fightId) => m_Fights[fightId];
+
         /// <summary>
         /// Sets up and begins a fight between two units.
         /// </summary>
@@ -678,55 +680,6 @@ namespace Populous
 
             settlement.IsAttacked = false;
         }
-
-        /// <summary>
-        /// Shows or hides the fight info on the UI.
-        /// </summary>
-        /// <param name="show">True if the fight info should be shown, false otherwise.</param>
-        /// <param name="fightId">The id of the fight for which the info should be displayed.</param>
-        /// <param name="clientId">The id of the client whose screen the UI should be displayed on.</param>
-        public void ToggleFightUI(bool show, int fightId, ulong clientId)
-        {
-            (Unit red, Unit blue) = m_Fights[fightId];
-            ToggleFightUIClient/*Rpc*/(show, red.Strength, blue.Strength, new ClientRpcParams()
-            {
-                Send = new ClientRpcSendParams
-                {
-                    TargetClientIds = new ulong[] { clientId }
-                }
-            });
-        }
-
-        /// <summary>
-        /// Shows or hides the fight info on the UI.
-        /// </summary>
-        /// <param name="show">True if the fight info should be shown, false otherwise.</param>
-        /// <param name="redStrength">The strength of the red unit.</param>
-        /// <param name="blueStrength">The strength of the blue unit.</param>
-        /// <param name="parameters">RPC data for the server RPC.</param>
-        //[ClientRpc]
-        private void ToggleFightUIClient/*Rpc*/(bool show, int redStrength, int blueStrength, ClientRpcParams parameters = default)
-            => Debug.Log("Fight UI");//GameUI.Instance.ToggleFightUI(show, redStrength, blueStrength);
-
-        /// <summary>
-        /// Updates the fight info on the UI.
-        /// </summary>
-        /// <param name="fightId">The id of the fight for which the info should be displayed.</param>
-        public void UpdateFightUI(int fightId)
-        {
-            (Unit red, Unit blue) = m_Fights[fightId];
-            UpdateFightUIClient/*Rpc*/(red.Strength, blue.Strength);
-        }
-
-        /// <summary>
-        /// Updates the fight info on the UI.
-        /// </summary>
-        /// <param name="redStrength">The strength of the red unit.</param>
-        /// <param name="blueStrength">The strength of the blue unit.</param>
-        /// <param name="parameters">RPC data for the server RPC.</param>
-        //[ClientRpc]
-        private void UpdateFightUIClient/*Rpc*/(int redStrength, int blueStrength, ClientRpcParams parameters = default)
-            => Debug.Log("Fight UI"); //GameUI.Instance.UpdateFightUI(redStrength, blueStrength);
 
         #endregion
     }

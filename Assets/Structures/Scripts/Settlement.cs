@@ -10,7 +10,7 @@ namespace Populous
     /// <summary>
     /// The <c>SETTLEMENT</c> class is a <c>Structure</c> that represents a settlement built by one of the teams on the terrain.
     /// </summary>
-    public class Settlement : Structure, IFocusableObject
+    public class Settlement : Structure, IInspectableObject
     {
         [SerializeField] private BoxCollider m_SettlementCollision;
         [SerializeField] private BoxCollider m_SettlementTrigger;
@@ -44,7 +44,10 @@ namespace Populous
                     m_Flags[(int)m_Team].SetActive(true);//.GetComponent<ObjectActivator>().SetActiveClientRpc(false);
             }
         }
-        
+
+        private NetworkVariable<bool> m_IsInspected = new();
+        public bool IsInspected { get => m_IsInspected.Value; set => m_IsInspected.Value = value; }
+
         private Team m_PreviousTeam;
         public Team PreviousTeam { get => m_PreviousTeam; }
 
@@ -157,10 +160,10 @@ namespace Populous
 
             if (unit.Team == m_Team && GameController.Instance.GetLeaderSettlement(unit.Team) == this)
                 GameController.Instance.SetLeader(unit.gameObject, m_Team);
-            else if (unit.Team == m_Team && !IsSettlementFull && unit.CanEnterSettlement && unit.Behavior != UnitBehavior.GO_TO_SYMBOL)
+            else if (unit.Team == m_Team && !IsSettlementFull && unit.CanEnterSettlement && unit.Behavior != UnitBehavior.GO_TO_MAGNET)
                 TakeFollowersFromUnit(unit);
 
-            if (unit.Team != m_Team && !IsAttacked && unit.Behavior != UnitBehavior.GO_TO_SYMBOL)
+            if (unit.Team != m_Team && !IsAttacked && unit.Behavior != UnitBehavior.GO_TO_MAGNET)
                 UnitManager.Instance.AttackSettlement(unit, this);
         }
 
@@ -242,7 +245,7 @@ namespace Populous
             // change the size of the collider
             SetCollider/*ClientRpc*/(colliderSize);
 
-            GameController.Instance.UpdateFocusedSettlement(this, updateType: true);
+            GameController.Instance.UpdateInspectedSettlement(this, updateType: true);
         }
 
         /// <summary>
@@ -325,7 +328,7 @@ namespace Populous
 
             UpdateSharedSettlements();
             SetupMinimapIcon();
-            GameController.Instance.UpdateFocusedSettlement(this, updateTeam: true);
+            GameController.Instance.UpdateInspectedSettlement(this, updateTeam: true);
         }
 
         /// <summary>
@@ -528,7 +531,7 @@ namespace Populous
         private void SetFollowerCount(int amount)
         {
             m_FollowersInSettlement = Mathf.Clamp(amount, 0, m_CurrentSettlementData.Capacity);
-            GameController.Instance.UpdateFocusedSettlement(this, updateFollowers: true);
+            GameController.Instance.UpdateInspectedSettlement(this, updateFollowers: true);
 
             if (m_FollowersInSettlement == 0)
                 StructureManager.Instance.DespawnStructure(gameObject);
@@ -617,15 +620,16 @@ namespace Populous
         /// <param name="eventData">Event data for the pointer event.</param>
         public void OnPointerEnter(PointerEventData eventData) => SetHighlight(true);
 
+        public void OnPointerClick(PointerEventData eventData)
+            => GameController.Instance.SetInspectedObject_ServerRpc(PlayerController.Instance.Team, GetComponent<NetworkObject>());
+
         /// <summary>
         /// Called when the mouse cursor stops hovering over the unit.
         /// </summary>
         /// <param name="eventData">Event data for the pointer event.</param>
         public void OnPointerExit(PointerEventData eventData)
         {
-            if (this == (object)GameController.Instance.GetFocusedObject(m_Team))
-                return;
-
+            if (m_IsInspected.Value) return;
             SetHighlight(false);
         }
 
@@ -638,6 +642,8 @@ namespace Populous
             m_MinimapIcon.transform.localScale = new(scale, m_MinimapIcon.transform.localScale.y, scale);
             m_MinimapIcon.GetComponent<MeshRenderer>().material.color = GameUI.Instance.MinimapSettlementColors[(int)m_Team];
         }
+
+
 
         #endregion
     }

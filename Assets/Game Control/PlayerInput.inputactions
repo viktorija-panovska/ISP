@@ -60,7 +60,7 @@
                     "initialStateCheck": false
                 },
                 {
-                    "name": "SelectGuideFollowers",
+                    "name": "SelectMoveMagnet",
                     "type": "Button",
                     "id": "9b797186-3106-4c96-b63c-31c8ced40acb",
                     "expectedControlType": "Button",
@@ -168,7 +168,7 @@
                     "initialStateCheck": false
                 },
                 {
-                    "name": "SelectGoToFlag",
+                    "name": "SelectGoToMagnet",
                     "type": "Button",
                     "id": "bfaae25b-c87c-40ad-829a-1a3b0174f9a4",
                     "expectedControlType": "Button",
@@ -177,7 +177,7 @@
                     "initialStateCheck": false
                 },
                 {
-                    "name": "ShowFocusedObject",
+                    "name": "ShowInspectedObject",
                     "type": "Button",
                     "id": "9519e2c8-b102-4d3f-8461-f4f793994be9",
                     "expectedControlType": "Button",
@@ -204,7 +204,7 @@
                     "initialStateCheck": false
                 },
                 {
-                    "name": "ShowFlag",
+                    "name": "ShowMagnet",
                     "type": "Button",
                     "id": "acfb0631-7576-4076-a07a-3f01b3501921",
                     "expectedControlType": "Button",
@@ -404,7 +404,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": "Keyboard&Mouse",
-                    "action": "SelectGuideFollowers",
+                    "action": "SelectMoveMagnet",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
@@ -536,7 +536,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": "Keyboard&Mouse",
-                    "action": "SelectGoToFlag",
+                    "action": "SelectGoToMagnet",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
@@ -569,7 +569,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": "Keyboard&Mouse",
-                    "action": "ShowFlag",
+                    "action": "ShowMagnet",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
@@ -602,7 +602,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": "Keyboard&Mouse",
-                    "action": "ShowFocusedObject",
+                    "action": "ShowInspectedObject",
                     "isComposite": false,
                     "isPartOfComposite": false
                 }

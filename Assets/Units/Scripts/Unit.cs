@@ -10,7 +10,7 @@ namespace Populous
     /// The <c>Unit</c> class is a <c>MonoBehavior</c> which represents and handles the functioning of one unit.
     /// Units are an abstraction of the population of the world, where one unit represents a group of people.
     /// </summary>
-    public class Unit : NetworkBehaviour, IFocusableObject
+    public class Unit : NetworkBehaviour, IInspectableObject
     {
         [SerializeField] private GameObject[] m_LeaderSigns;
         [SerializeField] private GameObject m_KnightSword;
@@ -83,6 +83,9 @@ namespace Populous
         /// </summary>
         public bool CanEnterSettlement { get => m_CanEnterSettlement; }
 
+        private NetworkVariable<bool> m_IsInspected = new();
+        public bool IsInspected { get => m_IsInspected.Value; set => m_IsInspected.Value = value; }
+
 
         /// <summary>
         /// Sets up the properties and different components of the unit.
@@ -137,7 +140,8 @@ namespace Populous
                 m_WideRangeDetector.SetDetectorSize(Terrain.Instance.TilesPerSide);
             }
 
-            GameController.Instance.UpdateFocusedUnit(this, updateClass: true);
+            if (IsInspected)
+                GameController.Instance.UpdateInspectedUnit(this, updateClass: true);
         }
 
         /// <summary>
@@ -206,7 +210,9 @@ namespace Populous
         public void GainStrength(int amount)
         {
             m_Strength += amount;
-            GameController.Instance.UpdateFocusedUnit(this, updateStrength: true);
+
+            if (IsInspected)
+                GameController.Instance.UpdateInspectedUnit(this, updateStrength: true);
         }
 
         /// <summary>
@@ -216,7 +222,9 @@ namespace Populous
         public void LoseStrength(int amount, bool isDamaged = true) 
         { 
             m_Strength -= amount;
-            GameController.Instance.UpdateFocusedUnit(this, updateStrength: true);
+
+            if (IsInspected)
+                GameController.Instance.UpdateInspectedUnit(this, updateStrength: true);
 
             if (m_Strength == 0)
                 UnitManager.Instance.DespawnUnit(gameObject, hasDied: isDamaged);
@@ -372,7 +380,7 @@ namespace Populous
         /// </summary>
         public void NewLeaderUnitGained()
         {
-            if (m_Class == UnitClass.LEADER || m_Behavior != UnitBehavior.GO_TO_SYMBOL) return;
+            if (m_Class == UnitClass.LEADER || m_Behavior != UnitBehavior.GO_TO_MAGNET) return;
             m_MovementHandler.GoToSymbol();
         }
 
@@ -386,7 +394,7 @@ namespace Populous
         /// </summary>
         public void SymbolLocationChanged()
         {
-            if (m_Behavior != UnitBehavior.GO_TO_SYMBOL) return;
+            if (m_Behavior != UnitBehavior.GO_TO_MAGNET) return;
             m_MovementHandler.GoToSymbol();
         }
 
@@ -395,7 +403,7 @@ namespace Populous
         /// </summary>
         public void TeamSymbolReached()
         {
-            if (m_Behavior != UnitBehavior.GO_TO_SYMBOL) return;
+            if (m_Behavior != UnitBehavior.GO_TO_MAGNET) return;
             m_MovementHandler.SymbolReached = true;
         }
 
@@ -407,20 +415,28 @@ namespace Populous
         /// <summary>
         /// Called when the mouse cursor hovers over the unit.
         /// </summary>
+        /// <remarks>Called on client.</remarks>
         /// <param name="eventData">Event data for the pointer event.</param>
         public void OnPointerEnter(PointerEventData eventData) => SetHighlight(true);
 
         /// <summary>
         /// Called when the mouse cursor stops hovering over the unit.
         /// </summary>
+        /// <remarks>Called on client.</remarks>
         /// <param name="eventData">Event data for the pointer event.</param>
         public void OnPointerExit(PointerEventData eventData)
         {
-            if (this == (object)GameController.Instance.GetFocusedObject(m_Team))
-                return;
-
+            if (m_IsInspected.Value) return;
             SetHighlight(false);
         }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <remarks>Called on client.</remarks>
+        /// <param name="eventData"></param>
+        public void OnPointerClick(PointerEventData eventData)
+            => GameController.Instance.SetInspectedObject_ServerRpc(PlayerController.Instance.Team, GetComponent<NetworkObject>());
 
         public void SetHighlight(bool isActive) => m_Highlight.SetActive(isActive);
 

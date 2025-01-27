@@ -57,7 +57,7 @@ namespace Populous
         {
             m_NetworkId = networkId;
             m_SteamId = steamId;
-            m_SteamName = new Friend(steamId).Name;
+            m_SteamName = steamId != 0 ? new Friend(steamId).Name : "";
             m_Team = team;
         }
 

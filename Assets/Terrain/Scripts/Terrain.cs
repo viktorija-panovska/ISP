@@ -118,7 +118,7 @@ namespace Populous
 
             GenerateTerrain();
             SetupTerrainShader();
-            GameUI.Instance.SetInitialMinimapTexture();
+            //GameUI.Instance.SetInitialMinimapTexture();
 
             Frame.Instance.Create();
             Water.Instance.Create();

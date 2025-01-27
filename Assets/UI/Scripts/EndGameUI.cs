@@ -6,31 +6,53 @@ using UnityEngine.UI;
 namespace Populous
 {
     /// <summary>
-    /// This class contains methods which define the behavior of the End Game Menu UI.
+    /// The <c>PauseMenu</c> class controls the behavior of the end game popup UI.
     /// </summary>
-    public class EndGameMenuController : MonoBehaviour
+    public class EndGameUI : MonoBehaviour
     {
-        [SerializeField] private Texture2D m_CursorTexture;
+        #region Inspector Fields
+
+        [Tooltip("The UI canvas that the menu is created on.")]
         [SerializeField] private CanvasGroup m_MenuCanvasGroup;
+
+        [Tooltip("The image of the frame that should be shown when the red player wins.")]
         [SerializeField] private GameObject m_RedFrame;
+
+        [Tooltip("The image of the frame that should be shown when the blue player wins.")]
         [SerializeField] private GameObject m_BlueFrame;
+
+        [Tooltip("The textbox that should display the winner's name.")]
         [SerializeField] private TMP_Text m_WinnerName;
+
+        [Tooltip("The raw image that should display the winner's avatar.")]
         [SerializeField] private RawImage m_WinnerAvatar;
+
+        [Tooltip("All the buttons in the menu.")]
         [SerializeField] private Button[] m_Buttons;
 
-        private static EndGameMenuController m_Instance;
+        #endregion
+
+
+        #region Class Fields
+
+        private static EndGameUI m_Instance;
         /// <summary>
-        /// Gets an instance of the class.
+        /// Gets a singleton instance of the class.
         /// </summary>
-        public static EndGameMenuController Instance { get => m_Instance; }
+        public static EndGameUI Instance { get => m_Instance; }
+
+        #endregion
 
 
-        #region MonoBehavior
+        #region Event Functions
 
         private void Awake()
         {
-            if (m_Instance != null)
+            if (m_Instance && m_Instance != this)
+            {
                 Destroy(gameObject);
+                return;
+            }
 
             m_Instance = this;
         }
@@ -53,13 +75,11 @@ namespace Populous
         #region Show/Hide
 
         /// <summary>
-        /// Fills in the name and avatar of the game winner and fades in the end game menu canvas.
+        /// Sets up the winner information and fades in the end game UI.
         /// </summary>
-        public async void ShowEndGameMenu(Team winner)
+        /// <param name="winner">The <c>Team</c> that won the game.</param>
+        public async void ShowEndGameUI(Team winner)
         {
-            Cursor.SetCursor(m_CursorTexture, Vector2.zero, CursorMode.Auto);
-            Cursor.visible = true;
-
             PlayerInfo? winnerInfo = GameData.Instance.GetPlayerInfoByTeam(winner);
 
             if (winnerInfo.HasValue)
@@ -76,16 +96,6 @@ namespace Populous
             InterfaceUtils.FadeMenuIn(m_MenuCanvasGroup);
         }
 
-
-        /// <summary>
-        /// Fades out the end game menu canvas.
-        /// </summary>
-        public void HideEndGameMenu()
-        {
-            Cursor.visible = false;
-            InterfaceUtils.FadeMenuOut(m_MenuCanvasGroup);
-        }
-
         #endregion
 
 
@@ -94,8 +104,7 @@ namespace Populous
         /// <summary>
         /// Calls the <see cref="ConnectionManager"/> to disconnect the player from the game.
         /// </summary>
-        public void BackToMenu()
-            => ConnectionManager.Instance.Disconnect();
+        public void BackToMenu() => ConnectionManager.Instance.Disconnect();
 
         #endregion
 
@@ -105,8 +114,7 @@ namespace Populous
         /// <summary>
         /// Calls the <see cref="AudioController"/> to play the button click sound.
         /// </summary>
-        public void PlayButtonSound()
-            => AudioController.Instance.PlaySound(SoundType.MENU_BUTTON);
+        public void PlayButtonSound() => AudioController.Instance.PlaySound(SoundType.MENU_BUTTON);
 
         #endregion
     }
