@@ -38,7 +38,6 @@ namespace Populous
 
         [Header("Minimap")]
         [SerializeField] private RectTransform m_Minimap;
-        [SerializeField] private Renderer m_MinimapRenderer;
         [SerializeField] private int m_MinimapIconScale;
         [SerializeField] private Color[] m_MinimapUnitColors;
         [SerializeField] private Color[] m_MinimapSettlementColors;
@@ -79,16 +78,9 @@ namespace Populous
         /// </summary>
         private int m_MaxUnitsInInspectedSettlement = -1;
 
-
-
         public int MinimapIconScale { get => m_MinimapIconScale; }
         public Color[] MinimapUnitColors { get => m_MinimapUnitColors; }
         public Color[] MinimapSettlementColors { get => m_MinimapSettlementColors; }
-
-
-
-
-        private Texture2D m_MinimapTexture;
 
 
 
@@ -240,38 +232,6 @@ namespace Populous
 
         #region Minimap
 
-        public void SetInitialMinimapTexture()
-        {
-            m_MinimapTexture = new(Terrain.Instance.TilesPerSide + 1, Terrain.Instance.TilesPerSide + 1);
-
-            Color32[] colors = new Color32[m_MinimapTexture.width * m_MinimapTexture.height];
-
-            for (int z = 0; z <= Terrain.Instance.TilesPerSide; ++z)
-                for (int x = 0; x <= Terrain.Instance.TilesPerSide; ++x)
-                    colors[z * m_MinimapTexture.width + x] = Terrain.Instance.GetPointHeight((x, z)) > Terrain.Instance.WaterLevel ? Color.green : Color.blue;
-
-            m_MinimapTexture.filterMode = FilterMode.Point;
-            m_MinimapTexture.wrapMode = TextureWrapMode.Clamp;
-            m_MinimapTexture.SetPixels32(colors);
-            m_MinimapTexture.Apply();
-
-            m_MinimapRenderer.sharedMaterial.mainTexture = m_MinimapTexture;
-            m_MinimapRenderer.transform.position = new Vector3(Terrain.Instance.UnitsPerSide / 2, 0, Terrain.Instance.UnitsPerSide / 2);
-            GameUtils.ResizeGameObject(m_MinimapRenderer.gameObject, Terrain.Instance.UnitsPerSide);
-        }
-
-        public void UpdateMinimapTexture()
-        {
-            Color32[] colors = new Color32[m_MinimapTexture.width * m_MinimapTexture.height];
-
-            for (int i = 0; i < 6; ++i)
-                colors[i] = Color.white;
-
-            m_MinimapTexture.SetPixels32(0, 0, 5, 5, colors);
-            m_MinimapTexture.Apply();
-        }
-
-
         public void OnMinimapClicked()
         {
             Vector2 minimapBottomLeft = (Vector2)m_Minimap.position - new Vector2(m_Minimap.rect.width / 2, m_Minimap.rect.height / 2);
@@ -339,7 +299,7 @@ namespace Populous
             => m_UnitClassText.text = unitClass.ToString().ToUpper();
 
         public void UpdateUnitStrength(int strength)
-            => m_UnitStrengthSlider.value = (float)strength / UnitManager.Instance.MaxUnitStrength;
+            => m_UnitStrengthSlider.value = (float)strength / UnitManager.Instance.MaxUnitPopulation;
 
         public void UpdateSettlementTeam(Team team)
         {

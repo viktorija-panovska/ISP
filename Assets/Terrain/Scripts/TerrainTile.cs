@@ -1,6 +1,6 @@
 namespace Populous
 {
-    public struct MapTile
+    public struct TerrainTile
     {
 
     }

@@ -1,86 +1,21 @@
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace Populous
 {
     /// <summary>
-    /// The <c>MeshData</c> struct contains all the required data for constructing a mesh.
+    /// The <c>MeshData</c> struct contains all the required data for the construction of a mesh and the data of one such mesh.
     /// </summary>
     public readonly struct MeshData
     {
-        private readonly Vector3[] m_Vertices;
         /// <summary>
         /// Contains the positions of the vertices of the mesh.
         /// </summary>
-        public readonly Vector3[] Vertices { get => m_Vertices; }
-
-        private readonly int[] m_Triangles;
+        private readonly Vector3[] m_Vertices;
         /// <summary>
         /// Contains the indices in the vertices array of the vertices of each triangle.
         /// </summary>
-        /// <remarks>Each triple of indices represents one triangle. The vertices are entered in order left-center-right.</remarks>
-        public readonly int[] Triangles { get => m_Triangles; }
+        private readonly int[] m_Triangles;
 
-
-        #region Mesh Construction Properties
-
-        /// <summary>
-        /// The number of vertices in a single tile of a normal mesh, where a tile consists of two 
-        /// triangles with shared vertices.
-        /// </summary>
-        public const int VERTICES_PER_TILE_STANDARD = 4;
-        /// <summary>
-        /// The number of vertices in a single tile of a normal mesh, where a tile consists of four 
-        /// triangles with duplicate vertices for each.
-        /// </summary>
-        public const int VERTICES_PER_TILE_TERRAIN = 12;
-
-        /// <summary>
-        /// An array of the unit offsets of the vertices in a tile.
-        /// </summary>
-        public static readonly (float x, float z)[] VertexOffsets = new (float x, float z)[]
-        {
-            (0, 0), (1, 0), (1, 1), (0, 1), (0.5f, 0.5f)
-        };
-
-        /// <summary>
-        /// An array of indices from the <c>VertexOffsets</c> array representing points in a tile, in the order 
-        /// in which they need to be inserted in the <c>Triangles</c> array to form a tile of a standard mesh, 
-        /// consisting of two triangles with shared vertices.
-        /// </summary>
-        public static readonly int[] TriangleIndices_Standard = new int[]
-        {
-            0, 2, 1,
-            0, 3, 2
-        };
-
-        /// <summary>
-        /// An array of indices from the <c>VertexOffsets</c> array representing points in a tile, in the order 
-        /// in which they need to be inserted in the <c>Triangles</c> array to form a tile of the terrain, consisting
-        /// of four triangles with duplicate vertices for each.
-        /// </summary>
-        public static readonly int[] TriangleIndices_Terrain = new int[]
-        {
-            0, 4, 1,    // bottom left, center, bottom right
-            1, 4, 2,    // bottom right, center, top right
-            2, 4, 3,    // top right, center, top left
-            3, 4, 0     // top left, center, bottom left
-        };
-
-        /// <summary>
-        /// A list of arrays each representing a point in the tile which contain the index offset
-        /// for the mesh vertex array for each vertex which occupies that point.
-        /// </summary>
-        public static readonly List<int>[] SharedVertexOffsets = new List<int>[5]
-        {
-            new() { 0, 11 },        // bottom left
-            new() { 2, 3  },        // bottom right
-            new() { 8, 9 },         // top left
-            new() { 5, 6 },         // top right
-            new() { 1, 4, 7, 10 }   // center
-        };
-
-        #endregion
 
 
         /// <summary>
@@ -88,17 +23,19 @@ namespace Populous
         /// </summary>
         /// <param name="width">How many vertices wide should the mesh be.</param>
         /// <param name="height">How many vertices high should the mesh be.</param>
+        /// <param name="isTerrain">True if the mesh is intended for a terrain and should be made up of 
+        /// four triangles per tile with duplicate vertices, false otherwise.</param>
         public MeshData(int width, int height, bool isTerrain)
         {
             if (isTerrain)
             {
-                m_Vertices = new Vector3[width * height * VERTICES_PER_TILE_TERRAIN];
-                m_Triangles = new int[width * height * TriangleIndices_Terrain.Length];
+                m_Vertices = new Vector3[width * height * MeshProperties.VERTICES_PER_TILE_TERRAIN];
+                m_Triangles = new int[width * height * MeshProperties.TriangleIndices_Terrain.Length];
             }
             else
             {
-                m_Vertices = new Vector3[width * height * VERTICES_PER_TILE_STANDARD];
-                m_Triangles = new int[width * height * TriangleIndices_Standard.Length];
+                m_Vertices = new Vector3[width * height * MeshProperties.VERTICES_PER_TILE_STANDARD];
+                m_Triangles = new int[width * height * MeshProperties.TriangleIndices_Standard.Length];
             }
         }
 
@@ -132,8 +69,8 @@ namespace Populous
         {
             Mesh mesh = new()
             {
-                vertices = Vertices,
-                triangles = Triangles,
+                vertices = m_Vertices,
+                triangles = m_Triangles,
             };
 
             mesh.RecalculateNormals();
@@ -143,5 +80,21 @@ namespace Populous
             MeshCollider collider = gameObject.GetComponent<MeshCollider>();
             if (collider) collider.sharedMesh = mesh;
         }
+
+
+
+        /// <summary>
+        /// Sets the height of the vertex at the given index to the given height.
+        /// </summary>
+        /// <param name="index">The index of the vertex in the mesh whose height should be set.</param>
+        /// <param name="height">The height that should be set.</param>
+        public readonly void SetVertexHeight(int index, float height) => m_Vertices[index].y = height;
+
+        /// <summary>
+        /// Gets the position of the vertex at the given index.
+        /// </summary>
+        /// <param name="index">The index of the vertex in the mesh whose position should be returned..</param>
+        /// <returns>The <c>Vector3</c> representing the position of the vertex in the world.</returns>
+        public readonly Vector3 GetVertexPosition(int index) => m_Vertices[index];
     }
 }

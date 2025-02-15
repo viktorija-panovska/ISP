@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using Unity.VisualScripting;
 using UnityEngine;
 
 
@@ -11,24 +10,25 @@ namespace Populous
     public interface IPathfinder
     {
         /// <summary>
-        /// Finds a sequence of points this unit should travel through to get to the desired target.
+        /// Finds a sequence of points the unit should travel through to get to the desired end.
         /// </summary>
-        /// <param name="start">The <c>TerrainPoint</c> that this unit is at.</param>
+        /// <param name="start">The <c>TerrainPoint</c> that the unit is at.</param>
         /// <param name="end">The <c>TerrainPoint</c> that should be reached.</param>
         /// <returns>A list of <c>TerrainPoint</c>s making up the path.</returns>
         public static List<TerrainPoint> FindPath(TerrainPoint start, TerrainPoint end) { return null; }
         /// <summary>
-        /// Finds the next point that this unit should go to on its path to follow the given target.
+        /// Finds the next point that the unit should go to on its path to the given end.
         /// </summary>
+        /// <remarks>Used when following another unit.</remarks>
         /// <param name="start">The <c>TerrainPoint</c> that this unit is at.</param>
-        /// <param name="target">The <c>TerrainPoint</c> that the unit that should be followed is at.</param>
+        /// <param name="end">The <c>TerrainPoint</c> that is the final destination..</param>
         /// <returns>A <c>TerrainPoint</c> which this unit should go to next, null if no such point is found.</returns>
-        public static TerrainPoint? Follow(TerrainPoint start, TerrainPoint target) { return null; }
+        public static TerrainPoint? FindNextStep(TerrainPoint start, TerrainPoint end) { return null; }
     }
 
 
     /// <summary>
-    /// The <c>Pathfinder</c> class handles the pathfinding for the movement of a unit.
+    /// The <c>Pathfinder</c> class handles the pathfinding for the movement of a unit using the A* algorthm.
     /// </summary>
     public class Pathfinder : IPathfinder
     {
@@ -40,7 +40,7 @@ namespace Populous
             /// <summary>
             /// The point on the terrain grid this node represents.
             /// </summary>
-            public TerrainPoint Location;
+            public TerrainPoint Point;
             /// <summary>
             /// The <c>PathNode</c> that we came from.
             /// </summary>
@@ -67,7 +67,7 @@ namespace Populous
             /// <param name="hCost">The estimated movement cost to get from this node to the end.</param>
             public PathNode(TerrainPoint location, PathNode prevNode, float gCost = float.MaxValue, float hCost = 0)
             {
-                Location = location;
+                Point = location;
                 PrevNode = prevNode;
                 GCost = gCost;
                 HCost = hCost;
@@ -80,26 +80,20 @@ namespace Populous
 
 
         /// <summary>
-        /// Finds a sequence of points this unit should travel through to get to the desired target.
+        /// Finds a sequence of points the unit should travel through to get to the desired end.
         /// </summary>
-        /// <param name="start">The <c>TerrainPoint</c> that this unit is at.</param>
+        /// <param name="start">The <c>TerrainPoint</c> that the unit is at.</param>
         /// <param name="end">The <c>TerrainPoint</c> that should be reached.</param>
         /// <returns>A list of <c>TerrainPoint</c>s making up the path.</returns>
         public static List<TerrainPoint> FindPath(TerrainPoint start, TerrainPoint end)
         {
-            Dictionary<Vector2, PathNode> nodes = new();
-            List<Vector2> openList = new();
-            HashSet<Vector2> closedList = new();
+            Dictionary<Vector2, PathNode> nodes = new();        // all nodes
+            List<Vector2> openList = new();                     // nodes on the frontier - nodes that need to be explored
+            HashSet<Vector2> closedList = new();                // nodes that have already been explored
 
             // add start node to open list
-            PathNode startNode = new(
-                start,
-                prevNode: null,
-                gCost: 0,
-                hCost: GetDistanceCost(start, end)
-            );
-
-            Vector2 startKey = GetKey(startNode.Location);
+            PathNode startNode = new(start, prevNode: null, gCost: 0, hCost: GetDistanceCost(start, end));
+            Vector2 startKey = GetKey(startNode.Point);
             nodes.Add(startKey, startNode);
             openList.Add(startKey);
 
@@ -107,8 +101,8 @@ namespace Populous
             {
                 Vector2 current = GetNodeWithLowestFCost(nodes, openList);
 
-                if (nodes[current].Location.GridX == end.GridX &&
-                    nodes[current].Location.GridZ == end.GridZ)
+                // we found the destination, end the algorithm
+                if (nodes[current].Point.GridX == end.GridX && nodes[current].Point.GridZ == end.GridZ)
                     return GetPath(nodes[current]);
 
                 openList.Remove(current);
@@ -117,16 +111,15 @@ namespace Populous
                 foreach (Vector2 neighbor in GetNeighborNodes(nodes[current], ref nodes))
                 {
                     // node has already been visited
-                    if (closedList.Contains(neighbor))
-                        continue;
+                    if (closedList.Contains(neighbor)) continue;
 
-                    float gCost = nodes[current].GCost + GetDistanceCost(nodes[current].Location, nodes[neighbor].Location);
+                    float gCost = nodes[current].GCost + GetDistanceCost(nodes[current].Point, nodes[neighbor].Point);
 
                     if (gCost < nodes[neighbor].GCost)
                     {
                         nodes[neighbor].PrevNode = nodes[current];
                         nodes[neighbor].GCost = gCost;
-                        nodes[neighbor].HCost = GetDistanceCost(nodes[neighbor].Location, end);
+                        nodes[neighbor].HCost = GetDistanceCost(nodes[neighbor].Point, end);
 
                         if (!openList.Contains(neighbor))
                             openList.Add(neighbor);
@@ -137,17 +130,17 @@ namespace Populous
             return null;
         }
 
-
         /// <summary>
-        /// Finds the next point that this unit should go to on its path to follow the given target.
+        /// Finds the next point that the unit should go to on its path to the given end.
         /// </summary>
+        /// <remarks>Used when following another unit.</remarks>
         /// <param name="start">The <c>TerrainPoint</c> that this unit is at.</param>
-        /// <param name="target">The <c>TerrainPoint</c> that the unit that should be followed is at.</param>
+        /// <param name="end">The <c>TerrainPoint</c> that is the final destination..</param>
         /// <returns>A <c>TerrainPoint</c> which this unit should go to next, null if no such point is found.</returns>
-        public static TerrainPoint? Follow(TerrainPoint start, TerrainPoint target)
+        public static TerrainPoint? FindNextStep(TerrainPoint start, TerrainPoint end)
         {
             TerrainPoint? next = null;
-            float minCost = GetDistanceCost(start, target);
+            float minCost = GetDistanceCost(start, end);
 
             for (int zOffset = -1; zOffset <= 1; ++zOffset)
             {
@@ -163,10 +156,10 @@ namespace Populous
 
                     TerrainPoint newLocation = new(x, z);
 
-                    if (!newLocation.IsOnEdge && !Terrain.Instance.CanCrossTile(start, newLocation))
+                    if (!newLocation.IsOnEdge && !Terrain.Instance.IsTileCornerReachable(start, newLocation))
                         continue;
 
-                    float cost = GetDistanceCost(newLocation, target);
+                    float cost = GetDistanceCost(newLocation, end);
 
                     if (cost <= minCost)
                     {
@@ -180,9 +173,19 @@ namespace Populous
         }
 
 
+        /// <summary>
+        /// Creates a key to represent the given terrain point.
+        /// </summary>
+        /// <param name="location">The given <c>TerrainPoint</c>.</param>
+        /// <returns>A <c>Vector2</c> that will serve as the key for that point.</returns>
         private static Vector2 GetKey(TerrainPoint location) => new(location.GridX, location.GridZ);
 
-
+        /// <summary>
+        /// Finds the node in the open list that has the lowest estimated cost if a path to the destination is taken through it.
+        /// </summary>
+        /// <param name="allNodes">A dictionary mapping node keys to <c>PathNodes</c>.</param>
+        /// <param name="openList">A list of the node keys of the nodes that are ready for exploration.</param>
+        /// <returns>The <c>Vector2</c> node key of the node in the open list with the lowest F-cost.</returns>
         private static Vector2 GetNodeWithLowestFCost(Dictionary<Vector2, PathNode> allNodes, List<Vector2> openList)
         {
             Vector2 lowestFCostNode = openList[0];
@@ -194,7 +197,12 @@ namespace Populous
             return lowestFCostNode;
         }
 
-
+        /// <summary>
+        /// Gets all the visitable neighboring points of the point represented by the current node.
+        /// </summary>
+        /// <param name="currentNode">The current <c>PathNode</c>.</param>
+        /// <param name="allNodes"></param>
+        /// <returns></returns>
         private static List<Vector2> GetNeighborNodes(PathNode currentNode, ref Dictionary<Vector2, PathNode> allNodes)
         {
             List<Vector2> neighbors = new();
@@ -205,22 +213,22 @@ namespace Populous
                 {
                     if ((xOffset, zOffset) == (0, 0)) continue;
 
-                    int x = currentNode.Location.GridX + xOffset;
-                    int z = currentNode.Location.GridZ + zOffset;
-
+                    int x = currentNode.Point.GridX + xOffset;
+                    int z = currentNode.Point.GridZ + zOffset;
 
                     if (x < 0 || x > Terrain.Instance.TilesPerSide || z < 0 || z > Terrain.Instance.TilesPerSide)
                         continue;
 
-                    TerrainPoint newLocation = new(x, z);
+                    TerrainPoint neighborPoint = new(x, z);
 
-                    if (!Terrain.Instance.CanCrossTile(currentNode.Location, newLocation))
+                    // checks whether it will need to cross a tile that contains a structure or water to reach the neighbor
+                    if (!Terrain.Instance.IsTileCornerReachable(currentNode.Point, neighborPoint))
                         continue;
 
-                    Vector2 key = GetKey(newLocation);
+                    Vector2 key = GetKey(neighborPoint);
 
                     if (!allNodes.ContainsKey(key))
-                        allNodes.Add(key, new PathNode(newLocation, prevNode: currentNode));
+                        allNodes.Add(key, new PathNode(neighborPoint, prevNode: currentNode));
 
                     neighbors.Add(key);
                 }
@@ -229,7 +237,12 @@ namespace Populous
             return neighbors;
         }
 
-
+        /// <summary>
+        /// Computes the cost of travelling from the given start point to the given end point.
+        /// </summary>
+        /// <param name="start">The start <c>TerrainPoint</c>.</param>
+        /// <param name="end">The end <c>TerrainPoint</c>.</param>
+        /// <returns>The cost of movement between the points.</returns>
         private static float GetDistanceCost(TerrainPoint start, TerrainPoint end)
         {
             float x = Mathf.Abs(start.GridX - end.GridX);
@@ -238,15 +251,19 @@ namespace Populous
             return DIAGONAL_COST * Mathf.Min(x, z) + STRAIGHT_COST * Mathf.Abs(x - z);
         }
 
-
+        /// <summary>
+        /// Gets the final list of points representing the path, in the correct order.
+        /// </summary>
+        /// <param name="endNode">The final <c>PathNode</c>.</param>
+        /// <returns>A list of <c>TerrainPoint</c>s representing the path.</returns>
         private static List<TerrainPoint> GetPath(PathNode endNode)
         {
-            List<TerrainPoint> path = new() { endNode.Location };
+            List<TerrainPoint> path = new() { endNode.Point };
 
             PathNode currentNode = endNode;
             while (currentNode.PrevNode != null)
             {
-                path.Add(currentNode.PrevNode.Location);
+                path.Add(currentNode.PrevNode.Point);
                 currentNode = currentNode.PrevNode;
             }
 

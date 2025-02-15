@@ -1,13 +1,16 @@
+using Unity.Netcode;
 using UnityEngine;
 
 
 namespace Populous
 {
     /// <summary>
-    /// The <c>TeamSymbol</c> class is a <c>Structure</c> that represents the faction symbol of one of the teams.
+    /// The <c>UnitMagnet</c> class represents the unit magnet of one of the teams.
     /// </summary>
-    public class TeamSymbol : Structure
+    public class UnitMagnet : Structure
     {
+        #region Event Functions
+
         private void Start() => m_DestroyMethod = DestroyMethod.NONE;
 
         private void OnTriggerEnter(Collider other)
@@ -21,8 +24,11 @@ namespace Populous
 
             // if we don't have a leader, set the first unit that reached the symbol to be the leader.
             if (GameController.Instance.HasLeader(m_Team)) return;
-            GameController.Instance.SetLeader(unit.gameObject, unit.Team);
+            UnitManager.Instance.SetUnitLeader(unit.Team, unit);
         }
+
+        #endregion
+
 
         /// <inheritdoc />
         public override void ReactToTerrainChange()
@@ -33,14 +39,14 @@ namespace Populous
             if (height < Terrain.Instance.WaterLevel)
                 height = Terrain.Instance.WaterLevel;
 
-            SetHeight/*ClientRpc*/(height);
+            SetHeight_ClientRpc(height);
         }
 
         /// <summary>
-        /// Sets the position of the team symbol to the given position.
+        /// Sets the position of the unit magnet to the given position.
         /// </summary>
-        /// <param name="position">The new position of the team symbol.</param>
-        //[ClientRpc]
-        public void SetSymbolPositionClient/*Rpc*/(Vector3 position) => transform.position = position;
+        /// <param name="position">The new position of the unit magnet.</param>
+        [ClientRpc]
+        public void SetMagnetPosition_ClientRpc(Vector3 position) => transform.position = position;
     }
 }

@@ -3,21 +3,25 @@ using UnityEngine;
 namespace Populous
 {
     /// <summary>
-    /// The <c>Frame</c> class is a <c>MonoBehavior</c> which represents the frame surrounding the generated terrain.
+    /// The <c>Frame</c> class controls the behavior of the object surrounding the generated terrain.
     /// </summary>
+    [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
     public class Frame : MonoBehaviour
     {
         private static Frame m_Instance;
         /// <summary>
-        /// Gets the singleton instance of the class.
+        /// Gets a singleton instance of the class.
         /// </summary>
         public static Frame Instance { get => m_Instance; }
 
 
         private void Awake()
         {
-            if (m_Instance)
+            if (m_Instance && m_Instance != this)
+            {
                 Destroy(gameObject);
+                return;
+            }
 
             m_Instance = this;
         }
@@ -37,11 +41,5 @@ namespace Populous
             transform.localScale = newScale * 5;
             transform.position = new Vector3(Terrain.Instance.UnitsPerSide / 2, -1, Terrain.Instance.UnitsPerSide / 2);
         }
-
-        /// <summary>
-        /// Increases the height of the frame by one step.
-        /// </summary>
-        /// <remarks>Used for the Flood power.</remarks>
-        public void Raise() => transform.position += Vector3.up * Terrain.Instance.StepHeight;
     }
 }

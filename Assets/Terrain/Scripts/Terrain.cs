@@ -7,35 +7,97 @@ using Random = System.Random;
 namespace Populous
 {
     /// <summary>
-    /// The <c>Terrain</c> class is a <c>MonoBehavior</c> which handles the generation and modification of the terrain.
+    /// The <c>Terrain</c> class handles the generation and modification of the terrain chunks.
     /// </summary>
+    [RequireComponent(typeof(INoiseGenerator))]
     public class Terrain : MonoBehaviour
     {
+        #region Inspector Fields
+
+        [Tooltip("The prefab from which the terrain chunks are spawned.")]
         [SerializeField] private GameObject m_ChunkPrefab;
 
-        [Header("Terrain Properties")]
-        [SerializeField] private int m_ChunksPerSide = 2;
-        [SerializeField] private int m_TilesPerChunkSide = 5;
-        [SerializeField] private int m_UnitsPerTileSide = 50;
-        [SerializeField] private int m_MaxHeightSteps = 7;
-        [SerializeField] private int m_StepHeight = 20;
-
-        [Header("Terrain Material")]
+        [Tooltip("A material that uses the Terrain shader.")]
         [SerializeField] private Material m_TerrainMaterial;
+
+
+        [Header("Terrain Properties")]
+
+        [Tooltip("The number of terrain chunks on each side of the terrain.")]
+        [SerializeField] private int m_ChunksPerSide = 7;
+
+        [Tooltip("The number of tiles on each side of a terrain chunk.")]
+        [SerializeField] private int m_TilesPerChunkSide = 8;
+
+        [Tooltip("The length of each side of a terrain tile, in Unity units.")]
+        [SerializeField] private int m_UnitsPerTileSide = 50;
+
+        [Tooltip("The distance of one height step, in Unity units (i.e. the only possible height difference between two neighboring points that are not on the same height).")]
+        [SerializeField] private int m_StepHeight = 50;
+
+        [Tooltip("The maximum number of height steps above the initial water level that a terrain point can sit at.")]
+        [SerializeField] private int m_MaxHeightSteps = 7;
+
+        #endregion
+
+
+        #region Class Fields
 
         private static Terrain m_Instance;
         /// <summary>
-        /// Gets the singleton instance of the class.
+        /// Gets a singleton instance of the class.
         /// </summary>
         public static Terrain Instance { get => m_Instance; }
 
-        private TerrainChunk[,] m_ChunkMap;
-        private HashSet<(int, int)> m_ModifiedChunks;
-
-        public INoiseGenerator MapGenerator { get => GetComponent<INoiseGenerator>(); }
+        /// <summary>
+        /// Gets the <c>INoiseGenerator</c> component attached to the gameObject.
+        /// </summary>
+        public INoiseGenerator NoiseGenerator { get => GetComponent<INoiseGenerator>(); }
 
         private TerrainPoint m_TerrainCenter;
+        /// <summary>
+        /// Gets the terrain point at (or closest to) the center of the terrain.
+        /// </summary>
         public TerrainPoint TerrainCenter { get => m_TerrainCenter; }
+
+        /// <summary>
+        /// A 2D array where each terrain chunk is stored in the cell corresponding to its index in the terrain chunk grid.
+        /// </summary>
+        private TerrainChunk[,] m_ChunkMap;
+
+        /// <summary>
+        /// Gets the number of chunks on each side of the terrain.
+        /// </summary>
+        public int ChunksPerSide { get => m_ChunksPerSide; }
+        /// <summary>
+        /// Gets the number of tiles on each side of the terrain.
+        /// </summary>
+        public int TilesPerSide { get => m_TilesPerChunkSide * m_ChunksPerSide; }
+        /// <summary>
+        /// Gets the length of each side of the terrain, in Unity units.
+        /// </summary>
+        public int UnitsPerSide { get => TilesPerSide * m_UnitsPerTileSide; }
+        /// <summary>
+        /// Gets the number of tiles on each side of a terrain chunk.
+        /// </summary>
+        public int TilesPerChunkSide { get => m_TilesPerChunkSide; }
+        /// <summary>
+        /// Gets the length of each side of a terrain chunk, in Unity units.
+        /// </summary>
+        public int UnitsPerChunkSide { get => m_UnitsPerTileSide * m_TilesPerChunkSide; }
+        /// <summary>
+        /// Gets the length of each side of a terrain tile, in Unity units.
+        /// </summary>
+        public int UnitsPerTileSide { get => m_UnitsPerTileSide; }
+
+        /// <summary>
+        /// Gets the distance of one height step, in Unity units.
+        /// </summary>
+        public int StepHeight { get => m_StepHeight; }
+        /// <summary>
+        /// Gets the maximum possible height of a point on the terrain, in Unity units.
+        /// </summary>
+        public int MaxHeight { get => m_MaxHeightSteps * m_StepHeight; }
 
         private int m_WaterLevel;
         /// <summary>
@@ -43,62 +105,32 @@ namespace Populous
         /// </summary>
         public int WaterLevel { get => m_WaterLevel; }
 
-        // modified points
-        (int lowestX, int lowestZ, int highestX, int highestZ) m_ModifiedPointRange;
-
-
-        #region Public getters and setters for serialized fields
-
-        /// <summary>
-        /// Gets the number of chunks on one side of the terrain.
-        /// </summary>
-        public int ChunksPerSide { get => m_ChunksPerSide; }
-        /// <summary>
-        /// Gets the number of tiles on one side of the terrain.
-        /// </summary>
-        public int TilesPerSide { get => m_TilesPerChunkSide * m_ChunksPerSide; }
-        /// <summary>
-        /// Gets the number of units on one side of the terrain.
-        /// </summary>
-        public int UnitsPerSide { get => TilesPerSide * m_UnitsPerTileSide; }
-        /// <summary>
-        /// Gets the number of tiles on one side of a chunk.
-        /// </summary>
-        public int TilesPerChunkSide { get => m_TilesPerChunkSide; }
-        /// <summary>
-        /// Gets the number of units on one side of a chunk.
-        /// </summary>
-        public int UnitsPerChunkSide { get => m_UnitsPerTileSide * m_TilesPerChunkSide; }
-        /// <summary>
-        /// Gets the number of units on one side of a tile.
-        /// </summary>
-        public int UnitsPerTileSide { get => m_UnitsPerTileSide; }
-        /// <summary>
-        /// Gets the maximum number of times a point on the terrain can be increased.
-        /// </summary>
-        public int MaxHeightSteps { get => m_MaxHeightSteps; }
-        /// <summary>
-        /// Gets the height of one terrain point increase.
-        /// </summary>
-        public int StepHeight { get => m_StepHeight; }
-        /// <summary>
-        /// Gets the maximum possible height of the terrain.
-        /// </summary>
-        public int MaxHeight { get => m_MaxHeightSteps * m_StepHeight; }
-
         /// <summary>
         /// Gets the terrain material.
         /// </summary>
         public Material TerrainMaterial { get => m_TerrainMaterial; }
 
+
+
+
+
+        private HashSet<(int, int)> m_ModifiedChunks;
+        // modified points
+        (int lowestX, int lowestZ, int highestX, int highestZ) m_ModifiedPointRange;
+
         #endregion
 
 
 
+        #region Event Functions
+
         private void Awake()
         {
-            if (m_Instance)
+            if (m_Instance && m_Instance != this)
+            {
                 Destroy(gameObject);
+                return;
+            }
 
             m_Instance = this;
 
@@ -106,29 +138,26 @@ namespace Populous
             m_TerrainCenter = new(UnitsPerSide / 2, UnitsPerSide / 2, getClosestPoint: true);
         }
 
+        #endregion
+
+
 
         #region Terrain Generation
 
         /// <summary>
-        /// Generates the terrain and sets up the frame, water plane, and border.
+        /// Sets up the terrain, triggering the generation of its shape.
         /// </summary>
-        public void CreateTerrain()
+        public void Create()
         {
-            MapGenerator.Setup();
-
-            GenerateTerrain();
+            NoiseGenerator.Setup();
+            SetupChunks();
             SetupTerrainShader();
-            //GameUI.Instance.SetInitialMinimapTexture();
-
-            Frame.Instance.Create();
-            Water.Instance.Create();
-            TerrainBorder.Instance.Create();
         }
 
         /// <summary>
-        /// Generates the terrain.
+        /// Instantiates all terrain chunks in the grid.
         /// </summary>
-        private void GenerateTerrain()
+        private void SetupChunks()
         {
             for (int z = 0; z < m_ChunksPerSide; ++z)
             {
@@ -147,12 +176,10 @@ namespace Populous
         }
 
         /// <summary>
-        /// Sets up the shader for the texturing of the terrain.
+        /// Sets up the variables in the Terrain shader of the terrain material.
         /// </summary>
         private void SetupTerrainShader()
-        {
-            m_TerrainMaterial.SetInt("waterLevel", m_WaterLevel);
-        }
+            => m_TerrainMaterial.SetInteger("waterLevel", m_WaterLevel);
 
         #endregion
 
@@ -205,7 +232,7 @@ namespace Populous
             m_ModifiedPointRange.highestZ = Mathf.Max(point.GridZ, m_ModifiedPointRange.highestZ);
 
             if (point.IsOnEdge)
-                TerrainBorder.Instance.ModifyWallAtPoint(point);
+                TerrainBorderWalls.Instance.ModifyWallAtPoint(point);
         }
 
         public (int lowestX, int lowestZ, int highestX, int highestZ) GetAffectedTileRange()
@@ -225,7 +252,7 @@ namespace Populous
         public void RaiseWaterLevel()
         {
             m_WaterLevel += StepHeight;
-            m_TerrainMaterial.SetInt("waterLevel", m_WaterLevel);
+            m_TerrainMaterial.SetInteger("waterLevel", m_WaterLevel);
         }
 
         /// <summary>
@@ -413,7 +440,7 @@ namespace Populous
         /// <summary>
         /// Checks whether the given chunk index is within the bounds of the terrain.
         /// </summary>
-        /// <param name="chunkIndex">The (x, z) index of the chunk which is to be tested.</param>
+        /// <param name="chunkIndex">The index of the chunk which is to be tested.</param>
         /// <returns>True if the chunk index is in bounds, false otherwise.</returns>
         public bool IsChunkInBounds((int x, int z) chunkIndex)
             => chunkIndex.x >= 0 && chunkIndex.z >= 0 && chunkIndex.x < ChunksPerSide && chunkIndex.z < ChunksPerSide;
@@ -429,7 +456,7 @@ namespace Populous
         /// Gets the index of the chunk that the current position is contained in.
         /// </summary>
         /// <param name="position">A <c>Vector3</c> representing the current position.</param>
-        /// <returns>A tuple representing the (x, z) index of the chunk</returns>
+        /// <returns>A tuple representing the index of the chunk</returns>
         public (int x, int z) GetChunkIndex(Vector3 position)
             => (position.x == UnitsPerSide ? ChunksPerSide - 1 : (int)position.x / UnitsPerChunkSide,
                 position.z == UnitsPerSide ? ChunksPerSide - 1 : (int)position.z / UnitsPerChunkSide);
@@ -437,7 +464,7 @@ namespace Populous
         /// <summary>
         /// Gets the index of the chunk that the current point is contained in.
         /// </summary>
-        /// <param name="point">A tuple representing the (x, z) index of the current point in the terrain mesh.</param>
+        /// <param name="point">A tuple representing the index of the current point in the terrain mesh.</param>
         /// <returns>A tuple representing the (x, z) index of the chunk.</returns>
         public (int x, int z) GetChunkIndex((int x, int z) point)
             => (point.x == TilesPerSide ? ChunksPerSide - 1 : point.x / TilesPerChunkSide,
@@ -551,51 +578,12 @@ namespace Populous
         }
 
         /// <summary>
-        /// Checks whether there is a structure on the given tile.
-        /// </summary>
-        /// <param name="tile">The (x, z) coordinates of the tile which should be checked.</param>
-        /// <returns>True if the tile is occupied by a structure, false otherwise.</returns>
-        public bool IsTileOccupied((int x, int z) tile) => IsTileOccupied(GetChunkIndex(tile), tile);
-
-        /// <summary>
-        /// Checks whether there is a structure on the given tile.
-        /// </summary>
-        /// <param name="chunkIndex">The (x, z) index of a terrain chunk.</param>
-        /// <param name="tile">The (x, z) coordinates of the tile which should be checked.</param>
-        /// <returns>True if the tile is occupied by a structure, false otherwise.</returns>
-        public bool IsTileOccupied((int x, int z) chunkIndex, (int x, int z) tile) => GetChunkByIndex(chunkIndex).IsTileOccupied(tile);
-
-        public bool HasTileSettlement((int x, int z) tile) => GetStructureOnTile(tile).GetType() == typeof(Settlement);
-
-        /// <summary>
-        /// Gets the <c>Structure</c> occupying the given tile.
-        /// </summary>
-        /// <param name="tile">The (x, z) coordinates of the tile whose <c>Structure</c> should be returned.</param>
-        /// <returns>The <c>Structure</c> occupying the given tile, or <c>null</c> if the tile is unoccupied.</returns>
-        public Structure GetStructureOnTile((int x, int z) tile) => GetStructureOnTile(GetChunkIndex(tile), tile);
-
-        /// <summary>
-        /// Gets the <c>Structure</c> occupying the given tile.
-        /// </summary>
-        /// <param name="chunkIndex">The (x, z) index of a terrain chunk.</param>
-        /// <param name="tile">The (x, z) coordinates of the tile whose <c>Structure</c> should be returned.</param>
-        /// <returns>The <c>Structure</c> occupying the given tile, or <c>null</c> if the tile is unoccupied.</returns>
-        public Structure GetStructureOnTile((int x, int z) chunkIndex, (int x, int z) tile) => GetChunkByIndex(chunkIndex).GetStructureOnTile(tile);
-
-        /// <summary>
-        /// Sets the given structure to occupy the given tile.
-        /// </summary>
-        /// <param name="tile">The (x, z) coordinates of the tile whose <c>Structure</c> should be returned.</param>
-        /// <param name="structure">The <c>Structure</c> that should be placed on the tile.</param>
-        public void SetOccupiedTile((int x, int z) tile, Structure structure) => GetChunkByIndex(GetChunkIndex(tile)).SetOccupiedTile(tile, structure);
-
-        /// <summary>
         /// Checks whether when moving from one point of a tile to another, a <c>Structure</c> or water is crossed.
         /// </summary>
         /// <param name="start">A <c>TerrainPoint</c> representing the starting point.</param>
         /// <param name="end">A <c>TerrainPoint</c> representing the end point.</param>
         /// <returns>True if no <c>Structure</c> or water is crossed, false otherwise.</returns>
-        public bool CanCrossTile(TerrainPoint start, TerrainPoint end)
+        public bool IsTileCornerReachable(TerrainPoint start, TerrainPoint end)
         {
             int dx = end.GridX - start.GridX;
             int dz = end.GridZ - start.GridZ;
@@ -646,7 +634,7 @@ namespace Populous
             if (x < 0 || z < 0)
                 return false;
 
-            Structure structure = GetStructureOnTile((x, z));
+            Structure structure = StructureManager.Instance.GetStructureOnTile((x, z));
             if (!structure || structure.GetType() == typeof(Field) || structure.GetType() == typeof(Swamp))
                 return true;
 

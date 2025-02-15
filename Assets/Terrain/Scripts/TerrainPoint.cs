@@ -136,8 +136,12 @@ namespace Populous
         /// false if the point should represent the tile the unit is on.</param>
         public TerrainPoint(float x, float z, bool getClosestPoint)
             : this(
-                  getClosestPoint ? Mathf.RoundToInt(x / Terrain.Instance.UnitsPerTileSide) : Mathf.Clamp(Mathf.FloorToInt(x / Terrain.Instance.UnitsPerTileSide), 0, Terrain.Instance.UnitsPerChunkSide),
-                  getClosestPoint ? Mathf.RoundToInt(z / Terrain.Instance.UnitsPerTileSide) : Mathf.Clamp(Mathf.FloorToInt(z / Terrain.Instance.UnitsPerTileSide), 0, Terrain.Instance.UnitsPerChunkSide)
+                  getClosestPoint 
+                    ? Mathf.RoundToInt(x / Terrain.Instance.UnitsPerTileSide) 
+                    : Mathf.Clamp(Mathf.FloorToInt(x / Terrain.Instance.UnitsPerTileSide), 0, Terrain.Instance.UnitsPerChunkSide),
+                  getClosestPoint 
+                    ? Mathf.RoundToInt(z / Terrain.Instance.UnitsPerTileSide) 
+                    : Mathf.Clamp(Mathf.FloorToInt(z / Terrain.Instance.UnitsPerTileSide), 0, Terrain.Instance.UnitsPerChunkSide)
               ) { }
 
         /// <summary>

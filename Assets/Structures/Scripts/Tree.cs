@@ -1,7 +1,7 @@
 namespace Populous
 {
     /// <summary>
-    /// The <c>Tree</c> class is a <c>Structure</c> representing one of the trees on the terrain.
+    /// The <c>Tree</c> class represents one of the trees on the terrain.
     /// </summary>
     public class Tree : Structure 
     {

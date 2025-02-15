@@ -5,15 +5,22 @@ using UnityEngine;
 namespace Populous
 {
     /// <summary>
-    /// The <c>TerrainChunk</c> class is a <c>MonoBehavior</c> which handles the creation and modification of one chunk of the terrain.
+    /// The <c>TerrainChunk</c> class handles the creation and modification of one chunk of the terrain.
     /// </summary>
+    [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer), typeof(MeshCollider))]
+    [RequireComponent(typeof(Rigidbody))]
     public class TerrainChunk : MonoBehaviour
     {
+        #region Class Fields
+
+        /// <summary>
+        /// A container for the data of this chunk's mesh i.e. the vertices and the triangles that make it up.
+        /// </summary>
         private MeshData m_MeshData;
 
         private (int x, int z) m_ChunkIndex;
         /// <summary>
-        /// Gets the (x, z) index of the chunk in the terrain chunk array.
+        /// Gets the index of the chunk in the terrain chunk grid.
         /// </summary>
         public (int X, int Z) ChunkIndex { get => m_ChunkIndex; }
 
@@ -23,49 +30,49 @@ namespace Populous
         public Vector3 ChunkPosition { get => transform.position; }
 
         /// <summary>
-        /// Each cell the <c>Structure</c> occupying the tile with corresponding coordinates, or null if there isn't one.
-        /// </summary>
-        private Structure[,] m_StructureOnTile;
-
-        /// <summary>
         /// The directions of the neighbors to check when computing the height of a vertex.
         /// </summary>
-        private readonly (int, int)[] m_HeightCheckDirections = new (int, int)[] 
+        private static readonly (int, int)[] m_HeightCheckDirections = new (int, int)[] 
         { 
             (-1, -1), (-1, 0), (-1, 1), (0, -1), (1, -1) 
         };
 
+        #endregion
+
+
+        #region Setup Chunk
 
         /// <summary>
         /// Sets up the properties of the chunk and generates its mesh.
         /// </summary>
-        /// <param name="gridX">The X coordinate of the chunk on the terrain grid.</param>
-        /// <param name="gridZ">The Z coordinate of the chunk on the terrain grid.</param>
+        /// <param name="gridX">The X coordinate of the chunk on the terrain chunk grid.</param>
+        /// <param name="gridZ">The Z coordinate of the chunk on the terrain chunk grid.</param>
         public void Setup(int gridX, int gridZ)
         {
             m_ChunkIndex = (gridX, gridZ);
             name = "Chunk " + ChunkIndex.X + " " + ChunkIndex.Z;
-            m_StructureOnTile = new Structure[Terrain.Instance.TilesPerChunkSide, Terrain.Instance.TilesPerChunkSide];
 
             SetVisibility(true);
-            m_MeshData = GenerateMeshData();
+            m_MeshData = ConstructGrid();
             SetVertexHeights();
             SetMesh();
         }
+
+        /// <summary>
+        /// Triggers the application of the current <c>MeshData</c> to the terrain chunk object.
+        /// </summary>
+        public void SetMesh() => m_MeshData.SetMesh(gameObject, Terrain.Instance.TerrainMaterial);
+
+        #endregion
 
 
         #region Generate Terrain Chunk
 
         /// <summary>
-        /// Applies the current <c>MeshData</c> to the terrain chunk.
-        /// </summary>
-        public void SetMesh() => m_MeshData.SetMesh(gameObject, Terrain.Instance.TerrainMaterial);
-
-        /// <summary>
-        /// Generates all the required data to create the terrain mesh.
+        /// Places the vertices and triangles to create a new mesh for the terrain chunk.
         /// </summary>
         /// <returns>An instance of the <c>MeshData</c> struct containing the data of the generated mesh.</returns>
-        private MeshData GenerateMeshData()
+        private MeshData ConstructGrid()
         {
             MeshData meshData = new(Terrain.Instance.TilesPerChunkSide, Terrain.Instance.TilesPerChunkSide, isTerrain: true);
             int vertexIndex = 0;
@@ -76,14 +83,14 @@ namespace Populous
             {
                 for (int x = 0; x < Terrain.Instance.TilesPerChunkSide; ++x)
                 {
-                    for (int i = 0; i < MeshData.TriangleIndices_Terrain.Length; ++i)
+                    for (int i = 0; i < MeshProperties.TriangleIndices_Terrain.Length; ++i)
                     {
-                        int index = MeshData.TriangleIndices_Terrain[i];
+                        int index = MeshProperties.TriangleIndices_Terrain[i];
 
                         Vector3 vertex = new(
-                            (x + MeshData.VertexOffsets[index].x) * Terrain.Instance.UnitsPerTileSide,
+                            (x + MeshProperties.VertexOffsets[index].x) * Terrain.Instance.UnitsPerTileSide,
                             0,
-                            (z + MeshData.VertexOffsets[index].z) * Terrain.Instance.UnitsPerTileSide
+                            (z + MeshProperties.VertexOffsets[index].z) * Terrain.Instance.UnitsPerTileSide
                         );
                         meshData.AddVertex(vertexIndex + i, vertex);
 
@@ -94,7 +101,7 @@ namespace Populous
                             triangleIndex += 3;
                         }
                     }
-                    vertexIndex += MeshData.TriangleIndices_Terrain.Length;
+                    vertexIndex += MeshProperties.TriangleIndices_Terrain.Length;
                 }
             }
 
@@ -102,10 +109,11 @@ namespace Populous
         }
 
         /// <summary>
-        /// Sets the heights for each pointInChunk in the terrain chunk.
+        /// Sets the heights of each point in the terrain chunk.
         /// </summary>
         private void SetVertexHeights()
         {
+            // first column should have the same heights as the last column in the chunk to the left
             if (ChunkIndex.X > 0)
             {
                 for (int z = 0; z <= Terrain.Instance.TilesPerChunkSide; ++z)
@@ -115,6 +123,7 @@ namespace Populous
                     ));
             }
 
+            // bottom row should have the same heights as the top row in the chunk below
             if (ChunkIndex.Z > 0)
             {
                 for (int x = 0; x <= Terrain.Instance.TilesPerChunkSide; ++x)
@@ -139,18 +148,20 @@ namespace Populous
         }
 
         /// <summary>
-        /// Generates and computes the height of the terrain at the given pointInChunk.
+        /// Generates and computes the height of the terrain at the given point.
         /// </summary>
-        /// <param name="pointInChunk">The (x, z) coordinates relative to one chunk of the pointInChunk whose height should be computed.</param>
-        /// <returns>An <c>int</c> representing the height at the given pointInChunk.</returns>
+        /// <param name="pointInChunk">The coordinates relative to the chunk of the point whose height should be computed.</param>
+        /// <returns>An <c>int</c> representing the height at the given point.</returns>
         private int CalculateVertexHeight((int x, int z) pointInChunk)
         {
             int vertexIndex = GetPointIndex(pointInChunk);
-            float noiseHeight = Terrain.Instance.MapGenerator.GetNoiseAtPosition(ChunkPosition + m_MeshData.Vertices[vertexIndex]) * Terrain.Instance.MaxHeight;
 
+            // the noise generator essentially returns a percentage of the maximum height the height of the current point will be
+            float noiseHeight = Terrain.Instance.NoiseGenerator.GetNoiseAtPosition(ChunkPosition + m_MeshData.GetVertexPosition(vertexIndex)) * Terrain.Instance.MaxHeight;
+            // make sure the height of the is a multiple of the step height.
             int height = Mathf.FloorToInt(noiseHeight / Terrain.Instance.StepHeight) * Terrain.Instance.StepHeight;
 
-            // Vertex (0, 0) in chunk (0, 0), so the very first vertex
+            // Vertex (0, 0) in chunk (0, 0) is the very first vertex, so it has nothing to coordinate with
             if (ChunkIndex == (0, 0) && pointInChunk == (0, 0))
                 return height;
 
@@ -160,15 +171,16 @@ namespace Populous
             {
                 (int x, int z) neighbor = (pointInChunk.x + dx, pointInChunk.z + dz);
 
-                if (neighbor.x < 0 || neighbor.x > Terrain.Instance.TilesPerChunkSide ||
-                    neighbor.z < 0 || neighbor.z > Terrain.Instance.TilesPerChunkSide ||
-                    (dz == 1 && (ChunkIndex.X == 0 || neighbor.x > 0)))
+                // if we are looking at the point above the current point and we are in the first chunk
+                // (that doesn't copy the heights of the first column from the previous chunk) or we're in any
+                // other column than the first one, then the point above won't have been assigned a height yet.
+                if (!IsPointInChunk(neighbor) || (dz == 1 && (ChunkIndex.X == 0 || neighbor.x > 0)))
                     continue;
 
                 neighborHeights.Add(GetMeshHeightAtPoint(neighbor));
             }
 
-            // if all the neighbors are at the same height, we can go one up or one down.
+            // if all the neighbors are at the same height, we can go one step up or one step down in height.
             bool EqualToFirst(int x) => x == neighborHeights[0];
             if (neighborHeights.TrueForAll(EqualToFirst))
             {
@@ -183,31 +195,13 @@ namespace Populous
             int minHeight = neighborHeights.Min();
             int maxHeight = neighborHeights.Max();
 
+            // minimum height and maximum height can have at most 2 step heights between them
             if (Mathf.Abs(minHeight - maxHeight) > Terrain.Instance.StepHeight)
                 height = minHeight + Terrain.Instance.StepHeight;
             else
                 height = Mathf.Clamp(height, minHeight, maxHeight);
 
             return height;
-        }
-
-        /// <summary>
-        /// Computes the height of the terrain at the center of the given tile.
-        /// </summary>
-        /// <param name="tileInChunk">The (x, z) coordinates in relation to the chunk of the tile whose tile center height should be computed.</param>
-        /// <returns>An <c>int</c> representing the height of the center of the given tile.</returns>
-        private int CalculateTileCenterHeight((int x, int z) tileInChunk)
-        {
-            int[] cornerHeights = new int[4];
-            int i = 0;
-            for (int zOffset = 0; zOffset <= 1; ++zOffset)
-                for (int xOffset = 0; xOffset <= 1; ++xOffset)
-                    cornerHeights[i++] = GetMeshHeightAtPoint((tileInChunk.x + xOffset, tileInChunk.z + zOffset));
-
-            if (cornerHeights[0] == cornerHeights[3] && cornerHeights[1] == cornerHeights[2])
-                return Mathf.Max(cornerHeights);
-            else
-                return Mathf.Min(cornerHeights) + (Terrain.Instance.StepHeight / 2);
         }
 
         #endregion
@@ -328,11 +322,11 @@ namespace Populous
         public int GetPointHeight((int x, int z) point) => GetMeshHeightAtPoint(GetPointInChunk(point));
 
         /// <summary>
-        /// Gets the height of the mesh at the given pointInChunk.
+        /// Gets the height of the mesh at the given point.
         /// </summary>
         /// <param name="pointInChunk">The (x, z) coordinates relative to one chunk of the pointInChunk whose height should be returned.</param>
         /// <returns>An <c>int</c> representing the height at the given pointInChunk.</returns>
-        private int GetMeshHeightAtPoint((int x, int z) pointInChunk) => (int)m_MeshData.Vertices[GetPointIndex(pointInChunk)].y;
+        private int GetMeshHeightAtPoint((int x, int z) pointInChunk) => (int)m_MeshData.GetVertexPosition(GetPointIndex(pointInChunk)).y;
 
         /// <summary>
         /// Gets an index of the vertex in the mesh which corresponds to the given pointInChunk.
@@ -342,13 +336,13 @@ namespace Populous
         private int GetPointIndex((int x, int z) pointInChunk)
         {
             if (pointInChunk.x == Terrain.Instance.TilesPerChunkSide && pointInChunk.z != pointInChunk.x)
-                return (pointInChunk.z * Terrain.Instance.TilesPerChunkSide + (pointInChunk.x - 1)) * MeshData.TriangleIndices_Terrain.Length + 2;
+                return (pointInChunk.z * Terrain.Instance.TilesPerChunkSide + (pointInChunk.x - 1)) * MeshProperties.TriangleIndices_Terrain.Length + 2;
             else if (pointInChunk.z == Terrain.Instance.TilesPerChunkSide && pointInChunk.x != pointInChunk.z)
-                return ((pointInChunk.z - 1) * Terrain.Instance.TilesPerChunkSide + pointInChunk.x) * MeshData.TriangleIndices_Terrain.Length + 8;
+                return ((pointInChunk.z - 1) * Terrain.Instance.TilesPerChunkSide + pointInChunk.x) * MeshProperties.TriangleIndices_Terrain.Length + 8;
             else if (pointInChunk.x == pointInChunk.z && pointInChunk.z == Terrain.Instance.TilesPerChunkSide)
-                return ((pointInChunk.z - 1) * Terrain.Instance.TilesPerChunkSide + (pointInChunk.x - 1)) * MeshData.TriangleIndices_Terrain.Length + 5;
+                return ((pointInChunk.z - 1) * Terrain.Instance.TilesPerChunkSide + (pointInChunk.x - 1)) * MeshProperties.TriangleIndices_Terrain.Length + 5;
             else
-                return (pointInChunk.z * Terrain.Instance.TilesPerChunkSide + pointInChunk.x) * MeshData.TriangleIndices_Terrain.Length;
+                return (pointInChunk.z * Terrain.Instance.TilesPerChunkSide + pointInChunk.x) * MeshProperties.TriangleIndices_Terrain.Length;
         }
 
         /// <summary>
@@ -372,13 +366,13 @@ namespace Populous
 
                     int tileIndex = (pointInChunk.z + z) * Terrain.Instance.TilesPerChunkSide + (pointInChunk.x + x);
 
-                    for (int i = 0; i < MeshData.SharedVertexOffsets[vertexIndex].Count; ++i)
+                    for (int i = 0; i < MeshProperties.SharedVertexOffsets[vertexIndex].Length; ++i)
                     {
-                        int index = tileIndex * MeshData.TriangleIndices_Terrain.Length + MeshData.SharedVertexOffsets[vertexIndex][i];
+                        int index = tileIndex * MeshProperties.TriangleIndices_Terrain.Length + MeshProperties.SharedVertexOffsets[vertexIndex][i];
 
                         if (index < 0) continue;
 
-                        m_MeshData.Vertices[index].y = height;
+                        m_MeshData.SetVertexHeight(index, height);
                     }
 
                     vertexIndex++;
@@ -403,7 +397,7 @@ namespace Populous
         /// </summary>
         /// <param name="tileInChunk">The (x, z) coordinates in relation to the chunk of the tile whose tile center height should be returned.</param>
         /// <returns>An <c>int</c> representing the height of the center of the given tile.</returns>
-        private int GetCenterHeight((int x, int z) tileInChunk) => (int)m_MeshData.Vertices[GetCenterIndex(tileInChunk)].y;
+        private int GetCenterHeight((int x, int z) tileInChunk) => (int)m_MeshData.GetVertexPosition(GetCenterIndex(tileInChunk)).y;
 
         /// <summary>
         /// Gets an index of the vertex in the mesh which is at the center of the given tile.
@@ -421,8 +415,27 @@ namespace Populous
         {
             int tileIndex = GetPointIndex(tileInChunk);
 
-            foreach (var index in MeshData.SharedVertexOffsets[^1])
-                m_MeshData.Vertices[tileIndex + index].y = height;
+            foreach (var index in MeshProperties.SharedVertexOffsets[^1])
+                m_MeshData.SetVertexHeight(tileIndex + index, height);
+        }
+
+        /// <summary>
+        /// Computes the height of the terrain at the center of the given tile.
+        /// </summary>
+        /// <param name="tileInChunk">The (x, z) coordinates in relation to the chunk of the tile whose tile center height should be computed.</param>
+        /// <returns>An <c>int</c> representing the height of the center of the given tile.</returns>
+        private int CalculateTileCenterHeight((int x, int z) tileInChunk)
+        {
+            int[] cornerHeights = new int[4];
+            int i = 0;
+            for (int zOffset = 0; zOffset <= 1; ++zOffset)
+                for (int xOffset = 0; xOffset <= 1; ++xOffset)
+                    cornerHeights[i++] = GetMeshHeightAtPoint((tileInChunk.x + xOffset, tileInChunk.z + zOffset));
+
+            if (cornerHeights[0] == cornerHeights[3] && cornerHeights[1] == cornerHeights[2])
+                return Mathf.Max(cornerHeights);
+            else
+                return Mathf.Min(cornerHeights) + (Terrain.Instance.StepHeight / 2);
         }
 
         #endregion
@@ -447,39 +460,6 @@ namespace Populous
                         return false;
 
             return height != Terrain.Instance.WaterLevel;
-        }
-
-        /// <summary>
-        /// Checks whether there is a structure on the given tile.
-        /// </summary>
-        /// <param name="tile">The (x, z) coordinates of the tile which should be checked.</param>
-        /// <returns>True if the tile is occupied by a structure, false otherwise.</returns>
-        public bool IsTileOccupied((int x, int z) tile)
-        {
-            (int x, int z) inChunk = GetPointInChunk(tile);
-            return m_StructureOnTile[inChunk.z, inChunk.x];
-        }
-
-        /// <summary>
-        /// Gets the <c>Structure</c> occupying the given tile.
-        /// </summary>
-        /// <param name="tile">The (x, z) coordinates of the tile whose <c>Structure</c> should be returned.</param>
-        /// <returns>The <c>Structure</c> occupying the given tile, or <c>null</c> if the tile is unoccupied.</returns>
-        public Structure GetStructureOnTile((int x, int z) tile)
-        {
-            (int x, int z) inChunk = GetPointInChunk(tile);
-            return m_StructureOnTile[inChunk.z, inChunk.x];
-        }
-
-        /// <summary>
-        /// Sets the given structure to occupy the given tile.
-        /// </summary>
-        /// <param name="tile">The (x, z) coordinates of the tile whose <c>Structure</c> should be returned.</param>
-        /// <param name="structure">The <c>Structure</c> that should be placed on the tile.</param>
-        public void SetOccupiedTile((int x, int z) tile, Structure structure)
-        {
-            (int x, int z) inChunk = GetPointInChunk(tile);
-            m_StructureOnTile[inChunk.z, inChunk.x] = structure;
         }
 
         #endregion

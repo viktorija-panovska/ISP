@@ -13,7 +13,7 @@ namespace Populous
     /// </summary>
     public class StructureManager : NetworkBehaviour
     {
-        [SerializeField] private GameObject[] m_FlagPrefabs;
+        [SerializeField] private GameObject[] m_MagnetPrefabs;
         [SerializeField] private GameObject m_SwampPrefab;
         [SerializeField] private GameObject m_FieldPrefab;
 
@@ -38,7 +38,7 @@ namespace Populous
         /// <summary>
         /// A list of the team symbols for each team.
         /// </summary>
-        private TeamSymbol[] m_TeamSymbols;
+        private UnitMagnet[] m_UnitMagnets;
         /// <summary>
         /// An array of lists of the tiles occupied by settlements for each team.
         /// </summary>
@@ -48,6 +48,18 @@ namespace Populous
         /// Action to be called when a settlement is despawned to remove references to it from other objects.
         /// </summary>
         public Action<Settlement> OnRemoveReferencesToSettlement;
+
+        /// <summary>
+        /// An array of the leaders in each team that are part of a settlement, null if the team's leader is not in a settlement.
+        /// </summary>
+        /// <remarks>The index of the list in the array corresponds to the value of the team in the <c>Team</c> enum.</remarks>
+        private readonly Settlement[] m_LeaderSettlements = new Settlement[2];
+
+        /// <summary>
+        /// Each cell the <c>Structure</c> occupying the tile with corresponding coordinates, or null if there isn't one.
+        /// </summary>
+        private Structure[,] m_StructureOnTile;
+
 
 
         private void Awake()
@@ -60,11 +72,40 @@ namespace Populous
 
         private void Start()
         {
+            m_StructureOnTile = new Structure[Terrain.Instance.TilesPerSide, Terrain.Instance.TilesPerSide];
             GameUtils.ResizeGameObject(m_SwampPrefab, Terrain.Instance.UnitsPerTileSide);
 
-            foreach (GameObject flag in m_FlagPrefabs)
+            foreach (GameObject flag in m_MagnetPrefabs)
                 GameUtils.ResizeGameObject(flag, 10, scaleY: true);
         }
+
+
+        #region Structure Location
+
+        /// <summary>
+        /// Checks whether there is a structure on the given tile.
+        /// </summary>
+        /// <param name="tile">The coordinates of the tile which should be checked.</param>
+        /// <returns>True if the tile is occupied by a structure, false otherwise.</returns>
+        public bool IsTileOccupied((int x, int z) tile) => m_StructureOnTile[tile.z, tile.x];
+
+        /// <summary>
+        /// Gets the <c>Structure</c> occupying the given tile.
+        /// </summary>
+        /// <param name="tile">The coordinates of the tile whose <c>Structure</c> should be returned.</param>
+        /// <returns>The <c>Structure</c> occupying the given tile, or <c>null</c> if the tile is unoccupied.</returns>
+        public Structure GetStructureOnTile((int x, int z) tile) => m_StructureOnTile[tile.z, tile.x];
+
+        /// <summary>
+        /// Sets the given structure to occupy the given tile.
+        /// </summary>
+        /// <param name="tile">The coordinates of the tile whose <c>Structure</c> should be returned.</param>
+        /// <param name="structure">The <c>Structure</c> that should be placed on the tile.</param>
+        public void SetOccupiedTile((int x, int z) tile, Structure structure) => m_StructureOnTile[tile.z, tile.x] = structure;
+
+        public bool HasTileSettlement((int x, int z) tile) => GetStructureOnTile(tile).GetType() == typeof(Settlement);
+
+        #endregion
 
 
         #region Spawn / Despawn
@@ -97,7 +138,7 @@ namespace Populous
             structure.Team = team;
             structure.OccupiedPointHeights = occupiedPoints.ToDictionary(x => x, x => x.Y);
             structure.OccupiedTile = new TerrainPoint(tile.x, tile.z);
-            Terrain.Instance.SetOccupiedTile(tile, structure);
+            StructureManager.Instance.SetOccupiedTile(tile, structure);
             GameController.Instance.OnTerrainModified += structure.ReactToTerrainChange;
             GameController.Instance.OnFlood += structure.ReactToTerrainChange;
 
@@ -141,7 +182,7 @@ namespace Populous
 
             Structure structure = structureObject.GetComponent<Structure>();
 
-            if (!Terrain.Instance.IsTileOccupied((structure.OccupiedTile.GridX, structure.OccupiedTile.GridZ)))
+            if (!StructureManager.Instance.IsTileOccupied((structure.OccupiedTile.GridX, structure.OccupiedTile.GridZ)))
                 return;
 
             if (GameController.Instance.OnTerrainModified != null)
@@ -150,7 +191,7 @@ namespace Populous
             if (GameController.Instance.OnFlood != null)
                 GameController.Instance.OnFlood -= structure.ReactToTerrainChange;
 
-            Terrain.Instance.SetOccupiedTile((structure.OccupiedTile.GridX, structure.OccupiedTile.GridZ), null);
+            StructureManager.Instance.SetOccupiedTile((structure.OccupiedTile.GridX, structure.OccupiedTile.GridZ), null);
 
             if (structure.GetType() == typeof(Settlement))
             {
@@ -226,29 +267,29 @@ namespace Populous
         #endregion
 
 
-        #region Team Symbols
+        #region Unit Magnets
 
         /// <summary>
-        /// Creates the team symbols for all the teams.
+        /// Creates the unit magnets for all the teams.
         /// </summary>
         public void SpawnUnitMagnets()
         {
-            //if (!IsServer) return;
+            if (!IsServer) return;
 
-            m_TeamSymbols = new TeamSymbol[m_FlagPrefabs.Length];
-            for (int i = 0; i < m_FlagPrefabs.Length; ++i)
+            m_UnitMagnets = new UnitMagnet[m_MagnetPrefabs.Length];
+            for (int i = 0; i < m_MagnetPrefabs.Length; ++i)
             {
-                GameObject flagObject = Instantiate(m_FlagPrefabs[i], Vector3.zero, Quaternion.identity);
-                //flagObject.GetComponent<NetworkObject>().Spawn(true);
-                TeamSymbol flag = flagObject.GetComponent<TeamSymbol>();
-                m_TeamSymbols[i] = flag;
+                GameObject magnetObject = Instantiate(m_MagnetPrefabs[i], Vector3.zero, Quaternion.identity);
+                magnetObject.GetComponent<NetworkObject>().Spawn(true);
+                UnitMagnet magnet = magnetObject.GetComponent<UnitMagnet>();
+                m_UnitMagnets[i] = magnet;
 
-                flag.Team = i == 0 ? Team.RED : Team.BLUE;
-                flagObject.transform.Rotate(new Vector3(1, -90, 1));
-                flagObject.transform.position = Terrain.Instance.TerrainCenter.ToWorldPosition();
-                flag.OccupiedTile = new(transform.position.x, transform.position.z, getClosestPoint: false);
-                GameController.Instance.OnTerrainModified += flag.ReactToTerrainChange;
-                GameController.Instance.OnFlood += flag.ReactToTerrainChange;
+                magnet.Team = i == 0 ? Team.RED : Team.BLUE;
+                magnetObject.transform.Rotate(new Vector3(1, -90, 1));
+                magnetObject.transform.position = Terrain.Instance.TerrainCenter.ToWorldPosition();
+                magnet.OccupiedTile = new(transform.position.x, transform.position.z, getClosestPoint: false);
+                GameController.Instance.OnTerrainModified += magnet.ReactToTerrainChange;
+                GameController.Instance.OnFlood += magnet.ReactToTerrainChange;
             }
         }
 
@@ -257,7 +298,7 @@ namespace Populous
         /// </summary>
         /// <param name="team">The <c>Team</c> the symbol whose position should be returned belongs to.</param>
         /// <returns>A <c>Vector3</c> of the position of the symbol.</returns>
-        public Vector3 GetMagnetPosition(Team team) => m_TeamSymbols[(int)team].transform.position;
+        public Vector3 GetMagnetPosition(Team team) => m_UnitMagnets[(int)team].transform.position;
 
         /// <summary>
         /// Sets the position of the symbol of the given team to the given team.
@@ -266,12 +307,12 @@ namespace Populous
         /// <param name="position">The position that the symbol should be set to.</param>
         public void SetMagnetPosition(Team team, Vector3 position) 
         {
-            TeamSymbol symbol = m_TeamSymbols[(int)team];
+            UnitMagnet symbol = m_UnitMagnets[(int)team];
             if (position == symbol.transform.position) return;
 
             symbol.OccupiedTile = new(position.x, position.z, getClosestPoint: false);
 
-            symbol.SetSymbolPositionClient/*Rpc*/(symbol.OccupiedTile.ToWorldPosition()); 
+            symbol.SetMagnetPosition_ClientRpc/*Rpc*/(symbol.OccupiedTile.ToWorldPosition()); 
         }
 
         #endregion
@@ -386,5 +427,40 @@ namespace Populous
         public void SpawnSwamp((int x, int z) tile) => SpawnStructure(m_SwampPrefab, tile, Terrain.Instance.GetTileCorners(tile));
 
         #endregion
+
+
+        /// <summary>
+        /// Checks whether the given team has a leader that is in a settlement.
+        /// </summary>
+        /// <param name="team">The <c>Team</c> whose leader should be checked.</param>
+        /// <returns>True if the team as a leader that is in a settlement, false otherwise.</returns>
+        public bool HasSettlementLeader(Team team) => m_LeaderSettlements[(int)team];
+
+        /// <summary>
+        /// Gets the <c>Settlement</c> the team leader is part of, if such a settlement exists.
+        /// </summary>
+        /// <param name="team">The <c>Team</c> whose leader should be returned.</param>
+        /// <returns>The <c>Unit</c> of the team's leader, null if the leader is not part of a settlement..</returns>
+        public Settlement GetLeaderSettlement(Team team) => m_LeaderSettlements[(int)team];
+
+        public void SetLeaderSettlement(Team team, Settlement settlement)
+        {
+            UnsetLeaderSettlement(team);
+
+            m_LeaderSettlements[(int)team] = settlement;
+            settlement.SetLeader(true);
+            UnitManager.Instance.OnNewLeaderGained?.Invoke();
+        }
+
+        public void UnsetLeaderSettlement(Team team)
+        {
+            if (!HasSettlementLeader(team)) return;
+
+            m_LeaderSettlements[(int)team].SetLeader(false);
+            m_LeaderSettlements[(int)team] = null;
+        }
+
+
+
     }
 }

@@ -1,8 +1,8 @@
 using System.Collections;
 using Unity.Netcode;
+using Unity.Netcode.Components;
 using UnityEngine;
 using UnityEngine.EventSystems;
-using UnityEngine.UI;
 
 namespace Populous
 {
@@ -10,7 +10,7 @@ namespace Populous
     /// The <c>Unit</c> class is a <c>MonoBehavior</c> which represents and handles the functioning of one unit.
     /// Units are an abstraction of the population of the world, where one unit represents a group of people.
     /// </summary>
-    public class Unit : NetworkBehaviour, IInspectableObject
+    public class Unit : MonoBehaviour, IInspectableObject
     {
         [SerializeField] private GameObject[] m_LeaderSigns;
         [SerializeField] private GameObject m_KnightSword;
@@ -62,7 +62,7 @@ namespace Populous
         /// The current strength of the unit.
         /// </summary>
         /// <remarks>The strength of the unit is the number of walkers represented by this one unit.</remarks>
-        public int Strength { get => m_Strength; }
+        public int Followers { get => m_Strength; }
 
         private bool m_IsInFight;
         /// <summary>
@@ -137,7 +137,7 @@ namespace Populous
             {
                 SetBehavior(UnitBehavior.FIGHT);
                 ToggleKnightSword(true);
-                m_WideRangeDetector.SetDetectorSize(Terrain.Instance.TilesPerSide);
+                //m_WideRangeDetector.SetDetectorSize(Terrain.Instance.TilesPerSide);
             }
 
             if (IsInspected)
@@ -154,9 +154,9 @@ namespace Populous
 
             m_Behavior = unitBehavior;
 
-            m_MidRangeDetector.StateChange(unitBehavior);
+            m_MidRangeDetector.UpdateDetector();
             m_WideRangeDetector.BehaviorChange(unitBehavior);
-            m_MovementHandler.SetRoam();
+            m_MovementHandler.StartRoaming();
 
             UnitManager.Instance.ResetGridSteps(m_Team);
         }
@@ -168,7 +168,7 @@ namespace Populous
         private void ToggleLeaderSign(bool isOn)
         {
             m_LeaderSigns[(int)m_Team].SetActive(isOn);
-            //m_TeamSymbols[(int)m_Team].GetComponent<ObjectActivator>().SetActiveClientRpc(isOn);
+            //m_UnitMagnets[(int)m_Team].GetComponent<ObjectActivator>().SetActiveClientRpc(isOn);
         }
 
         /// <summary>
@@ -201,7 +201,7 @@ namespace Populous
         /// Checks whether the unit has maximum strength.
         /// </summary>
         /// <returns>True if the unit has maximum strength, false otherwise.</returns>
-        public bool HasMaxStrength() => m_Strength == UnitManager.Instance.MaxUnitStrength;
+        public bool HasMaxStrength() => m_Strength == UnitManager.Instance.MaxUnitPopulation;
 
         /// <summary>
         /// Adds the given amount of maxStrength to the unit.
@@ -219,7 +219,7 @@ namespace Populous
         /// Removes the given amount of maxStrength from the unit.
         /// </summary>
         /// <param name="amount">The amount of maxStrength to be removed.</param>
-        public void LoseStrength(int amount, bool isDamaged = true) 
+        public void LoseFollowers(int amount, bool isDamaged = true) 
         { 
             m_Strength -= amount;
 
@@ -274,25 +274,22 @@ namespace Populous
         {
             float height;
 
-            int startHeight = m_MovementHandler.StartLocation.Y;
-            int endHeight = m_MovementHandler.EndLocation.Y;
+            Vector3 startPosition = m_MovementHandler.StartLocation.ToWorldPosition();
+            Vector3 endPosition = m_MovementHandler.EndLocation.ToWorldPosition();
 
-            if (startHeight == endHeight)
-                height = startHeight;
+            if (startPosition.y == endPosition.y)
+                height = startPosition.y;
             else
             {
-                float heightDifference = Mathf.Abs(endHeight - startHeight);
-                float totalDistance = new Vector2(
-                    m_MovementHandler.EndLocation.X - m_MovementHandler.StartLocation.X,
-                    m_MovementHandler.EndLocation.Z - m_MovementHandler.StartLocation.Z
-                ).magnitude;
+                float heightDifference = Mathf.Abs(endPosition.y - startPosition.y);
+                float totalDistance = new Vector2(endPosition.x - startPosition.x, endPosition.z - startPosition.z).magnitude;
 
-                float distance = startHeight < endHeight
-                    ? new Vector2(transform.position.x - m_MovementHandler.StartLocation.X, transform.position.z - m_MovementHandler.StartLocation.Z).magnitude
-                    : new Vector2(m_MovementHandler.EndLocation.X - transform.position.x, m_MovementHandler.EndLocation.Z - transform.position.z).magnitude;
+                float distance = startPosition.y < endPosition.y
+                    ? new Vector2(transform.position.x - startPosition.x, transform.position.z - startPosition.z).magnitude
+                    : new Vector2(endPosition.x - transform.position.x, endPosition.z - transform.position.z).magnitude;
 
                 height = heightDifference * distance / totalDistance;
-                height = startHeight < endHeight ? startHeight + height : endHeight + height;
+                height = startPosition.y < endPosition.y ? startPosition.y + height : endPosition.y + height;
             }
 
             if (Terrain.Instance.IsTileUnderwater((Tile.GridX, Tile.GridZ)))
@@ -315,7 +312,7 @@ namespace Populous
         /// </summary>
         /// <param name="lookPosition">The direction the unit should be turned towards.</param>
         //[ClientRpc]
-        public void Rotate/*ClientRpc*/(Vector3 lookPosition)
+        public void Rotate_ClientRpc/*ClientRpc*/(Vector3 lookPosition)
         {
             if (lookPosition != Vector3.zero)
                 transform.rotation = Quaternion.LookRotation(lookPosition);
@@ -372,7 +369,9 @@ namespace Populous
         public void CheckIfTargetTileFlat()
         {
             if (m_Behavior != UnitBehavior.SETTLE) return;
-            m_MovementHandler.CheckIfTargetTileFlat();
+
+            if (!m_MovementHandler.IsTargetTileFlat())
+                m_MovementHandler.StartRoaming();
         }
 
         /// <summary>
@@ -381,7 +380,7 @@ namespace Populous
         public void NewLeaderUnitGained()
         {
             if (m_Class == UnitClass.LEADER || m_Behavior != UnitBehavior.GO_TO_MAGNET) return;
-            m_MovementHandler.GoToSymbol();
+            m_MovementHandler.GoToMagnet();
         }
 
         #endregion
@@ -395,7 +394,7 @@ namespace Populous
         public void SymbolLocationChanged()
         {
             if (m_Behavior != UnitBehavior.GO_TO_MAGNET) return;
-            m_MovementHandler.GoToSymbol();
+            m_MovementHandler.GoToMagnet();
         }
 
         /// <summary>

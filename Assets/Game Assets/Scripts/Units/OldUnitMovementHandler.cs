@@ -158,11 +158,11 @@ public class OldUnitMovementHandler : NetworkBehaviour
                             if (moveState == MoveState.FoundEnemyHouse)
                             {
                                 House house = (House)WorldMap.Instance.GetHouseAtVertex(houseVertices[0]);
-                                //SetPath(Pathfinding.FindPath(Unit.Location, Helpers.GetClosestVertex(Unit.Position, house.GetAttackableVertices()).location));
+                                //SetPath(Pathfinding.FindPath(Unit.Point, Helpers.GetClosestVertex(Unit.Position, house.GetAttackableVertices()).location));
                             }
                             else
                             {
-                                //SetPath(Pathfinding.FindPath(Unit.Location, newClosest.location));
+                                //SetPath(Pathfinding.FindPath(Unit.Point, newClosest.location));
                             }
                         }
                     }
@@ -540,7 +540,7 @@ public class OldUnitMovementHandler : NetworkBehaviour
         if (Unit.UnitState == UnitStates.Battle && TargetUnit.IsFighting)
             EndFollow();
 
-        //WorldLocation? path = Pathfinding.FollowUnit(Unit.Location, TargetUnit.Location);
+        //WorldLocation? path = Pathfinding.FollowUnit(Unit.Point, TargetUnit.Point);
 
         //if (path != null)
         //    SetPath(new() { path.Value });

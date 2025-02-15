@@ -77,7 +77,7 @@ namespace Populous
         /// <summary>
         /// The strength of a unit released from this settlement.
         /// </summary>
-        public int UnitStrength { get => m_CurrentSettlementData.UnitStrength; }
+        public int FollowersInUnit { get => m_CurrentSettlementData.UnitStrength; }
 
         /// <summary>
         /// True if the settlement cannot contain any more followers, false otherwise.
@@ -158,8 +158,11 @@ namespace Populous
             Unit unit = other.GetComponent<Unit>();
             if (!unit) return;
 
-            if (unit.Team == m_Team && GameController.Instance.GetLeaderSettlement(unit.Team) == this)
-                GameController.Instance.SetLeader(unit.gameObject, m_Team);
+            if (unit.Team == m_Team && StructureManager.Instance.GetLeaderSettlement(unit.Team) == this)
+            {
+                StructureManager.Instance.UnsetLeaderSettlement(m_Team);
+                UnitManager.Instance.SetUnitLeader(unit.Team, unit);
+            }
             else if (unit.Team == m_Team && !IsSettlementFull && unit.CanEnterSettlement && unit.Behavior != UnitBehavior.GO_TO_MAGNET)
                 TakeFollowersFromUnit(unit);
 
@@ -192,7 +195,7 @@ namespace Populous
             }
 
             if (m_DestroyMethod == DestroyMethod.DROWN)
-                SetHeight/*ClientRpc*/(Terrain.Instance.GetTileCenterHeight((m_OccupiedTile.GridX, m_OccupiedTile.GridZ)));
+                SetHeight_ClientRpc/*ClientRpc*/(Terrain.Instance.GetTileCenterHeight((m_OccupiedTile.GridX, m_OccupiedTile.GridZ)));
         }
 
         /// <inheritdoc />
@@ -348,7 +351,7 @@ namespace Populous
                     if (tile.x < 0 || tile.x >= Terrain.Instance.TilesPerSide || tile.z < 0 || tile.z >= Terrain.Instance.TilesPerSide)
                         continue;
 
-                    Structure structure = Terrain.Instance.GetStructureOnTile(tile);
+                    Structure structure = StructureManager.Instance.GetStructureOnTile(tile);
                     if (!structure || structure.GetType() != typeof(Settlement)) continue;
 
                     Settlement settlement = (Settlement)structure;
@@ -382,7 +385,7 @@ namespace Populous
                         !Terrain.Instance.IsTileFlat(neighborTile))
                         continue;
 
-                    Structure structure = Terrain.Instance.GetStructureOnTile(neighborTile);
+                    Structure structure = StructureManager.Instance.GetStructureOnTile(neighborTile);
                     Field field = null;
 
                     if (structure)
@@ -469,7 +472,7 @@ namespace Populous
                     if (x == 0 || z == 0 || Mathf.Abs(x) == Mathf.Abs(z)) continue;
 
                     (int x, int z) neighborTile = (m_OccupiedTile.GridX + x, m_OccupiedTile.GridZ + z);
-                    Structure structure = Terrain.Instance.GetStructureOnTile(neighborTile);
+                    Structure structure = StructureManager.Instance.GetStructureOnTile(neighborTile);
                     Field field = null;
                     if (structure && structure.GetType() == typeof(Field))
                         field = (Field)structure;
@@ -492,7 +495,7 @@ namespace Populous
                         continue;
 
                     (int x, int z) neighborTile = (m_OccupiedTile.GridX + x, m_OccupiedTile.GridZ + z);
-                    Structure structure = Terrain.Instance.GetStructureOnTile(neighborTile);
+                    Structure structure = StructureManager.Instance.GetStructureOnTile(neighborTile);
 
                     if (!structure || structure.GetType() != typeof(Field))
                         continue;
@@ -553,12 +556,24 @@ namespace Populous
             // if the settlement contains a leader, the first unit to leave from it will be the leader.
             if (m_ContainsLeader)
             {
-                GameController.Instance.RemoveLeader(m_Team);
-                UnitManager.Instance.SpawnUnit(new TerrainPoint(m_OccupiedTile.GridX, m_OccupiedTile.GridZ), m_Team, unitClass: UnitClass.LEADER, strength);
+                StructureManager.Instance.UnsetLeaderSettlement(m_Team);
+                UnitManager.Instance.SpawnUnit(
+                    location: new TerrainPoint(m_OccupiedTile.GridX, m_OccupiedTile.GridZ),
+                    team: m_Team, 
+                    unitClass: UnitClass.LEADER, 
+                    followers: strength,
+                    origin: this
+                );
             }
             else
             {
-                UnitManager.Instance.SpawnUnit(new TerrainPoint(m_OccupiedTile.GridX, m_OccupiedTile.GridZ), m_Team, unitClass: UnitClass.WALKER, strength);
+                UnitManager.Instance.SpawnUnit(
+                    location: new TerrainPoint(m_OccupiedTile.GridX, m_OccupiedTile.GridZ), 
+                    team: m_Team, 
+                    unitClass: UnitClass.WALKER, 
+                    followers: strength,
+                    origin: this
+                );
             }
 
         }
@@ -569,12 +584,15 @@ namespace Populous
         /// <param name="unit">The <c>Unit</c> whose followers should be taken.</param>
         private void TakeFollowersFromUnit(Unit unit)
         {
-            int amount = Mathf.Clamp(m_CurrentSettlementData.Capacity - m_FollowersInSettlement, 0, unit.Strength);
+            int amount = Mathf.Clamp(m_CurrentSettlementData.Capacity - m_FollowersInSettlement, 0, unit.Followers);
 
             if (unit.Class == UnitClass.LEADER)
-                GameController.Instance.SetLeader(gameObject, m_Team);
+            {
+                UnitManager.Instance.UnsetUnitLeader(unit.Team);
+                StructureManager.Instance.SetLeaderSettlement(m_Team, this);
+            }
 
-            unit.LoseStrength(amount, isDamaged: false);
+            unit.LoseFollowers(amount, isDamaged: false);
             AddFollowers(amount);
         }
 

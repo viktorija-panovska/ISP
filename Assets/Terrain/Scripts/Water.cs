@@ -3,28 +3,31 @@ using UnityEngine;
 namespace Populous
 {
     /// <summary>
-    /// The <c>Water</c> class is a <c>MonoBehavior</c> which handles the plane representing the water level of the terrain.
+    /// The <c>Water</c> class handles the behavior of the water plane.
     /// </summary>
+    [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
     public class Water : MonoBehaviour
     {
         private static Water m_Instance;
         /// <summary>
-        /// Gets the singleton instance of the class.
+        /// Gets a singleton instance of the class.
         /// </summary>
         public static Water Instance { get => m_Instance; }
 
 
         private void Awake()
         {
-            if (m_Instance)
+            if (m_Instance && m_Instance != this)
+            {
                 Destroy(gameObject);
+                return;
+            }
 
             m_Instance = this;
         }
 
-
         /// <summary>
-        /// Sets the currentSize and position of the water plane based on the currentSize of the terrain.
+        /// Sets the size and position of the water plane based on the size of the terrain.
         /// </summary>
         public void Create()
         {
@@ -36,9 +39,8 @@ namespace Populous
             newScale.z = newSize * newScale.z / currentSize.z;
 
             transform.localScale = newScale;
-            transform.position = new Vector3(Terrain.Instance.UnitsPerSide / 2, 1, Terrain.Instance.UnitsPerSide / 2);
+            transform.position = new Vector3(Terrain.Instance.UnitsPerSide / 2, transform.position.y, Terrain.Instance.UnitsPerSide / 2);
         }
-
 
         /// <summary>
         /// Increases the height of the water plane by one step.

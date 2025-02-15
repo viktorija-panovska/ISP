@@ -1,6 +1,7 @@
 using UnityEngine;
 using Random = System.Random;
 
+
 namespace Populous
 {
     /// <summary>
@@ -8,6 +9,9 @@ namespace Populous
     /// </summary>
     public interface INoiseGenerator
     {
+        /// <summary>
+        /// Sets up the initial properties of the generator.
+        /// </summary>
         public void Setup();
 
         /// <summary>
@@ -20,28 +24,40 @@ namespace Populous
 
 
     /// <summary>
-    /// The <c>NoiseGenerator</c> class generates a height map for the terrain.
+    /// The <c>PerlinNoiseGenerator</c> class generates a height map for the terrain.
     /// </summary>
-    public class NoiseGenerator : MonoBehaviour, INoiseGenerator
+    public class PerlinNoiseGenerator : MonoBehaviour, INoiseGenerator
     {
+        #region Inspector Fields
+
+        [Tooltip("Higher values create more varied noise, and vice versa.")]
         [SerializeField] private float m_Scale = 2f;
+
+        [Tooltip("Higher values create more complex noise, and vice versa.")]
         [SerializeField] private int m_Octaves = 2;
 
-        [Header("Falloff")]
-        [SerializeField] private Vector2 m_LandmassCenter = Vector2.zero;
         [Tooltip("Lower factors create landmasses with more land and less water, and vice versa.")]
         [SerializeField] private float m_FalloffScaleFactor = 0.5f;
 
+        #endregion
+
+
+        /// <summary>
+        /// The seed for the random generator used in the noise generation.
+        /// </summary>
         private int m_Seed;
+        /// <summary>
+        /// The offsets to the positions for sampling the noise for each octave.
+        /// </summary>
         private Vector2[] m_Offsets;
 
 
+        /// <inheritdoc />
         public void Setup()
         {
             m_Seed = !GameData.Instance ? 0 : GameData.Instance.MapSeed;
             m_Offsets = GenerateNoiseOffsets();
         }
-
 
         /// <summary>
         /// Creates a noise offset for each octave based on the height map seed.
@@ -63,7 +79,6 @@ namespace Populous
 
             return offsets;
         }
-
 
         /// <inheritdoc />
         public float GetNoiseAtPosition(Vector3 position)
@@ -100,8 +115,8 @@ namespace Populous
         /// <returns>A <c>float</c> between 0 and 1 representing the falloff at the given position.</returns>
         private float GetFalloffAtPosition(Vector3 position)
         {
-            float dx = (2 * position.x / Terrain.Instance.UnitsPerSide - 1) - m_LandmassCenter.x;
-            float dz = (2 * position.z / Terrain.Instance.UnitsPerSide - 1) - m_LandmassCenter.y;
+            float dx = (2 * position.x / Terrain.Instance.UnitsPerSide - 1);
+            float dz = (2 * position.z / Terrain.Instance.UnitsPerSide - 1);
 
             // can be replaced with other falloff function
             float squareBump = 1 - (1 - (dx * dx)) * (1 - (dz * dz));

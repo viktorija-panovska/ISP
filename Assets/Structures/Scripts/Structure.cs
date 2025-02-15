@@ -12,7 +12,7 @@ namespace Populous
     public class Structure : NetworkBehaviour
     {
         /// <summary>
-        /// The method with which the structure can be destroyed.
+        /// The method by which the structure can be destroyed.
         /// </summary>
         protected enum DestroyMethod
         {
@@ -38,7 +38,7 @@ namespace Populous
         public virtual Team Team { get => m_Team; set => m_Team = value; }
 
         /// <summary>
-        /// What it takes for the structure to be destroyed.
+        /// The method by which the structure can be destroyed.
         /// </summary>
         protected DestroyMethod m_DestroyMethod;
 
@@ -89,7 +89,7 @@ namespace Populous
                 foreach (TerrainPoint point in corners)
                     m_OccupiedPointHeights[point] = height;
 
-                SetHeight/*ClientRpc*/(height);
+                SetHeight_ClientRpc/*ClientRpc*/(height);
             }
         }
 
@@ -116,8 +116,8 @@ namespace Populous
         /// Sets the height the structure is sitting at to the given value.
         /// </summary>
         /// <param name="height">The value that the height the structure is sitting at should be set to.</param>
-        //[ClientRpc]
-        protected void SetHeight/*ClientRpc*/(float height)
+        [ClientRpc]
+        protected void SetHeight_ClientRpc(float height)
             => transform.position = new Vector3(transform.position.x, height, transform.position.z);
 
         #endregion

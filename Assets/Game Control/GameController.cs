@@ -10,7 +10,7 @@ using Random = System.Random;
 namespace Populous
 {
     /// <summary>
-    /// The <c>GameController</c> class controls the flow of the game and the executes the players actions or passes them along to the systems that can execute them.
+    /// The <c>GameController</c> class controls the flow of the game and the executes the players' actions or passes them along to the systems that can execute them.
     /// </summary>
     [RequireComponent(typeof(NetworkObject))]
     public class GameController : NetworkBehaviour
@@ -71,7 +71,8 @@ namespace Populous
         /// <summary>
         /// An array of the amount of manna each team has.
         /// </summary>
-        private readonly int[] m_Manna = new int[Enum.GetValues(typeof(Team)).Length];
+        /// <remarks>The index of the list in the array corresponds to the value of the team in the <c>Team</c> enum.</remarks>
+        private readonly int[] m_Manna = new int[2];
 
         #endregion
 
@@ -94,29 +95,17 @@ namespace Populous
         #endregion
 
 
-        #region Leader
-
-        /// <summary>
-        /// An array of the leaders in each team that are part of a unit, null if the team's leader is not in a unit.
-        /// </summary>
-        private readonly Unit[] m_LeaderUnits = new Unit[Enum.GetValues(typeof(Team)).Length];
-        /// <summary>
-        /// An array of the leaders in each team that are part of a settlement, null if the team's leader is not in a settlement.
-        /// </summary>
-        private readonly Settlement[] m_LeaderSettlements = new Settlement[Enum.GetValues(typeof(Team)).Length];
-
-        #endregion
-
-
         #region Inspected Object
 
         /// <summary>
         /// Each cell represents one of the teams, and designates whether the Inspect Mode is active or not for that team.
         /// </summary>
-        private bool[] m_IsInspectModeActive = new bool[2];
+        /// <remarks>The index of the list in the array corresponds to the value of the team in the <c>Team</c> enum.</remarks>
+        private readonly bool[] m_IsInspectModeActive = new bool[2];
         /// <summary>
         /// Each cell represents one of the teams, and the object in the cell is the object that team's player is inspecting.
         /// </summary>
+        /// <remarks>The index of the list in the array corresponds to the value of the team in the <c>Team</c> enum.</remarks>
         private readonly IInspectableObject[] m_InspectedObjects = new IInspectableObject[2];
 
         #endregion
@@ -125,16 +114,19 @@ namespace Populous
         #region Camera Snap
 
         /// <summary>
-        /// An array containing the index of the next fight the player's camera will snap to if the Zoom to FIGHT action is performed.
+        /// An array containing the index of the next fight the player's camera will snap to if the Zoom to Fight action is performed.
         /// </summary>
+        /// <remarks>The index of the list in the array corresponds to the value of the team in the <c>Team</c> enum.</remarks>
         private readonly int[] m_FightIndex = new int[2];
         /// <summary>
-        /// An array containing the index of the next knight the player's camera will snap to if the Zoom to KNIGHT action is performed.
+        /// An array containing the index of the next knight the player's camera will snap to if the Zoom to Knight action is performed.
         /// </summary>
+        /// <remarks>The index of the list in the array corresponds to the value of the team in the <c>Team</c> enum.</remarks>
         private readonly int[] m_KnightsIndex = new int[2];
         /// <summary>
-        /// An array containing the index of the next settlement the player's camera will snap to if the Zoom to SETTLEMENT action is performed.
+        /// An array containing the index of the next settlement the player's camera will snap to if the Zoom to Settlement action is performed.
         /// </summary>
+        /// <remarks>The index of the list in the array corresponds to the value of the team in the <c>Team</c> enum.</remarks>
         private readonly int[] m_SettlementIndex = new int[2];
 
         #endregion
@@ -183,17 +175,19 @@ namespace Populous
 
         private void Start()
         {
-            // for each player
-            PlayerInfo playerInfo = new(0, 0, Team.RED);
-            PlayerController.Instance.SetPlayerInfo(playerInfo); //PlayerController.Instance.SetPlayerInfo(GameData.Instance.GetPlayerInfoByNetworkId(NetworkManager.Singleton.LocalClientId));
-            Terrain.Instance.CreateTerrain();
+            // on each client
+            Terrain.Instance.Create();
+            Water.Instance.Create();
+            Frame.Instance.Create();
+            Minimap.Instance.Create();
+            TerrainBorderWalls.Instance.Create();
 
-            if (!IsHost) return;
+            //if (!IsHost) return;
 
-            // just on server
-            StructureManager.Instance.PlaceTreesAndRocks();
-            UnitManager.Instance.SpawnStartingUnits();
-            StructureManager.Instance.SpawnUnitMagnets();
+            //// just on server
+            //StructureManager.Instance.SpawnUnitMagnets();
+            //StructureManager.Instance.PlaceTreesAndRocks();
+            //UnitManager.Instance.SpawnStartingUnits();
         }
 
         #endregion
@@ -225,17 +219,6 @@ namespace Populous
         #endregion
 
 
-        #region Units
-
-        /// <summary>
-        /// Triggers the change of the behavior of all the units of the given team to the given behavior.
-        /// </summary>
-        /// <param name="behavior">The <c>UnitBehavior</c> that should be applied to all units in the team.</param>
-        /// <param name="team">The <c>Team</c> whose units should be targeted.</param>
-        [ServerRpc(RequireOwnership = false)]
-        public void ChangeUnitBehavior_ServerRpc(UnitBehavior behavior, Team team)
-            => UnitManager.Instance.ChangeUnitBehavior(behavior, team);
-
         /// <summary>
         /// Notifies that the object with the given ID is not visible anymore.
         /// </summary>
@@ -243,7 +226,7 @@ namespace Populous
         /// <param name="objectId">The ID of the object that is not visible anymore.</param>
         /// <param name="clientParams">RPC parameters for the client RPC.</param>
         [ClientRpc]
-        public void RemoveVisibleObject_ClientRpc(int objectId, ClientRpcParams clientParams = default)
+        public void RemoveVisibleObject_ClientRpc(ulong objectId, ClientRpcParams clientParams = default)
             => CameraDetectionZone.Instance.RemoveVisibleObject(objectId);
 
 
@@ -254,19 +237,7 @@ namespace Populous
         /// </summary>
         /// <param name="team">The <c>Team</c> whose leader should be checked.</param>
         /// <returns>True if the team has a leader, false otherwise.</returns>
-        public bool HasLeader(Team team) => m_LeaderUnits[(int)team] || m_LeaderSettlements[(int)team];
-        /// <summary>
-        /// Checks whether the given team has a leader that is in a unit.
-        /// </summary>
-        /// <param name="team">The <c>Team</c> whose leader should be checked.</param>
-        /// <returns>True if the team as a leader that is in a unit, false otherwise.</returns>
-        public bool HasUnitLeader(Team team) => m_LeaderUnits[(int)team];
-        /// <summary>
-        /// Checks whether the given team has a leader that is in a settlement.
-        /// </summary>
-        /// <param name="team">The <c>Team</c> whose leader should be checked.</param>
-        /// <returns>True if the team as a leader that is in a settlement, false otherwise.</returns>
-        public bool IsLeaderInSettlement(Team team) => m_LeaderSettlements[(int)team];
+        public bool HasLeader(Team team) => UnitManager.Instance.HasUnitLeader(team) || StructureManager.Instance.HasSettlementLeader(team);
 
         /// <summary>
         /// Gets the <c>GameObject</c> of the leader of the team, regardless of whether it is part of a unit or a settlement.
@@ -274,71 +245,15 @@ namespace Populous
         /// <param name="team">The <c>Team</c> whose leader should be returned.</param>
         /// <returns>The <c>GameObject</c> of the team's leader, null if the team doesn't have a leader.</returns>
         public GameObject GetLeaderObject(Team team)
-            => HasUnitLeader(team) ? GetLeaderUnit(team).gameObject : (IsLeaderInSettlement(team) ? GetLeaderSettlement(team).gameObject : null);
-        /// <summary>
-        /// Gets the <c>Unit</c> the team leader is part of, if such a unit exists.
-        /// </summary>
-        /// <param name="team">The <c>Team</c> whose leader should be returned.</param>
-        /// <returns>The <c>Unit</c> of the team's leader, null if the leader is not part of a unit..</returns>
-        public Unit GetLeaderUnit(Team team) => m_LeaderUnits[(int)team];
-        /// <summary>
-        /// Gets the <c>Settlement</c> the team leader is part of, if such a settlement exists.
-        /// </summary>
-        /// <param name="team">The <c>Team</c> whose leader should be returned.</param>
-        /// <returns>The <c>Unit</c> of the team's leader, null if the leader is not part of a settlement..</returns>
-        public Settlement GetLeaderSettlement(Team team) => m_LeaderSettlements[(int)team];
-
-        /// <summary>
-        /// Sets the given <c>GameObject</c> to be the leader of the given team.
-        /// </summary>
-        /// <param name="leaderObject">The <c>GameObject</c> of the new leader.</param>
-        /// <param name="team">The <c>Team</c> whose leader should be set.</param>
-        public void SetLeader(GameObject leaderObject, Team team)
         {
-            if (!leaderObject) return;
-            // get rid of previous leader
-            RemoveLeader(team);
+            if (UnitManager.Instance.HasUnitLeader(team))
+                return UnitManager.Instance.GetLeaderUnit(team).gameObject;
 
-            Unit leaderUnit = leaderObject.GetComponent<Unit>();
-            if (leaderUnit)
-            {
-                m_LeaderUnits[(int)team] = leaderUnit;
-                leaderUnit.SetClass(UnitClass.LEADER);
-                UnitManager.Instance.OnNewLeaderGained?.Invoke();
-                return;
-            }
+            if (StructureManager.Instance.HasSettlementLeader(team))
+                return StructureManager.Instance.GetLeaderSettlement(team).gameObject;
 
-            Settlement settlementUnit = leaderObject.GetComponent<Settlement>();
-            if (settlementUnit)
-            {
-                m_LeaderSettlements[(int)team] = settlementUnit;
-                settlementUnit.SetLeader(true);
-                UnitManager.Instance.OnNewLeaderGained?.Invoke();
-            }
+            return null;
         }
-
-        /// <summary>
-        /// Removes the leader of the given team.
-        /// </summary>
-        /// <param name="team">The <c>Team</c> whose leader should be removed.</param>
-        public void RemoveLeader(Team team)
-        {
-            if (!HasLeader(team)) return;
-
-            if (HasUnitLeader(team))
-            {
-                m_LeaderUnits[(int)team].SetClass(UnitClass.WALKER);
-                m_LeaderUnits[(int)team] = null;
-            }
-
-            if (IsLeaderInSettlement(team))
-            {
-                m_LeaderSettlements[(int)team].SetLeader(false);
-                m_LeaderSettlements[(int)team] = null;
-            }
-        }
-
-        #endregion
 
         #endregion
 
@@ -482,7 +397,7 @@ namespace Populous
         {
             int teamIndex = (int)team;
 
-            Unit knight = UnitManager.Instance.GetKnight(m_KnightsIndex[teamIndex], team);
+            Unit knight = UnitManager.Instance.GetKnight(team, m_KnightsIndex[teamIndex]);
             if (!knight)
             {
                 NotifyCannotSnap_ClientRpc(CameraSnap.KNIGHT);
@@ -517,7 +432,8 @@ namespace Populous
         /// </summary>
         /// <param name="snapOption">The camera snapping option that was attempted.</param>
         [ClientRpc]
-        private void NotifyCannotSnap_ClientRpc(CameraSnap snapOption) => GameUI.Instance.NotifyCannotSnapCamera(snapOption);
+        private void NotifyCannotSnap_ClientRpc(CameraSnap snapOption) 
+            => GameUI.Instance.NotifyCannotSnapCamera(snapOption);
 
         #endregion
 
@@ -736,7 +652,7 @@ namespace Populous
                         !Terrain.Instance.IsTileFlat(neighborTile))
                         continue;
 
-                    Structure structure = Terrain.Instance.GetStructureOnTile(neighborTile);
+                    Structure structure = StructureManager.Instance.GetStructureOnTile(neighborTile);
 
                     if (structure)
                     {
@@ -766,7 +682,7 @@ namespace Populous
 
                 if (tiles[count] <= swampTiles)
                 {
-                    Structure structure = Terrain.Instance.GetStructureOnTile(flatTile);
+                    Structure structure = StructureManager.Instance.GetStructureOnTile(flatTile);
 
                     if (structure && structure.GetType() == typeof(Field))
                     {
@@ -869,6 +785,7 @@ namespace Populous
         {
             Terrain.Instance.RaiseWaterLevel();
             Water.Instance.Raise();
+            TerrainBorderWalls.Instance.ModifyAllWalls();
         }
 
         #endregion
@@ -889,7 +806,7 @@ namespace Populous
                 if (teams == Team.NONE) break;
 
                 StructureManager.Instance.SetMagnetPosition(teams, Terrain.Instance.TerrainCenter.ToWorldPosition());
-                UnitManager.Instance.ChangeUnitBehavior(UnitBehavior.GO_TO_MAGNET, teams);
+                UnitManager.Instance.ChangeUnitBehavior_ServerRpc(teams, UnitBehavior.GO_TO_MAGNET);
             }
 
             // destroy all settlements
@@ -987,11 +904,11 @@ namespace Populous
                 if (unit.IsInFight)
                 {
                     (Unit red, Unit blue) = UnitManager.Instance.GetFightParticipants(unit.FightId);
-                    ShowFightData_ClientRpc(red.Strength, blue.Strength, clientParams);
+                    ShowFightData_ClientRpc(red.Followers, blue.Followers, clientParams);
                     return;
                 }
 
-                ShowUnitData_ClientRpc(unit.Team, unit.Class, unit.Strength, clientParams);
+                ShowUnitData_ClientRpc(unit.Team, unit.Class, unit.Followers, clientParams);
             }
 
             if (inspectObject.GetType() == typeof(Settlement))
@@ -1098,10 +1015,10 @@ namespace Populous
                 UpdateInspectedUnitClass_ClientRpc(unit.Class, clientParams);
 
             if (updateStrength && unit.IsInFight)
-                UpdateInspectedFight_ClientRpc(unit.Team, unit.Strength, clientParams);
+                UpdateInspectedFight_ClientRpc(unit.Team, unit.Followers, clientParams);
 
             if (updateStrength)
-                UpdateInspectedUnitStrength_ClientRpc(unit.Strength, clientParams);
+                UpdateInspectedUnitStrength_ClientRpc(unit.Followers, clientParams);
         }
 
         /// <summary>

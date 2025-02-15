@@ -95,7 +95,11 @@ namespace Populous
             m_Instance = this;
         }
 
-        private void Start() => SetupMarkers();
+        private void Start() 
+        {
+            m_PlayerInfo = new(0, 0, Team.RED); //GameData.Instance.GetPlayerInfoByNetworkId(NetworkManager.Singleton.LocalClientId);
+            SetupMarkers();
+        }
 
         private void Update()
         {
@@ -110,12 +114,6 @@ namespace Populous
 
 
         #region Game Flow
-
-        /// <summary>
-        /// Sets the team that the player controls.
-        /// </summary>
-        /// <param name="team">The <c>Team</c> that should be set.</param>
-        public void SetPlayerInfo(PlayerInfo? playerInfo) => m_PlayerInfo = playerInfo;
 
         /// <summary>
         /// Pauses or unpauses the game, based on the given boolean parameter.
@@ -155,7 +153,7 @@ namespace Populous
 
             GameUI.Instance.SetActiveBehaviorIcon(currentBehavior: behavior, lastBehavior: m_ActiveBehavior);
             m_ActiveBehavior = behavior;
-            GameController.Instance.ChangeUnitBehavior_ServerRpc(m_ActiveBehavior, Team);
+            UnitManager.Instance.ChangeUnitBehavior_ServerRpc(Team, m_ActiveBehavior);
         }
 
         #endregion
@@ -211,6 +209,13 @@ namespace Populous
             // Don't call the server unnecessarily when a power is selected multiple times, except for the Knight and Flood powers, which have effects on each selection.
             if (!CanInteract || (power == m_ActivePower && power != Power.KNIGHT && power != Power.FLOOD)) 
                 return;
+
+            // doesn't require manna, we don't need to check with the server
+            if (power == Power.MOLD_TERRAIN)
+            {
+                SetActivePower(power);
+                return;
+            }
 
             GameController.Instance.TryActivatePower_ServerRpc(Team, power);
         }
@@ -269,7 +274,7 @@ namespace Populous
         private TerrainPoint? GetNearestPoint()
         {
             if (Physics.Raycast(Camera.main.ScreenPointToRay(Mouse.current.position.ReadValue()), out RaycastHit hit,
-                maxDistance: Mathf.Infinity, layerMask: LayerMask.GetMask(LayerData.TERRAIN_LAYER_NAME, LayerData.WATER_LAYER_NAME)) ||
+                maxDistance: Mathf.Infinity, layerMask: LayerMask.GetMask(LayerData.TERRAIN_LAYER_NAME)) ||
                 hit.point.x - m_ClickLeeway < 0 && hit.point.x + m_ClickLeeway > Terrain.Instance.UnitsPerSide ||
                 hit.point.z - m_ClickLeeway < 0 && hit.point.z + m_ClickLeeway > Terrain.Instance.UnitsPerSide)
                 return new(hit.point.x, hit.point.z, getClosestPoint: true);
