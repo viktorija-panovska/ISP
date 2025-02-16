@@ -208,13 +208,13 @@ namespace Populous
         {
             // if we have a flat space (that still exists) and we have reached the end of the path, we have reached the tile
             if (m_CurrentMoveState == MoveState.GO_TO_FLAT_SPACE && m_TargetTile.HasValue &&
-                Terrain.Instance.IsTileFlat((m_TargetTile.Value.GridX, m_TargetTile.Value.GridZ)) &&
-                !StructureManager.Instance.IsTileOccupied((m_TargetTile.Value.GridX, m_TargetTile.Value.GridZ)))
+                Terrain.Instance.IsTileFlat((m_TargetTile.Value.X, m_TargetTile.Value.Z)) &&
+                !StructureManager.Instance.IsTileOccupied((m_TargetTile.Value.X, m_TargetTile.Value.Z)))
                 OnFlatTileReached();
 
             // if we have a settlement (that still exists) and we have reached the end of the path, we have reached the settlement
             else if (m_CurrentMoveState == MoveState.GO_TO_SETTLEMENT && m_TargetTile.HasValue &&
-                StructureManager.Instance.HasTileSettlement((m_TargetTile.Value.GridX, m_TargetTile.Value.GridZ)))
+                StructureManager.Instance.HasTileSettlement((m_TargetTile.Value.X, m_TargetTile.Value.Z)))
                 OnSettlementReached();
 
             // if we are following a unit, take the next step towards it
@@ -248,7 +248,7 @@ namespace Populous
             SwitchMoveState(MoveState.ROAM);
 
             TerrainPoint currentLocation = m_Unit.ClosestMapPoint;
-            UnitManager.Instance.AddStepAtPoint(m_Unit.Team, (currentLocation.GridX, currentLocation.GridZ));
+            UnitManager.Instance.AddStepAtPoint(m_Unit.Team, (currentLocation.X, currentLocation.Z));
 
             if (m_RoamSteps == UnitManager.Instance.DecayRate)
             {
@@ -357,14 +357,14 @@ namespace Populous
                 {
                     for (int x = 0; x >= -1; --x)
                     {
-                        if (!Terrain.Instance.IsPointInBounds((currentLocation.GridX + x, currentLocation.GridZ + z)) ||
-                            Terrain.Instance.IsLastPoint((currentLocation.GridX + x, currentLocation.GridZ + z)))
+                        TerrainPoint point = new(currentLocation.X + x, currentLocation.Z + z);
+
+                        if (!point.IsInBounds || point.IsLastPoint)
                             continue;
 
-                        TerrainPoint point = new(currentLocation.GridX + x, currentLocation.GridZ + z);
 
-                        if (Terrain.Instance.IsTileUnderwater((point.GridX, point.GridZ)) || (behavior == UnitBehavior.SETTLE &&
-                            (!Terrain.Instance.IsTileFlat((point.GridX, point.GridZ)) || StructureManager.Instance.IsTileOccupied((point.GridX, point.GridZ)))))
+                        if (Terrain.Instance.IsTileUnderwater((point.X, point.Z)) || (behavior == UnitBehavior.SETTLE &&
+                            (!Terrain.Instance.IsTileFlat((point.X, point.Z)) || StructureManager.Instance.IsTileOccupied((point.X, point.Z)))))
                             continue;
 
                         target = point;
@@ -381,20 +381,20 @@ namespace Populous
             {
                 for (int dist = 1; dist < m_RoamingViewTileDistance; ++dist)
                 {
-                    int distanceTarget = m_CurrentRoamDirection.x == 0 ? (currentLocation.GridZ + m_CurrentRoamDirection.z * dist) : (currentLocation.GridX + m_CurrentRoamDirection.x * dist);
+                    int distanceTarget = m_CurrentRoamDirection.x == 0 ? (currentLocation.Z + m_CurrentRoamDirection.z * dist) : (currentLocation.X + m_CurrentRoamDirection.x * dist);
 
                     if (distanceTarget < 0 || distanceTarget >= Terrain.Instance.TilesPerSide) continue;
 
                     for (int width = -m_RoamingViewTileWidth; width < m_RoamingViewTileWidth; ++width)
                     {
-                        int widthTarget = m_CurrentRoamDirection.x == 0 ? (currentLocation.GridX + width) : (currentLocation.GridZ + width);
+                        int widthTarget = m_CurrentRoamDirection.x == 0 ? (currentLocation.X + width) : (currentLocation.Z + width);
 
                         if (widthTarget < 0 || widthTarget >= Terrain.Instance.TilesPerSide) continue;
 
                         TerrainPoint point = m_CurrentRoamDirection.x == 0 ? new(widthTarget, distanceTarget) : new(distanceTarget, widthTarget);
 
-                        if (Terrain.Instance.IsTileUnderwater((point.GridX, point.GridZ)) || (behavior == UnitBehavior.SETTLE &&
-                            (!Terrain.Instance.IsTileFlat((point.GridX, point.GridZ)) || StructureManager.Instance.IsTileOccupied((point.GridX, point.GridZ)))))
+                        if (Terrain.Instance.IsTileUnderwater((point.X, point.Z)) || (behavior == UnitBehavior.SETTLE &&
+                            (!Terrain.Instance.IsTileFlat((point.X, point.Z)) || StructureManager.Instance.IsTileOccupied((point.X, point.Z)))))
                             continue;
 
                         target = point;
@@ -422,16 +422,16 @@ namespace Populous
 
                         foreach ((int dx, int dz) in directions)
                         {
-                            int targetX = currentLocation.GridX + m_CurrentRoamDirection.x * dx;
-                            int targetZ = currentLocation.GridZ + m_CurrentRoamDirection.z * dz;
-
-                            if (!Terrain.Instance.IsPointInBounds((targetX, targetZ)) || Terrain.Instance.IsLastPoint((targetX, targetZ)))
-                                continue;
+                            int targetX = currentLocation.X + m_CurrentRoamDirection.x * dx;
+                            int targetZ = currentLocation.Z + m_CurrentRoamDirection.z * dz;
 
                             TerrainPoint point = new(targetX, targetZ);
 
-                            if (Terrain.Instance.IsTileUnderwater((point.GridX, point.GridZ)) || (behavior == UnitBehavior.SETTLE &&
-                                (!Terrain.Instance.IsTileFlat((point.GridX, point.GridZ)) || StructureManager.Instance.IsTileOccupied((point.GridX, point.GridZ)))))
+                            if (!point.IsInBounds || point.IsLastPoint)
+                                continue;
+
+                            if (Terrain.Instance.IsTileUnderwater((point.X, point.Z)) || (behavior == UnitBehavior.SETTLE &&
+                                (!Terrain.Instance.IsTileFlat((point.X, point.Z)) || StructureManager.Instance.IsTileOccupied((point.X, point.Z)))))
                                 continue;
 
                             target = point;
@@ -454,12 +454,13 @@ namespace Populous
             {
                 foreach ((int dx, int dz) in d)
                 {
-                    (int x, int z) target = (currentLocation.GridX + dx, currentLocation.GridZ + dz);
-                    if (!Terrain.Instance.IsPointInBounds(target)) continue;
+                    TerrainPoint point = new(currentLocation.X + dx, currentLocation.Z + dz);
 
-                    TerrainPoint point = new(target.x, target.z);
 
-                    if (Terrain.Instance.IsTileUnderwater((point.GridX, point.GridZ)) || !Terrain.Instance.IsTileCornerReachable(currentLocation, point))
+                    if (!point.IsInBounds) continue;
+
+
+                    if (Terrain.Instance.IsTileUnderwater((point.X, point.Z)) || !Terrain.Instance.IsTileCornerReachable(currentLocation, point))
                         continue;
 
                     availableDirections.Add((dx, dz));
@@ -508,7 +509,7 @@ namespace Populous
 
             for (int i = 0; i < availableDirections.Count; ++i)
             {
-                (int x, int z) gridPoint = (currentLocation.GridX + availableDirections[i].x, currentLocation.GridZ + availableDirections[i].z);
+                (int x, int z) gridPoint = (currentLocation.X + availableDirections[i].x, currentLocation.Z + availableDirections[i].z);
 
                 if (gridPoint.x < 0 || gridPoint.x > Terrain.Instance.TilesPerSide || 
                     gridPoint.z < 0 || gridPoint.z > Terrain.Instance.TilesPerSide)
@@ -539,15 +540,15 @@ namespace Populous
         /// <returns>The <c>TerrainPoint</c> of the target location.</returns>
         private TerrainPoint ChooseNextRoamTarget(TerrainPoint currentLocation)
         {
-            (int x, int z) target = (currentLocation.GridX + m_CurrentRoamDirection.x, currentLocation.GridZ + m_CurrentRoamDirection.z);
+            (int x, int z) target = (currentLocation.X + m_CurrentRoamDirection.x, currentLocation.Z + m_CurrentRoamDirection.z);
             TerrainPoint targetLocation = new(target.x, target.z);
 
-            if (!Terrain.Instance.IsPointInBounds(target) || !Terrain.Instance.IsTileCornerReachable(currentLocation, targetLocation) ||
+            if (!targetLocation.IsInBounds || !Terrain.Instance.IsTileCornerReachable(currentLocation, targetLocation) ||
                 Terrain.Instance.IsTileUnderwater(target))
             {
                 m_RoamStepsInDirection = 0;
                 ChooseRoamDirection(currentLocation);
-                target = (currentLocation.GridX + m_CurrentRoamDirection.x, currentLocation.GridZ + m_CurrentRoamDirection.z);
+                target = (currentLocation.X + m_CurrentRoamDirection.x, currentLocation.Z + m_CurrentRoamDirection.z);
                 targetLocation = new(target.x, target.z);
             }
 
@@ -656,7 +657,7 @@ namespace Populous
             if (!m_TargetPoint.HasValue) return;
 
             Vector3 target = m_TargetPoint.Value;
-            m_TargetPoint = new(target.x, !m_MoveToCenter ? EndLocation.Y : GetCenterPositionHeight((target.x, target.z)), target.z);
+            m_TargetPoint = new(target.x, !m_MoveToCenter ? EndLocation.Height : GetCenterPositionHeight((target.x, target.z)), target.z);
         }
 
         #endregion
@@ -771,7 +772,7 @@ namespace Populous
         /// </summary>
         /// <returns>True if the target tile exists and is flat, false otherwise.</returns>
         public bool IsTargetTileFlat()
-            => !m_TargetTile.HasValue || Terrain.Instance.IsTileFlat((m_TargetTile.Value.GridX, m_TargetTile.Value.GridZ));
+            => !m_TargetTile.HasValue || Terrain.Instance.IsTileFlat((m_TargetTile.Value.X, m_TargetTile.Value.Z));
 
         /// <summary>
         /// Sets the unit to wander around its current location.

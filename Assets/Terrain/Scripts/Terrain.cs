@@ -110,16 +110,17 @@ namespace Populous
         /// </summary>
         public Material TerrainMaterial { get => m_TerrainMaterial; }
 
-
-
-
-
-        private HashSet<(int, int)> m_ModifiedChunks;
-        // modified points
-        (int lowestX, int lowestZ, int highestX, int highestZ) m_ModifiedPointRange;
+        /// <summary>
+        /// A set containing all the chunks that have points whose heights have been altered.
+        /// </summary>
+        private HashSet<(int, int)> m_ModifiedChunks = new();
+        /// <summary>
+        /// The coordinates of the bottom-left point and the top-right point of a rectangular 
+        /// area containing all points whose heights were changed a terrain modification.
+        /// </summary>
+        (int bottomX, int bottomZ, int topX, int topZ) m_ModifiedAreaCorners;
 
         #endregion
-
 
 
         #region Event Functions
@@ -136,10 +137,12 @@ namespace Populous
 
             m_ChunkMap = new TerrainChunk[m_ChunksPerSide, m_ChunksPerSide];
             m_TerrainCenter = new(UnitsPerSide / 2, UnitsPerSide / 2, getClosestPoint: true);
+
+            m_ModifiedAreaCorners.bottomX = m_ModifiedAreaCorners.bottomZ = TilesPerSide;
+            m_ModifiedAreaCorners.topX = m_ModifiedAreaCorners.topZ = 0;
         }
 
         #endregion
-
 
 
         #region Terrain Generation
@@ -162,7 +165,7 @@ namespace Populous
             for (int z = 0; z < m_ChunksPerSide; ++z)
             {
                 for (int x = 0; x < m_ChunksPerSide; ++x)
-                {                        
+                {
                     GameObject newChunk = Instantiate(m_ChunkPrefab,
                         position: new Vector3(x * UnitsPerChunkSide, 0, z * UnitsPerChunkSide),
                         rotation: Quaternion.identity,
@@ -188,34 +191,39 @@ namespace Populous
         #region Terrain Modificiation
 
         /// <summary>
-        /// Calls the <see cref="ChangePointHeight(TerrainPoint, bool)"/> to modify the terrain, 
-        /// then resets the meshes of all the chunks that have been modified..
+        /// Modifies the terrain 
         /// </summary>
-        /// <param name="point">The <c>TerrainPoint</c> which should be modified.</param>
-        /// <param name="lower">Whether the point should be lowered or elevated.</param>
-        public void ModifyTerrain(TerrainPoint point, bool lower)
+        /// <param name="point">The point that the player has clicked.</param>
+        /// <param name="lower">True if the point heights should be decreased, false if they should be increased.</param>
+        public (TerrainPoint, TerrainPoint) ModifyTerrain(TerrainPoint point, bool lower)
         {
-            m_ModifiedPointRange.lowestX = m_ModifiedPointRange.lowestZ = TilesPerSide;
-            m_ModifiedPointRange.highestX = m_ModifiedPointRange.highestZ = 0;
-
-            m_ModifiedChunks = new();
             ChangePointHeight(point, lower);
 
             foreach ((int, int) chunkIndex in m_ModifiedChunks)
                 GetChunkByIndex(chunkIndex).SetMesh();
 
+            // add one point to the left to also affect the tile the bottom left point is the bottom right corner of
+            (TerrainPoint bottomLeft, TerrainPoint topRight) modifiedAreaEdges = (
+                new(m_ModifiedAreaCorners.bottomX, m_ModifiedAreaCorners.bottomZ),
+                new(m_ModifiedAreaCorners.topX, m_ModifiedAreaCorners.topZ)
+            );
+
             m_ModifiedChunks = new();
-            GameController.Instance.OnTerrainModified?.Invoke();
+            m_ModifiedAreaCorners.bottomX = m_ModifiedAreaCorners.bottomZ = TilesPerSide;
+            m_ModifiedAreaCorners.topX = m_ModifiedAreaCorners.topZ = 0;
+
+            return modifiedAreaEdges;
         }
 
         /// <summary>
-        /// Elevates or lowers the given point on the terrain in all the chunks the point belongs to.
+        /// 
         /// </summary>
-        /// <param name="point">The <c>TerrainPoint</c> which should be modified.</param>
-        /// <param name="lower">Whether the point should be lowered or elevated.</param>
+        /// <param name="point"></param>
+        /// <param name="lower"></param>
+        /// <param name="height"></param>
         public void ChangePointHeight(TerrainPoint point, bool lower, int? height = null)
         {
-            foreach ((int, int) chunkIndex in point.TouchingChunks)
+            foreach ((int, int) chunkIndex in GetAllTouchingChunks(point))
             {
                 if (!m_ModifiedChunks.Contains(chunkIndex))
                     m_ModifiedChunks.Add(chunkIndex);
@@ -226,65 +234,10 @@ namespace Populous
                     GetChunkByIndex(chunkIndex).ChangeHeight(point, lower);
             }
 
-            m_ModifiedPointRange.lowestX = Mathf.Min(point.GridX, m_ModifiedPointRange.lowestX);
-            m_ModifiedPointRange.lowestZ = Mathf.Min(point.GridZ, m_ModifiedPointRange.lowestZ);
-            m_ModifiedPointRange.highestX = Mathf.Max(point.GridX, m_ModifiedPointRange.highestX);
-            m_ModifiedPointRange.highestZ = Mathf.Max(point.GridZ, m_ModifiedPointRange.highestZ);
-
-            if (point.IsOnEdge)
-                TerrainBorderWalls.Instance.ModifyWallAtPoint(point);
-        }
-
-        public (int lowestX, int lowestZ, int highestX, int highestZ) GetAffectedTileRange()
-        {
-            return (
-                Mathf.Clamp(m_ModifiedPointRange.lowestX - 1, 0, m_ModifiedPointRange.lowestX),
-                Mathf.Clamp(m_ModifiedPointRange.lowestZ - 1, 0, m_ModifiedPointRange.lowestZ),
-                m_ModifiedPointRange.highestX,
-                m_ModifiedPointRange.highestZ
-            );
-        }
-
-
-        /// <summary>
-        /// Increases the water level by one step.
-        /// </summary>
-        public void RaiseWaterLevel()
-        {
-            m_WaterLevel += StepHeight;
-            m_TerrainMaterial.SetInteger("waterLevel", m_WaterLevel);
-        }
-
-        /// <summary>
-        /// Gets all points that are a given number of tiles away from the given center point.
-        /// </summary>
-        /// <param name="center">The <c>TerrainPoint</c> at the center.</param>
-        /// <param name="distance">The distance in tiles from the center to the points that should be returned.</param>
-        /// <returns></returns>
-        private IEnumerable<TerrainPoint> GetPointsAtDistance(TerrainPoint center, int distance)
-        {
-            for (int z = -distance; z <= distance; ++z)
-            {
-                int targetZ = center.GridZ + z;
-                if (targetZ < 0 || targetZ > TilesPerSide)
-                    continue;
-
-                int[] xs;
-
-                if (z == -distance || z == distance)
-                    xs = Enumerable.Range(-distance, 2 * distance + 1).ToArray();
-                else
-                    xs = new[] { -distance, distance };
-
-                foreach (int x in xs)
-                {
-                    int targetX = center.GridX + x;
-                    if (targetX < 0 || targetX > TilesPerSide)
-                        continue;
-
-                    yield return new TerrainPoint(targetX, targetZ);
-                }
-            }
+            m_ModifiedAreaCorners.bottomX = Mathf.Min(point.X, m_ModifiedAreaCorners.bottomX);
+            m_ModifiedAreaCorners.bottomZ = Mathf.Min(point.Z, m_ModifiedAreaCorners.bottomZ);
+            m_ModifiedAreaCorners.topX = Mathf.Max(point.X, m_ModifiedAreaCorners.topX);
+            m_ModifiedAreaCorners.topZ = Mathf.Max(point.Z, m_ModifiedAreaCorners.topZ);
         }
 
         /// <summary>
@@ -293,13 +246,8 @@ namespace Populous
         /// <param name="center">The <c>TerrainPoint</c> at the center.</param>
         /// <param name="radius">The number of tiles in each direction that the lowering should affect.</param>
         /// <param name="randomizerSeed">The seed for the randomizer used when choosing random lowering steps.</param>
-        public void CauseEarthquake(TerrainPoint center, int radius, int randomizerSeed)
+        public (TerrainPoint, TerrainPoint) CauseEarthquake(TerrainPoint center, int radius, int randomizerSeed)
         {
-            m_ModifiedPointRange.lowestX = m_ModifiedPointRange.lowestZ = TilesPerSide;
-            m_ModifiedPointRange.highestX = m_ModifiedPointRange.highestZ = 0;
-
-            m_ModifiedChunks = new();
-
             Random random = new(randomizerSeed);
             Dictionary<(int, int), int> newHeights = new();
 
@@ -307,15 +255,15 @@ namespace Populous
             {
                 for (int x = -radius; x <= radius; ++x)
                 {
-                    if (center.GridX + x < 0 || center.GridX + x > TilesPerSide ||
-                        center.GridZ + z < 0 || center.GridZ + z > TilesPerSide)
+                    if (center.X + x < 0 || center.X + x > TilesPerSide ||
+                        center.Z + z < 0 || center.Z + z > TilesPerSide)
                         continue;
 
-                    TerrainPoint point = new(center.GridX + x, center.GridZ + z);
+                    TerrainPoint point = new(center.X + x, center.Z + z);
                     int randomStep = random.Next(0, 2);
                     ChangePointHeight(point, false, m_WaterLevel + (randomStep * m_StepHeight));
 
-                    newHeights.Add((point.GridX, point.GridZ), m_WaterLevel);
+                    newHeights.Add((point.X, point.Z), m_WaterLevel);
                 }
             }
 
@@ -332,23 +280,23 @@ namespace Populous
                 {
                     foreach (TerrainPoint neighbor in point.Neighbors)
                     {
-                        if (Mathf.Abs(neighbor.Y - point.Y) > m_StepHeight)
+                        if (Mathf.Abs(neighbor.Height - point.Height) > m_StepHeight)
                         {
-                            int x = point.GridX, z = point.GridZ;
+                            int x = point.X, z = point.Z;
 
-                            if (point.GridX == center.GridX - distance)
+                            if (point.X == center.X - distance)
                                 x++;
 
-                            if (point.GridX == center.GridX + distance)
+                            if (point.X == center.X + distance)
                                 x--;
 
-                            if (point.GridZ == center.GridZ - distance)
+                            if (point.Z == center.Z - distance)
                                 z++;
 
-                            if (point.GridZ == center.GridZ + distance)
+                            if (point.Z == center.Z + distance)
                                 z--;
 
-                            if ((x, z) == (point.GridX, point.GridZ))
+                            if ((x, z) == (point.X, point.Z))
                                 continue;
 
                             ChangePointHeight(point, false, newHeights[(x, z)] + m_StepHeight);
@@ -356,19 +304,29 @@ namespace Populous
                             break;
                         }
                     }
-                    newHeights.Add((point.GridX, point.GridZ), point.Y);
+                    newHeights.Add((point.X, point.Z), point.Height);
                 }
             }
 
             foreach ((int, int) chunkIndex in m_ModifiedChunks)
             {
                 TerrainChunk chunk = GetChunkByIndex(chunkIndex);
-                chunk.RecomputeAllCenters();
+                chunk.RecalculateAllTileCenterHeights();
                 chunk.SetMesh();
             }
 
+            // add one point to the left to also affect the tile the bottom left point is the bottom right corner of
+            (TerrainPoint bottomLeft, TerrainPoint topRight) modifiedAreaEdges = (
+                new(Mathf.Clamp(m_ModifiedAreaCorners.bottomX - 1, 0, m_ModifiedAreaCorners.bottomX),
+                    Mathf.Clamp(m_ModifiedAreaCorners.bottomZ - 1, 0, m_ModifiedAreaCorners.bottomZ)),
+                new(m_ModifiedAreaCorners.topX, m_ModifiedAreaCorners.topZ)
+            );
+
             m_ModifiedChunks = new();
-            GameController.Instance.OnTerrainModified?.Invoke();
+            m_ModifiedAreaCorners.bottomX = m_ModifiedAreaCorners.bottomZ = TilesPerSide;
+            m_ModifiedAreaCorners.topX = m_ModifiedAreaCorners.topZ = 0;
+
+            return modifiedAreaEdges;
         }
 
         /// <summary>
@@ -376,19 +334,13 @@ namespace Populous
         /// </summary>
         /// <param name="center">The <c>TerrainPoint</c> at the center of the elevation.</param>
         /// <param name="radius">The number of tiles in each direction that the elevation should affect.</param>
-        public void CauseVolcano(TerrainPoint center, int radius)
+        public (TerrainPoint, TerrainPoint) CauseVolcano(TerrainPoint center, int radius)
         {
-            // for updating structures
-            m_ModifiedPointRange.lowestX = m_ModifiedPointRange.lowestZ = TilesPerSide;
-            m_ModifiedPointRange.highestX = m_ModifiedPointRange.highestZ = 0;
-
-            m_ModifiedChunks = new();
-
             int maxHeightOnEdge = -1;
 
             foreach (TerrainPoint point in GetPointsAtDistance(center, radius))
-                if (point.Y > maxHeightOnEdge)
-                    maxHeightOnEdge = point.Y;
+                if (point.Height > maxHeightOnEdge)
+                    maxHeightOnEdge = point.Height;
 
             maxHeightOnEdge += m_StepHeight;
 
@@ -410,7 +362,7 @@ namespace Populous
                 {
                     foreach (TerrainPoint neighbor in point.Neighbors)
                     {
-                        if (Mathf.Abs(neighbor.Y - point.Y) > m_StepHeight)
+                        if (Mathf.Abs(neighbor.Height - point.Height) > m_StepHeight)
                         {
                             ChangePointHeight(point, false, maxHeightOnEdge + (radius - distance) * m_StepHeight);
                             changedHeightsInIter++;
@@ -423,15 +375,99 @@ namespace Populous
             foreach ((int, int) chunkIndex in m_ModifiedChunks)
             {
                 TerrainChunk chunk = GetChunkByIndex(chunkIndex);
-                chunk.RecomputeAllCenters();
+                chunk.RecalculateAllTileCenterHeights();
                 chunk.SetMesh();
             }
 
+            // add one point to the left to also affect the tile the bottom left point is the bottom right corner of
+            (TerrainPoint bottomLeft, TerrainPoint topRight) modifiedAreaEdges = (
+                new(Mathf.Clamp(m_ModifiedAreaCorners.bottomX - 1, 0, m_ModifiedAreaCorners.bottomX),
+                    Mathf.Clamp(m_ModifiedAreaCorners.bottomZ - 1, 0, m_ModifiedAreaCorners.bottomZ)),
+                new(m_ModifiedAreaCorners.topX, m_ModifiedAreaCorners.topZ)
+            );
+
             m_ModifiedChunks = new();
-            GameController.Instance.OnTerrainModified?.Invoke();
+            m_ModifiedAreaCorners.bottomX = m_ModifiedAreaCorners.bottomZ = TilesPerSide;
+            m_ModifiedAreaCorners.topX = m_ModifiedAreaCorners.topZ = 0;
+
+            return modifiedAreaEdges;
         }
 
+
+
+
+        /// <summary>
+        /// Increases the water level by one step.
+        /// </summary>
+        public void RaiseWaterLevel()
+        {
+            m_WaterLevel += StepHeight;
+            m_TerrainMaterial.SetInteger("waterLevel", m_WaterLevel);
+        }
+
+        /// <summary>
+        /// Gets all points that are a given number of tiles away from the given center point.
+        /// </summary>
+        /// <param name="center">The <c>TerrainPoint</c> at the center.</param>
+        /// <param name="distance">The distance in tiles from the center to the points that should be returned.</param>
+        /// <returns></returns>
+        private IEnumerable<TerrainPoint> GetPointsAtDistance(TerrainPoint center, int distance)
+        {
+            for (int z = -distance; z <= distance; ++z)
+            {
+                int targetZ = center.Z + z;
+                if (targetZ < 0 || targetZ > TilesPerSide)
+                    continue;
+
+                int[] xs;
+
+                if (z == -distance || z == distance)
+                    xs = Enumerable.Range(-distance, 2 * distance + 1).ToArray();
+                else
+                    xs = new[] { -distance, distance };
+
+                foreach (int x in xs)
+                {
+                    int targetX = center.X + x;
+                    if (targetX < 0 || targetX > TilesPerSide)
+                        continue;
+
+                    yield return new TerrainPoint(targetX, targetZ);
+                }
+            }
+        }
+
+
+
         #endregion
+
+
+        /// <summary>
+        /// Checks whether all the points at the corners of the given tile are at the same height and whether they are above the water level.
+        /// </summary>
+        /// <param name="tile">The (x, z) coordinates of the tile which should be checked.</param>
+        /// <returns>True if the tile is flat and not underwater, false otherwise.</returns>
+        public bool IsTileFlat((int x, int z) tile)
+        {
+            return true;
+            //(int x, int z) inChunk = GetPointInChunk(tile);
+
+            //int height = GetMeshHeightAtPoint(inChunk);
+
+            //for (int z = 0; z <= 1; ++z)
+            //    for (int x = 0; x <= 1; ++x)
+            //        if (height != GetMeshHeightAtPoint((inChunk.x + x, inChunk.z + z)))
+            //            return false;
+
+            //return height != Terrain.Instance.WaterLevel;
+        }
+
+
+
+
+
+
+
 
 
 
@@ -470,25 +506,61 @@ namespace Populous
             => (point.x == TilesPerSide ? ChunksPerSide - 1 : point.x / TilesPerChunkSide,
                 point.z == TilesPerSide ? ChunksPerSide - 1 : point.z / TilesPerChunkSide);
 
+
+        /// <summary>
+        /// Gets all the chunks which share the given point.
+        /// </summary>
+        /// <returns>A list of (x, z) indices of the chunks that contain this point.</returns>
+        private List<(int x, int z)> GetAllTouchingChunks(TerrainPoint point)
+        {
+            (int x, int z) mainChunk = GetChunkIndex((point.X, point.Z));
+
+            List<(int x, int z)> chunks = new() { mainChunk };
+
+            (int x, int z) pointInChunk = GetChunkByIndex(mainChunk).GetPointChunkCoordinates(point);
+
+            // bottom left
+            if (pointInChunk.x == 0 && mainChunk.x > 0 && pointInChunk.z == 0 && mainChunk.z > 0)
+                chunks.Add((mainChunk.x - 1, mainChunk.z - 1));
+
+            // bottom right
+            if (pointInChunk.x == m_TilesPerChunkSide && mainChunk.x < m_ChunksPerSide - 1 && pointInChunk.z == 0 && mainChunk.z > 0)
+                chunks.Add((mainChunk.x + 1, mainChunk.z - 1));
+
+            // top left
+            if (pointInChunk.x == 0 && mainChunk.x > 0 && pointInChunk.z == m_TilesPerChunkSide && mainChunk.z < m_ChunksPerSide - 1)
+                chunks.Add((mainChunk.x - 1, mainChunk.z + 1));
+
+            if (pointInChunk.x == m_TilesPerChunkSide && mainChunk.x < m_ChunksPerSide - 1 &&
+                pointInChunk.z == m_TilesPerChunkSide && mainChunk.z < m_ChunksPerSide - 1)
+                chunks.Add((mainChunk.x + 1, mainChunk.z + 1));
+
+            // left
+            if (pointInChunk.x == 0 && mainChunk.x > 0)
+                chunks.Add((mainChunk.x - 1, mainChunk.z));
+
+            // right
+            if (pointInChunk.x == m_TilesPerChunkSide && mainChunk.x < m_ChunksPerSide - 1)
+                chunks.Add((mainChunk.x + 1, mainChunk.z));
+
+            // bottom
+            if (pointInChunk.z == 0 && mainChunk.z > 0)
+                chunks.Add((mainChunk.x, mainChunk.z - 1));
+
+            // top
+            if (pointInChunk.z == m_TilesPerChunkSide && mainChunk.z < m_ChunksPerSide - 1)
+                chunks.Add((mainChunk.x, mainChunk.z + 1));
+
+            return chunks;
+        }
+
+
         #endregion
 
 
 
         #region Point Info
 
-        /// <summary>
-        /// Checks whether the given point is within the bounds of the terrain.
-        /// </summary>
-        /// <param name="point">The (x, z) coordinates of the point which is to be tested.</param>
-        /// <returns>True if the point is in bounds, false otherwise.</returns>
-        public bool IsPointInBounds((int x, int z) point) => point.x >= 0 && point.x <= TilesPerSide && point.z >= 0 && point.z <= TilesPerSide;
-
-        /// <summary>
-        /// Checks whether the given point is the last point either on the X axis or the Z axis of the terrain grid.
-        /// </summary>
-        /// <param name="point">The (x, z) coordinates of the point which is to be tested.</param>
-        /// <returns>True if the point is the last point, otherwise false.</returns>
-        public bool IsLastPoint((int x, int z) point) => point.x == TilesPerSide || point.z == TilesPerSide;
 
         /// <summary>
         /// Gets the height of the terrain at the given point.
@@ -503,7 +575,7 @@ namespace Populous
         /// <param name="chunkIndex">The (x, z) index of a terrain chunk.</param>
         /// <param name="point">The (x, z) coordinates of the point whose height should be returned.</param>
         /// <returns>An <c>int</c> representing the height at the given point.</returns>
-        public int GetPointHeight((int x, int z) chunkIndex, (int x, int z) point) => GetChunkByIndex(chunkIndex).GetPointHeight(point);
+        public int GetPointHeight((int x, int z) chunkIndex, (int x, int z) point) => GetChunkByIndex(chunkIndex).GetPointHeight(new(point.x, point.z));
 
         #endregion
 
@@ -524,7 +596,9 @@ namespace Populous
         /// <param name="chunkIndex">The (x, z) index of a terrain chunk.</param>
         /// <param name="tile">The (x, z) coordinates of the tile whose tile center height should be returned.</param>
         /// <returns>An <c>int</c> representing the height of the center of the given tile.</returns>
-        public int GetTileCenterHeight((int x, int z) chunkIndex, (int x, int z) tile) => GetChunkByIndex(chunkIndex).GetTileCenterHeight(tile);
+        public int GetTileCenterHeight((int x, int z) chunkIndex, (int x, int z) tile) => GetChunkByIndex(chunkIndex).GetTileCenterHeight(new(tile.x, tile.z));
+
+
 
         #endregion
 
@@ -549,29 +623,17 @@ namespace Populous
         }
 
         /// <summary>
-        /// Checks whether all the points at the corners of the given tile are at the same height and whether they are above the water level.
-        /// </summary>
-        /// <param name="tile">The (x, z) coordinates of the tile which should be checked.</param>
-        /// <returns>True if the tile is flat and not underwater, false otherwise.</returns>
-        public bool IsTileFlat((int x, int z) tile) => IsTileFlat(GetChunkIndex(tile), tile);
-
-        /// <summary>
-        /// Checks whether all the points at the corners of the given tile are at the same height and whether they are above the water level.
-        /// </summary>
-        /// <param name="chunkIndex">The (x, z) index of a terrain chunk.</param>
-        /// <param name="tile">The (x, z) coordinates of the tile which should be checked.</param>
-        /// <returns>True if the tile is flat and not underwater, false otherwise.</returns>
-        public bool IsTileFlat((int x, int z) chunkIndex, (int x, int z) tile) => GetChunkByIndex(chunkIndex).IsTileFlat(tile);
-
-        /// <summary>
         /// Checks whether all the corner points of the given tile are on or below the water level.
         /// </summary>
         /// <param name="tile">The (x, z) coordinates of the tile which should be checked.</param>
         /// <returns>True if the tile is underwater, false otherwise.</returns>
         public bool IsTileUnderwater((int x, int z) tile)
         {
+            // check the center
+
+
             foreach (TerrainPoint point in GetTileCorners(tile))
-                if (point.Y > m_WaterLevel)
+                if (point.Height > m_WaterLevel)
                     return false;
 
             return true;
@@ -585,19 +647,19 @@ namespace Populous
         /// <returns>True if no <c>Structure</c> or water is crossed, false otherwise.</returns>
         public bool IsTileCornerReachable(TerrainPoint start, TerrainPoint end)
         {
-            int dx = end.GridX - start.GridX;
-            int dz = end.GridZ - start.GridZ;
+            int dx = end.X - start.X;
+            int dz = end.Z - start.Z;
 
             // we are not moving diagonally
             if (Mathf.Abs(dx) != Mathf.Abs(dz))
             {
                 // we wnat to check if the unit is going into the water or just along the shore
-                if (start.Y == 0 && end.Y == 0)
+                if (start.Height == 0 && end.Height == 0)
                 {
                     // if there is water on both sides of the line the unit is travelling, then it is going into the water
                     (int x, int z)[] diagonals = new (int, int)[2];
-                    if (dz == 0) diagonals = new (int, int)[2] { (end.GridX, end.GridZ - 1), (end.GridX, end.GridZ + 1) };
-                    if (dx == 0) diagonals = new (int, int)[2] { (end.GridX - 1, end.GridZ), (end.GridX + 1, end.GridZ) };
+                    if (dz == 0) diagonals = new (int, int)[2] { (end.X, end.Z - 1), (end.X, end.Z + 1) };
+                    if (dx == 0) diagonals = new (int, int)[2] { (end.X - 1, end.Z), (end.X + 1, end.Z) };
 
                     foreach ((int x, int z) diagonal in diagonals)
                     {
@@ -615,11 +677,11 @@ namespace Populous
             }
 
             // we'll be crossing water
-            if (start.Y == 0 && end.Y == 0)
+            if (start.Height == 0 && end.Height == 0)
                 return false;
 
-            int x = start.GridX;
-            int z = start.GridZ;
+            int x = start.X;
+            int z = start.Z;
 
             if (dx > 0 && dz < 0)
                 z -= 1;

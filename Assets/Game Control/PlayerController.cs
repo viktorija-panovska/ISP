@@ -1,3 +1,4 @@
+using UnityEditorInternal;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -13,9 +14,6 @@ namespace Populous
 
         [Header("Power Markers")]
 
-        [Tooltip("The distance between the cursor and the terrain point within which the click on the point is registered.")]
-        [SerializeField] private float m_ClickLeeway = 0.1f;
-
         [Tooltip("The color of the marker when the power can be used.")]
         [SerializeField] private Color m_HighlightMarkerColor;
 
@@ -24,6 +22,9 @@ namespace Populous
 
         [Tooltip("The marker objects corresponding to each power. The index of each marker in this array corresponds to the value of its corresponding power in the Power enum.")]
         [SerializeField] private GameObject[] m_Markers;
+
+        [Tooltip("An increase to the height at which a marker sits to make it not clip into the terrain.")]
+        [SerializeField] private float m_MarkerExtraHeight = 2;
 
         #endregion
 
@@ -60,7 +61,11 @@ namespace Populous
         /// <summary>
         /// True if the player's input should be processed, false otherwise.
         /// </summary>
-        private bool CanInteract { get => m_PlayerInfo.HasValue && !m_IsPaused && m_ActivePower != Power.ARMAGHEDDON; }
+        private bool CanInteract { get => m_PlayerInfo.HasValue && !m_IsPaused; }
+        /// <summary>
+        /// True if the player can activate powers, false otherwise.
+        /// </summary>
+        private bool CanUseActions { get => CanInteract && !m_IsInspectActive && m_ActivePower != Power.ARMAGHEDDON; }
 
         /// <summary>
         /// The <c>TerrainPoint</c> closest to the player's cursor. Null if the player's cursor is outside the bounds of the terrain
@@ -103,11 +108,13 @@ namespace Populous
 
         private void Update()
         {
-            if (!CanInteract || m_ActivePower == Power.KNIGHT || m_ActivePower == Power.FLOOD)
+            if (!CanUseActions || m_ActivePower == Power.KNIGHT || m_ActivePower == Power.FLOOD)
                 return;
 
             m_NearestPoint = GetNearestPoint();
-            PlaceMarker();
+
+            if (m_NearestPoint.HasValue)
+                PlaceMarkerAtPoint(m_NearestPoint.Value);
         }
 
         #endregion
@@ -148,7 +155,7 @@ namespace Populous
         /// <param name="behavior">The new behavior that should be applied to all the units.</param>
         public void SetUnitBehavior(UnitBehavior behavior)
         {
-            if (!CanInteract || behavior == m_ActiveBehavior) 
+            if (!CanUseActions || behavior == m_ActiveBehavior) 
                 return;
 
             GameUI.Instance.SetActiveBehaviorIcon(currentBehavior: behavior, lastBehavior: m_ActiveBehavior);
@@ -163,7 +170,7 @@ namespace Populous
 
         public void SnapCamera(CameraSnap cameraSnap)
         {
-            if (!CanInteract) return;
+            if (!CanUseActions) return;
 
             switch (cameraSnap)
             {
@@ -207,15 +214,8 @@ namespace Populous
         public void TryActivatePower(Power power)
         {
             // Don't call the server unnecessarily when a power is selected multiple times, except for the Knight and Flood powers, which have effects on each selection.
-            if (!CanInteract || (power == m_ActivePower && power != Power.KNIGHT && power != Power.FLOOD)) 
+            if (!CanUseActions || (power == m_ActivePower && power != Power.KNIGHT && power != Power.FLOOD)) 
                 return;
-
-            // doesn't require manna, we don't need to check with the server
-            if (power == Power.MOLD_TERRAIN)
-            {
-                SetActivePower(power);
-                return;
-            }
 
             GameController.Instance.TryActivatePower_ServerRpc(Team, power);
         }
@@ -247,9 +247,9 @@ namespace Populous
         /// <param name="power">The <c>Power</c> that should be set.</param>
         private void SetActivePower(Power power)
         {
-            GameUI.Instance.SetActivePowerIcon(currentPower: power, lastPower: m_ActivePower);
             m_ActivePower = power;
             SwitchActiveMarker(m_ActivePower);
+            GameUI.Instance.SetActivePowerIcon(currentPower: power, lastPower: m_ActivePower);
         }
 
         #endregion
@@ -274,9 +274,7 @@ namespace Populous
         private TerrainPoint? GetNearestPoint()
         {
             if (Physics.Raycast(Camera.main.ScreenPointToRay(Mouse.current.position.ReadValue()), out RaycastHit hit,
-                maxDistance: Mathf.Infinity, layerMask: LayerMask.GetMask(LayerData.TERRAIN_LAYER_NAME)) ||
-                hit.point.x - m_ClickLeeway < 0 && hit.point.x + m_ClickLeeway > Terrain.Instance.UnitsPerSide ||
-                hit.point.z - m_ClickLeeway < 0 && hit.point.z + m_ClickLeeway > Terrain.Instance.UnitsPerSide)
+                maxDistance: Mathf.Infinity, layerMask: LayerMask.GetMask(LayerData.TERRAIN_LAYER_NAME)))
                 return new(hit.point.x, hit.point.z, getClosestPoint: true);
            
             return null;
@@ -285,19 +283,13 @@ namespace Populous
         /// <summary>
         /// Sets the marker's posiiton to the nearest <c>Terrainpoint</c> and changes its color to show whether the power can be executed.
         /// </summary>
-        private void PlaceMarker()
+        private void PlaceMarkerAtPoint(TerrainPoint point)
         {
-            if (!m_NearestPoint.HasValue) return;
-
-            m_Markers[m_ActiveMarkerIndex].transform.position = new Vector3(
-                m_NearestPoint.Value.GridX * Terrain.Instance.UnitsPerTileSide,
-                m_NearestPoint.Value.Y + 2,
-                m_NearestPoint.Value.GridZ * Terrain.Instance.UnitsPerTileSide
-            );
+            m_Markers[m_ActiveMarkerIndex].transform.position = point.ToWorldPosition() + new Vector3(0, m_MarkerExtraHeight, 0);
 
             m_Markers[m_ActiveMarkerIndex].GetComponent<MeshRenderer>().material.color =
                 (m_ActivePower == Power.MOLD_TERRAIN && CameraDetectionZone.Instance.VisibleObjectsAmount <= 0) ||
-                (m_ActivePower == Power.MOVE_MAGNET && m_NearestPoint.Value.Y <= Terrain.Instance.WaterLevel && !m_NearestPoint.Value.IsOnShore)
+                (m_ActivePower == Power.MOVE_MAGNET && m_NearestPoint.Value.IsUnderwater())
                 ? m_GrayedOutMarkerColor
                 : m_HighlightMarkerColor;
         }
@@ -352,22 +344,22 @@ namespace Populous
         /// <param name="context">Details about the input action which triggered this event.</param>
         public void OnLeftClick(InputAction.CallbackContext context)
         {
-            // when inspect is active, the clicks on the units and settlements are handled by the units and settlements themselves,
-            // and the clicks on the UI are handled by the UI.
-            if (!context.performed || GameUI.Instance.IsPointerOnUI || m_IsInspectActive ||
-                !CanInteract || !m_NearestPoint.HasValue) 
+            if (!context.performed || GameUI.Instance.IsPointerOnUI || !CanUseActions || !m_NearestPoint.HasValue) 
                 return;
 
             switch (m_ActivePower)
             {
                 case Power.MOLD_TERRAIN:
-                    if (m_NearestPoint.Value.Y == Terrain.Instance.MaxHeight || CameraDetectionZone.Instance.VisibleObjectsAmount <= 0) 
+                    if (m_NearestPoint.Value.Height == Terrain.Instance.MaxHeight || CameraDetectionZone.Instance.VisibleObjectsAmount <= 0) 
                         return;
-                    GameController.Instance.MoldTerrain_ServerRpc(Team, m_NearestPoint.Value, lower: false);
+
+                    GameController.Instance.RespondToTerrainUpdate(Terrain.Instance.ModifyTerrain(m_NearestPoint.Value, lower: false));
+
+                    //GameController.Instance.MoldTerrain_ServerRpc(Team, m_NearestPoint.Value, lower: false);
                     break;
 
                 case Power.MOVE_MAGNET:
-                    if (m_NearestPoint.Value.Y <= Terrain.Instance.WaterLevel && !m_NearestPoint.Value.IsOnShore) return;
+                    if (m_NearestPoint.Value.IsUnderwater()) return;
                     GameController.Instance.MoveMagnet_ServerRpc(Team, m_NearestPoint.Value);
                     break;
 
@@ -394,13 +386,14 @@ namespace Populous
         /// <param name="context">Details about the input action which triggered this event.</param>
         public void OnRightClick(InputAction.CallbackContext context)
         {            
-            // when inspect is active, the clicks on the units and settlements are handled by the units and settlements themselves,
-            // and the clicks on the UI are handled by the UI.
-            if (!context.performed || GameUI.Instance.IsPointerOnUI || m_IsInspectActive ||
-                m_ActivePower != Power.MOLD_TERRAIN || !m_NearestPoint.HasValue) 
+            if (!context.performed || GameUI.Instance.IsPointerOnUI || !CanUseActions || m_ActivePower != Power.MOLD_TERRAIN ||
+                !m_NearestPoint.HasValue || CameraDetectionZone.Instance.VisibleObjectsAmount <= 0 || 
+                m_NearestPoint.Value.Height <= Terrain.Instance.WaterLevel)
                 return;
 
-            GameController.Instance.MoldTerrain_ServerRpc(Team, m_NearestPoint.Value, lower: true);
+            
+            GameController.Instance.RespondToTerrainUpdate(Terrain.Instance.ModifyTerrain(m_NearestPoint.Value, lower: true));
+            //GameController.Instance.MoldTerrain_ServerRpc(Team, m_NearestPoint.Value, lower: true);
         }
 
         /// <summary>
@@ -588,7 +581,7 @@ namespace Populous
         public void OnMoldTerrainSelected(InputAction.CallbackContext context)
         {
             if (!context.performed) return;
-            TryActivatePower(Power.MOLD_TERRAIN);
+            SetActivePower(Power.MOLD_TERRAIN);
         }
 
         /// <summary>

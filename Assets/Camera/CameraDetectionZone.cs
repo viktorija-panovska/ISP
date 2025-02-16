@@ -21,7 +21,7 @@ namespace Populous
         /// <summary>
         /// The instance IDs of the objects of the player's team that are in the camera's field of view.
         /// </summary>
-        private readonly HashSet<ulong> m_VisibleTeamObjectIds = new();
+        private readonly HashSet<ulong> m_VisibleTeamObjectIds = new() { 1 };
         /// <summary>
         /// The number of objects of the player's team that are in the camera's field of view.
         /// </summary>

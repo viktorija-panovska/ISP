@@ -174,19 +174,19 @@ namespace Populous
         #region Structure
 
         /// <inheritdoc />
-        public override void ReactToTerrainChange()
+        public override void ReactToTerrainChange(TerrainPoint bottomLeft, TerrainPoint topRight)
         {
-            (int lowestX, int lowestZ, int highestX, int highestZ) = Terrain.Instance.GetAffectedTileRange();
+            //(int lowestX, int lowestZ, int highestX, int highestZ) = Terrain.Instance.GetAffectedTileRange();
 
-            if (m_OccupiedTile.GridX < lowestX || m_OccupiedTile.GridZ < lowestZ || 
-                m_OccupiedTile.GridX > highestX || m_OccupiedTile.GridZ > highestZ)
-            {
-                if (m_OccupiedTile.GridX >= lowestX - 2 && m_OccupiedTile.GridZ >= lowestZ - 2 && 
-                    m_OccupiedTile.GridX <= highestX + 2 && m_OccupiedTile.GridZ <= highestZ + 2)
-                    SetSettlementType();
+            //if (m_OccupiedTile.X < lowestX || m_OccupiedTile.Z < lowestZ || 
+            //    m_OccupiedTile.X > highestX || m_OccupiedTile.Z > highestZ)
+            //{
+            //    if (m_OccupiedTile.X >= lowestX - 2 && m_OccupiedTile.Z >= lowestZ - 2 && 
+            //        m_OccupiedTile.X <= highestX + 2 && m_OccupiedTile.Z <= highestZ + 2)
+            //        SetSettlementType();
 
-                return;
-            }
+            //    return;
+            //}
 
             if (ShouldDestroyStructure())
             {
@@ -195,7 +195,7 @@ namespace Populous
             }
 
             if (m_DestroyMethod == DestroyMethod.DROWN)
-                SetHeight_ClientRpc/*ClientRpc*/(Terrain.Instance.GetTileCenterHeight((m_OccupiedTile.GridX, m_OccupiedTile.GridZ)));
+                SetHeight_ClientRpc/*ClientRpc*/(Terrain.Instance.GetTileCenterHeight((m_OccupiedTile.X, m_OccupiedTile.Z)));
         }
 
         /// <inheritdoc />
@@ -300,7 +300,7 @@ namespace Populous
             m_IsDestroyed = true;
             OnSettlementDestroyed?.Invoke(this);
 
-            if (Terrain.Instance.IsTileUnderwater((m_OccupiedTile.GridX, m_OccupiedTile.GridZ)))
+            if (Terrain.Instance.IsTileUnderwater((m_OccupiedTile.X, m_OccupiedTile.Z)))
                 UnitManager.Instance.RemovePopulation(m_Team, m_FollowersInSettlement);
             else
                 ReleaseUnit(m_CurrentSettlementData.UnitStrength);
@@ -346,7 +346,7 @@ namespace Populous
                 {
                     if ((x, z) == (0, 0)) continue;
 
-                    (int x, int z) tile = (OccupiedTile.GridX + x, OccupiedTile.GridZ + z);
+                    (int x, int z) tile = (OccupiedTile.X + x, OccupiedTile.Z + z);
 
                     if (tile.x < 0 || tile.x >= Terrain.Instance.TilesPerSide || tile.z < 0 || tile.z >= Terrain.Instance.TilesPerSide)
                         continue;
@@ -377,7 +377,7 @@ namespace Populous
             {
                 for (int x = -2; x <= 2; ++x)
                 {
-                    (int x, int z) neighborTile = (m_OccupiedTile.GridX + x, m_OccupiedTile.GridZ + z);
+                    (int x, int z) neighborTile = (m_OccupiedTile.X + x, m_OccupiedTile.Z + z);
 
                     if ((x, z) == (0, 0) || (x != 0 && z != 0 && Mathf.Abs(x) != Mathf.Abs(z)) ||
                         neighborTile.x < 0 || neighborTile.x >= Terrain.Instance.TilesPerSide ||
@@ -471,7 +471,7 @@ namespace Populous
                 {
                     if (x == 0 || z == 0 || Mathf.Abs(x) == Mathf.Abs(z)) continue;
 
-                    (int x, int z) neighborTile = (m_OccupiedTile.GridX + x, m_OccupiedTile.GridZ + z);
+                    (int x, int z) neighborTile = (m_OccupiedTile.X + x, m_OccupiedTile.Z + z);
                     Structure structure = StructureManager.Instance.GetStructureOnTile(neighborTile);
                     Field field = null;
                     if (structure && structure.GetType() == typeof(Field))
@@ -494,7 +494,7 @@ namespace Populous
                     if (x == 0 || z == 0 || Mathf.Abs(x) == Mathf.Abs(z))
                         continue;
 
-                    (int x, int z) neighborTile = (m_OccupiedTile.GridX + x, m_OccupiedTile.GridZ + z);
+                    (int x, int z) neighborTile = (m_OccupiedTile.X + x, m_OccupiedTile.Z + z);
                     Structure structure = StructureManager.Instance.GetStructureOnTile(neighborTile);
 
                     if (!structure || structure.GetType() != typeof(Field))
@@ -558,7 +558,7 @@ namespace Populous
             {
                 StructureManager.Instance.UnsetLeaderSettlement(m_Team);
                 UnitManager.Instance.SpawnUnit(
-                    location: new TerrainPoint(m_OccupiedTile.GridX, m_OccupiedTile.GridZ),
+                    location: new TerrainPoint(m_OccupiedTile.X, m_OccupiedTile.Z),
                     team: m_Team, 
                     unitClass: UnitClass.LEADER, 
                     followers: strength,
@@ -568,7 +568,7 @@ namespace Populous
             else
             {
                 UnitManager.Instance.SpawnUnit(
-                    location: new TerrainPoint(m_OccupiedTile.GridX, m_OccupiedTile.GridZ), 
+                    location: new TerrainPoint(m_OccupiedTile.X, m_OccupiedTile.Z), 
                     team: m_Team, 
                     unitClass: UnitClass.WALKER, 
                     followers: strength,

@@ -292,7 +292,7 @@ namespace Populous
                 height = startPosition.y < endPosition.y ? startPosition.y + height : endPosition.y + height;
             }
 
-            if (Terrain.Instance.IsTileUnderwater((Tile.GridX, Tile.GridZ)))
+            if (Terrain.Instance.IsTileUnderwater((Tile.X, Tile.Z)))
                 UnitManager.Instance.DespawnUnit(gameObject, hasDied: true);
             else
                 SetHeight/*ClientRpc*/(height);

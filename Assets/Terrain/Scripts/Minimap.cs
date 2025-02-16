@@ -31,7 +31,6 @@ namespace Populous
             m_Instance = this;
         }
 
-
         /// <summary>
         /// Creates the texture for the minimap based on the heights of the terrain.
         /// </summary>
@@ -39,17 +38,9 @@ namespace Populous
         {
             // as many pixels as there are points on the terrain
             m_MinimapTexture = new(Terrain.Instance.TilesPerSide + 1, Terrain.Instance.TilesPerSide + 1);
-
-            Color32[] colors = new Color32[m_MinimapTexture.width * m_MinimapTexture.height];
-
-            for (int z = 0; z <= Terrain.Instance.TilesPerSide; ++z)
-                for (int x = 0; x <= Terrain.Instance.TilesPerSide; ++x)
-                    colors[z * m_MinimapTexture.width + x] = Terrain.Instance.GetPointHeight((x, z)) > Terrain.Instance.WaterLevel ? Color.green : Color.blue;
-
             m_MinimapTexture.filterMode = FilterMode.Point;
             m_MinimapTexture.wrapMode = TextureWrapMode.Clamp;
-            m_MinimapTexture.SetPixels32(colors);
-            m_MinimapTexture.Apply();
+            SetTexture();
 
             MeshRenderer meshRenderer = GetComponent<MeshRenderer>();
             meshRenderer.sharedMaterial.mainTexture = m_MinimapTexture;
@@ -58,16 +49,38 @@ namespace Populous
         }
 
 
-
-        // TODO
-        public void UpdateTexture()
+        /// <summary>
+        /// Gets colors based on the heights of the terrain and applies them to the texture.
+        /// </summary>
+        public void SetTexture()
         {
             Color32[] colors = new Color32[m_MinimapTexture.width * m_MinimapTexture.height];
 
-            for (int i = 0; i < 6; ++i)
-                colors[i] = Color.white;
+            for (int z = 0; z <= Terrain.Instance.TilesPerSide; ++z)
+                for (int x = 0; x <= Terrain.Instance.TilesPerSide; ++x)
+                    colors[z * m_MinimapTexture.width + x] =
+                        Terrain.Instance.GetPointHeight(new(x, z)) > Terrain.Instance.WaterLevel ? Color.green : Color.blue;
 
-            m_MinimapTexture.SetPixels32(0, 0, 5, 5, colors);
+            m_MinimapTexture.SetPixels32(colors);
+            m_MinimapTexture.Apply();
+        }
+
+
+        /// <summary>
+        /// Updates the colors in a section of the texture between the given points.
+        /// </summary>
+        /// <param name="bottomLeft">The bottom-left corner of a rectangular area containing all modified terrain points.</param>
+        /// <param name="topRight">The top-right corner of a rectangular area containing all modified terrain points.</param>
+        public void UpdateTextureInArea(TerrainPoint bottomLeft, TerrainPoint topRight)
+        {
+            Color32[] colors = m_MinimapTexture.GetPixels32();
+
+            for (int z = bottomLeft.Z; z <= topRight.Z; ++z)
+                for (int x = bottomLeft.X; x <= topRight.X; ++x)
+                    colors[z * m_MinimapTexture.width + x] =
+                        Terrain.Instance.GetPointHeight(new(x, z)) > Terrain.Instance.WaterLevel ? Color.green : Color.blue;
+
+            m_MinimapTexture.SetPixels32(colors);
             m_MinimapTexture.Apply();
         }
     }

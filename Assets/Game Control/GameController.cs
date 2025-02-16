@@ -139,7 +139,7 @@ namespace Populous
         /// <summary>
         /// Action to be called when the heights of the terrain have been modified.
         /// </summary>
-        public Action OnTerrainModified;
+        public Action<TerrainPoint, TerrainPoint> OnTerrainModified;
         /// <summary>
         /// Action to be called when the unit magnet of the red team is moved.
         /// </summary>
@@ -228,6 +228,19 @@ namespace Populous
         [ClientRpc]
         public void RemoveVisibleObject_ClientRpc(ulong objectId, ClientRpcParams clientParams = default)
             => CameraDetectionZone.Instance.RemoveVisibleObject(objectId);
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="modifiedAreaCorners"></param>
+        public void RespondToTerrainUpdate((TerrainPoint bottomLeft, TerrainPoint topRight) modifiedAreaCorners)
+        {
+            TerrainBorderWalls.Instance.ModifyWallsInArea(modifiedAreaCorners.bottomLeft, modifiedAreaCorners.topRight);
+            Minimap.Instance.UpdateTextureInArea(modifiedAreaCorners.bottomLeft, modifiedAreaCorners.topRight);
+
+            // for units and structures
+            OnTerrainModified?.Invoke(modifiedAreaCorners.bottomLeft, modifiedAreaCorners.topRight);
+        }
 
 
         #region Leader
@@ -554,7 +567,7 @@ namespace Populous
         [ServerRpc(RequireOwnership = false)]
         public void MoldTerrain_ServerRpc(Team team, TerrainPoint point, bool lower)
         {
-            if (point.Y == Terrain.Instance.MaxHeight) return;
+            if (point.Height == Terrain.Instance.MaxHeight) return;
 
             RemoveManna(team, m_PowerMannaCost[(int)Power.MOLD_TERRAIN]);
             MoldTerrain_ClientRpc(point, lower);
@@ -567,7 +580,7 @@ namespace Populous
         /// <param name="lower">True if the center should be lowered, false if the center should be elevated.</param>
         [ClientRpc]
         private void MoldTerrain_ClientRpc(TerrainPoint point, bool lower)
-            => Terrain.Instance.ModifyTerrain(point, lower);
+            => RespondToTerrainUpdate(Terrain.Instance.ModifyTerrain(point, lower));
 
         #endregion
 
@@ -588,9 +601,9 @@ namespace Populous
             RemoveManna(team, m_PowerMannaCost[(int)Power.MOVE_MAGNET]);
 
             StructureManager.Instance.SetMagnetPosition/*ClientRpc*/(team, new Vector3(
-                point.GridX * Terrain.Instance.UnitsPerTileSide,
-                point.Y,
-                point.GridZ * Terrain.Instance.UnitsPerTileSide
+                point.X * Terrain.Instance.UnitsPerTileSide,
+                point.Height,
+                point.Z * Terrain.Instance.UnitsPerTileSide
             ));
 
             if (team == Team.RED)
@@ -623,7 +636,7 @@ namespace Populous
         /// <param name="randomizerSeed">The seed used for the randomizer that sets the heights in the earthquake area.</param>
         [ClientRpc]
         private void CreateEarthquake_ClientRpc(TerrainPoint center, int randomizerSeed)
-            => Terrain.Instance.CauseEarthquake(center, m_EarthquakeRadius, randomizerSeed);
+            => RespondToTerrainUpdate(Terrain.Instance.CauseEarthquake(center, m_EarthquakeRadius, randomizerSeed));
 
         #endregion
 
@@ -646,9 +659,9 @@ namespace Populous
             {
                 for (int x = -m_SwampRadius; x < m_SwampRadius; ++x)
                 {
-                    (int x, int z) neighborTile = (center.GridX + x, center.GridZ + z);
-                    if (center.GridX + x < 0 || center.GridX + x >= Terrain.Instance.TilesPerSide ||
-                        center.GridZ + z < 0 || center.GridZ + z >= Terrain.Instance.TilesPerSide ||
+                    (int x, int z) neighborTile = (center.X + x, center.Z + z);
+                    if (center.X + x < 0 || center.X + x >= Terrain.Instance.TilesPerSide ||
+                        center.Z + z < 0 || center.Z + z >= Terrain.Instance.TilesPerSide ||
                         !Terrain.Instance.IsTileFlat(neighborTile))
                         continue;
 
@@ -756,7 +769,7 @@ namespace Populous
         /// <param name="center">The <c>TerrainPoint</c> at the center of the volcano.</param>
         [ClientRpc]
         private void CreateVolcano_ClientRpc(TerrainPoint center)
-            => Terrain.Instance.CauseVolcano(center, m_VolcanoRadius);
+            => RespondToTerrainUpdate(Terrain.Instance.CauseVolcano(center, m_VolcanoRadius));
 
         #endregion
 
@@ -785,7 +798,8 @@ namespace Populous
         {
             Terrain.Instance.RaiseWaterLevel();
             Water.Instance.Raise();
-            TerrainBorderWalls.Instance.ModifyAllWalls();
+            TerrainBorderWalls.Instance.UpdateAllWalls();
+            Minimap.Instance.SetTexture();
         }
 
         #endregion

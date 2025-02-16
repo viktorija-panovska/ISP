@@ -136,11 +136,11 @@ namespace Populous
             // Structure properties
             Structure structure = structureObject.GetComponent<Structure>();
             structure.Team = team;
-            structure.OccupiedPointHeights = occupiedPoints.ToDictionary(x => x, x => x.Y);
+            structure.OccupiedPointHeights = occupiedPoints.ToDictionary(x => x, x => x.Height);
             structure.OccupiedTile = new TerrainPoint(tile.x, tile.z);
-            StructureManager.Instance.SetOccupiedTile(tile, structure);
+            SetOccupiedTile(tile, structure);
             GameController.Instance.OnTerrainModified += structure.ReactToTerrainChange;
-            GameController.Instance.OnFlood += structure.ReactToTerrainChange;
+            //GameController.Instance.OnFlood += structure.ReactToTerrainChange;
 
             // SETTLEMENT properties
             if (structure.GetType() == typeof(Settlement))
@@ -182,16 +182,16 @@ namespace Populous
 
             Structure structure = structureObject.GetComponent<Structure>();
 
-            if (!StructureManager.Instance.IsTileOccupied((structure.OccupiedTile.GridX, structure.OccupiedTile.GridZ)))
+            if (!StructureManager.Instance.IsTileOccupied((structure.OccupiedTile.X, structure.OccupiedTile.Z)))
                 return;
 
             if (GameController.Instance.OnTerrainModified != null)
                 GameController.Instance.OnTerrainModified -= structure.ReactToTerrainChange;
 
-            if (GameController.Instance.OnFlood != null)
-                GameController.Instance.OnFlood -= structure.ReactToTerrainChange;
+            //if (GameController.Instance.OnFlood != null)
+                //GameController.Instance.OnFlood -= structure.ReactToTerrainChange;
 
-            StructureManager.Instance.SetOccupiedTile((structure.OccupiedTile.GridX, structure.OccupiedTile.GridZ), null);
+            StructureManager.Instance.SetOccupiedTile((structure.OccupiedTile.X, structure.OccupiedTile.Z), null);
 
             if (structure.GetType() == typeof(Settlement))
             {
@@ -227,7 +227,7 @@ namespace Populous
             => PlaceTreesAndRocks(m_TreePercentage, m_BlackRockPercentage, m_WhiteRockPercentage, 0, Terrain.Instance.TilesPerSide);
 
         public void PlaceVolcanoRocks(TerrainPoint center, int radius) 
-            => PlaceTreesAndRocks(0, 0, m_VolcanoRockPercentage, center.GridX - radius, center.GridX + radius);
+            => PlaceTreesAndRocks(0, 0, m_VolcanoRockPercentage, center.X - radius, center.X + radius);
 
         private void PlaceTreesAndRocks(float treePercent, float blackRockPercent, float whiteRockPercent, int areaStart, int areaEnd)
         {
@@ -289,7 +289,7 @@ namespace Populous
                 magnetObject.transform.position = Terrain.Instance.TerrainCenter.ToWorldPosition();
                 magnet.OccupiedTile = new(transform.position.x, transform.position.z, getClosestPoint: false);
                 GameController.Instance.OnTerrainModified += magnet.ReactToTerrainChange;
-                GameController.Instance.OnFlood += magnet.ReactToTerrainChange;
+                //GameController.Instance.OnFlood += magnet.ReactToTerrainChange;
             }
         }
 
@@ -328,7 +328,7 @@ namespace Populous
         public void CreateSettlement(TerrainPoint tile, Team team) 
         {
             if (tile.IsLastPoint) return;
-            SpawnStructure(m_SettlementPrefab, (tile.GridX, tile.GridZ), tile.TileCorners, team); 
+            //SpawnStructure(m_SettlementPrefab, (tile.X, tile.Z), tile.TileCorners, team); 
         }
 
         /// <summary>

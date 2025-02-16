@@ -91,6 +91,13 @@ namespace Populous
         public readonly void SetVertexHeight(int index, float height) => m_Vertices[index].y = height;
 
         /// <summary>
+        /// Sets the vertex at the given index to the given position.
+        /// </summary>
+        /// <param name="index">The index of the vertex in the mesh whose position should be set..</param>
+        /// <param name="position">The new position of the vertex.</param>
+        public readonly void SetVertexPosition(int index, Vector3 position) => m_Vertices[index] = position;
+
+        /// <summary>
         /// Gets the position of the vertex at the given index.
         /// </summary>
         /// <param name="index">The index of the vertex in the mesh whose position should be returned..</param>

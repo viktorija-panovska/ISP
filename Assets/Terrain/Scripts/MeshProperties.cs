@@ -1,5 +1,6 @@
 namespace Populous
 {
+
     public static class MeshProperties
     {
         /// <summary>
@@ -14,10 +15,13 @@ namespace Populous
         /// <summary>
         /// An array of the offsets of the vertices in a tile.
         /// </summary>
-        /// <remarks>Correspond to the bottom-left, bottom-right, top-right, top-left, and center vertices, in order.</remarks>
         public static readonly (float x, float z)[] VertexOffsets = new (float x, float z)[]
         {
-            (0, 0), (1, 0), (1, 1), (0, 1), (0.5f, 0.5f)
+            (0, 0),         // bottom-left
+            (1, 0),         // bottom-right
+            (1, 1),         // top-right
+            (0, 1),         // top-left
+            (0.5f, 0.5f)    // center
         };
 
         /// <summary>
@@ -58,6 +62,5 @@ namespace Populous
             new int[2] { 5, 6 },         // top right
             new int[4] { 1, 4, 7, 10 }   // center
         };
-
     }
 }

@@ -102,7 +102,7 @@ namespace Populous
                 Vector2 current = GetNodeWithLowestFCost(nodes, openList);
 
                 // we found the destination, end the algorithm
-                if (nodes[current].Point.GridX == end.GridX && nodes[current].Point.GridZ == end.GridZ)
+                if (nodes[current].Point.X == end.X && nodes[current].Point.Z == end.Z)
                     return GetPath(nodes[current]);
 
                 openList.Remove(current);
@@ -148,8 +148,8 @@ namespace Populous
                 {
                     if ((xOffset, zOffset) == (0, 0)) continue;
 
-                    int x = start.GridX + xOffset;
-                    int z = start.GridZ + zOffset;
+                    int x = start.X + xOffset;
+                    int z = start.Z + zOffset;
 
                     if (x < 0 || x > Terrain.Instance.TilesPerSide || z < 0 || z > Terrain.Instance.TilesPerSide)
                         continue;
@@ -178,7 +178,7 @@ namespace Populous
         /// </summary>
         /// <param name="location">The given <c>TerrainPoint</c>.</param>
         /// <returns>A <c>Vector2</c> that will serve as the key for that point.</returns>
-        private static Vector2 GetKey(TerrainPoint location) => new(location.GridX, location.GridZ);
+        private static Vector2 GetKey(TerrainPoint location) => new(location.X, location.Z);
 
         /// <summary>
         /// Finds the node in the open list that has the lowest estimated cost if a path to the destination is taken through it.
@@ -213,8 +213,8 @@ namespace Populous
                 {
                     if ((xOffset, zOffset) == (0, 0)) continue;
 
-                    int x = currentNode.Point.GridX + xOffset;
-                    int z = currentNode.Point.GridZ + zOffset;
+                    int x = currentNode.Point.X + xOffset;
+                    int z = currentNode.Point.Z + zOffset;
 
                     if (x < 0 || x > Terrain.Instance.TilesPerSide || z < 0 || z > Terrain.Instance.TilesPerSide)
                         continue;
@@ -245,8 +245,8 @@ namespace Populous
         /// <returns>The cost of movement between the points.</returns>
         private static float GetDistanceCost(TerrainPoint start, TerrainPoint end)
         {
-            float x = Mathf.Abs(start.GridX - end.GridX);
-            float z = Mathf.Abs(start.GridZ - end.GridZ);
+            float x = Mathf.Abs(start.X - end.X);
+            float z = Mathf.Abs(start.Z - end.Z);
 
             return DIAGONAL_COST * Mathf.Min(x, z) + STRAIGHT_COST * Mathf.Abs(x - z);
         }

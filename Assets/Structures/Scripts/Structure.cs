@@ -66,12 +66,12 @@ namespace Populous
         /// <summary>
         /// Handles the settlement's response to a change in the height of the terrain under it.
         /// </summary>
-        public virtual void ReactToTerrainChange()
+        public virtual void ReactToTerrainChange(TerrainPoint bottomLeft, TerrainPoint topRight)
         {
-            (int lowestX, int lowestZ, int highestX, int highestZ) = Terrain.Instance.GetAffectedTileRange();
+            (int lowestX, int lowestZ, int highestX, int highestZ) = (bottomLeft.X, bottomLeft.Z, topRight.X, topRight.Z);
 
-            if (m_OccupiedTile.GridX < lowestX || m_OccupiedTile.GridZ < lowestZ ||
-                m_OccupiedTile.GridX > highestX || m_OccupiedTile.GridZ > highestZ)
+            if (m_OccupiedTile.X < lowestX || m_OccupiedTile.Z < lowestZ ||
+                m_OccupiedTile.X > highestX || m_OccupiedTile.Z > highestZ)
                 return;
 
             if (ShouldDestroyStructure())
@@ -83,7 +83,7 @@ namespace Populous
             // since it wasn't destroyed, it should be moved
             if (m_DestroyMethod == DestroyMethod.DROWN)
             {
-                int height = Terrain.Instance.GetTileCenterHeight((m_OccupiedTile.GridX, m_OccupiedTile.GridZ));
+                int height = Terrain.Instance.GetTileCenterHeight((m_OccupiedTile.X, m_OccupiedTile.Z));
 
                 var corners = m_OccupiedPointHeights.Keys.ToArray();
                 foreach (TerrainPoint point in corners)
@@ -103,10 +103,10 @@ namespace Populous
                 return false;
 
             if (m_DestroyMethod == DestroyMethod.DROWN)
-                return Terrain.Instance.IsTileUnderwater((m_OccupiedTile.GridX, m_OccupiedTile.GridZ));
+                return Terrain.Instance.IsTileUnderwater((m_OccupiedTile.X, m_OccupiedTile.Z));
 
             foreach ((TerrainPoint point, int height) in m_OccupiedPointHeights)
-                if (point.Y != height)
+                if (point.Height != height)
                     return true;
 
             return false;

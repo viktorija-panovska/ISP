@@ -229,9 +229,9 @@ namespace Populous
             GameObject unitObject = Instantiate(
                 m_UnitPrefab,
                 new Vector3(
-                    location.GridX * Terrain.Instance.UnitsPerTileSide,
-                    Terrain.Instance.GetPointHeight((location.GridX, location.GridZ)),
-                    location.GridZ * Terrain.Instance.UnitsPerTileSide),
+                    location.X * Terrain.Instance.UnitsPerTileSide,
+                    Terrain.Instance.GetPointHeight((location.X, location.Z)),
+                    location.Z * Terrain.Instance.UnitsPerTileSide),
                 Quaternion.identity
             );
 
@@ -240,8 +240,8 @@ namespace Populous
             // subscribe to events
             OnNewLeaderGained += unit.NewLeaderUnitGained;
             OnRemoveReferencesToUnit += unit.RemoveRefrencesToUnit;
-            GameController.Instance.OnTerrainModified += unit.CheckIfTargetTileFlat;
-            GameController.Instance.OnTerrainModified += unit.RecomputeHeight;
+            //GameController.Instance.OnTerrainModified += unit.CheckIfTargetTileFlat;
+            //GameController.Instance.OnTerrainModified += unit.RecomputeHeight;
             GameController.Instance.OnFlood += unit.CheckIfTargetTileFlat;
             GameController.Instance.OnFlood += unit.RecomputeHeight;
             StructureManager.Instance.OnRemoveReferencesToSettlement += unit.RemoveRefrencesToSettlement;
@@ -305,8 +305,8 @@ namespace Populous
             Unit unit = unitObject.GetComponent<Unit>();
 
             // cleanup event subscriptions
-            GameController.Instance.OnTerrainModified -= unit.RecomputeHeight;
-            GameController.Instance.OnTerrainModified -= unit.CheckIfTargetTileFlat;
+            //GameController.Instance.OnTerrainModified -= unit.RecomputeHeight;
+            //GameController.Instance.OnTerrainModified -= unit.CheckIfTargetTileFlat;
             GameController.Instance.OnFlood -= unit.RecomputeHeight;
             GameController.Instance.OnFlood -= unit.CheckIfTargetTileFlat;
 
