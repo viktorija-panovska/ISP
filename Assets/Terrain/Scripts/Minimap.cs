@@ -48,7 +48,6 @@ namespace Populous
             GameUtils.ResizeGameObject(meshRenderer.gameObject, Terrain.Instance.UnitsPerSide);
         }
 
-
         /// <summary>
         /// Gets colors based on the heights of the terrain and applies them to the texture.
         /// </summary>
@@ -59,12 +58,11 @@ namespace Populous
             for (int z = 0; z <= Terrain.Instance.TilesPerSide; ++z)
                 for (int x = 0; x <= Terrain.Instance.TilesPerSide; ++x)
                     colors[z * m_MinimapTexture.width + x] =
-                        Terrain.Instance.GetPointHeight(new(x, z)) > Terrain.Instance.WaterLevel ? Color.green : Color.blue;
+                        new TerrainPoint(x, z).GetHeight() > Terrain.Instance.WaterLevel ? Color.green : Color.blue;
 
             m_MinimapTexture.SetPixels32(colors);
             m_MinimapTexture.Apply();
         }
-
 
         /// <summary>
         /// Updates the colors in a section of the texture between the given points.
@@ -78,7 +76,7 @@ namespace Populous
             for (int z = bottomLeft.Z; z <= topRight.Z; ++z)
                 for (int x = bottomLeft.X; x <= topRight.X; ++x)
                     colors[z * m_MinimapTexture.width + x] =
-                        Terrain.Instance.GetPointHeight(new(x, z)) > Terrain.Instance.WaterLevel ? Color.green : Color.blue;
+                        new TerrainPoint(x, z).GetHeight() > Terrain.Instance.WaterLevel ? Color.green : Color.blue;
 
             m_MinimapTexture.SetPixels32(colors);
             m_MinimapTexture.Apply();

@@ -247,9 +247,10 @@ namespace Populous
         /// <param name="power">The <c>Power</c> that should be set.</param>
         private void SetActivePower(Power power)
         {
-            m_ActivePower = power;
-            SwitchActiveMarker(m_ActivePower);
+            SwitchActiveMarker(power);
             GameUI.Instance.SetActivePowerIcon(currentPower: power, lastPower: m_ActivePower);
+
+            m_ActivePower = power;
         }
 
         #endregion
@@ -275,7 +276,7 @@ namespace Populous
         {
             if (Physics.Raycast(Camera.main.ScreenPointToRay(Mouse.current.position.ReadValue()), out RaycastHit hit,
                 maxDistance: Mathf.Infinity, layerMask: LayerMask.GetMask(LayerData.TERRAIN_LAYER_NAME)))
-                return new(hit.point.x, hit.point.z, getClosestPoint: true);
+                return new(hit.point);
            
             return null;
         }
@@ -350,7 +351,7 @@ namespace Populous
             switch (m_ActivePower)
             {
                 case Power.MOLD_TERRAIN:
-                    if (m_NearestPoint.Value.Height == Terrain.Instance.MaxHeight || CameraDetectionZone.Instance.VisibleObjectsAmount <= 0) 
+                    if (m_NearestPoint.Value.IsAtMaxHeight() || CameraDetectionZone.Instance.VisibleObjectsAmount <= 0) 
                         return;
 
                     GameController.Instance.RespondToTerrainUpdate(Terrain.Instance.ModifyTerrain(m_NearestPoint.Value, lower: false));
@@ -388,7 +389,7 @@ namespace Populous
         {            
             if (!context.performed || GameUI.Instance.IsPointerOnUI || !CanUseActions || m_ActivePower != Power.MOLD_TERRAIN ||
                 !m_NearestPoint.HasValue || CameraDetectionZone.Instance.VisibleObjectsAmount <= 0 || 
-                m_NearestPoint.Value.Height <= Terrain.Instance.WaterLevel)
+                m_NearestPoint.Value.GetHeight() <= Terrain.Instance.WaterLevel)
                 return;
 
             

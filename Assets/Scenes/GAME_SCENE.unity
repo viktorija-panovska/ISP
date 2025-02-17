@@ -961,7 +961,7 @@ MonoBehaviour:
   m_Follow: {fileID: 1649248372}
   m_Lens:
     FieldOfView: 60
-    OrthographicSize: 480.0001
+    OrthographicSize: 500
     NearClipPlane: -5000
     FarClipPlane: 5000
     Dutch: 0
@@ -2437,7 +2437,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f2982db3ffe31404bb1b10d916cef0a8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_ClickLeeway: 0.1
   m_HighlightMarkerColor: {r: 0.0076868534, g: 1, b: 0, a: 0.5882353}
   m_GrayedOutMarkerColor: {r: 0, g: 0, b: 0, a: 0.5882353}
   m_Markers:
@@ -2445,8 +2444,11 @@ MonoBehaviour:
   - {fileID: 1628558600}
   - {fileID: 4703408151403673042}
   - {fileID: 1961446324}
-  - {fileID: 0}
+  - {fileID: 2095580094068501931}
   - {fileID: 1470793120}
+  - {fileID: 2095580094068501931}
+  - {fileID: 2095580094068501931}
+  m_MarkerExtraHeight: 2
 --- !u!114 &941242025
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4308,7 +4310,7 @@ Camera:
   far clip plane: 5000
   field of view: 60
   orthographic: 1
-  orthographic size: 480.0001
+  orthographic size: 500
   m_Depth: 0
   m_CullingMask:
     serializedVersion: 2
@@ -9257,8 +9259,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_ChunkPrefab: {fileID: 3529950447808904562, guid: 4757c215c126a194e9349a71efc65037, type: 3}
   m_TerrainMaterial: {fileID: 2100000, guid: 9d6a44b0d4d72774483f5474a1efa3ce, type: 2}
-  m_ChunksPerSide: 7
-  m_TilesPerChunkSide: 8
+  m_ChunksPerSide: 5
+  m_TilesPerChunkSide: 5
   m_UnitsPerTileSide: 50
   m_StepHeight: 50
   m_MaxHeightSteps: 7

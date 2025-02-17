@@ -33,13 +33,13 @@ namespace Populous
         /// <inheritdoc />
         public override void ReactToTerrainChange(TerrainPoint bottomLeft, TerrainPoint topRight)
         {
-            m_OccupiedTile = new(transform.position.x, transform.position.z, getClosestPoint: false);
-            int height = Terrain.Instance.GetPointHeight((m_OccupiedTile.X, m_OccupiedTile.Z));
+            //m_OccupiedTile = new(transform.position.x, transform.position.z, getClosestPoint: false);
+            //int height = m_OccupiedTile.GetHeight();
 
-            if (height < Terrain.Instance.WaterLevel)
-                height = Terrain.Instance.WaterLevel;
+            //if (height < Terrain.Instance.WaterLevel)
+            //    height = Terrain.Instance.WaterLevel;
 
-            SetHeight_ClientRpc(height);
+            //SetHeight_ClientRpc(height);
         }
 
         /// <summary>

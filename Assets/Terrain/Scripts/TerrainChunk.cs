@@ -10,8 +10,6 @@ namespace Populous
     [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer), typeof(MeshCollider))] [RequireComponent(typeof(Rigidbody))]
     public class TerrainChunk : MonoBehaviour
     {
-        #region Class Fields
-
         /// <summary>
         /// A container for the data of this chunk's mesh i.e. the vertices and the triangles that make it up.
         /// </summary>
@@ -36,7 +34,6 @@ namespace Populous
             (-1, -1), (-1, 0), (-1, 1), (0, -1), (1, -1) 
         };
 
-        #endregion
 
 
         #region Setup Chunk
@@ -116,20 +113,24 @@ namespace Populous
             if (ChunkIndex.X > 0)
             {
                 for (int z = 0; z <= Terrain.Instance.TilesPerChunkSide; ++z)
-                    SetMeshHeightAtPoint((0, z), Terrain.Instance.GetPointHeight(
-                        (ChunkIndex.X - 1, ChunkIndex.Z),
-                        (ChunkIndex.X * Terrain.Instance.TilesPerChunkSide, z + ChunkIndex.Z * Terrain.Instance.TilesPerChunkSide)
-                    ));
+                {
+                    SetMeshHeightAtPoint(
+                        pointInChunk: (0, z),
+                        height: Terrain.Instance.GetChunkByIndex((ChunkIndex.X - 1, ChunkIndex.Z)).GetPointHeight((Terrain.Instance.TilesPerChunkSide, z))
+                    );
+                }
             }
 
             // bottom row should have the same heights as the top row in the chunk below
             if (ChunkIndex.Z > 0)
             {
                 for (int x = 0; x <= Terrain.Instance.TilesPerChunkSide; ++x)
-                    SetMeshHeightAtPoint((x, 0), Terrain.Instance.GetPointHeight(
-                        (ChunkIndex.X, ChunkIndex.Z - 1),
-                        (x + ChunkIndex.X * Terrain.Instance.TilesPerChunkSide, ChunkIndex.Z * Terrain.Instance.TilesPerChunkSide)
-                    ));
+                {
+                    SetMeshHeightAtPoint(
+                        pointInChunk: (x, 0),
+                        height: Terrain.Instance.GetChunkByIndex((ChunkIndex.X, ChunkIndex.Z - 1)).GetPointHeight((x, Terrain.Instance.TilesPerChunkSide))
+                    );
+                }
             }
 
             for (int z = 0; z <= Terrain.Instance.TilesPerChunkSide; ++z)
@@ -222,7 +223,7 @@ namespace Populous
         /// <param name="lower">True if the height should be decreased, false if the height should be increased.</param>
         public void ChangeHeight(TerrainPoint point, bool lower)
         {
-            (int x, int z) pointInChunk = GetPointChunkCoordinates(point);
+            (int x, int z) pointInChunk = GetChunkCoordinates(point.X, point.Z);
 
             int prevHeight = GetPointHeight(point);
             int newHeight = prevHeight + (lower ? -1 : 1) * Terrain.Instance.StepHeight;
@@ -233,9 +234,9 @@ namespace Populous
             SetMeshHeightAtPoint(pointInChunk, newHeight);
 
             // Update neighboring vertices
-            foreach (TerrainPoint neighbor in point.GetNeighbors())
+            foreach (TerrainPoint neighbor in point.GetAllNeighbors())
             {
-                (int x, int z) neighborInChunk = GetPointChunkCoordinates(neighbor);
+                (int x, int z) neighborInChunk = GetChunkCoordinates(neighbor.X, neighbor.Z);
                 if (Mathf.Abs(newHeight - GetPointHeight(neighborInChunk)) <= Terrain.Instance.StepHeight || !IsPointInChunk(neighborInChunk))
                     continue;
 
@@ -261,8 +262,8 @@ namespace Populous
                         tile.z < 0 || tile.z >= Terrain.Instance.TilesPerChunkSide)
                         continue;
 
-                    int prevHeight = GetTileCenterHeight(tile);
-                    int newHeight = CalculateTileCenterHeight(tile);
+                    float prevHeight = GetTileCenterHeight(tile);
+                    float newHeight = CalculateTileCenterHeight(tile);
 
                     if (prevHeight == newHeight) continue;
 
@@ -276,21 +277,34 @@ namespace Populous
         /// </summary>
         /// <param name="point">The <c>TerrainPoint</c> whose height should be set.</param>
         /// <param name="height">The value the height the <c>TerrainPoint</c> should be set to.</param>
-        public void SetVertexHeight(TerrainPoint point, int height) => SetMeshHeightAtPoint(GetPointChunkCoordinates(point), height);
+        public void SetVertexHeight(TerrainPoint point, int height) 
+            => SetMeshHeightAtPoint(GetChunkCoordinates(point.X, point.Z), height);
+
+        /// <summary>
+        /// Updates the heights of all the points that are under the water level to be at the water level.
+        /// </summary>
+        public void UpdatePointsUnderwater()
+        {
+            for (int z = 0; z <= Terrain.Instance.TilesPerChunkSide; ++z)
+            {
+                for (int x = 0; x <= Terrain.Instance.TilesPerChunkSide; ++x)
+                {
+                    if (GetPointHeight((x, z)) < Terrain.Instance.WaterLevel)
+                        SetMeshHeightAtPoint((x, z), Terrain.Instance.WaterLevel);
+
+                    if (x == Terrain.Instance.TilesPerChunkSide || z == Terrain.Instance.TilesPerChunkSide)
+                        continue;
+
+                    if (GetTileCenterHeight((x, z)) < Terrain.Instance.WaterLevel)
+                        SetTileCenterHeight((x, z), Terrain.Instance.WaterLevel);
+                }
+            }
+        }
 
         #endregion
 
 
         #region Terrain Point
-
-        /// <summary>
-        /// Translates the coordinates of the given point from coordinates relative to the whole terrain to coordinates relative to the chunk.
-        /// </summary>
-        /// <param name="point">The <c>TerrainPoint</c> whose coordinates we want..</param>
-        /// <returns>The coordinates of the point relative to the chunk.</returns>
-        public (int x, int z) GetPointChunkCoordinates(TerrainPoint point)
-            => (point.X - m_ChunkIndex.x * Terrain.Instance.TilesPerChunkSide,
-                point.Z - m_ChunkIndex.z * Terrain.Instance.TilesPerChunkSide);
 
         /// <summary>
         /// Checks whether the point is inside the bounds of the chunk.
@@ -306,20 +320,21 @@ namespace Populous
         /// </summary>
         /// <param name="point">The <c>TerrainPoint</c> whose height should be returned.</param>
         /// <returns>The height of the given point.</returns>
-        public int GetPointHeight(TerrainPoint point) => GetPointHeight(GetPointChunkCoordinates(point));
+        public int GetPointHeight(TerrainPoint point) => GetPointHeight(GetChunkCoordinates(point.X, point.Z));
         /// <summary>
         /// Gets the height of the given point.
         /// </summary>
         /// <param name="point">The coordinates of the point relative to the chunk whose height should be returned.</param>
         /// <returns>The height at the given point.</returns>
-        private int GetPointHeight((int x, int z) pointInChunk) => GetMeshHeightAtPoint(pointInChunk);
+        public int GetPointHeight((int x, int z) pointInChunk) => GetMeshHeightAtPoint(pointInChunk);
 
         /// <summary>
         /// Gets the height of the mesh at the given point.
         /// </summary>
         /// <param name="pointInChunk">The coordinates relative to the chunk of the point whose height should be returned.</param>
         /// <returns>The height at the given point.</returns>
-        private int GetMeshHeightAtPoint((int x, int z) pointInChunk) => (int)m_MeshData.GetVertexPosition(GetPointVertexIndex(pointInChunk)).y;
+        private int GetMeshHeightAtPoint((int x, int z) pointInChunk) 
+            => (int)m_MeshData.GetVertexPosition(GetPointVertexIndex(pointInChunk)).y;
         
         /// <summary>
         /// Sets the height of all the vertices at the given point to the given height.
@@ -398,21 +413,22 @@ namespace Populous
         /// </summary>
         /// <param name="tilePoint">The coordinates of the point at the bottom-left of the tile whose center height should be returned.</param>
         /// <returns>The height at the center of the given tile.</returns>
-        public int GetTileCenterHeight(TerrainPoint tilePoint) => GetTileCenterHeight(GetPointChunkCoordinates(tilePoint));
+        public float GetTileCenterHeight(TerrainTile tilePoint) => GetTileCenterHeight(GetChunkCoordinates(tilePoint.X, tilePoint.Z));
 
         /// <summary>
         /// Gets the height of the terrain at the center of the given tile.
         /// </summary>
         /// <param name="tileInChunk">The coordinates relative to the chunk of the tile whose center height should be returned.</param>
         /// <returns>The height at the center of the given tile.</returns>
-        private int GetTileCenterHeight((int x, int z) tileInChunk) => (int)m_MeshData.GetVertexPosition(GetTileCenterVertexIndex(tileInChunk)).y;
+        private float GetTileCenterHeight((int x, int z) tileInChunk) 
+            => (int)m_MeshData.GetVertexPosition(GetTileCenterVertexIndex(tileInChunk)).y;
 
         /// <summary>
         /// Sets the height of all the vertices at the center of the given tile to the given height.
         /// </summary>
         /// <param name="tileInChunk">The coordinates relative to the chunk of the tile whose center height should be returned.</param>
         /// <param name="height">The height the tile center should be set to.</param>
-        private void SetTileCenterHeight((int x, int z) tileInChunk, int height)
+        private void SetTileCenterHeight((int x, int z) tileInChunk, float height)
         {
             int tileIndex = GetPointVertexIndex(tileInChunk);
 
@@ -425,7 +441,7 @@ namespace Populous
         /// </summary>
         /// <param name="tileInChunk">The coordinates relative to the chunk of the tile whose center height should be returned.</param>
         /// <returns>The height at the center of the given tile.</returns>
-        private int CalculateTileCenterHeight((int x, int z) tileInChunk)
+        private float CalculateTileCenterHeight((int x, int z) tileInChunk)
         {
             int[] cornerHeights = new int[4];
             int i = 0;
@@ -457,5 +473,15 @@ namespace Populous
         private int GetTileCenterVertexIndex((int x, int z) tileInChunk) => GetPointVertexIndex(tileInChunk) + 1;
 
         #endregion
+
+
+        /// <summary>
+        /// Translates the given coordinates from coordinates relative to the whole terrain to coordinates relative to the chunk.
+        /// </summary>
+        /// <param name="x">The x coordinate relative to the whole terrain.</param>
+        /// <param name="z">The z coordinate relative to the whole terrain.</param>
+        /// <returns>The coordinates relative to the chunk.</returns>
+        private (int, int) GetChunkCoordinates(int x, int z)
+            => (x - m_ChunkIndex.x * Terrain.Instance.TilesPerChunkSide, z - m_ChunkIndex.z * Terrain.Instance.TilesPerChunkSide);
     }
 }

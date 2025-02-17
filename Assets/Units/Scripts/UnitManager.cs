@@ -230,7 +230,7 @@ namespace Populous
                 m_UnitPrefab,
                 new Vector3(
                     location.X * Terrain.Instance.UnitsPerTileSide,
-                    Terrain.Instance.GetPointHeight((location.X, location.Z)),
+                    location.GetHeight(),
                     location.Z * Terrain.Instance.UnitsPerTileSide),
                 Quaternion.identity
             );
@@ -453,13 +453,13 @@ namespace Populous
                     {
                         // we want to get at most twice the amount of tiles as there are units to spawn
                         if (redSpawns.Count <= 2 * m_StartingUnits && !blueSpawns.Contains(tile) &&
-                            !StructureManager.Instance.IsTileOccupied(tile) && !Terrain.Instance.IsTileUnderwater(tile))
+                            !StructureManager.Instance.IsTileOccupied(tile) && !(new TerrainTile(tile).IsUnderwater()))
                             redSpawns.Add(tile);
 
                         (int x, int z) oppositeTile = (Terrain.Instance.TilesPerSide - tile.x - 1, Terrain.Instance.TilesPerSide - tile.z - 1);
 
                         if (blueSpawns.Count <= 2 * m_StartingUnits && !redSpawns.Contains(oppositeTile) &&
-                            !StructureManager.Instance.IsTileOccupied(oppositeTile) && !Terrain.Instance.IsTileUnderwater(oppositeTile))
+                            !StructureManager.Instance.IsTileOccupied(oppositeTile) && !(new TerrainTile(oppositeTile).IsUnderwater()))
                             blueSpawns.Add(oppositeTile);
 
                         if (redSpawns.Count > 2 * m_StartingUnits && blueSpawns.Count > 2 * m_StartingUnits)

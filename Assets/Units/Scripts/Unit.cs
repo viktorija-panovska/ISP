@@ -32,12 +32,12 @@ namespace Populous
         /// <summary>
         /// The <c>TerrainPoint</c> on the terrain grid which is closest to the current position of the unit.
         /// </summary>
-        public TerrainPoint ClosestMapPoint { get => new(gameObject.transform.position.x, gameObject.transform.position.z, getClosestPoint: true); }
+        public TerrainPoint ClosestMapPoint { get => new(gameObject.transform.position); }
 
         /// <summary>
         /// The tile the unit is currently on.
         /// </summary>
-        public TerrainPoint Tile { get => new(gameObject.transform.position.x, gameObject.transform.position.z, getClosestPoint: false); }
+        public TerrainPoint Tile { get => new(); }//new(gameObject.transform.position.x, gameObject.transform.position.z, getClosestPoint: false); }
 
         private Team m_Team;
         /// <summary>
@@ -292,10 +292,10 @@ namespace Populous
                 height = startPosition.y < endPosition.y ? startPosition.y + height : endPosition.y + height;
             }
 
-            if (Terrain.Instance.IsTileUnderwater((Tile.X, Tile.Z)))
-                UnitManager.Instance.DespawnUnit(gameObject, hasDied: true);
-            else
-                SetHeight/*ClientRpc*/(height);
+            //if (Tile.IsTileUnderwater())
+            //    UnitManager.Instance.DespawnUnit(gameObject, hasDied: true);
+            //else
+            //    SetHeight/*ClientRpc*/(height);
 
             m_MovementHandler.UpdateTargetPointHeight();
         }

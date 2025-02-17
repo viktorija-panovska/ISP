@@ -3,7 +3,7 @@ using UnityEngine;
 namespace Populous
 {
     /// <summary>
-    /// The <c>MeshData</c> struct contains all the required data for the construction of a mesh and the data of one such mesh.
+    /// The <c>MeshData</c> struct contains the vertices and triangles of a mesh.
     /// </summary>
     public readonly struct MeshData
     {

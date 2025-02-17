@@ -8,6 +8,17 @@ using Random = System.Random;
 
 namespace Populous
 {
+    public enum StructureType
+    {
+        NONE,
+        TREE,
+        ROCK,
+        SETTLEMENT,
+        FIELD,
+        SWAMP
+    }
+
+
     /// <summary>
     /// The <c>StructureManager</c> class is a <c>MonoBehavior</c> which manages all the structures in the game.
     /// </summary>
@@ -90,11 +101,27 @@ namespace Populous
         public bool IsTileOccupied((int x, int z) tile) => m_StructureOnTile[tile.z, tile.x];
 
         /// <summary>
+        /// Checks whether there is a structure on the given tile.
+        /// </summary>
+        /// <param name="tile">The coordinates of the tile which should be checked.</param>
+        /// <returns>True if the tile is occupied by a structure, false otherwise.</returns>
+        public bool IsTileOccupied(TerrainTile tile) => m_StructureOnTile[tile.Z, tile.X];
+
+
+        /// <summary>
         /// Gets the <c>Structure</c> occupying the given tile.
         /// </summary>
         /// <param name="tile">The coordinates of the tile whose <c>Structure</c> should be returned.</param>
         /// <returns>The <c>Structure</c> occupying the given tile, or <c>null</c> if the tile is unoccupied.</returns>
         public Structure GetStructureOnTile((int x, int z) tile) => m_StructureOnTile[tile.z, tile.x];
+
+        /// <summary>
+        /// Gets the <c>Structure</c> occupying the given tile.
+        /// </summary>
+        /// <param name="tile">The coordinates of the tile whose <c>Structure</c> should be returned.</param>
+        /// <returns>The <c>Structure</c> occupying the given tile, or <c>null</c> if the tile is unoccupied.</returns>
+        public Structure GetStructureOnTile(TerrainTile tile) => m_StructureOnTile[tile.Z, tile.X];
+
 
         /// <summary>
         /// Sets the given structure to occupy the given tile.
@@ -126,7 +153,7 @@ namespace Populous
                 prefab,
                 new Vector3(
                     (tile.x + 0.5f) * Terrain.Instance.UnitsPerTileSide,
-                    prefab.transform.position.y + Terrain.Instance.GetTileCenterHeight(tile),
+                    prefab.transform.position.y + new TerrainTile(tile).GetCenterHeight(),
                     (tile.z + 0.5f) * Terrain.Instance.UnitsPerTileSide),
                 Quaternion.identity
             );
@@ -136,7 +163,7 @@ namespace Populous
             // Structure properties
             Structure structure = structureObject.GetComponent<Structure>();
             structure.Team = team;
-            structure.OccupiedPointHeights = occupiedPoints.ToDictionary(x => x, x => x.Height);
+            structure.OccupiedPointHeights = occupiedPoints.ToDictionary(x => x, x => x.GetHeight());
             structure.OccupiedTile = new TerrainPoint(tile.x, tile.z);
             SetOccupiedTile(tile, structure);
             GameController.Instance.OnTerrainModified += structure.ReactToTerrainChange;
@@ -250,17 +277,17 @@ namespace Populous
                 int randomIndex = random.Next(count + 1);
                 (spawnIndices[count], spawnIndices[randomIndex]) = (spawnIndices[randomIndex], spawnIndices[count]);
 
-                if (Terrain.Instance.IsTileUnderwater(tile))
+                if (new TerrainTile(tile).IsUnderwater())
                     continue;
 
                 if (spawnIndices[count] < lastTreeIndex)
-                    SpawnStructure(m_TreePrefab, tile, Terrain.Instance.GetTileCorners(tile));
+                    SpawnStructure(m_TreePrefab, tile, new()/*Terrain.Instance.GetTileCorners(tile)*/);
 
                 else if (spawnIndices[count] < lastBlackRockIndex)
-                    SpawnStructure(m_BlackRockPrefab, tile, Terrain.Instance.GetTileCorners(tile));
+                    SpawnStructure(m_BlackRockPrefab, tile, new()/*Terrain.Instance.GetTileCorners(tile)*/);
 
                 else if (spawnIndices[count] < lastWhiteRockIndex)
-                    SpawnStructure(m_WhiteRockPrefab, tile, Terrain.Instance.GetTileCorners(tile));
+                    SpawnStructure(m_WhiteRockPrefab, tile, new()/*Terrain.Instance.GetTileCorners(tile)*/);
             }
         }
 
@@ -287,7 +314,7 @@ namespace Populous
                 magnet.Team = i == 0 ? Team.RED : Team.BLUE;
                 magnetObject.transform.Rotate(new Vector3(1, -90, 1));
                 magnetObject.transform.position = Terrain.Instance.TerrainCenter.ToWorldPosition();
-                magnet.OccupiedTile = new(transform.position.x, transform.position.z, getClosestPoint: false);
+                //magnet.OccupiedTile = new(transform.position.x, transform.position.z, getClosestPoint: false);
                 GameController.Instance.OnTerrainModified += magnet.ReactToTerrainChange;
                 //GameController.Instance.OnFlood += magnet.ReactToTerrainChange;
             }
@@ -310,7 +337,7 @@ namespace Populous
             UnitMagnet symbol = m_UnitMagnets[(int)team];
             if (position == symbol.transform.position) return;
 
-            symbol.OccupiedTile = new(position.x, position.z, getClosestPoint: false);
+            //symbol.OccupiedTile = new(position.x, position.z, getClosestPoint: false);
 
             symbol.SetMagnetPosition_ClientRpc/*Rpc*/(symbol.OccupiedTile.ToWorldPosition()); 
         }
@@ -327,7 +354,7 @@ namespace Populous
         /// <param name="team">The team the settlement should belong to.</param>
         public void CreateSettlement(TerrainPoint tile, Team team) 
         {
-            if (tile.IsLastPoint) return;
+            if (tile.IsLastPoint()) return;
             //SpawnStructure(m_SettlementPrefab, (tile.X, tile.Z), tile.TileCorners, team); 
         }
 
@@ -410,7 +437,7 @@ namespace Populous
         public Field SpawnField((int x, int z) tile, Team team)
         {
             //if (!IsServer) return null;
-            Field field = SpawnStructure(m_FieldPrefab, tile, Terrain.Instance.GetTileCorners(tile)).GetComponent<Field>();
+            Field field = SpawnStructure(m_FieldPrefab, tile, new()/*Terrain.Instance.GetTileCorners(tile)*/).GetComponent<Field>();
             field.Team = team;
             return field;
         }
@@ -424,7 +451,7 @@ namespace Populous
         /// Creates a swamp on the given tile.
         /// </summary>
         /// <param name="tile">The tile the swamp should be created on.</param>
-        public void SpawnSwamp((int x, int z) tile) => SpawnStructure(m_SwampPrefab, tile, Terrain.Instance.GetTileCorners(tile));
+        public void SpawnSwamp((int x, int z) tile) => SpawnStructure(m_SwampPrefab, tile, new()/*Terrain.Instance.GetTileCorners(tile)*/);
 
         #endregion
 

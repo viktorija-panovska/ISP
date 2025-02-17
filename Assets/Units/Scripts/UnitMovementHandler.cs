@@ -67,7 +67,7 @@ namespace Populous
         /// <summary>
         /// The <c>TerrainPoint</c> closest to the current target point.
         /// </summary>
-        public TerrainPoint EndLocation { get => !m_TargetPoint.HasValue ? StartLocation : new(m_TargetPoint.Value.x, m_TargetPoint.Value.z, getClosestPoint: true); }
+        public TerrainPoint EndLocation { get => !m_TargetPoint.HasValue ? StartLocation : new(m_TargetPoint.Value); }
 
         private Unit m_Unit;
         private Rigidbody m_Rigidbody;
@@ -114,9 +114,9 @@ namespace Populous
 
         // FindNextStep
         /// <summary>
-        /// A <c>TerrainPoint</c> representing the tile the unit is moving towards, null if there is no such tile.
+        /// A <c>TerrainTile</c> representing the tile the unit is moving towards, null if there is no such tile.
         /// </summary>
-        private TerrainPoint? m_TargetTile;
+        private TerrainTile? m_TargetTile;
         /// <summary>
         /// The target this unit is going after, null if no such target exists.
         /// </summary>
@@ -208,7 +208,7 @@ namespace Populous
         {
             // if we have a flat space (that still exists) and we have reached the end of the path, we have reached the tile
             if (m_CurrentMoveState == MoveState.GO_TO_FLAT_SPACE && m_TargetTile.HasValue &&
-                Terrain.Instance.IsTileFlat((m_TargetTile.Value.X, m_TargetTile.Value.Z)) &&
+                m_TargetTile.Value.IsFlat() &&
                 !StructureManager.Instance.IsTileOccupied((m_TargetTile.Value.X, m_TargetTile.Value.Z)))
                 OnFlatTileReached();
 
@@ -281,13 +281,13 @@ namespace Populous
             // If we are settling, try to find a free tile in the vicinity.
             if (m_Unit.Behavior == UnitBehavior.SETTLE)
             {
-                TerrainPoint? targetTile = FindFreeTile(currentLocation);
+                TerrainTile? targetTile = FindFreeTile(currentLocation);
 
                 if (targetTile.HasValue)
                 {
                     SwitchMoveState(MoveState.GO_TO_FLAT_SPACE);
                     m_TargetTile = targetTile;
-                    SetPath(targetTile.Value.GetClosestTileCorner(currentLocation).ToWorldPosition());
+                    SetPath(targetTile.Value.GetClosestCorner(currentLocation).ToWorldPosition());
                     return true;
                 }
             }
@@ -306,8 +306,8 @@ namespace Populous
                 if (settlementInRange)
                 {
                     SwitchMoveState(MoveState.GO_TO_SETTLEMENT);
-                    m_TargetTile = settlementInRange.OccupiedTile;
-                    SetPath(m_TargetTile.Value.GetClosestTileCorner(currentLocation).ToWorldPosition());
+                    //m_TargetTile = settlementInRange.OccupiedTile;
+                    SetPath(m_TargetTile.Value.GetClosestCorner(currentLocation).ToWorldPosition());
                     return true;
                 }
                 
@@ -334,10 +334,10 @@ namespace Populous
         /// </summary>
         /// <param name="currentLocation">The <c>TerrainPoint</c> of the current location of this unit.</param>
         /// <returns>A <c>TerrainPoint</c> representing the free tile that was found, null if no such tile was found.</returns>
-        private TerrainPoint? FindFreeTile(TerrainPoint currentLocation)
+        private TerrainTile? FindFreeTile(TerrainPoint currentLocation)
         {
             UnitBehavior behavior = m_Unit.Behavior;
-            TerrainPoint? target = null;
+            TerrainTile? target = null;
 
             FindFreeTile_Surrounding();
 
@@ -357,17 +357,16 @@ namespace Populous
                 {
                     for (int x = 0; x >= -1; --x)
                     {
-                        TerrainPoint point = new(currentLocation.X + x, currentLocation.Z + z);
+                        TerrainTile tile = new(currentLocation.X + x, currentLocation.Z + z);
 
-                        if (!point.IsInBounds || point.IsLastPoint)
+                        if (!tile.IsInBounds())
                             continue;
 
-
-                        if (Terrain.Instance.IsTileUnderwater((point.X, point.Z)) || (behavior == UnitBehavior.SETTLE &&
-                            (!Terrain.Instance.IsTileFlat((point.X, point.Z)) || StructureManager.Instance.IsTileOccupied((point.X, point.Z)))))
+                        if (tile.IsUnderwater() || (behavior == UnitBehavior.SETTLE &&
+                            (!tile.IsUnderwater()) || StructureManager.Instance.IsTileOccupied((tile.X, tile.Z))))
                             continue;
 
-                        target = point;
+                        target = tile;
                         return;
                     }
                 }
@@ -391,13 +390,13 @@ namespace Populous
 
                         if (widthTarget < 0 || widthTarget >= Terrain.Instance.TilesPerSide) continue;
 
-                        TerrainPoint point = m_CurrentRoamDirection.x == 0 ? new(widthTarget, distanceTarget) : new(distanceTarget, widthTarget);
+                        TerrainTile tile = m_CurrentRoamDirection.x == 0 ? new(widthTarget, distanceTarget) : new(distanceTarget, widthTarget);
 
-                        if (Terrain.Instance.IsTileUnderwater((point.X, point.Z)) || (behavior == UnitBehavior.SETTLE &&
-                            (!Terrain.Instance.IsTileFlat((point.X, point.Z)) || StructureManager.Instance.IsTileOccupied((point.X, point.Z)))))
+                        if (tile.IsUnderwater() || (behavior == UnitBehavior.SETTLE &&
+                            (!tile.IsFlat() || StructureManager.Instance.IsTileOccupied((tile.X, tile.Z)))))
                             continue;
 
-                        target = point;
+                        target = tile;
                         return;
                     }
                 }
@@ -425,16 +424,16 @@ namespace Populous
                             int targetX = currentLocation.X + m_CurrentRoamDirection.x * dx;
                             int targetZ = currentLocation.Z + m_CurrentRoamDirection.z * dz;
 
-                            TerrainPoint point = new(targetX, targetZ);
+                            TerrainTile tile = new(targetX, targetZ);
 
-                            if (!point.IsInBounds || point.IsLastPoint)
+                            if (!tile.IsInBounds())
                                 continue;
 
-                            if (Terrain.Instance.IsTileUnderwater((point.X, point.Z)) || (behavior == UnitBehavior.SETTLE &&
-                                (!Terrain.Instance.IsTileFlat((point.X, point.Z)) || StructureManager.Instance.IsTileOccupied((point.X, point.Z)))))
+                            if (tile.IsUnderwater() || (behavior == UnitBehavior.SETTLE &&
+                                (!tile.IsFlat() || StructureManager.Instance.IsTileOccupied((tile.X, tile.Z)))))
                                 continue;
 
-                            target = point;
+                            target = tile;
                             return;
                         }
                     }
@@ -456,11 +455,8 @@ namespace Populous
                 {
                     TerrainPoint point = new(currentLocation.X + dx, currentLocation.Z + dz);
 
-
-                    if (!point.IsInBounds) continue;
-
-
-                    if (Terrain.Instance.IsTileUnderwater((point.X, point.Z)) || !Terrain.Instance.IsTileCornerReachable(currentLocation, point))
+                    if (!point.IsInBounds()) continue;
+                    if (point.IsUnderwater()/* || !Terrain.Instance.IsTileCornerReachable(currentLocation, tile)*/)
                         continue;
 
                     availableDirections.Add((dx, dz));
@@ -543,8 +539,8 @@ namespace Populous
             (int x, int z) target = (currentLocation.X + m_CurrentRoamDirection.x, currentLocation.Z + m_CurrentRoamDirection.z);
             TerrainPoint targetLocation = new(target.x, target.z);
 
-            if (!targetLocation.IsInBounds || !Terrain.Instance.IsTileCornerReachable(currentLocation, targetLocation) ||
-                Terrain.Instance.IsTileUnderwater(target))
+            if (!targetLocation.IsInBounds() ||/* !Terrain.Instance.IsTileCornerReachable(currentLocation, targetLocation) ||*/
+                targetLocation.IsUnderwater())
             {
                 m_RoamStepsInDirection = 0;
                 ChooseRoamDirection(currentLocation);
@@ -564,7 +560,7 @@ namespace Populous
         /// Gets the path from the current position to the given end position and sets it up as the current path the unit should follow.
         /// </summary>
         /// <param name="end">The <c>Vector3</c> position of the end point.</param>
-        private void SetPath(Vector3 end) => SetPath(Pathfinder.FindPath(m_Unit.ClosestMapPoint, new(end.x, end.z, getClosestPoint: true))); 
+        private void SetPath(Vector3 end) => SetPath(Pathfinder.FindPath(m_Unit.ClosestMapPoint, new(end))); 
 
         /// <summary>
         /// Sets the path the unit should follow and initializes the movement along it.
@@ -646,8 +642,8 @@ namespace Populous
         /// </summary>
         /// <param name="tile">The (x, z)-coordinates of the given tile </param>
         /// <returns></returns>
-        private int GetCenterPositionHeight((float x, float z) tile) 
-            => Terrain.Instance.GetTileCenterHeight(((int)(tile.x / Terrain.Instance.UnitsPerTileSide), (int)(tile.z / Terrain.Instance.UnitsPerTileSide)));
+        private float GetCenterPositionHeight((float x, float z) tile) 
+            => new TerrainTile((int)(tile.x / Terrain.Instance.UnitsPerTileSide), (int)(tile.z / Terrain.Instance.UnitsPerTileSide)).GetCenterHeight();
 
         /// <summary>
         /// 
@@ -657,7 +653,7 @@ namespace Populous
             if (!m_TargetPoint.HasValue) return;
 
             Vector3 target = m_TargetPoint.Value;
-            m_TargetPoint = new(target.x, !m_MoveToCenter ? EndLocation.Height : GetCenterPositionHeight((target.x, target.z)), target.z);
+            m_TargetPoint = new(target.x, !m_MoveToCenter ? EndLocation.GetHeight() : GetCenterPositionHeight((target.x, target.z)), target.z);
         }
 
         #endregion
@@ -740,7 +736,7 @@ namespace Populous
         private void OnFlatTileReached()
         {
             SwitchMoveState(MoveState.STOP);
-            StructureManager.Instance.CreateSettlement(m_TargetTile.Value, m_Unit.Team);
+            //StructureManager.Instance.CreateSettlement(m_TargetTile.Value, m_Unit.Team);
 
             m_TargetTile = null;
             SwitchMoveState(MoveState.ROAM);
@@ -761,10 +757,10 @@ namespace Populous
         /// <param name="tile">The target tile.</param>
         public void StopMovingToTile(TerrainPoint tile)
         {
-            if (m_TargetTile != tile) return;
+            //if (m_TargetTile != tile) return;
 
-            m_TargetTile = null;
-            SwitchMoveState(MoveState.ROAM);
+            //m_TargetTile = null;
+            //SwitchMoveState(MoveState.ROAM);
         }
 
         /// <summary>
@@ -772,7 +768,7 @@ namespace Populous
         /// </summary>
         /// <returns>True if the target tile exists and is flat, false otherwise.</returns>
         public bool IsTargetTileFlat()
-            => !m_TargetTile.HasValue || Terrain.Instance.IsTileFlat((m_TargetTile.Value.X, m_TargetTile.Value.Z));
+            => !m_TargetTile.HasValue || m_TargetTile.Value.IsFlat();
 
         /// <summary>
         /// Sets the unit to wander around its current location.
@@ -793,25 +789,67 @@ namespace Populous
         private TerrainPoint GetNeighboringPoint(TerrainPoint point)
         {
             Random random = new();
-            List<TerrainPoint> neighbors = point.Neighbors;
+            //List<TerrainPoint> neighbors = point.Neighbors;
             TerrainPoint? neighbor = null;
 
-            int neighborsCount = neighbors.Count;
-            for (int i = 0; i < neighborsCount; ++i)
-            {
-                TerrainPoint choice = neighbors[random.Next(neighbors.Count)];
+            //int neighborsCount = neighbors.Count;
+            //for (int i = 0; i < neighborsCount; ++i)
+            //{
+            //    TerrainPoint choice = neighbors[random.Next(neighbors.Count)];
 
-                neighbors.Remove(choice);
-                if (Terrain.Instance.IsTileCornerReachable(point, choice))
-                {
-                    neighbor = choice;
-                    break;
-                }
-            }
+            //    neighbors.Remove(choice);
+            //    if (Terrain.Instance.IsTileCornerReachable(point, choice))
+            //    {
+            //        neighbor = choice;
+            //        break;
+            //    }
+            //}
 
             return neighbor.Value;
         }
 
         #endregion
+
+
+
+        /// <summary>
+        /// Checks
+        /// </summary>
+        /// <param name="start">A <c>TerrainPoint</c> representing the start corner.</param>
+        /// <param name="end">A <c>TerrainPoint</c> representing the end corner.</param>
+        /// <returns>True if no <c>Structure</c> or water is crossed, false otherwise.</returns>
+        public static bool IsStepTargetReachable(TerrainPoint start, TerrainPoint end)
+        {
+            // we are going into the water, so it is not reachable
+            if (end.IsUnderwater()) return false;
+
+            int dx = end.X - start.X;
+            int dz = end.Z - start.Z;
+
+            // we are moving along the edge of the tile and not into the water, so its fine
+            if (Mathf.Abs(dx) != Mathf.Abs(dz)) return true;
+
+
+            (int x, int z) = (start.X, start.Z);
+
+            if (dx > 0 && dz < 0)
+                z -= 1;
+            else if (dx < 0 && dz > 0)
+                x -= 1;
+            else if (dx < 0 && dz < 0)
+            {
+                x -= 1;
+                z -= 1;
+            }
+
+            if (x < 0 || z < 0)
+                return false;
+
+            Structure structure = StructureManager.Instance.GetStructureOnTile((x, z));
+            if (!structure || structure.GetType() == typeof(Field) || structure.GetType() == typeof(Swamp))
+                return true;
+
+            return false;
+        }
     }
 }

@@ -235,7 +235,7 @@ namespace Populous
         /// <param name="modifiedAreaCorners"></param>
         public void RespondToTerrainUpdate((TerrainPoint bottomLeft, TerrainPoint topRight) modifiedAreaCorners)
         {
-            TerrainBorderWalls.Instance.ModifyWallsInArea(modifiedAreaCorners.bottomLeft, modifiedAreaCorners.topRight);
+            TerrainBorderWalls.Instance.UpdateWallsInArea(modifiedAreaCorners.bottomLeft, modifiedAreaCorners.topRight);
             Minimap.Instance.UpdateTextureInArea(modifiedAreaCorners.bottomLeft, modifiedAreaCorners.topRight);
 
             // for units and structures
@@ -567,7 +567,7 @@ namespace Populous
         [ServerRpc(RequireOwnership = false)]
         public void MoldTerrain_ServerRpc(Team team, TerrainPoint point, bool lower)
         {
-            if (point.Height == Terrain.Instance.MaxHeight) return;
+            if (point.IsAtMaxHeight()) return;
 
             RemoveManna(team, m_PowerMannaCost[(int)Power.MOLD_TERRAIN]);
             MoldTerrain_ClientRpc(point, lower);
@@ -602,7 +602,7 @@ namespace Populous
 
             StructureManager.Instance.SetMagnetPosition/*ClientRpc*/(team, new Vector3(
                 point.X * Terrain.Instance.UnitsPerTileSide,
-                point.Height,
+                point.GetHeight(),
                 point.Z * Terrain.Instance.UnitsPerTileSide
             ));
 
@@ -662,7 +662,7 @@ namespace Populous
                     (int x, int z) neighborTile = (center.X + x, center.Z + z);
                     if (center.X + x < 0 || center.X + x >= Terrain.Instance.TilesPerSide ||
                         center.Z + z < 0 || center.Z + z >= Terrain.Instance.TilesPerSide ||
-                        !Terrain.Instance.IsTileFlat(neighborTile))
+                        !(new TerrainTile(neighborTile).IsFlat()))
                         continue;
 
                     Structure structure = StructureManager.Instance.GetStructureOnTile(neighborTile);
@@ -782,7 +782,7 @@ namespace Populous
         /// <param name="team">The <c>Team</c> of the player that triggered the power.</param>
         public void CauseFlood(Team team)
         {
-            if (Terrain.Instance.WaterLevel == Terrain.Instance.MaxHeight)
+            if (Terrain.Instance.HasReachedMaxWaterLevel())
                 return;
 
             RemoveManna(team, m_PowerMannaCost[(int)Power.FLOOD]);

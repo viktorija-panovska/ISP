@@ -28,8 +28,6 @@ namespace Populous
     /// </summary>
     public class PerlinNoiseGenerator : MonoBehaviour, INoiseGenerator
     {
-        #region Inspector Fields
-
         [Tooltip("Higher values create more varied noise, and vice versa.")]
         [SerializeField] private float m_Scale = 2f;
 
@@ -38,8 +36,6 @@ namespace Populous
 
         [Tooltip("Lower factors create landmasses with more land and less water, and vice versa.")]
         [SerializeField] private float m_FalloffScaleFactor = 0.5f;
-
-        #endregion
 
 
         /// <summary>

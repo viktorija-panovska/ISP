@@ -12,6 +12,7 @@ namespace Populous
         [Tooltip("A black-colored material for the border walls.")]
         [SerializeField] private Material m_WallMaterial;
 
+
         private static TerrainBorderWalls m_Instance;
         /// <summary>
         /// Gets the singleton instance of the class.
@@ -144,7 +145,7 @@ namespace Populous
         #endregion
 
 
-        #region Modify Border Walls
+        #region Update Border Walls
 
         /// <summary>
         /// Updates the heights of the points on all four walls.
@@ -166,7 +167,7 @@ namespace Populous
         /// </summary>
         /// <param name="bottomLeft">The bottom-left corner of a rectangular area containing all modified terrain points.</param>
         /// <param name="topRight">The top-right corner of a rectangular area containing all modified terrain points.</param>
-        public void ModifyWallsInArea(TerrainPoint bottomLeft, TerrainPoint topRight)
+        public void UpdateWallsInArea(TerrainPoint bottomLeft, TerrainPoint topRight)
         {
             if (bottomLeft.X == 0)
             {
@@ -248,24 +249,23 @@ namespace Populous
             switch (side)
             {
                 case WallSide.LEFT:
-                    height = Terrain.Instance.GetPointHeight(new(0, point));
+                    height = new TerrainPoint(0, point).GetHeight();
                     break;
 
                 case WallSide.RIGHT:
-                    height = Terrain.Instance.GetPointHeight(new(Terrain.Instance.TilesPerSide, point));
+                    height = new TerrainPoint(Terrain.Instance.TilesPerSide, point).GetHeight();
                     break;
 
                 case WallSide.BOTTOM:
-                    height = Terrain.Instance.GetPointHeight(new(point, 0));
+                    height = new TerrainPoint(point, 0).GetHeight();
                     break;
 
                 case WallSide.TOP:
-                    height = Terrain.Instance.GetPointHeight(new(point, Terrain.Instance.TilesPerSide));
+                    height = new TerrainPoint(point, Terrain.Instance.TilesPerSide).GetHeight();
                     break;
             }
 
             return height >= Terrain.Instance.WaterLevel ? height : Terrain.Instance.WaterLevel;
         }
-
     }
 }

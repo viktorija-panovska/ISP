@@ -1,6 +1,8 @@
 namespace Populous
 {
-
+    /// <summary>
+    /// The <c>MeshProperties</c> class contains data necessary for the construction of a mesh.
+    /// </summary>
     public static class MeshProperties
     {
         /// <summary>

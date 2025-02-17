@@ -103,7 +103,7 @@ Material:
     - _TextureScale: 10
     - _UVSec: 0
     - _WaveAmp: 0.01
-    - _WaveAmplitude: 0.01
+    - _WaveAmplitude: 0.006
     - _WaveSpeed: 100
     - _ZWrite: 1
     m_Colors:

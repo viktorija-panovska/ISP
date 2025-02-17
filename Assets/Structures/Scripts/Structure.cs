@@ -83,13 +83,13 @@ namespace Populous
             // since it wasn't destroyed, it should be moved
             if (m_DestroyMethod == DestroyMethod.DROWN)
             {
-                int height = Terrain.Instance.GetTileCenterHeight((m_OccupiedTile.X, m_OccupiedTile.Z));
+                //int height = (int)m_OccupiedTile.TileCenterHeight;
 
-                var corners = m_OccupiedPointHeights.Keys.ToArray();
-                foreach (TerrainPoint point in corners)
-                    m_OccupiedPointHeights[point] = height;
+                //var corners = m_OccupiedPointHeights.Keys.ToArray();
+                //foreach (TerrainPoint point in corners)
+                //    m_OccupiedPointHeights[point] = height;
 
-                SetHeight_ClientRpc/*ClientRpc*/(height);
+                //SetHeight_ClientRpc/*ClientRpc*/(height);
             }
         }
 
@@ -102,11 +102,11 @@ namespace Populous
             if (m_DestroyMethod == DestroyMethod.NONE)
                 return false;
 
-            if (m_DestroyMethod == DestroyMethod.DROWN)
-                return Terrain.Instance.IsTileUnderwater((m_OccupiedTile.X, m_OccupiedTile.Z));
+            //if (m_DestroyMethod == DestroyMethod.DROWN)
+            //    return m_OccupiedTile.IsTileUnderwater();
 
             foreach ((TerrainPoint point, int height) in m_OccupiedPointHeights)
-                if (point.Height != height)
+                if (point.GetHeight() != height)
                     return true;
 
             return false;

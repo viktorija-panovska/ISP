@@ -194,8 +194,8 @@ namespace Populous
                 return;
             }
 
-            if (m_DestroyMethod == DestroyMethod.DROWN)
-                SetHeight_ClientRpc/*ClientRpc*/(Terrain.Instance.GetTileCenterHeight((m_OccupiedTile.X, m_OccupiedTile.Z)));
+            //if (m_DestroyMethod == DestroyMethod.DROWN)
+            //    SetHeight_ClientRpc/*ClientRpc*/(m_OccupiedTile.TileCenterHeight);
         }
 
         /// <inheritdoc />
@@ -300,10 +300,10 @@ namespace Populous
             m_IsDestroyed = true;
             OnSettlementDestroyed?.Invoke(this);
 
-            if (Terrain.Instance.IsTileUnderwater((m_OccupiedTile.X, m_OccupiedTile.Z)))
-                UnitManager.Instance.RemovePopulation(m_Team, m_FollowersInSettlement);
-            else
-                ReleaseUnit(m_CurrentSettlementData.UnitStrength);
+            //if (m_OccupiedTile.IsTileUnderwater())
+            //    UnitManager.Instance.RemovePopulation(m_Team, m_FollowersInSettlement);
+            //else
+            //    ReleaseUnit(m_CurrentSettlementData.UnitStrength);
 
             if (updateNeighbors)
                 UpdateSharedSettlements();
@@ -382,7 +382,7 @@ namespace Populous
                     if ((x, z) == (0, 0) || (x != 0 && z != 0 && Mathf.Abs(x) != Mathf.Abs(z)) ||
                         neighborTile.x < 0 || neighborTile.x >= Terrain.Instance.TilesPerSide ||
                         neighborTile.z < 0 || neighborTile.z >= Terrain.Instance.TilesPerSide ||
-                        !Terrain.Instance.IsTileFlat(neighborTile))
+                        !(new TerrainTile(neighborTile).IsFlat()))
                         continue;
 
                     Structure structure = StructureManager.Instance.GetStructureOnTile(neighborTile);

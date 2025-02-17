@@ -135,7 +135,7 @@ namespace Populous
         /// </summary>
         /// <remarks>Used when following another unit.</remarks>
         /// <param name="start">The <c>TerrainPoint</c> that this unit is at.</param>
-        /// <param name="end">The <c>TerrainPoint</c> that is the final destination..</param>
+        /// <param name="end">The <c>TerrainPoint</c> that is the final destination.</param>
         /// <returns>A <c>TerrainPoint</c> which this unit should go to next, null if no such point is found.</returns>
         public static TerrainPoint? FindNextStep(TerrainPoint start, TerrainPoint end)
         {
@@ -156,7 +156,7 @@ namespace Populous
 
                     TerrainPoint newLocation = new(x, z);
 
-                    if (!newLocation.IsOnEdge && !Terrain.Instance.IsTileCornerReachable(start, newLocation))
+                    if (!newLocation.IsOnEdge() && !UnitMovementHandler.IsStepTargetReachable(start, newLocation))
                         continue;
 
                     float cost = GetDistanceCost(newLocation, end);
@@ -222,8 +222,8 @@ namespace Populous
                     TerrainPoint neighborPoint = new(x, z);
 
                     // checks whether it will need to cross a tile that contains a structure or water to reach the neighbor
-                    if (!Terrain.Instance.IsTileCornerReachable(currentNode.Point, neighborPoint))
-                        continue;
+                    //if (!Terrain.Instance.IsTileCornerReachable(currentNode.Point, neighborPoint))
+                    //    continue;
 
                     Vector2 key = GetKey(neighborPoint);
 

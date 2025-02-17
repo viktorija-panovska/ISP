@@ -239,7 +239,7 @@ namespace Populous
             Vector2 mousePosition = Mouse.current.position.ReadValue();
             Vector2 positionOnTerrain = new Vector2(mousePosition.x - minimapBottomLeft.x, mousePosition.y - minimapBottomLeft.y) * scale;
 
-            TerrainPoint closestPoint = new(positionOnTerrain.x, positionOnTerrain.y, getClosestPoint: true);
+            TerrainPoint closestPoint = new(positionOnTerrain);
             CameraController.Instance.SetCameraLookPosition(closestPoint.ToWorldPosition());
         }
 
