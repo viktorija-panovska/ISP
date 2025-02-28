@@ -1,3 +1,4 @@
+using Unity.Netcode;
 using UnityEngine;
 
 namespace Populous
@@ -38,5 +39,15 @@ namespace Populous
         /// <returns></returns>
         public static int GetNextArrayIndex(int start, int increment, int arrayLength)
             => (start + increment + arrayLength) % arrayLength;
+
+
+        public static ClientRpcParams GetClientParams(ulong clientId)
+            => new()
+            {
+                Send = new ClientRpcSendParams
+                {
+                    TargetClientIds = new ulong[] { clientId }
+                }
+            };
     }
 }

@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace Populous
 {
-    public enum Team
+    public enum Faction
     {
         RED,
         BLUE,
@@ -49,11 +49,11 @@ namespace Populous
         private FixedString64Bytes m_SteamName;
         public readonly string SteamName { get => m_SteamName.ToString(); }
 
-        private Team m_Team;
-        public readonly Team Team { get => m_Team; }
+        private Faction m_Team;
+        public readonly Faction Team { get => m_Team; }
 
 
-        public PlayerInfo(ulong networkId, ulong steamId, Team team)
+        public PlayerInfo(ulong networkId, ulong steamId, Faction team)
         {
             m_NetworkId = networkId;
             m_SteamId = steamId;
@@ -89,7 +89,7 @@ namespace Populous
         private NetworkList<PlayerInfo> m_PlayersInfo;
 
         private readonly ulong[] m_NetworkIdForTeam = new ulong[ConnectionManager.MAX_PLAYERS];
-        private readonly Team[] m_TeamForNetworkId = new Team[ConnectionManager.MAX_PLAYERS];
+        private readonly Faction[] m_TeamForNetworkId = new Faction[ConnectionManager.MAX_PLAYERS];
 
 
         private void Awake()
@@ -129,7 +129,7 @@ namespace Populous
             return null;
         }
 
-        public PlayerInfo? GetPlayerInfoByTeam(Team team)
+        public PlayerInfo? GetPlayerInfoByTeam(Faction team)
         {
             for (int i = 0; i < m_PlayersInfo.Count; ++i)
                 if (m_PlayersInfo[i].Team == team)
@@ -138,10 +138,10 @@ namespace Populous
             return null;
         }
 
-        public ulong GetNetworkIdByTeam(Team team) => GetNetworkIdByTeam((int)team);
+        public ulong GetNetworkIdByTeam(Faction team) => GetNetworkIdByTeam((int)team);
         public ulong GetNetworkIdByTeam(int team) => m_NetworkIdForTeam[team];
 
-        public Team GetTeamByNetworkId(ulong networkId) => m_TeamForNetworkId[networkId];
+        public Faction GetTeamByNetworkId(ulong networkId) => m_TeamForNetworkId[networkId];
 
         #endregion
 
@@ -149,10 +149,10 @@ namespace Populous
         #region Modify Player Info List
 
         [ServerRpc(RequireOwnership = false)]
-        public void AddPlayerInfoServerRpc(ulong networkId, ulong steamId, Team team)
+        public void AddPlayerInfoServerRpc(ulong networkId, ulong steamId, Faction team)
             => AddPlayerInfo(new PlayerInfo(networkId, steamId, team));
 
-        public bool AddCurrentPlayerInfo(Team team)
+        public bool AddCurrentPlayerInfo(Faction team)
             => AddPlayerInfo(new PlayerInfo(NetworkManager.Singleton.LocalClientId, SteamClient.SteamId, team));
 
         public bool AddPlayerInfo(PlayerInfo playerInfo)
@@ -193,7 +193,7 @@ namespace Populous
             return false;
         }
 
-        public bool RemovePlayerInfoByTeam(Team team)
+        public bool RemovePlayerInfoByTeam(Faction team)
         {
             for (int i = 0; i < m_PlayersInfo.Count; ++i)
             {
