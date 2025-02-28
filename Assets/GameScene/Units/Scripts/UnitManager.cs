@@ -324,7 +324,7 @@ namespace Populous
 
             FindSpawnPoints(ref redSpawnPoints, ref blueSpawnPoints);
 
-            Random random = new(!GameData.Instance ? 0 : GameData.Instance.MapSeed);
+            Random random = new(!GameData.Instance ? 0 : GameData.Instance.GameSeed);
 
             // go over both teams
             for (int team = 0; team <= 1; ++team)

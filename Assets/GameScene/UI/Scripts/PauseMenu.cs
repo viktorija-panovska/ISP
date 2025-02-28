@@ -45,7 +45,7 @@ namespace Populous
 
         private void Start()
         {
-            m_GameSeedField.text = GameData.Instance ? GameData.Instance.MapSeed.ToString() : "";
+            m_GameSeedField.text = GameData.Instance ? GameData.Instance.GameSeed.ToString() : "";
 
             foreach (Button button in m_Buttons)
                 button.onClick.AddListener(() => AudioController.Instance.PlaySound(SoundType.MENU_BUTTON));

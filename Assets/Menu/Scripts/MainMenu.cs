@@ -11,7 +11,7 @@ namespace Populous
     /// <summary>
     /// This class contains methods which define the behavior of the Main Menu UI.
     /// </summary>
-    public class MainMenuController : MonoBehaviour
+    public class MainMenu : MonoBehaviour
     {
         [SerializeField] private Texture2D m_CursorTexture;
         [SerializeField] private Button m_JoinLobbyButton;
@@ -122,7 +122,7 @@ namespace Populous
                 return;
             }
 
-            ConnectionManager.Instance.StartHost(m_LobbyNameInputField.text, m_PasswordInputField.text, m_MapSeedInputField.text);
+            ConnectionManager.Instance.CreateGame(m_LobbyNameInputField.text, m_PasswordInputField.text, m_MapSeedInputField.text);
         }
 
         private void ClearHostValues()
@@ -196,7 +196,7 @@ namespace Populous
 
         private void EnterLobby()
         {
-            ConnectionManager.Instance.JoinLobby(m_SelectedLobby.LobbyId);
+            ConnectionManager.Instance.JoinGame(m_SelectedLobby.LobbyId);
             m_SelectedLobby = null;
         }
 
@@ -213,7 +213,7 @@ namespace Populous
             m_LobbyEntryList = new();
 
 
-            if (ConnectionManager.Instance.Local)
+            if (ConnectionManager.Instance.LocalConnection)
             {
                 GameObject entryObject = Instantiate(m_LobbyEntryPrefab);
                 entryObject.transform.SetParent(m_LobbyScrollView.transform);

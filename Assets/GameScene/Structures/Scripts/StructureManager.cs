@@ -261,7 +261,7 @@ namespace Populous
         /// <param name="topRight">The <c>TerrainTile</c> at the top right of the given area.</param>
         private void PlaceTreesAndRocks(float treePercent, float blackRockPercent, float whiteRockPercent, TerrainTile bottomLeft, TerrainTile topRight)
         {
-            Random random = new(!GameData.Instance ? 0 : GameData.Instance.MapSeed);
+            Random random = new(!GameData.Instance ? 0 : GameData.Instance.GameSeed);
 
             int height = topRight.Z - bottomLeft.Z;
             int width = topRight.X - bottomLeft.X;

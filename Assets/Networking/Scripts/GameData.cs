@@ -84,7 +84,7 @@ namespace Populous
         public LobbyInfo CurrentLobbyInfo { get => m_CurrentLobbyInfo.Value; set { m_CurrentLobbyInfo.Value = value; } }
 
         private NetworkVariable<int> m_MapSeed;
-        public int MapSeed { get => m_MapSeed.Value; set { m_MapSeed.Value = value; } }
+        public int GameSeed { get => m_MapSeed.Value; set { m_MapSeed.Value = value; } }
 
         private NetworkList<PlayerInfo> m_PlayersInfo;
 

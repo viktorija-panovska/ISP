@@ -1,3 +1,4 @@
+using Netcode.Transports.Facepunch;
 using Steamworks;
 using Steamworks.Data;
 using System;
@@ -36,6 +37,12 @@ namespace Populous
         /// 
         /// </summary>
         private const int MAX_CONNECTION_PAYLOAD = 1024;
+
+        /// <summary>
+        /// True if the connection is being made locally, false if the connection is over Steam.
+        /// </summary>
+        /// <remarks>For testing purposes only.</remarks>
+        public bool LocalConnection { get => m_LocalConnection; }
 
         /// <summary>
         /// The lobby this client is currently in.
@@ -94,48 +101,71 @@ namespace Populous
 
             NetworkManager.Singleton.OnServerStarted -= OnServerStarted;
             NetworkManager.Singleton.ConnectionApprovalCallback -= OnConnectionApproval;
-            NetworkManager.Singleton.OnClientConnectedCallback -= OnClientConnectedCallback;
-            NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnectCallback;
+            NetworkManager.Singleton.OnClientConnectedCallback -= OnClientConnected;
+            NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnected;
         }
 
-        private void OnApplicationQuit()
-        {
-            Disconnect();
-            SteamClient.Shutdown();
-        }
+        private void OnApplicationQuit() => Disconnect();
 
         #endregion
 
 
-        #region Steamworks API
+        #region Hosting a Game
+
+        public void CreateGame(string lobbyName, string lobbyPassword, string gameSeed)
+        {
+            Debug.Log("Create Game");
+
+            GameData.Instance.CurrentLobbyInfo = new LobbyInfo(lobbyName, lobbyPassword);
+            GameData.Instance.GameSeed = gameSeed.Length > 0 ? int.Parse(gameSeed) : new Random().Next(0, int.MaxValue);
+
+            ScreenFader.Instance.OnFadeOutComplete += StartHost;
+            ScreenFader.Instance.FadeOut();
+        }
+
+        private async void StartHost()
+        {
+            Debug.Log("Start Host");
+            ScreenFader.Instance.OnFadeOutComplete -= StartHost;
+
+            NetworkManager.Singleton.OnServerStarted += OnServerStarted;
+            NetworkManager.Singleton.ConnectionApprovalCallback += OnConnectionApproval;
+            NetworkManager.Singleton.StartHost();
+
+            m_CurrentLobby = await SteamMatchmaking.CreateLobbyAsync(MAX_PLAYERS);
+        }
+
+        private void OnServerStarted()
+        {
+            Debug.Log("OnServerStarted");
+
+            if (!NetworkManager.Singleton.IsHost) return;
+            SceneLoader.Instance.SwitchToScene(Scene.LOBBY);
+        }
 
         private void OnLobbyCreated(Result result, Lobby lobby)
         {
-            if (result != Result.OK) return;
+            Debug.Log("OnLobbyCreated");
+
+            if (result != Result.OK)
+            {
+                Debug.Log("Lobby wasn't created");
+                return;
+            }
 
             lobby.SetData("name", GameData.Instance.CurrentLobbyInfo.LobbyName);
             lobby.SetData("password", GameData.Instance.CurrentLobbyInfo.LobbyPassword);
-            lobby.SetData("seed", GameData.Instance.MapSeed.ToString());
+            lobby.SetData("seed", GameData.Instance.GameSeed.ToString());
             lobby.SetData("isISP", "true");
             lobby.SetPublic();
             lobby.SetJoinable(true);
+            lobby.SetGameServer(lobby.Owner.Id);    // set game server associated with the lobby
 
-            NetworkManager.Singleton.StartHost();
+            Debug.Log("Lobby created");
         }
-
-        private void OnLobbyEntered(Lobby lobby)
-        {
-            if (NetworkManager.Singleton.IsHost) return;
-        }
-
-        private void OnLobbyMemberJoined(Lobby lobby, Friend friend)
-        {
-            throw new NotImplementedException();
-        }
-
 
         /// <summary>
-        /// A game server has been associated with the lobby.
+        /// A game server has been associated with the lobby. Populates when the host is started.
         /// </summary>
         /// <param name="lobby"></param>
         /// <param name="ip"></param>
@@ -146,20 +176,135 @@ namespace Populous
             Debug.Log("OnLobbyGameCreated");
         }
 
+        #endregion
+
+
+
+
+        #region Joining a lobby
+
+        public async Task<Lobby[]> GetActiveLobbies()
+            => await SteamMatchmaking.LobbyList.WithMaxResults(10).RequestAsync();
+
+        public void JoinGame(SteamId steamId)
+        {
+            Debug.Log("Join Game");
+
+            NetworkManager.Singleton.OnClientConnectedCallback += OnClientConnected;
+            NetworkManager.Singleton.OnClientDisconnectCallback += OnClientDisconnected;
+
+            GetComponent<FacepunchTransport>().targetSteamId = steamId;
+            Debug.Log("Joining room hosted by " + steamId);
+
+            ScreenFader.Instance.OnFadeOutComplete += StartClient;
+            ScreenFader.Instance.FadeOut();
+        }
+
+        private void StartClient()
+        {
+            ScreenFader.Instance.OnFadeOutComplete -= StartClient;
+
+            //if (m_LocalConnection)
+            //{
+            //    LocalConnectionManager.Instance.StartClient("test");
+            //    return;
+            //}
+
+            if (NetworkManager.Singleton.StartClient())
+                Debug.Log("Client has started");
+        }
+
+        private void OnLobbyEntered(Lobby lobby)
+        {
+            if (NetworkManager.Singleton.IsHost) return;
+            Debug.Log("OnLobbyEntered");
+
+            // how the players connect
+            //JoinGame(m_CurrentLobby.Value.Owner.Id);
+        }
+
+        private void OnLobbyMemberJoined(Lobby lobby, Friend friend)
+        {
+            Debug.Log("OnLobbyMemberJoined");
+        }
+
+        private void OnLobbyMemberLeave(Lobby lobby, Friend friend)
+        {
+            Debug.Log("OnLobbyMemberLeave");
+        }
+
+        /// <summary>
+        /// Called when the given friend invited this client to the given lobby.
+        /// </summary>
+        /// <param name="friend"></param>
+        /// <param name="lobby"></param>
+        private void OnLobbyInvite(Friend friend, Lobby lobby)
+        {
+            Debug.Log("OnLobbyInvite");
+        }
+
+
+
         /// <summary>
         /// Called when a user tries to join the lobby hosted by this client through their friends list.
         /// </summary>
         /// <param name="lobby"></param>
         /// <param name="steamId"></param>
-        private void OnGameLobbyJoinRequested(Lobby lobby, SteamId steamId)
+        private async void OnGameLobbyJoinRequested(Lobby lobby, SteamId steamId)
         {
             Debug.Log("OnGameLobbyJoinRequested");
+
+            RoomEnter joinLobby = await lobby.Join();
+
+            if (joinLobby != RoomEnter.Success)
+            {
+                Debug.Log("Failed to enter lobby");
+                return;
+            }
+
+            m_CurrentLobby = lobby;
+            Debug.Log("Joined lobby");
         }
 
         #endregion
 
 
+        #region Unity Netcode
 
+
+        private void OnClientDisconnected(ulong obj)
+        {
+            throw new NotImplementedException();
+        }
+
+        private void OnClientConnected(ulong obj)
+        {
+            throw new NotImplementedException();
+        }
+
+
+        public void Disconnect()
+        {
+            m_CurrentLobby?.Leave();
+            if (NetworkManager.Singleton == null)
+                return;
+
+            if (NetworkManager.Singleton.IsHost)
+            {
+                NetworkManager.Singleton.OnServerStarted -= OnServerStarted;
+                NetworkManager.Singleton.ConnectionApprovalCallback -= OnConnectionApproval;
+            }
+            else
+            {
+                NetworkManager.Singleton.OnClientConnectedCallback -= OnClientConnected;
+                NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnected;
+            }
+
+            NetworkManager.Singleton.Shutdown(true);
+            Debug.Log("Disconnected");
+        }
+
+        #endregion
 
 
 
@@ -184,38 +329,12 @@ namespace Populous
 
         #region Hosting
 
-        public void StartHost(string lobbyName, string lobbyPassword, string mapSeed)
-        {
-            GameData.Instance.CurrentLobbyInfo = new LobbyInfo(lobbyName, lobbyPassword);
-            GameData.Instance.MapSeed = mapSeed.Length > 0 ? int.Parse(mapSeed) : new Random().Next(0, int.MaxValue);
-
-            ScreenFader.Instance.OnFadeOutComplete += OnHostStartReady;
-            ScreenFader.Instance.FadeOut();
-        }
-
-        private async void OnHostStartReady()
-        {
-            ScreenFader.Instance.OnFadeOutComplete -= OnHostStartReady;
-
-            if (m_LocalConnection)
-            {
-                LocalConnectionManager.Instance.StartHost("test");
-                return;
-            }
-
-            NetworkManager.Singleton.OnServerStarted += OnServerStarted;
-            NetworkManager.Singleton.ConnectionApprovalCallback += OnConnectionApproval;
-
-            m_CurrentLobby = await SteamMatchmaking.CreateLobbyAsync(MAX_PLAYERS);
-        }
 
 
 
-        private void OnServerStarted()
-        {
-            if (!NetworkManager.Singleton.IsHost) return;
-            SceneLoader.Instance.SwitchToScene(Scene.LOBBY);
-        }
+
+
+
 
         private void OnConnectionApproval(NetworkManager.ConnectionApprovalRequest request, NetworkManager.ConnectionApprovalResponse response)
         {
@@ -259,34 +378,7 @@ namespace Populous
 
         #region Joining
 
-        public async Task<Lobby[]> GetActiveLobbies()
-            => await SteamMatchmaking.LobbyList.WithMaxResults(10).RequestAsync();
 
-        public void JoinLobby(SteamId lobbyId)
-        {
-            //NetworkManager.Singleton.OnClientConnectedCallback += OnClientConnectedCallback;
-            //NetworkManager.Singleton.OnClientDisconnectCallback += OnClientDisconnectCallback;
-
-            //NetworkManager.Singleton.GetComponent<FacepunchTransport>().targetSteamId = lobbyId;
-            //Debug.Log("Joining room hosted by " + lobbyId);
-
-            ScreenFader.Instance.OnFadeOutComplete += OnClientStartReady;
-            ScreenFader.Instance.FadeOut();
-        }
-
-        private void OnClientStartReady()
-        {
-            ScreenFader.Instance.OnFadeOutComplete -= OnClientStartReady;
-
-            if (Local)
-            {
-                LocalConnectionManager.Instance.StartClient("test");
-                return;
-            }
-
-            if (NetworkManager.Singleton.StartClient())
-                Debug.Log("Client has started");
-        }
 
 
 
@@ -306,25 +398,25 @@ namespace Populous
 
         #region Leaving
 
-        public void Disconnect()
-        {
-            if (Local)
-            {
-                LocalConnectionManager.Instance.Disconnect();
-            }
+        //public void Disconnect()
+        //{
+        //    if (Local)
+        //    {
+        //        LocalConnectionManager.Instance.Disconnect();
+        //    }
 
-            //if (NetworkManager.Singleton == null)
-            //    return;
+        //    //if (NetworkManager.Singleton == null)
+        //    //    return;
 
-            //if (NetworkManager.Singleton.IsHost && NetworkManager.Singleton.SceneManager != null)
-            //    NetworkManager.Singleton.SceneManager.OnSceneEvent -= OnSceneEvent;
+        //    //if (NetworkManager.Singleton.IsHost && NetworkManager.Singleton.SceneManager != null)
+        //    //    NetworkManager.Singleton.SceneManager.OnSceneEvent -= OnSceneEvent;
 
-            //if (NetworkManager.Singleton.IsHost)
-            //    OnHostDisconnectRequest();
+        //    //if (NetworkManager.Singleton.IsHost)
+        //    //    OnHostDisconnectRequest();
 
-            //else if (NetworkManager.Singleton.IsClient)
-            //    OnClientDisconnectRequest();
-        }
+        //    //else if (NetworkManager.Singleton.IsClient)
+        //    //    OnClientDisconnectRequest();
+        //}
 
         public void KickClient()
         {

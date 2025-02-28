@@ -57,7 +57,7 @@ namespace Populous
 
             m_LobbyNameField.text = GameData.Instance.CurrentLobbyInfo.LobbyName;
             m_LobbyPasswordField.text = GameData.Instance.CurrentLobbyInfo.LobbyPassword;
-            m_MapSeedField.text = GameData.Instance.MapSeed.ToString();
+            m_MapSeedField.text = GameData.Instance.GameSeed.ToString();
 
             if (NetworkManager.Singleton.IsHost)
                 m_ServerOnly.SetActive(true);

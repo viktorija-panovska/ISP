@@ -51,7 +51,7 @@ namespace Populous
         /// <inheritdoc />
         public void Setup()
         {
-            m_Seed = !GameData.Instance ? 0 : GameData.Instance.MapSeed;
+            m_Seed = !GameData.Instance ? 0 : GameData.Instance.GameSeed;
             m_Offsets = GenerateNoiseOffsets();
         }
 
