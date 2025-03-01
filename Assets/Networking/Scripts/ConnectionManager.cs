@@ -82,7 +82,6 @@ namespace Populous
             SteamMatchmaking.OnLobbyMemberJoined += OnLobbyMemberJoined;
             SteamMatchmaking.OnLobbyMemberLeave += OnLobbyMemberLeave;
             SteamMatchmaking.OnLobbyInvite += OnLobbyInvite;
-            SteamMatchmaking.OnLobbyGameCreated += OnLobbyGameCreated;
             SteamFriends.OnGameLobbyJoinRequested += OnGameLobbyJoinRequested;
         }
 
@@ -93,7 +92,6 @@ namespace Populous
             SteamMatchmaking.OnLobbyMemberJoined -= OnLobbyMemberJoined;
             SteamMatchmaking.OnLobbyMemberLeave -= OnLobbyMemberLeave;
             SteamMatchmaking.OnLobbyInvite -= OnLobbyInvite;
-            SteamMatchmaking.OnLobbyGameCreated -= OnLobbyGameCreated;
             SteamFriends.OnGameLobbyJoinRequested -= OnGameLobbyJoinRequested;
 
             if (NetworkManager.Singleton == null)
@@ -164,18 +162,6 @@ namespace Populous
             Debug.Log("Lobby created");
         }
 
-        /// <summary>
-        /// A game server has been associated with the lobby. Populates when the host is started.
-        /// </summary>
-        /// <param name="lobby"></param>
-        /// <param name="ip"></param>
-        /// <param name="port"></param>
-        /// <param name="steamId"></param>
-        private void OnLobbyGameCreated(Lobby lobby, uint ip, ushort port, SteamId steamId)
-        {
-            Debug.Log("OnLobbyGameCreated");
-        }
-
         #endregion
 
 
@@ -186,64 +172,11 @@ namespace Populous
         public async Task<Lobby[]> GetActiveLobbies()
             => await SteamMatchmaking.LobbyList.WithMaxResults(10).RequestAsync();
 
-        public void JoinGame(SteamId steamId)
-        {
-            Debug.Log("Join Game");
-
-            NetworkManager.Singleton.OnClientConnectedCallback += OnClientConnected;
-            NetworkManager.Singleton.OnClientDisconnectCallback += OnClientDisconnected;
-
-            GetComponent<FacepunchTransport>().targetSteamId = steamId;
-            Debug.Log("Joining room hosted by " + steamId);
-
-            ScreenFader.Instance.OnFadeOutComplete += StartClient;
-            ScreenFader.Instance.FadeOut();
-        }
-
-        private void StartClient()
-        {
-            ScreenFader.Instance.OnFadeOutComplete -= StartClient;
-
-            //if (m_LocalConnection)
-            //{
-            //    LocalConnectionManager.Instance.StartClient("test");
-            //    return;
-            //}
-
-            if (NetworkManager.Singleton.StartClient())
-                Debug.Log("Client has started");
-        }
-
-        private void OnLobbyEntered(Lobby lobby)
-        {
-            if (NetworkManager.Singleton.IsHost) return;
-            Debug.Log("OnLobbyEntered");
-
-            // how the players connect
-            //JoinGame(m_CurrentLobby.Value.Owner.Id);
-        }
-
-        private void OnLobbyMemberJoined(Lobby lobby, Friend friend)
-        {
-            Debug.Log("OnLobbyMemberJoined");
-        }
-
-        private void OnLobbyMemberLeave(Lobby lobby, Friend friend)
-        {
-            Debug.Log("OnLobbyMemberLeave");
-        }
-
-        /// <summary>
-        /// Called when the given friend invited this client to the given lobby.
-        /// </summary>
-        /// <param name="friend"></param>
-        /// <param name="lobby"></param>
+        /// when you receive an invite from a friend
         private void OnLobbyInvite(Friend friend, Lobby lobby)
         {
             Debug.Log("OnLobbyInvite");
         }
-
-
 
         /// <summary>
         /// Called when a user tries to join the lobby hosted by this client through their friends list.
@@ -266,10 +199,51 @@ namespace Populous
             Debug.Log("Joined lobby");
         }
 
+        private void OnLobbyEntered(Lobby lobby)
+        {
+            if (NetworkManager.Singleton.IsHost) return;
+            Debug.Log("OnLobbyEntered");
+
+            // how the players connect
+            JoinGame(m_CurrentLobby.Value.Owner.Id);
+        }
+
+        public void JoinGame(SteamId steamId)
+        {
+            Debug.Log("Join Game");
+
+            NetworkManager.Singleton.OnClientConnectedCallback += OnClientConnected;
+            NetworkManager.Singleton.OnClientDisconnectCallback += OnClientDisconnected;
+
+            GetComponent<FacepunchTransport>().targetSteamId = steamId;
+            Debug.Log("Joining room hosted by " + steamId);
+
+            ScreenFader.Instance.OnFadeOutComplete += StartClient;
+            ScreenFader.Instance.FadeOut();
+        }
+
+        private void StartClient()
+        {
+            ScreenFader.Instance.OnFadeOutComplete -= StartClient;
+
+            if (NetworkManager.Singleton.StartClient())
+                Debug.Log("Client has started");
+        }
+
+        private void OnLobbyMemberJoined(Lobby lobby, Friend friend)
+        {
+            Debug.Log("OnLobbyMemberJoined");
+        }
+
+        private void OnClientConnected(ulong obj)
+        {
+            Debug.Log("OnClientConnected");
+        }
+
         #endregion
 
 
-        #region Unity Netcode
+        #region Disconnect
 
 
         private void OnClientDisconnected(ulong obj)
@@ -277,9 +251,9 @@ namespace Populous
             throw new NotImplementedException();
         }
 
-        private void OnClientConnected(ulong obj)
+        private void OnLobbyMemberLeave(Lobby lobby, Friend friend)
         {
-            throw new NotImplementedException();
+            Debug.Log("OnLobbyMemberLeave");
         }
 
 

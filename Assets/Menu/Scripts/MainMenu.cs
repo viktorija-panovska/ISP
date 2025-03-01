@@ -233,8 +233,8 @@ namespace Populous
 
             foreach (Lobby lobby in lobbies)
             {
-                if (lobby.GetData("isISP") == "")
-                    continue;
+                //if (lobby.GetData("isISP") == "")
+                //    continue;
 
                 GameObject entryObject = Instantiate(m_LobbyEntryPrefab);
                 LobbyEntry entry = entryObject.GetComponent<LobbyEntry>();
