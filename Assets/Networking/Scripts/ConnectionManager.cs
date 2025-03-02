@@ -149,6 +149,7 @@ namespace Populous
             Debug.Log("GoToLobby");
             ScreenFader.Instance.OnFadeOutComplete -= GoToLobby;
             SceneLoader.Instance.SwitchToScene(Scene.LOBBY);
+            NetworkManager.Singleton.SceneManager.OnSceneEvent += SceneLoader.Instance.HandleSceneEvent;
         }
 
         #endregion
@@ -167,7 +168,7 @@ namespace Populous
         /// Triggers the client to attempt to join the given lobby.
         /// </summary>
         /// <param name="lobby">The <c>Lobby</c> the client wants to join.</param>
-        public void JoinLobby(Lobby lobby, string password)
+        public void JoinGame(Lobby lobby, string password)
         {
             NetworkManager.Singleton.NetworkConfig.ConnectionData = Encoding.UTF8.GetBytes(password);
             OnGameLobbyJoinRequested(lobby, lobby.Owner.Id);
@@ -225,6 +226,7 @@ namespace Populous
             if (!NetworkManager.Singleton.StartClient())
             {
                 Debug.Log("Client Start Failed");
+                NetworkManager.Singleton.NetworkConfig.ConnectionData = Encoding.UTF8.GetBytes("");
                 return;
             }
         }
@@ -270,19 +272,17 @@ namespace Populous
                 Debug.Log("--- Denied");
 
                 response.Approved = false;
-                MainMenu.Instance.SetConnectionDeniedReason("Maximum payload size exceeded.");
+                SetConnectionDeniedReason_ClientRpc("Maximum payload size exceeded.", GameUtils.GetClientParams(clientId));
                 return;
             }
 
-            string payload = Encoding.UTF8.GetString(connectionData);
-            var connectionPayload = JsonUtility.FromJson<ConnectionPayload>(payload);
-
-            if (connectionPayload.password != GameData.Instance.LobbyPassword)
+            string password = Encoding.UTF8.GetString(connectionData);
+            if (password != GameData.Instance.LobbyPassword)
             {
                 Debug.Log("--- Denied");
 
                 response.Approved = false;
-                MainMenu.Instance.SetConnectionDeniedReason("Incorrect password.");
+                SetConnectionDeniedReason_ClientRpc("Incorrect password.", GameUtils.GetClientParams(clientId));
                 return;
             }
 
@@ -291,19 +291,23 @@ namespace Populous
                 Debug.Log("--- Denied");
 
                 response.Approved = false;
-                MainMenu.Instance.SetConnectionDeniedReason("Lobby full.");
+                SetConnectionDeniedReason_ClientRpc("Lobby full.", GameUtils.GetClientParams(clientId));
                 return;
             }
 
             response.Approved = true;
         }
 
+        [ClientRpc]
+        private void SetConnectionDeniedReason_ClientRpc(string reason, ClientRpcParams clientRpcParams = default)
+            => MainMenu.Instance.SetConnectionDeniedReason(reason);
+
         #endregion
 
 
         #region Disconnect
 
-        private void OnLobbyMemberLeave(Steamworks.Data.Lobby lobby, Friend friend)
+        private void OnLobbyMemberLeave(Lobby lobby, Friend friend)
         {
             Debug.Log("OnLobbyMemberLeave");
         }
@@ -311,6 +315,8 @@ namespace Populous
         private void OnClientDisconnected(ulong clientId)
         {
             Debug.Log("OnClientDisconnect");
+
+            if (clientId != NetworkManager.Singleton.LocalClientId) return;
         }
 
         public void Disconnect()

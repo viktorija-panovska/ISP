@@ -261,8 +261,8 @@ namespace Populous
         /// Calls the <see cref="ConnectionManager"/> to attempt to join the selected lobby.
         /// </summary>
         private void EnterLobby(string password = "")
-        { 
-            ConnectionManager.Instance.JoinLobby(m_SelectedLobbyEntry.Lobby, password);
+        {
+            ConnectionManager.Instance.JoinGame(m_SelectedLobbyEntry.Lobby, password);
             m_SelectedLobbyEntry = null;
         }
 
