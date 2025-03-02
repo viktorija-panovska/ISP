@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -9,6 +10,7 @@ namespace Populous
     /// </summary>
     public enum Scene
     {
+        NONE,
         /// <summary>
         /// The Main Menu scene
         /// </summary>
@@ -33,6 +35,8 @@ namespace Populous
         /// Gets an instance of the class.
         /// </summary>
         public static SceneLoader Instance { get => m_Instance; }
+
+        private readonly Dictionary<ulong, Scene> m_ClientInScene = new();
 
 
         private void Awake()
@@ -66,7 +70,32 @@ namespace Populous
                 return;
 
             if (sceneEvent.SceneEventType == SceneEventType.LoadComplete || sceneEvent.SceneEventType == SceneEventType.SynchronizeComplete)
+            {
+                switch(sceneEvent.SceneName)
+                {
+                    case "MAIN_MENU":
+                        m_ClientInScene[sceneEvent.ClientId] = Scene.MAIN_MENU;
+                        break;
+
+                    case "LOBBY":
+                        m_ClientInScene[sceneEvent.ClientId] = Scene.LOBBY;
+                        break;
+
+                    case "GAME_SCENE":
+                        m_ClientInScene[sceneEvent.ClientId] = Scene.GAME_SCENE;
+                        break;
+
+                    default:
+                        m_ClientInScene[sceneEvent.ClientId] = Scene.NONE;
+                        break;
+                }
+
                 ScreenFader.Instance.FadeIn();
+
+            }
         }
+
+        public Scene GetClientScene(ulong clientId)
+            => m_ClientInScene[clientId];
     }
 }

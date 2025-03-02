@@ -157,7 +157,7 @@ namespace Populous
                 return;
             }
 
-            ConnectionManager.Instance.StartHost(
+            ConnectionManager.Instance.CreateLobby(
                 m_LobbyNameInputField.text.ToLower(), 
                 m_PasswordInputField.text.ToLower(), 
                 m_GameSeedInputField.text.ToLower()
