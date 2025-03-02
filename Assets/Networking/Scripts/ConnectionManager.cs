@@ -41,7 +41,6 @@ namespace Populous
         private (string name, string password, string seed) m_EnteredGameData;
 
 
-
         #region Event Functions
 
         private void Awake()
@@ -74,7 +73,6 @@ namespace Populous
             if (NetworkManager.Singleton == null)
                 return;
 
-            NetworkManager.Singleton.OnServerStarted -= OnServerStarted;
             NetworkManager.Singleton.ConnectionApprovalCallback -= OnConnectionApproval;
             NetworkManager.Singleton.OnClientConnectedCallback -= OnClientConnected;
             NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnected;
@@ -88,37 +86,24 @@ namespace Populous
         #region Starting a Host
 
         /// <summary>
-        /// Sets the values of the game that is being started and its associated lobby, and starts the process of launching the host.
+        /// Launches a network host for the game.
         /// </summary>
         /// <param name="lobbyName">The name of the lobby that should be created.</param>
         /// <param name="lobbyPassword">The optional password of the lobby that should be created.</param>
         /// <param name="gameSeed">The seed the created game should use to randomly generate the terrain and other game elements.</param>
-        public void CreateLobby(string lobbyName, string lobbyPassword, string gameSeed)
+        public async void StartHost(string lobbyName, string lobbyPassword, string gameSeed)
         {
             Debug.Log("Create Game");
 
             m_EnteredGameData = (lobbyName, lobbyPassword, gameSeed);
 
-            ScreenFader.Instance.OnFadeOutComplete += StartHost;
-            ScreenFader.Instance.FadeOut();
-        }
-
-        /// <summary>
-        /// Launches the host and creates the lobby associated with the started game.
-        /// </summary>
-        private async void StartHost()
-        {
-            Debug.Log("Start Host");
-
-            ScreenFader.Instance.OnFadeOutComplete -= StartHost;
-
-            NetworkManager.Singleton.OnServerStarted += OnServerStarted;
             NetworkManager.Singleton.ConnectionApprovalCallback += OnConnectionApproval;
 
             if (!NetworkManager.Singleton.StartHost())
             {
                 Debug.LogError("Host Start Failed");
                 m_EnteredGameData = ("", "", "");
+                NetworkManager.Singleton.ConnectionApprovalCallback -= OnConnectionApproval;
                 return;
             }
 
@@ -126,18 +111,7 @@ namespace Populous
         }
 
         /// <summary>
-        /// Called when the creation of the server has completed, and triggers the transfer to the lobby scene.
-        /// </summary>
-        private void OnServerStarted()
-        {
-            Debug.Log("OnServerStarted");
-
-            if (!NetworkManager.Singleton.IsHost) return;
-            SceneLoader.Instance.SwitchToScene(Scene.LOBBY);
-        }
-
-        /// <summary>
-        /// Called when the creation of the lobby has completed, and sets the data lobby data.
+        /// Sets up the lobby data, if the lobby has been successfully created.
         /// </summary>
         /// <param name="result">The status of the creation of the lobby.</param>
         /// <param name="lobby">The created lobby.</param>
@@ -147,7 +121,7 @@ namespace Populous
 
             if (result != Result.OK)
             {
-                Debug.Log("Lobby wasn't created");
+                Debug.Log("Lobby Creation Failed");
                 return;
             }
 
@@ -162,6 +136,19 @@ namespace Populous
 
             int gameSeed = int.TryParse(m_EnteredGameData.seed, out int seed) ? seed : new Random().Next(); 
             GameData.Instance.Setup(lobby, gameSeed);
+
+            ScreenFader.Instance.OnFadeOutComplete += GoToLobby;
+            ScreenFader.Instance.FadeOut();
+        }
+
+        /// <summary>
+        /// Takes the host from the main menu scene to the lobby scene.
+        /// </summary>
+        private void GoToLobby()
+        {
+            Debug.Log("GoToLobby");
+            ScreenFader.Instance.OnFadeOutComplete -= GoToLobby;
+            SceneLoader.Instance.SwitchToScene(Scene.LOBBY);
         }
 
         #endregion
@@ -180,7 +167,11 @@ namespace Populous
         /// Triggers the client to attempt to join the given lobby.
         /// </summary>
         /// <param name="lobby">The <c>Lobby</c> the client wants to join.</param>
-        public void JoinLobby(Lobby lobby) => OnGameLobbyJoinRequested(lobby, lobby.Owner.Id);
+        public void JoinLobby(Lobby lobby, string password)
+        {
+            NetworkManager.Singleton.NetworkConfig.ConnectionData = Encoding.UTF8.GetBytes(password);
+            OnGameLobbyJoinRequested(lobby, lobby.Owner.Id);
+        }
 
         /// <summary>
         /// Attempts to join the given lobby, which is owned by the Steam user with the given ID.
@@ -196,6 +187,7 @@ namespace Populous
             if (joinLobby != RoomEnter.Success)
             {
                 Debug.Log("Failed to enter lobby");
+                NetworkManager.Singleton.NetworkConfig.ConnectionData = Encoding.UTF8.GetBytes("");
                 return;
             }
 
@@ -230,8 +222,11 @@ namespace Populous
         {
             ScreenFader.Instance.OnFadeOutComplete -= StartClient;
 
-            if (NetworkManager.Singleton.StartClient())
-                Debug.Log("Client has started");
+            if (!NetworkManager.Singleton.StartClient())
+            {
+                Debug.Log("Client Start Failed");
+                return;
+            }
         }
 
         /// <summary>
@@ -275,6 +270,7 @@ namespace Populous
                 Debug.Log("--- Denied");
 
                 response.Approved = false;
+                MainMenu.Instance.SetConnectionDeniedReason("Maximum payload size exceeded.");
                 return;
             }
 
@@ -286,24 +282,23 @@ namespace Populous
                 Debug.Log("--- Denied");
 
                 response.Approved = false;
+                MainMenu.Instance.SetConnectionDeniedReason("Incorrect password.");
                 return;
             }
 
-            if (m_CurrentLobby.Value.MemberCount < MAX_PLAYERS)
+            if (NetworkManager.Singleton.ConnectedClientsIds.Count >= MAX_PLAYERS)
             {
-                Debug.Log("--- Approved");
+                Debug.Log("--- Denied");
 
-                response.Approved = true;
+                response.Approved = false;
+                MainMenu.Instance.SetConnectionDeniedReason("Lobby full.");
                 return;
             }
 
-            //NetworkManager.Singleton.DisconnectClient(clientId);
+            response.Approved = true;
         }
 
         #endregion
-
-
-
 
 
         #region Disconnect
@@ -326,10 +321,7 @@ namespace Populous
                 return;
 
             if (NetworkManager.Singleton.IsHost)
-            {
-                NetworkManager.Singleton.OnServerStarted -= OnServerStarted;
                 NetworkManager.Singleton.ConnectionApprovalCallback -= OnConnectionApproval;
-            }
             else
             {
                 NetworkManager.Singleton.OnClientConnectedCallback -= OnClientConnected;

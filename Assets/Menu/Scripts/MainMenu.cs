@@ -45,6 +45,10 @@ namespace Populous
         [SerializeField] private TMP_Text m_LobbyName;
         [Tooltip("The input field that the player should enter the password in.")]
         [SerializeField] private TMP_InputField m_PasswordCheckInputField;
+        [Tooltip("The GameObject of the text that shows that connection has been denied.")]
+        [SerializeField] private GameObject m_ConnectionDeniedText;
+        [Tooltip("The text field that shows the reason the client couldn't connect to the lobby.")]
+        [SerializeField] private TMP_Text m_ConnectionDeniedReasonField;
 
         #endregion
 
@@ -153,7 +157,11 @@ namespace Populous
                 return;
             }
 
-            ConnectionManager.Instance.CreateLobby(m_LobbyNameInputField.text, m_PasswordInputField.text, m_GameSeedInputField.text);
+            ConnectionManager.Instance.StartHost(
+                m_LobbyNameInputField.text.ToLower(), 
+                m_PasswordInputField.text.ToLower(), 
+                m_GameSeedInputField.text.ToLower()
+            );
         }
 
         /// <summary>
@@ -237,22 +245,37 @@ namespace Populous
         {
             Debug.Log("Submit Password: " + m_PasswordCheckInputField.text);
 
+            m_ConnectionDeniedText.SetActive(false);
+            m_ConnectionDeniedReasonField.text = "";
+
             if (m_PasswordCheckInputField.text.Length == 0)
             {
                 InterfaceUtils.FlashWrong(m_PasswordCheckInputField.image);
                 return;
             }
 
-            EnterLobby();
+            EnterLobby(m_PasswordCheckInputField.text.ToLower());
         }
 
         /// <summary>
         /// Calls the <see cref="ConnectionManager"/> to attempt to join the selected lobby.
         /// </summary>
-        private void EnterLobby()
+        private void EnterLobby(string password = "")
         { 
-            ConnectionManager.Instance.JoinLobby(m_SelectedLobbyEntry.Lobby);
+            ConnectionManager.Instance.JoinLobby(m_SelectedLobbyEntry.Lobby, password);
             m_SelectedLobbyEntry = null;
+        }
+
+        /// <summary>
+        /// Called when the connection to a lobby through a password is denied.
+        /// </summary>
+        /// <param name="reason">The reason why the client couldn't connect.</param>
+        public void SetConnectionDeniedReason(string reason)
+        {
+            Debug.Log("SetConnectionDenied");
+            InterfaceUtils.FlashWrong(m_PasswordCheckInputField.image);
+            m_ConnectionDeniedText.SetActive(true);
+            m_ConnectionDeniedReasonField.text = $"Reason: {reason}";
         }
 
         #endregion
