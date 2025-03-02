@@ -283,7 +283,7 @@ namespace Populous
                 Debug.Log("--- Denied");
 
                 response.Approved = false;
-                SetConnectionDeniedReason_ClientRpc("Maximum payload size exceeded.", GameUtils.GetClientParams(clientId));
+                response.Reason = "Maximum payload size exceeded.";
                 return;
             }
 
@@ -293,7 +293,7 @@ namespace Populous
                 Debug.Log("--- Denied");
 
                 response.Approved = false;
-                SetConnectionDeniedReason_ClientRpc("Incorrect password.", GameUtils.GetClientParams(clientId));
+                response.Reason = "Incorrect password.";
                 return;
             }
 
@@ -302,16 +302,12 @@ namespace Populous
                 Debug.Log("--- Denied");
 
                 response.Approved = false;
-                SetConnectionDeniedReason_ClientRpc("Lobby full.", GameUtils.GetClientParams(clientId));
+                response.Reason = "Lobby full.";
                 return;
             }
 
             response.Approved = true;
         }
-
-        [ClientRpc]
-        private void SetConnectionDeniedReason_ClientRpc(string reason, ClientRpcParams clientRpcParams = default)
-            => MainMenu.Instance.SetConnectionDeniedReason(reason);
 
         #endregion
 
@@ -329,8 +325,11 @@ namespace Populous
 
             if (clientId != NetworkManager.Singleton.LocalClientId) return;
 
-            if (SceneLoader.Instance.GetClientScene(clientId) == Scene.MAIN_MENU)
-                ScreenFader.Instance.FadeIn();
+            // and it is in the main menu
+            if (NetworkManager.Singleton.DisconnectReason != "")
+                MainMenu.Instance.SetConnectionDeniedReason(NetworkManager.Singleton.DisconnectReason);
+
+            ScreenFader.Instance.FadeIn();
         }
 
         public void Disconnect()
@@ -340,6 +339,7 @@ namespace Populous
             if (NetworkManager.Singleton == null)
                 return;
 
+            NetworkManager.Singleton.SceneManager.OnSceneEvent -= SceneLoader.Instance.HandleSceneEvent;
             if (NetworkManager.Singleton.IsHost)
             {
                 NetworkManager.Singleton.OnServerStarted -= OnServerStarted;
@@ -349,7 +349,6 @@ namespace Populous
             {
                 NetworkManager.Singleton.OnClientConnectedCallback -= OnClientConnected;
                 NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnected;
-                //NetworkManager.Singleton.SceneManager.OnSceneEvent -= SceneLoader.Instance.HandleSceneEvent;
             }
 
             NetworkManager.Singleton.Shutdown(true);

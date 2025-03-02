@@ -65,13 +65,14 @@ namespace Populous
         /// <param name="sceneEvent">The <c>SceneEvent</c> to be processed.</param>
         public void HandleSceneEvent(SceneEvent sceneEvent)
         {
-            Debug.Log("Handle Scene Event");
             if (sceneEvent.ClientId != NetworkManager.Singleton.LocalClientId)
                 return;
 
             if (sceneEvent.SceneEventType == SceneEventType.LoadComplete || sceneEvent.SceneEventType == SceneEventType.SynchronizeComplete)
             {
-                switch(sceneEvent.SceneName)
+                Debug.Log("Handle Scene Event");
+
+                switch (sceneEvent.SceneName)
                 {
                     case "MAIN_MENU":
                         m_ClientInScene[sceneEvent.ClientId] = Scene.MAIN_MENU;
