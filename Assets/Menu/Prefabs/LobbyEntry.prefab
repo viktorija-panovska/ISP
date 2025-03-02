@@ -65,7 +65,7 @@ MonoBehaviour:
   m_Colors:
     m_NormalColor: {r: 1, g: 1, b: 1, a: 1}
     m_HighlightedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
-    m_PressedColor: {r: 0.990566, g: 0.990566, b: 0.990566, a: 1}
+    m_PressedColor: {r: 1, g: 1, b: 1, a: 1}
     m_SelectedColor: {r: 1, g: 1, b: 1, a: 1}
     m_DisabledColor: {r: 0.78431374, g: 0.78431374, b: 0.78431374, a: 0.5019608}
     m_ColorMultiplier: 1
@@ -82,7 +82,7 @@ MonoBehaviour:
     m_SelectedTrigger: Selected
     m_DisabledTrigger: Disabled
   m_Interactable: 1
-  m_TargetGraphic: {fileID: 0}
+  m_TargetGraphic: {fileID: 3035125054721225966}
   toggleTransition: 0
   graphic: {fileID: 0}
   m_Group: {fileID: 0}
@@ -118,6 +118,7 @@ MonoBehaviour:
   m_OwnerAvatar: {fileID: 5239363184857117782}
   m_Background: {fileID: 3035125054721225966}
   m_Lock: {fileID: 546368023327679595}
+  m_SelectedColor: {r: 0.4756622, g: 0.9811321, b: 0.35542893, a: 1}
 --- !u!1 &3087967470143023992
 GameObject:
   m_ObjectHideFlags: 0

@@ -10,7 +10,7 @@ namespace Populous
     /// This class contains methods which define the behavior of the Lobby UI.
     /// </summary>
     [RequireComponent(typeof(NetworkObject))]
-    public class LobbyController : NetworkBehaviour
+    public class LobbyMenu : NetworkBehaviour
     {
         [SerializeField] private GameObject m_ServerOnly;
         [SerializeField] private GameObject m_ClientOnly;
@@ -183,7 +183,7 @@ namespace Populous
         public void KickClient()
         {
             if (!NetworkManager.Singleton.IsHost) return;
-            ConnectionManager.Instance.KickClient();
+            //ConnectionManager.Instance.KickClient();
         }
 
         #endregion

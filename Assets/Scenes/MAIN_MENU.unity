@@ -1487,7 +1487,7 @@ GameObject:
   m_Component:
   - component: {fileID: 477241446}
   - component: {fileID: 477241447}
-  - component: {fileID: 477241448}
+  - component: {fileID: 477241450}
   - component: {fileID: 477241449}
   m_Layer: 0
   m_Name: Network Manager
@@ -1525,7 +1525,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   NetworkConfig:
     ProtocolVersion: 0
-    NetworkTransport: {fileID: 477241448}
+    NetworkTransport: {fileID: 477241450}
     PlayerPrefab: {fileID: 0}
     Prefabs:
       NetworkPrefabsLists:
@@ -1548,33 +1548,6 @@ MonoBehaviour:
     OldPrefabList: []
   RunInBackground: 1
   LogLevel: 1
---- !u!114 &477241448
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 477241444}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6960e84d07fb87f47956e7a81d71c4e6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_ProtocolType: 0
-  m_MaxPacketQueueSize: 128
-  m_MaxPayloadSize: 6144
-  m_HeartbeatTimeoutMS: 500
-  m_ConnectTimeoutMS: 1000
-  m_MaxConnectAttempts: 60
-  m_DisconnectTimeoutMS: 30000
-  ConnectionData:
-    Address: 127.0.0.1
-    Port: 7777
-    ServerListenAddress: 127.0.0.1
-  DebugSimulator:
-    PacketDelayMS: 0
-    PacketJitterMS: 0
-    PacketDropRate: 0
 --- !u!114 &477241449
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1587,7 +1560,21 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e017d54ed5da65348a4efc95faf404a0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_LocalConnection: 0
+--- !u!114 &477241450
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 477241444}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 44dd247a00edbfa44b77868d755af6ea, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  steamAppId: 480
+  targetSteamId: 0
+  userSteamId: 0
 --- !u!1 &509073569
 GameObject:
   m_ObjectHideFlags: 0
@@ -5643,8 +5630,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c42edb25f9d47804cb16d0c19a2314a1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_CursorTexture: {fileID: 2800000, guid: 0ebcc8f074e903f47ad86e4153e69c7a, type: 3}
-  m_JoinLobbyButton: {fileID: 1506082641}
   m_MainScreen: {fileID: 1375537725}
   m_HostScreen: {fileID: 1649224327}
   m_JoinScreen: {fileID: 952753477}
@@ -5652,8 +5637,9 @@ MonoBehaviour:
   m_LobbyNameInputField: {fileID: 956399745}
   m_PasswordInputField: {fileID: 600648085}
   m_MapSeedInputField: {fileID: 333345136}
-  m_LobbyScrollView: {fileID: 1517482610333364899}
+  m_LobbyList: {fileID: 0}
   m_LobbyEntryPrefab: {fileID: 606450699740323588, guid: 1f123c49e1ea54444abc7153982ccab2, type: 3}
+  m_JoinLobbyButton: {fileID: 1506082641}
   m_LobbyName: {fileID: 1528035956}
   m_PasswordCheckInputField: {fileID: 792909145}
 --- !u!1 &1718306379
@@ -7001,7 +6987,7 @@ GameObject:
   - component: {fileID: 3784262954612341211}
   - component: {fileID: 4039180516104349885}
   m_Layer: 5
-  m_Name: Scroll View
+  m_Name: LobbyList
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
