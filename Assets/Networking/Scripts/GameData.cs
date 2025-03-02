@@ -1,4 +1,5 @@
 using Steamworks;
+using Steamworks.Data;
 using System;
 using Unity.Collections;
 using Unity.Netcode;
@@ -13,78 +14,96 @@ namespace Populous
         NONE
     }
 
-    public struct LobbyInfo : INetworkSerializable, IEquatable<LobbyInfo>
-    {
-        private FixedString32Bytes m_LobbyName;
-        public readonly string LobbyName { get => m_LobbyName.ToString(); }
-
-        private FixedString32Bytes m_LobbyPassword;
-        public readonly string LobbyPassword { get => m_LobbyPassword.ToString(); }
-
-        public LobbyInfo(string lobbyName, string lobbyPassword)
-        {
-            m_LobbyName = lobbyName;
-            m_LobbyPassword = lobbyPassword;
-        }
-
-        public readonly bool Equals(LobbyInfo other)
-            => m_LobbyName == other.LobbyName && m_LobbyPassword == other.LobbyPassword;
-
-        public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
-        {
-            serializer.SerializeValue(ref m_LobbyName);
-            serializer.SerializeValue(ref m_LobbyPassword);
-        }
-    }
-
-
+    /// <summary>
+    /// The <c>PlayerInfo</c> struct stores the data of a player in the game.
+    /// </summary>
     public struct PlayerInfo : INetworkSerializable, IEquatable<PlayerInfo>
     {
         private ulong m_NetworkId;
+        /// <summary>
+        /// Gets the network ID of this player.
+        /// </summary>
         public readonly ulong NetworkId { get => m_NetworkId; }
 
         private ulong m_SteamId;
+        /// <summary>
+        /// Gets teh Steam ID of this player.
+        /// </summary>
         public readonly ulong SteamId { get => m_SteamId; }
 
         private FixedString64Bytes m_SteamName;
+        /// <summary>
+        /// Gets this player's Steam display name.
+        /// </summary>
         public readonly string SteamName { get => m_SteamName.ToString(); }
 
-        private Faction m_Team;
-        public readonly Faction Team { get => m_Team; }
+        private Faction m_Faction;
+        /// <summary>
+        /// Gets the faction this player is in control of in the game.
+        /// </summary>
+        public readonly Faction Team { get => m_Faction; }
 
 
-        public PlayerInfo(ulong networkId, ulong steamId, Faction team)
+        /// <summary>
+        /// The constructor of the <c>PlayerInfo</c> struct
+        /// </summary>
+        /// <param name="networkId">The network ID of the player.</param>
+        /// <param name="steamId">The Steam ID of the player.</param>
+        /// <param name="faction">The faction that the player will control in the game.</param>
+        public PlayerInfo(ulong networkId, ulong steamId, Faction faction)
         {
             m_NetworkId = networkId;
             m_SteamId = steamId;
             m_SteamName = steamId != 0 ? new Friend(steamId).Name : "";
-            m_Team = team;
+            m_Faction = faction;
         }
 
+        /// <summary>
+        /// Tests whether this <c>PlayerInfo</c> struct is equal to the given <c>PlayerInfo</c> struct.
+        /// </summary>
+        /// <param name="other">The <c>PlayerInfo</c> struct that this struct should be compared against.</param>
+        /// <returns>True if the structs are equal, false otherwise.</returns>
         public readonly bool Equals(PlayerInfo other)
             => m_NetworkId == other.NetworkId && m_SteamId == other.SteamId;
 
+        /// <summary>
+        /// Serializes the data in this struct so that they can be transferred over the network.
+        /// </summary>
+        /// <typeparam name="T">The type of the serializer.</typeparam>
+        /// <param name="serializer">The serializer that should be used in the serialization.</param>
         public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
         {
             serializer.SerializeValue(ref m_NetworkId);
             serializer.SerializeValue(ref m_SteamId);
             serializer.SerializeValue(ref m_SteamName);
-            serializer.SerializeValue(ref m_Team);
+            serializer.SerializeValue(ref m_Faction);
         }
     }
 
 
+    /// <summary>
+    /// The <c>GameData</c> class stores the crucial data of the game, namely the information about the lobby it is running out of,
+    /// and the players in the game.
+    /// </summary>
     [RequireComponent(typeof(NetworkObject))]
     public class GameData : NetworkBehaviour
     {
         private static GameData m_Instance;
+        /// <summary>
+        /// Gets a singleton instance of the class.
+        /// </summary>
         public static GameData Instance { get => m_Instance; }
 
-        private NetworkVariable<LobbyInfo> m_CurrentLobbyInfo;
-        public LobbyInfo CurrentLobbyInfo { get => m_CurrentLobbyInfo.Value; set { m_CurrentLobbyInfo.Value = value; } }
+        private Lobby m_Lobby;
 
-        private NetworkVariable<int> m_MapSeed;
-        public int GameSeed { get => m_MapSeed.Value; set { m_MapSeed.Value = value; } }
+        public string LobbyName { get => m_Lobby.GetData("name"); }
+
+        public string LobbyPassword { get => m_Lobby.GetData("password"); }
+
+
+        private int m_GameSeed;
+        private NetworkVariable<int> m_GameSeed_Network = new();
+        public int GameSeed { get => m_GameSeed_Network.Value; }
 
         private NetworkList<PlayerInfo> m_PlayersInfo;
 
@@ -94,13 +113,25 @@ namespace Populous
 
         private void Awake()
         {
-            if (m_Instance != null)
+            if (m_Instance && m_Instance != this)
+            {
                 Destroy(gameObject);
+                return;
+            }
 
             m_Instance = this;
             DontDestroyOnLoad(gameObject);
 
-            ResetData();
+            m_PlayersInfo = new();
+
+        }
+
+
+
+        public void Setup(Lobby lobby, int gameSeed)
+        {
+            m_Lobby = lobby;
+            m_GameSeed = gameSeed;
         }
 
 
@@ -217,13 +248,6 @@ namespace Populous
         public void UnsubscribeFromPlayersInfoList(Action<NetworkListEvent<PlayerInfo>> method)
         {
             m_PlayersInfo.OnListChanged -= new NetworkList<PlayerInfo>.OnListChangedDelegate(method);
-        }
-
-        public void ResetData()
-        {
-            m_CurrentLobbyInfo = new();
-            m_MapSeed = new();
-            m_PlayersInfo = new();
         }
     }
 }

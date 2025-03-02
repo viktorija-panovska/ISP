@@ -35,6 +35,12 @@ namespace Populous
         /// </summary>
         private Lobby? m_CurrentLobby;
 
+        /// <summary>
+        /// The game data that has been entered by a user that wants to create a game.
+        /// </summary>
+        private (string name, string password, string seed) m_EnteredGameData;
+
+
 
         #region Event Functions
 
@@ -91,8 +97,7 @@ namespace Populous
         {
             Debug.Log("Create Game");
 
-            GameData.Instance.CurrentLobbyInfo = new LobbyInfo(lobbyName, lobbyPassword);
-            GameData.Instance.GameSeed = int.TryParse(gameSeed, out int seed) ? seed : new Random().Next(0, int.MaxValue);
+            m_EnteredGameData = (lobbyName, lobbyPassword, gameSeed);
 
             ScreenFader.Instance.OnFadeOutComplete += StartHost;
             ScreenFader.Instance.FadeOut();
@@ -109,7 +114,13 @@ namespace Populous
 
             NetworkManager.Singleton.OnServerStarted += OnServerStarted;
             NetworkManager.Singleton.ConnectionApprovalCallback += OnConnectionApproval;
-            NetworkManager.Singleton.StartHost();
+
+            if (!NetworkManager.Singleton.StartHost())
+            {
+                Debug.LogError("Host Start Failed");
+                m_EnteredGameData = ("", "", "");
+                return;
+            }
 
             m_CurrentLobby = await SteamMatchmaking.CreateLobbyAsync(MAX_PLAYERS);
         }
@@ -142,12 +153,15 @@ namespace Populous
 
             Debug.Log("Lobby created");
 
-            lobby.SetData("name", GameData.Instance.CurrentLobbyInfo.LobbyName);
-            lobby.SetData("password", GameData.Instance.CurrentLobbyInfo.LobbyPassword);
-            lobby.SetData("seed", GameData.Instance.GameSeed.ToString());
+            lobby.SetData("name", m_EnteredGameData.name);
+            lobby.SetData("password", m_EnteredGameData.password);
+            lobby.SetData("seed", m_EnteredGameData.seed);
             lobby.SetData("isPopulous", "true");
             lobby.SetPublic();
             lobby.SetJoinable(true);
+
+            int gameSeed = int.TryParse(m_EnteredGameData.seed, out int seed) ? seed : new Random().Next(); 
+            GameData.Instance.Setup(lobby, gameSeed);
         }
 
         #endregion
@@ -247,8 +261,9 @@ namespace Populous
             ulong clientId = request.ClientNetworkId;
 
             // If there is no password, there is no need to check anything. Host can enter automatically
-            if (clientId == NetworkManager.ServerClientId || string.IsNullOrEmpty(GameData.Instance.CurrentLobbyInfo.LobbyPassword))
+            if (clientId == NetworkManager.ServerClientId || string.IsNullOrEmpty(GameData.Instance.LobbyPassword))
             {
+                Debug.Log("--- Approved");
                 response.Approved = true;
                 return;
             }
@@ -257,6 +272,8 @@ namespace Populous
 
             if (connectionData.Length > MAX_CONNECTION_PAYLOAD)
             {
+                Debug.Log("--- Denied");
+
                 response.Approved = false;
                 return;
             }
@@ -264,19 +281,23 @@ namespace Populous
             string payload = Encoding.UTF8.GetString(connectionData);
             var connectionPayload = JsonUtility.FromJson<ConnectionPayload>(payload);
 
-            if (connectionPayload.password != GameData.Instance.CurrentLobbyInfo.LobbyPassword)
+            if (connectionPayload.password != GameData.Instance.LobbyPassword)
             {
+                Debug.Log("--- Denied");
+
                 response.Approved = false;
                 return;
             }
 
             if (m_CurrentLobby.Value.MemberCount < MAX_PLAYERS)
             {
+                Debug.Log("--- Approved");
+
                 response.Approved = true;
                 return;
             }
 
-            NetworkManager.Singleton.DisconnectClient(clientId);
+            //NetworkManager.Singleton.DisconnectClient(clientId);
         }
 
         #endregion

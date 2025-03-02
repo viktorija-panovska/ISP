@@ -55,8 +55,8 @@ namespace Populous
             foreach (Button button in FindObjectsOfType<Button>(true))
                 button.onClick.AddListener(() => AudioController.Instance.PlaySound(SoundType.MENU_BUTTON));
 
-            m_LobbyNameField.text = GameData.Instance.CurrentLobbyInfo.LobbyName;
-            m_LobbyPasswordField.text = GameData.Instance.CurrentLobbyInfo.LobbyPassword;
+            m_LobbyNameField.text = GameData.Instance.LobbyName;
+            m_LobbyPasswordField.text = GameData.Instance.LobbyPassword;
             m_MapSeedField.text = GameData.Instance.GameSeed.ToString();
 
             if (NetworkManager.Singleton.IsHost)

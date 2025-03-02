@@ -235,7 +235,9 @@ namespace Populous
         /// </summary>
         public void SubmitPassword()
         {
-            if (m_PasswordInputField.text.Length == 0)
+            Debug.Log("Submit Password: " + m_PasswordCheckInputField.text);
+
+            if (m_PasswordCheckInputField.text.Length == 0)
             {
                 InterfaceUtils.FlashWrong(m_PasswordCheckInputField.image);
                 return;
