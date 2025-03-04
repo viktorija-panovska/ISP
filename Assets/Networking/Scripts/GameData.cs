@@ -41,7 +41,7 @@ namespace Populous
         /// <summary>
         /// Gets the faction this player is in control of in the game.
         /// </summary>
-        public readonly Faction Team { get => m_Faction; }
+        public readonly Faction Faction { get => m_Faction; }
 
 
         /// <summary>
@@ -94,10 +94,17 @@ namespace Populous
         /// </summary>
         public static GameData Instance { get => m_Instance; }
 
+        /// <summary>
+        /// The lobby this game is running out of.
+        /// </summary>
         private Lobby m_Lobby;
-
+        /// <summary>
+        /// Gets the name of the lobby.
+        /// </summary>
         public string LobbyName { get => m_Lobby.GetData("name"); }
-
+        /// <summary>
+        /// Gets the password of the lobby.
+        /// </summary>
         public string LobbyPassword { get => m_Lobby.GetData("password"); }
 
 
@@ -107,8 +114,8 @@ namespace Populous
 
         private NetworkList<PlayerInfo> m_PlayersInfo;
 
-        private readonly ulong[] m_NetworkIdForTeam = new ulong[ConnectionManager.MAX_PLAYERS];
-        private readonly Faction[] m_TeamForNetworkId = new Faction[ConnectionManager.MAX_PLAYERS];
+        private readonly ulong[] m_NetworkIdForFaction = new ulong[2];
+        private readonly Faction[] m_FactionForNetworkId = new Faction[2];
 
 
         private void Awake()
@@ -123,10 +130,7 @@ namespace Populous
             DontDestroyOnLoad(gameObject);
 
             m_PlayersInfo = new();
-
         }
-
-
 
         public void Setup(Lobby lobby, int gameSeed)
         {
@@ -137,42 +141,23 @@ namespace Populous
 
         #region Player Info Getters
 
-        public int GetPlayersNumber() => m_PlayersInfo.Count;
+        public PlayerInfo? GetHostPlayerInfo() => m_PlayersInfo.Count == 0 ? null : m_PlayersInfo[0];
 
-        public PlayerInfo? GetPlayerInfoByIndex(int index)
-            => index > m_PlayersInfo.Count ? null : m_PlayersInfo[index];
+        public PlayerInfo? GetClientPlayerInfo() => m_PlayersInfo.Count <= 1 ? null : m_PlayersInfo[1];
 
-        public PlayerInfo? GetPlayerInfoByNetworkId(ulong networkId)
+        public PlayerInfo? GetPlayerInfoByFaction(Faction faction)
         {
             for (int i = 0; i < m_PlayersInfo.Count; ++i)
-                if (m_PlayersInfo[i].NetworkId == networkId)
+                if (m_PlayersInfo[i].Faction == faction)
                     return m_PlayersInfo[i];
 
             return null;
         }
 
-        public PlayerInfo? GetPlayerInfoBySteamId(ulong steamId)
-        {
-            for (int i = 0; i < m_PlayersInfo.Count; ++i)
-                if (m_PlayersInfo[i].SteamId == steamId)
-                    return m_PlayersInfo[i];
 
-            return null;
-        }
-
-        public PlayerInfo? GetPlayerInfoByTeam(Faction team)
-        {
-            for (int i = 0; i < m_PlayersInfo.Count; ++i)
-                if (m_PlayersInfo[i].Team == team)
-                    return m_PlayersInfo[i];
-
-            return null;
-        }
-
-        public ulong GetNetworkIdByTeam(Faction team) => GetNetworkIdByTeam((int)team);
-        public ulong GetNetworkIdByTeam(int team) => m_NetworkIdForTeam[team];
-
-        public Faction GetTeamByNetworkId(ulong networkId) => m_TeamForNetworkId[networkId];
+        public ulong GetNetworkIdByFaction(Faction team) => GetNetworkIdByFaction((int)team);
+        public ulong GetNetworkIdByFaction(int factionIndex) => m_NetworkIdForFaction[factionIndex];
+        public Faction GetFactionByNetworkId(ulong networkId) => m_FactionForNetworkId[networkId];
 
         #endregion
 
@@ -180,25 +165,23 @@ namespace Populous
         #region Modify Player Info List
 
         [ServerRpc(RequireOwnership = false)]
-        public void AddPlayerInfoServerRpc(ulong networkId, ulong steamId, Faction team)
+        public void AddPlayerInfo_ServerRpc(ulong networkId, ulong steamId, Faction team)
             => AddPlayerInfo(new PlayerInfo(networkId, steamId, team));
 
-        public bool AddCurrentPlayerInfo(Faction team)
-            => AddPlayerInfo(new PlayerInfo(NetworkManager.Singleton.LocalClientId, SteamClient.SteamId, team));
-
-        public bool AddPlayerInfo(PlayerInfo playerInfo)
+        private void AddPlayerInfo(PlayerInfo playerInfo)
         {
-            if (m_PlayersInfo.Count == ConnectionManager.MAX_PLAYERS)
-                return false;
+            Debug.Log("Add Player Info: " + playerInfo.NetworkId);
 
             m_PlayersInfo.Add(playerInfo);
-            m_NetworkIdForTeam[(int)playerInfo.Team] = playerInfo.NetworkId;
-            m_TeamForNetworkId[playerInfo.NetworkId] = playerInfo.Team;
-            return true;
+            m_NetworkIdForFaction[(int)playerInfo.Faction] = playerInfo.NetworkId;
+            m_FactionForNetworkId[playerInfo.NetworkId] = playerInfo.Faction;
         }
 
+        [ServerRpc(RequireOwnership = false)]
+        public void RemovePlayerInfo_ServerRpc(ulong networkId)
+            => RemovePlayerInfo(networkId);
 
-        public bool RemovePlayerInfoByNetworkId(ulong networkId)
+        private bool RemovePlayerInfo(ulong networkId)
         {
             for (int i = 0; i < m_PlayersInfo.Count; ++i)
             {
@@ -211,43 +194,12 @@ namespace Populous
             return false;
         }
 
-        public bool RemovePlayerInfoBySteamId(ulong steamId)
-        {
-            for (int i = 0; i < m_PlayersInfo.Count; ++i)
-            {
-                if (m_PlayersInfo[i].SteamId == steamId)
-                {
-                    m_PlayersInfo.RemoveAt(i);
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        public bool RemovePlayerInfoByTeam(Faction team)
-        {
-            for (int i = 0; i < m_PlayersInfo.Count; ++i)
-            {
-                if (m_PlayersInfo[i].Team == team)
-                {
-                    m_PlayersInfo.RemoveAt(i);
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        #endregion
-
-
         public void SubscribeToPlayersInfoList(Action<NetworkListEvent<PlayerInfo>> method)
-        {
-            m_PlayersInfo.OnListChanged += new NetworkList<PlayerInfo>.OnListChangedDelegate(method);
-        }
+            => m_PlayersInfo.OnListChanged += new NetworkList<PlayerInfo>.OnListChangedDelegate(method);
 
         public void UnsubscribeFromPlayersInfoList(Action<NetworkListEvent<PlayerInfo>> method)
-        {
-            m_PlayersInfo.OnListChanged -= new NetworkList<PlayerInfo>.OnListChangedDelegate(method);
-        }
+            => m_PlayersInfo.OnListChanged -= new NetworkList<PlayerInfo>.OnListChangedDelegate(method);
+
+        #endregion
     }
 }

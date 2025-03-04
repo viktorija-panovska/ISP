@@ -22,7 +22,7 @@ namespace Populous
         /// <summary>
         /// The Game scene
         /// </summary>
-        GAME_SCENE
+        GAMEPLAY_SCENE
     }
 
 
@@ -83,7 +83,7 @@ namespace Populous
                         break;
 
                     case "GAME_SCENE":
-                        m_ClientInScene[sceneEvent.ClientId] = Scene.GAME_SCENE;
+                        m_ClientInScene[sceneEvent.ClientId] = Scene.GAMEPLAY_SCENE;
                         break;
 
                     default:

@@ -2308,8 +2308,8 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 941824957}
-        m_TargetAssemblyTypeName: LobbyController, Assembly-CSharp
-        m_MethodName: LeaveGame
+        m_TargetAssemblyTypeName: Populous.LobbyMenu, Assembly-CSharp
+        m_MethodName: LeaveLobby
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -2545,8 +2545,8 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 941824957}
-        m_TargetAssemblyTypeName: LobbyController, Assembly-CSharp
-        m_MethodName: ToggleIsBluePlayerReady
+        m_TargetAssemblyTypeName: Populous.LobbyMenu, Assembly-CSharp
+        m_MethodName: ToggleIsClientReady
         m_Mode: 6
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -3365,8 +3365,8 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 941824957}
-        m_TargetAssemblyTypeName: LobbyController, Assembly-CSharp
-        m_MethodName: LeaveGame
+        m_TargetAssemblyTypeName: Populous.LobbyMenu, Assembly-CSharp
+        m_MethodName: LeaveLobby
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -3418,7 +3418,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  GlobalObjectIdHash: 3872591936
+  GlobalObjectIdHash: 2224522766
   InScenePlacedSourceGlobalObjectIdHash: 540378861
   AlwaysReplicateAsRoot: 0
   SynchronizeTransform: 1
@@ -3441,7 +3441,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_ServerOnly: {fileID: 941824744}
   m_ClientOnly: {fileID: 941824759}
-  m_CursorTexture: {fileID: 0}
   m_LobbyNameField: {fileID: 941824934}
   m_LobbyPasswordField: {fileID: 941824943}
   m_MapSeedField: {fileID: 941824902}

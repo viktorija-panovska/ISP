@@ -43,7 +43,7 @@ namespace Populous
         /// <summary>
         /// Gets the team this player controls, or Team.NONE if the player hasn't been set.
         /// </summary>
-        public Faction Faction { get => m_PlayerInfo.HasValue ? m_PlayerInfo.Value.Team : Faction.NONE; }
+        public Faction Faction { get => m_PlayerInfo.HasValue ? m_PlayerInfo.Value.Faction : Faction.NONE; }
         /// <summary>
         /// Gets the network ID of this player, or ulong.MaxValue if the player hasn't been set.
         /// </summary>

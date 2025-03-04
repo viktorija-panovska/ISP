@@ -76,7 +76,7 @@ namespace Populous
         /// <param name="winner">The <c>Team</c> that won the game.</param>
         public async void ShowEndGameUI(Faction winner)
         {
-            PlayerInfo? winnerInfo = GameData.Instance.GetPlayerInfoByTeam(winner);
+            PlayerInfo? winnerInfo = GameData.Instance.GetPlayerInfoByFaction(winner);
 
             if (winnerInfo.HasValue)
             {

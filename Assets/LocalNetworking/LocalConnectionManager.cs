@@ -158,7 +158,7 @@ namespace Populous
         {
             gameInProgress = true;
 
-            SceneLoader.Instance.SwitchToScene(Scene.GAME_SCENE);
+            SceneLoader.Instance.SwitchToScene(Scene.GAMEPLAY_SCENE);
         }
 
         #endregion
@@ -184,7 +184,7 @@ namespace Populous
             clientData.Add(clientGuid, new PlayerData(playerName, NetworkManager.Singleton.LocalClientId));
             clientIdToPlayerId.Add(NetworkManager.Singleton.LocalClientId, clientGuid);
 
-            GameData.Instance.AddPlayerInfo(new PlayerInfo(NetworkManager.Singleton.LocalClientId, SteamClient.SteamId.Value, Faction.RED));
+            //GameData.Instance.AddPlayerInfo(new PlayerInfo(NetworkManager.Singleton.LocalClientId, SteamClient.SteamId.Value, Faction.RED));
 
             SceneLoader.Instance.SwitchToScene(Scene.LOBBY);
         }
@@ -298,7 +298,7 @@ namespace Populous
                 return;
 
             if (!NetworkManager.Singleton.IsHost)
-                GameData.Instance.AddPlayerInfoServerRpc(NetworkManager.Singleton.LocalClientId, SteamClient.SteamId, Faction.BLUE);
+                GameData.Instance.AddPlayerInfo_ServerRpc(NetworkManager.Singleton.LocalClientId, SteamClient.SteamId, Faction.BLUE);
 
             NetworkManager.Singleton.OnClientDisconnectCallback += OnClientDisconnect;
             NetworkManager.Singleton.SceneManager.OnSceneEvent += SceneLoader.Instance.HandleSceneEvent;
@@ -309,7 +309,7 @@ namespace Populous
         {
             if (NetworkManager.Singleton.IsHost)
             {
-                GameData.Instance.RemovePlayerInfoByNetworkId(clientId);   
+                //GameData.Instance.RemovePlayerInfo(clientId);   
                 clientSceneMap.Remove(clientId);
 
                 if (clientId == NetworkManager.Singleton.LocalClientId)

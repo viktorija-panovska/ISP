@@ -627,7 +627,7 @@ namespace Populous
             {
                 Send = new ClientRpcSendParams
                 {
-                    TargetClientIds = new ulong[] { GameData.Instance.GetNetworkIdByTeam(team) }
+                    TargetClientIds = new ulong[] { GameData.Instance.GetNetworkIdByFaction(team) }
                 }
             }
             );
@@ -675,7 +675,7 @@ namespace Populous
             {
                 Send = new ClientRpcSendParams
                 {
-                    TargetClientIds = new ulong[] { GameData.Instance.GetNetworkIdByTeam(team) }
+                    TargetClientIds = new ulong[] { GameData.Instance.GetNetworkIdByFaction(team) }
                 }
             });
         }
@@ -924,7 +924,7 @@ namespace Populous
                 {
                     Send = new ClientRpcSendParams
                     {
-                        TargetClientIds = new ulong[] { GameData.Instance.GetNetworkIdByTeam(knight.Faction) }
+                        TargetClientIds = new ulong[] { GameData.Instance.GetNetworkIdByFaction(knight.Faction) }
                     }
                 }
             );
@@ -1120,7 +1120,7 @@ namespace Populous
             m_InspectedObjects[index] = null;
             inspectedObject.IsInspected = false;
 
-            HideInspectedObjectPanel_ClientRpc(GameUtils.GetClientParams(GameData.Instance.GetNetworkIdByTeam(index)));
+            HideInspectedObjectPanel_ClientRpc(GameUtils.GetClientParams(GameData.Instance.GetNetworkIdByFaction(index)));
         }
 
 
@@ -1186,7 +1186,7 @@ namespace Populous
             {
                 Send = new ClientRpcSendParams
                 {
-                    TargetClientIds = new ulong[] { GameData.Instance.GetNetworkIdByTeam(index) }
+                    TargetClientIds = new ulong[] { GameData.Instance.GetNetworkIdByFaction(index) }
                 }
             };
 
@@ -1245,7 +1245,7 @@ namespace Populous
             {
                 Send = new ClientRpcSendParams
                 {
-                    TargetClientIds = new ulong[] { GameData.Instance.GetNetworkIdByTeam(index) }
+                    TargetClientIds = new ulong[] { GameData.Instance.GetNetworkIdByFaction(index) }
                 }
             };
 

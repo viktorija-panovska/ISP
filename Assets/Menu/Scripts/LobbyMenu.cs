@@ -1,4 +1,6 @@
+using Steamworks;
 using TMPro;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.UI;
@@ -7,14 +9,15 @@ using UnityEngine.UI;
 namespace Populous
 {
     /// <summary>
-    /// This class contains methods which define the behavior of the Lobby UI.
+    /// The <c>LobbyMenu</c> class handles the behavior of the lobby.
     /// </summary>
     [RequireComponent(typeof(NetworkObject))]
     public class LobbyMenu : NetworkBehaviour
     {
+        #region Inspector Fields
+
         [SerializeField] private GameObject m_ServerOnly;
         [SerializeField] private GameObject m_ClientOnly;
-        [SerializeField] private Texture2D m_CursorTexture;
 
         [Header("Server Info")]
         [SerializeField] private TMP_Text m_LobbyNameField;
@@ -31,33 +34,30 @@ namespace Populous
         [SerializeField] private Button m_StartButton;
         [SerializeField] private Toggle m_ReadyButton;
 
-        private NetworkVariable<bool> m_IsClientReady;
-
-
-        #region MonoBehavior
-
-        private void Awake()
-        {
-            m_IsClientReady = new NetworkVariable<bool>();
-            Cursor.SetCursor(m_CursorTexture, Vector2.zero, CursorMode.Auto);
-        }
-
         #endregion
 
 
-        #region NetworkBehavior
+        /// <summary>
+        /// True if the client (non-hosting player) has indicated that they are ready, false otherwise.
+        /// </summary>
+        private bool m_IsClientReady;
+
+
+        #region Event Functions
 
         /// <summary>
-        /// Sets up the menus of each player once they are spawned into the lobby.
+        /// Called when this <c>NetworkObject</c> is spawned on the network, sets up the lobby.
         /// </summary>
         public override void OnNetworkSpawn()
         {
-            foreach (Button button in FindObjectsOfType<Button>(true))
-                button.onClick.AddListener(() => AudioController.Instance.PlaySound(SoundType.MENU_BUTTON));
+            Debug.Log("OnNetworkSpawn");
 
             m_LobbyNameField.text = GameData.Instance.LobbyName;
             m_LobbyPasswordField.text = GameData.Instance.LobbyPassword;
             m_MapSeedField.text = GameData.Instance.GameSeed.ToString();
+
+            m_ServerOnly.SetActive(false);
+            m_ClientOnly.SetActive(false);
 
             if (NetworkManager.Singleton.IsHost)
                 m_ServerOnly.SetActive(true);
@@ -65,62 +65,80 @@ namespace Populous
                 m_ClientOnly.SetActive(true);
 
             GameData.Instance.SubscribeToPlayersInfoList(OnPlayersInfoListChange);
-            m_IsClientReady.OnValueChanged += OnBluePlayerReady;
+            GameData.Instance.AddPlayerInfo_ServerRpc(
+                NetworkManager.Singleton.LocalClientId, 
+                SteamClient.SteamId,
+                IsHost ? Faction.RED: Faction.BLUE
+            );
 
-            PlayerInfo? redPlayerInfo = GameData.Instance.GetPlayerInfoByTeam(Faction.RED);
-            if (redPlayerInfo.HasValue) SetupPlayerInfo(redPlayerInfo.Value);
+            //// as the player info cards are only populated when a player is added or removed
+            //// when the client joins the lobby, the host's card won't be populated for them.
+            if (!NetworkManager.Singleton.IsHost)
+            {
+                PlayerInfo? hostInfo = GameData.Instance.GetHostPlayerInfo();
+                if (!hostInfo.HasValue) return;
+                SetPlayerInfo(hostInfo.Value);
+            }
         }
 
+        /// <inheritdoc />
         public override void OnDestroy()
         {
             base.OnDestroy();
-
             GameData.Instance.UnsubscribeFromPlayersInfoList(OnPlayersInfoListChange);
-
-            foreach (Button button in FindObjectsOfType<Button>(true))
-                button.onClick.RemoveAllListeners();
         }
 
         #endregion
 
 
-        #region Player Display
+        #region Players Display
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="event">The <c>NetworkListEvent</c>, containg the information about the list operation that was performed
+        /// and the <c>PlayerInfo</c></param> that was added or removed.
         private void OnPlayersInfoListChange(NetworkListEvent<PlayerInfo> @event)
         {
+            Debug.Log("OnPlayersInfoListChange: " + @event.Value);
+
             if (@event.Type == NetworkListEvent<PlayerInfo>.EventType.Add)
             {
-                SetupPlayerInfo(@event.Value);
+                SetPlayerInfo(@event.Value);
 
-                if (IsHost && @event.Value.Team == Faction.BLUE)
-                {
+                if (IsHost && @event.Value.Faction == Faction.BLUE)
                     m_KickButton.interactable = true;
-                    AudioController.Instance.PlaySound(SoundType.BLUE_CONNECT);
-                }
             }
 
             if (@event.Type == NetworkListEvent<PlayerInfo>.EventType.RemoveAt)
             {
-                UnsetPlayerInfo(@event.Index);
+                UnsetPlayerInfo(@event.Value.Faction);
 
-                if (IsHost && @event.Index == 1)
-                {
+                if (IsHost && @event.Value.Faction == Faction.BLUE)
                     m_KickButton.interactable = false;
-                    AudioController.Instance.PlaySound(SoundType.BLUE_DISCONNECT);
-                }
             }
         }
 
-        private async void SetupPlayerInfo(PlayerInfo playerInfo)
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="playerInfo"></param>
+        private async void SetPlayerInfo(PlayerInfo playerInfo)
         {
-            int index = (int)playerInfo.Team;
+            Debug.Log("Set Player Info");
+            int index = (int)playerInfo.Faction;
             m_PlayerName[index].text = playerInfo.SteamName;
             m_PlayerAvatar[index].texture = await InterfaceUtils.GetSteamAvatar(playerInfo.SteamId);
             m_PlayerAvatar[index].gameObject.SetActive(true);
         }
 
-        private void UnsetPlayerInfo(int index)
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="index"></param>
+        private void UnsetPlayerInfo(Faction faction)
         {
+            int index = (int)faction;
             m_PlayerName[index].text = "";
             m_PlayerAvatar[index].texture = null;
             m_PlayerAvatar[index].gameObject.SetActive(false);
@@ -135,35 +153,36 @@ namespace Populous
         #region Start Game
 
         /// <summary>
+        /// Makes a call to the server, setting the state of the blue player to ready if it is not and vice versa.
+        /// </summary>
+        /// <param name="_">Toggle parameter, true if toggled on false otherwise - not in use.</param>
+        public void ToggleIsClientReady(bool _)
+        {
+            m_ReadyButton.GetComponent<Image>().color = m_ReadyButton.isOn ? Color.gray : Color.white;
+            m_BluePlayerReadySignal.SetActive(m_ReadyButton.isOn);
+
+            ToggleIsClientReady_ServerRpc(m_ReadyButton.isOn);
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="isReady"></param>
+        [ServerRpc(RequireOwnership = false)]
+        private void ToggleIsClientReady_ServerRpc(bool isReady)
+        {
+            m_IsClientReady = isReady;
+            m_BluePlayerReadySignal.SetActive(isReady);
+            m_StartButton.interactable = isReady;
+        }
+
+        /// <summary>
         /// Calls the <see cref="ConnectionManager"/> to start the game, if called by the host and the client is ready.
         /// </summary>
         public void StartGame()
         {
-            if (!NetworkManager.Singleton.IsHost || !m_IsClientReady.Value) return;
+            if (!NetworkManager.Singleton.IsHost || !m_IsClientReady) return;
             ConnectionManager.Instance.StartGame();
-        }
-
-        /// <summary>
-        /// Makes a call to the server, setting the blue player to ready if it is not and vice versa.
-        /// </summary>
-        /// <param name="_">Toggle parameter, true if toggled on false otherwise - not in use</param>
-        public void ToggleIsBluePlayerReady(bool _)
-        {
-            m_ReadyButton.GetComponent<Image>().color = m_ReadyButton.isOn ? Color.gray : Color.white;
-            ; ToggleIsBluePlayerReadyServerRpc();
-        }
-
-        [ServerRpc(RequireOwnership = false)]
-        private void ToggleIsBluePlayerReadyServerRpc()
-            => m_IsClientReady.Value = !m_IsClientReady.Value;
-
-        private void OnBluePlayerReady(bool _, bool __)
-        {
-            m_BluePlayerReadySignal.SetActive(m_IsClientReady.Value);
-            AudioController.Instance.PlaySound(m_IsClientReady.Value ? SoundType.BLUE_READY : SoundType.BLUE_NOT_READY);
-
-            if (NetworkManager.Singleton.IsHost)
-                m_StartButton.interactable = m_IsClientReady.Value;
         }
 
         #endregion
@@ -172,10 +191,9 @@ namespace Populous
         #region Leave Lobby
 
         /// <summary>
-        /// Calls the <see cref="ConnectionManager"/> to disconnect the player from the game.
+        /// Calls the <see cref="ConnectionManager"/> to disconnect the player from the lobby.
         /// </summary>
-        public void LeaveGame()
-            => ConnectionManager.Instance.Disconnect();
+        public void LeaveLobby() => ConnectionManager.Instance.Disconnect();
 
         /// <summary>
         /// Forcibly disconnects the client from the game, if called by the host.
@@ -183,7 +201,7 @@ namespace Populous
         public void KickClient()
         {
             if (!NetworkManager.Singleton.IsHost) return;
-            //ConnectionManager.Instance.KickClient();
+            ConnectionManager.Instance.KickClient();
         }
 
         #endregion

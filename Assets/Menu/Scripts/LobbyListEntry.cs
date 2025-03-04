@@ -1,7 +1,6 @@
 using Steamworks.Data;
 using TMPro;
 using UnityEngine;
-using UnityEngine.UI;
 
 using Color = UnityEngine.Color;
 using Image = UnityEngine.UI.Image;
@@ -21,8 +20,8 @@ namespace Populous
         [SerializeField] private Color m_SelectedColor;
         [Tooltip("The text field in which the name of the lobby should be shown.")]
         [SerializeField] private TMP_Text m_LobbyNameField;
-        [Tooltip("The image on which the Steam avatar of the player hosting the lobby should be shown.")]
-        [SerializeField] private RawImage m_OwnerAvatar;
+        [Tooltip("The text field in which the name of the player hosting the lobby should be shown.")]
+        [SerializeField] private TMP_Text m_OwnerNameField;
         [Tooltip("The image that should be turned on to indicate that the lobby is password protected.")]
         [SerializeField] private Image m_Lock;
 
@@ -62,14 +61,14 @@ namespace Populous
         /// Setup this lobby entry to reflect the lobby it represents.
         /// </summary>
         /// <param name="lobby">The <c>Lobby</c> this lobby entry represents.</param>
-        public async void Setup(Lobby lobby)
+        public void Setup(Lobby lobby)
         {
             m_Lobby = lobby;
             m_LobbyName = lobby.GetData("name");
             m_HasPassword = lobby.GetData("password") != "";
 
             m_LobbyNameField.text = m_LobbyName;
-            m_OwnerAvatar.texture = await InterfaceUtils.GetSteamAvatar(m_Lobby.Owner.Id);
+            m_OwnerNameField.text = m_Lobby.GetData("owner");
             m_Lock.gameObject.SetActive(m_HasPassword);
 
             m_DeselectedColor = m_Background.color;

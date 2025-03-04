@@ -189,9 +189,12 @@ namespace Populous
         /// </summary>
         private async void FillLobbyList()
         {
-            foreach (LobbyListEntry lobbyEntry in m_LobbyEntryList)
-                Destroy(lobbyEntry);
+            Debug.Log("Fill Lobby List");
 
+            foreach (LobbyListEntry lobbyEntry in m_LobbyEntryList)
+                Destroy(lobbyEntry.gameObject);
+
+            m_SelectedLobbyEntry = null;
             m_LobbyEntryList = new();
 
             Lobby[] lobbies = await ConnectionManager.Instance.GetActiveLobbies();
@@ -261,10 +264,7 @@ namespace Populous
         /// Calls the <see cref="ConnectionManager"/> to attempt to join the selected lobby.
         /// </summary>
         private void EnterLobby(string password = "")
-        {
-            ConnectionManager.Instance.JoinGame(m_SelectedLobbyEntry.Lobby, password);
-            m_SelectedLobbyEntry = null;
-        }
+            => ConnectionManager.Instance.JoinGame(m_SelectedLobbyEntry.Lobby, password);
 
         /// <summary>
         /// Called when the connection to a lobby through a password is denied.
