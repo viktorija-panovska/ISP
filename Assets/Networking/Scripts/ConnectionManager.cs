@@ -289,26 +289,29 @@ namespace Populous
 
             if (connectionData.Length > MAX_CONNECTION_PAYLOAD)
             {
-                Debug.Log("--- Denied");
-                response.Approved = false;
-                response.Reason = "Maximum payload size exceeded.";
+                //Debug.Log("--- Denied");
+                //response.Approved = false;
+                //response.Reason = "Maximum payload size exceeded.";
+                ClientDisconnector.Instance.Disconnect_ClientRpc();
                 return;
             }
 
             string password = Encoding.UTF8.GetString(connectionData);
             if (password != GameData.Instance.LobbyPassword)
             {
-                Debug.Log("--- Denied");
-                response.Approved = false;
-                response.Reason = "Incorrect password.";
+                //Debug.Log("--- Denied");
+                //response.Approved = false;
+                //response.Reason = "Incorrect password.";
+                ClientDisconnector.Instance.Disconnect_ClientRpc();
                 return;
             }
 
             if (NetworkManager.Singleton.ConnectedClientsIds.Count >= MAX_PLAYERS)
             {
-                Debug.Log("--- Denied");
-                response.Approved = false;
-                response.Reason = "Lobby full.";
+                //Debug.Log("--- Denied");
+                //response.Approved = false;
+                //response.Reason = "Lobby full.";
+                ClientDisconnector.Instance.Disconnect_ClientRpc();
                 return;
             }
 
@@ -395,7 +398,7 @@ namespace Populous
             if (!NetworkManager.Singleton.IsHost)
             {
                 Debug.Log("--- Host disconnected client");
-
+                Disconnect();
                 //// and it is in the main menu
                 //if (NetworkManager.Singleton.DisconnectReason != "")
                 //    MainMenu.Instance.SetConnectionDeniedReason(NetworkManager.Singleton.DisconnectReason);
