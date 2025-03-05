@@ -58,6 +58,9 @@ namespace Populous
     /// </summary>
     public class ConnectionManager : NetworkBehaviour, IConnectionManager
     {
+        [Tooltip("A reference to the Facepunch Steamworks transport component.")]
+        [SerializeField] private FacepunchTransport m_FacepunchTransport;
+
         private static ConnectionManager m_Instance;
         /// <summary>
         /// Gets a singleton instance of this class.
@@ -90,9 +93,7 @@ namespace Populous
         {
             if (m_Instance && m_Instance != this)
             {
-                Debug.Log("Double Connection Manager");
-                Destroy(gameObject);
-                Debug.Log("Destroyed");
+                Destroy(m_Instance.gameObject);
                 return;
             }
 
@@ -239,7 +240,7 @@ namespace Populous
             NetworkManager.Singleton.OnClientConnectedCallback += OnClientConnected;
             NetworkManager.Singleton.OnClientDisconnectCallback += OnClientDisconnect;
 
-            GetComponent<FacepunchTransport>().targetSteamId = m_CurrentLobby.Value.Owner.Id;
+            m_FacepunchTransport.targetSteamId = m_CurrentLobby.Value.Owner.Id;
 
             ScreenFader.Instance.OnFadeOutComplete += StartClient;
             ScreenFader.Instance.FadeOut();
@@ -420,11 +421,11 @@ namespace Populous
             {
                 Debug.Log("--- Host disconnected client");
 
-                // and it is in the main menu
-                if (NetworkManager.Singleton.DisconnectReason != "")
-                    MainMenu.Instance.SetConnectionDeniedReason(NetworkManager.Singleton.DisconnectReason);
+                //// and it is in the main menu
+                //if (NetworkManager.Singleton.DisconnectReason != "")
+                //    MainMenu.Instance.SetConnectionDeniedReason(NetworkManager.Singleton.DisconnectReason);
 
-                ScreenFader.Instance.FadeIn();
+                //ScreenFader.Instance.FadeIn();
             }
         }
 
