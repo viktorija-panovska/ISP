@@ -59,13 +59,10 @@ namespace Populous
         /// <returns>A task containing the <c>Texture2D</c> of the player's Steam avatar.</returns>
         public static async Task<Texture2D> GetSteamAvatar(SteamId playerId)
         {
-            Debug.Log(playerId);
             var avatar = await SteamFriends.GetLargeAvatarAsync(playerId);
 
             if (!avatar.HasValue)
                 return null;
-
-            Debug.Log("Has Image");
 
             SteamImage image = avatar.Value;
 

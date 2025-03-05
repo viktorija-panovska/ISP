@@ -3439,7 +3439,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ca509369fbc190d488e942457d689614, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_IsTestingLocal: 1
+  m_IsTestingLocal: 0
   m_ServerOnly: {fileID: 941824744}
   m_ClientOnly: {fileID: 941824759}
   m_LobbyNameField: {fileID: 941824934}

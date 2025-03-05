@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -20,11 +19,10 @@ namespace Populous
         /// </summary>
         LOBBY,
         /// <summary>
-        /// The Game scene
+        /// The Gameplay scene
         /// </summary>
         GAMEPLAY_SCENE
     }
-
 
 
     [RequireComponent(typeof(NetworkObject))]
@@ -36,13 +34,16 @@ namespace Populous
         /// </summary>
         public static SceneLoader Instance { get => m_Instance; }
 
-        private readonly Dictionary<ulong, Scene> m_ClientInScene = new();
+        /// <summary>
+        /// Stores the scenes each player is currently in. Index 0 is the host and index 1 is the client.
+        /// </summary>
+        private readonly Scene[] m_PlayerInScene = new Scene[2];
 
 
         private void Awake()
         {
-            if (m_Instance != null)
-                Destroy(gameObject);
+            if (m_Instance && m_Instance != this)
+                Destroy(m_Instance.gameObject);
 
             m_Instance = this;
             DontDestroyOnLoad(gameObject);
@@ -50,13 +51,27 @@ namespace Populous
 
 
         /// <summary>
-        /// Loads the destination scene in Single mode.
+        /// Loads the destination scene in Single mode through the network.
         /// </summary>
         /// <param name="scene">The destination scene.</param>
-        public void SwitchToScene(Scene scene)
+        public void SwitchToScene_Network(Scene scene)
         {
+            if (!IsHost) return;
             NetworkManager.Singleton.SceneManager.LoadScene(scene.ToString(), LoadSceneMode.Single);
         }
+
+        /// <summary>
+        /// Loads the destination scene in Single mode locally.
+        /// </summary>
+        /// <param name="scene">The destination scene.</param>
+        public void SwitchToScene_Local(Scene scene) => SceneManager.LoadScene(scene.ToString(), LoadSceneMode.Single);
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <returns></returns>
+        public Scene GetCurrentScene()
+            => IsHost ? m_PlayerInScene[0] : m_PlayerInScene[1];
 
 
         /// <summary>
@@ -65,38 +80,22 @@ namespace Populous
         /// <param name="sceneEvent">The <c>SceneEvent</c> to be processed.</param>
         public void HandleSceneEvent(SceneEvent sceneEvent)
         {
-            if (sceneEvent.ClientId != NetworkManager.Singleton.LocalClientId)
+            if (sceneEvent.ClientId != NetworkManager.Singleton.LocalClientId || 
+               (sceneEvent.SceneEventType != SceneEventType.LoadComplete && sceneEvent.SceneEventType != SceneEventType.SynchronizeComplete))
                 return;
 
-            if (sceneEvent.SceneEventType == SceneEventType.LoadComplete || sceneEvent.SceneEventType == SceneEventType.SynchronizeComplete)
+            Debug.Log("Handle Scene Event");
+
+            Scene scene = Scene.NONE;
+            switch (sceneEvent.SceneName)
             {
-                Debug.Log("Handle Scene Event");
-
-                switch (sceneEvent.SceneName)
-                {
-                    case "MAIN_MENU":
-                        m_ClientInScene[sceneEvent.ClientId] = Scene.MAIN_MENU;
-                        break;
-
-                    case "LOBBY":
-                        m_ClientInScene[sceneEvent.ClientId] = Scene.LOBBY;
-                        break;
-
-                    case "GAME_SCENE":
-                        m_ClientInScene[sceneEvent.ClientId] = Scene.GAMEPLAY_SCENE;
-                        break;
-
-                    default:
-                        m_ClientInScene[sceneEvent.ClientId] = Scene.NONE;
-                        break;
-                }
-
-                ScreenFader.Instance.FadeIn();
-
+                case "MAIN_MENU": scene = Scene.MAIN_MENU; break;
+                case "LOBBY": scene = Scene.LOBBY; break;
+                case "GAME_SCENE": scene = Scene.GAMEPLAY_SCENE; break;
             }
-        }
 
-        public Scene GetClientScene(ulong clientId)
-            => m_ClientInScene[clientId];
+            m_PlayerInScene[IsHost ? 0 : 1] = scene;
+            ScreenFader.Instance.FadeIn();
+        }
     }
 }

@@ -61,8 +61,8 @@ namespace Populous
         {
             Debug.Log("OnNetworkSpawn");
 
-            //m_LobbyNameField.text = GameData.Instance.LobbyName;
-            //m_LobbyPasswordField.text = GameData.Instance.LobbyPassword;
+            m_LobbyNameField.text = GameData.Instance.LobbyName;
+            m_LobbyPasswordField.text = GameData.Instance.LobbyPassword;
             m_MapSeedField.text = GameData.Instance.GameSeed.ToString();
 
             m_ServerOnly.SetActive(false);
@@ -80,16 +80,14 @@ namespace Populous
                 IsHost ? Faction.RED : Faction.BLUE
             );
 
-            //// as the player info cards are only populated when a player is added or removed
-            //// when the client joins the lobby, the host's card won't be populated for them.
+            // as the player info cards are only populated when a player is added or removed
+            // when the client joins the lobby, the host's card won't be populated for them.
             if (!NetworkManager.Singleton.IsHost)
             {
                 PlayerInfo? hostInfo = GameData.Instance.GetHostPlayerInfo();
                 if (!hostInfo.HasValue) return;
                 SetPlayerInfo(hostInfo.Value);
             }
-
-            Debug.Log(GameData.Instance.GetClientPlayerInfo());
         }
 
         /// <inheritdoc />
@@ -212,27 +210,7 @@ namespace Populous
         /// <summary>
         /// Forcibly disconnects the client from the game, if called by the host.
         /// </summary>
-        public void KickClient()
-        {
-            if (!NetworkManager.Singleton.IsHost) return;
-
-            Debug.Log("KickClient");
-            PlayerInfo? clientInfo = GameData.Instance.GetClientPlayerInfo();
-            if (!clientInfo.HasValue) return;
-            Debug.Log(clientInfo.Value.Faction);
-
-
-            foreach (var player in GameData.Instance.GetPlayerInfoList())
-            {
-                Debug.Log($"NetworkID: {player.NetworkId}. SteamName: {player.SteamName}. Faction: {player.Faction}");
-            }
-
-
-            LeaveLobby_ClientRpc(GameUtils.GetClientParams(clientInfo.Value.NetworkId));
-        }
-
-        [ClientRpc]
-        private void LeaveLobby_ClientRpc(ClientRpcParams _ = default) => LeaveLobby();
+        public void KickClient() => m_ConnectionManager.KickClient();
 
         #endregion
     }

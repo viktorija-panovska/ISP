@@ -42,16 +42,21 @@ namespace Populous
         public void StartGame();
 
         /// <summary>
-        /// 
+        /// Disconnects the current client from the network.
         /// </summary>
         public void Disconnect();
+
+        /// <summary>
+        /// Allows the host to disconnect the client.
+        /// </summary>
+        public void KickClient();
     }
 
 
     /// <summary>
     /// The <c>ConnectionManager</c> class handles the connection and disconnection of the players over the network.
     /// </summary>
-    public class ConnectionManager : MonoBehaviour, IConnectionManager
+    public class ConnectionManager : NetworkBehaviour, IConnectionManager
     {
         private static ConnectionManager m_Instance;
         /// <summary>
@@ -85,7 +90,9 @@ namespace Populous
         {
             if (m_Instance && m_Instance != this)
             {
+                Debug.Log("Double Connection Manager");
                 Destroy(gameObject);
+                Debug.Log("Destroyed");
                 return;
             }
 
@@ -97,15 +104,14 @@ namespace Populous
         {
             SteamMatchmaking.OnLobbyCreated += OnLobbyCreated;
             SteamMatchmaking.OnLobbyEntered += OnLobbyEntered;
-            SteamMatchmaking.OnLobbyMemberLeave += OnLobbyMemberLeave;
             SteamFriends.OnGameLobbyJoinRequested += OnGameLobbyJoinRequested;
         }
 
-        private void OnDestroy()
+        public override void OnDestroy()
         {
+            Debug.Log("OnDestroy");
             SteamMatchmaking.OnLobbyCreated -= OnLobbyCreated;
             SteamMatchmaking.OnLobbyEntered -= OnLobbyEntered;
-            SteamMatchmaking.OnLobbyMemberLeave -= OnLobbyMemberLeave;
             SteamFriends.OnGameLobbyJoinRequested -= OnGameLobbyJoinRequested;
 
             if (NetworkManager.Singleton == null)
@@ -114,6 +120,11 @@ namespace Populous
             NetworkManager.Singleton.ConnectionApprovalCallback -= OnConnectionApproval;
             NetworkManager.Singleton.OnClientConnectedCallback -= OnClientConnected;
             NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnect;
+
+            if (NetworkManager.Singleton.SceneManager != null)
+                NetworkManager.Singleton.SceneManager.OnSceneEvent -= SceneLoader.Instance.HandleSceneEvent;
+
+            base.OnDestroy();
         }
 
         private void OnApplicationQuit() => Disconnect();
@@ -126,7 +137,6 @@ namespace Populous
         /// <inheritdoc />
         public void CreateLobby(string lobbyName, string lobbyPassword, string gameSeed)
         {
-            Debug.Log("Create Game");
             m_EnteredGameData = (lobbyName, lobbyPassword, gameSeed);
 
             ScreenFader.Instance.OnFadeOutComplete += StartHost;
@@ -138,8 +148,6 @@ namespace Populous
         /// </summary>
         private async void StartHost()
         {
-            Debug.Log("Start Host");
-
             ScreenFader.Instance.OnFadeOutComplete -= StartHost;
 
             NetworkManager.Singleton.OnClientConnectedCallback += OnClientConnected;
@@ -163,16 +171,12 @@ namespace Populous
         /// <param name="lobby">The created lobby.</param>
         private void OnLobbyCreated(Result result, Lobby lobby)
         {
-            Debug.Log("OnLobbyCreated");
-
             if (result != Result.OK)
             {
                 Debug.Log("Lobby wasn't created");
                 Disconnect();
                 return;
             }
-
-            Debug.Log("Lobby created");
 
             lobby.SetData("name", m_EnteredGameData.name);
             lobby.SetData("password", m_EnteredGameData.password);
@@ -185,7 +189,7 @@ namespace Populous
             int gameSeed = int.TryParse(m_EnteredGameData.seed, out int seed) ? seed : new Random().Next();
             GameData.Instance.Setup(lobby, gameSeed);
 
-            SceneLoader.Instance.SwitchToScene(Scene.LOBBY);
+            SceneLoader.Instance.SwitchToScene_Network(Scene.LOBBY);
         }
 
         #endregion
@@ -211,8 +215,6 @@ namespace Populous
         /// <param name="steamId">The <c>SteamId</c> of the lobby owner.</param>
         private async void OnGameLobbyJoinRequested(Lobby lobby, SteamId steamId)
         {
-            Debug.Log("OnGameLobbyJoinRequested");
-
             RoomEnter joinLobby = await lobby.Join();
 
             if (joinLobby != RoomEnter.Success)
@@ -223,7 +225,6 @@ namespace Populous
             }
 
             m_CurrentLobby = lobby;
-            Debug.Log("Joined lobby");
         }
 
         /// <summary>
@@ -232,15 +233,13 @@ namespace Populous
         /// <param name="lobby">The <c>Lobby</c> that the user has joined.</param>
         private void OnLobbyEntered(Lobby lobby)
         {
-            if (NetworkManager.Singleton.IsHost) return;
-            Debug.Log("OnLobbyEntered");
+            if (IsHost) return;
 
             // start the client
             NetworkManager.Singleton.OnClientConnectedCallback += OnClientConnected;
             NetworkManager.Singleton.OnClientDisconnectCallback += OnClientDisconnect;
 
             GetComponent<FacepunchTransport>().targetSteamId = m_CurrentLobby.Value.Owner.Id;
-            Debug.Log("Joining room hosted by " + m_CurrentLobby.Value.Owner.Id);
 
             ScreenFader.Instance.OnFadeOutComplete += StartClient;
             ScreenFader.Instance.FadeOut();
@@ -251,7 +250,6 @@ namespace Populous
         /// </summary>
         private void StartClient()
         {
-            Debug.Log("Start Client");
             ScreenFader.Instance.OnFadeOutComplete -= StartClient;
 
             if (!NetworkManager.Singleton.StartClient())
@@ -350,8 +348,8 @@ namespace Populous
         {
             ScreenFader.Instance.OnFadeOutComplete -= OnGameStartReady;
 
-            if (!NetworkManager.Singleton.IsHost) return;
-            SceneLoader.Instance.SwitchToScene(Scene.GAMEPLAY_SCENE);
+            if (!IsHost) return;
+            SceneLoader.Instance.SwitchToScene_Network(Scene.GAMEPLAY_SCENE);
         }
 
         #endregion
@@ -360,55 +358,74 @@ namespace Populous
 
         #region Disconnect
 
-        private void OnLobbyMemberLeave(Lobby lobby, Friend friend)
-        {
-            Debug.Log("OnLobbyMemberLeave");
-        }
-
-        private void OnClientDisconnect(ulong clientId)
-        {
-            if (clientId != NetworkManager.Singleton.LocalClientId) return;
-
-            Debug.Log("OnClientDisconnect: " + clientId);
-            GameData.Instance.RemovePlayerInfo_ServerRpc(clientId);
-
-            // and it is in the main menu
-            if (NetworkManager.Singleton.DisconnectReason != "")
-                MainMenu.Instance.SetConnectionDeniedReason(NetworkManager.Singleton.DisconnectReason);
-
-            ScreenFader.Instance.FadeIn();
-        }
-
         /// <inheritdoc />
         public void Disconnect()
         {
             m_CurrentLobby?.Leave();
 
-            if (NetworkManager.Singleton == null)
-                return;
+            if (NetworkManager.Singleton == null) return;
 
+            NetworkManager.Singleton.ConnectionApprovalCallback -= OnConnectionApproval;
             NetworkManager.Singleton.OnClientConnectedCallback -= OnClientConnected;
             NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnect;
 
             if (NetworkManager.Singleton.SceneManager != null)
                 NetworkManager.Singleton.SceneManager.OnSceneEvent -= SceneLoader.Instance.HandleSceneEvent;
 
-            if (NetworkManager.Singleton.IsHost)
-                NetworkManager.Singleton.ConnectionApprovalCallback -= OnConnectionApproval;
+            if (IsHost) KickClient();
 
             NetworkManager.Singleton.Shutdown(true);
+            SceneLoader.Instance.SwitchToScene_Local(Scene.MAIN_MENU);
+
+            Destroy(gameObject);
+
             Debug.Log("Disconnected");
         }
 
+
         public void KickClient()
         {
-            if (!NetworkManager.Singleton.IsHost) return;
-
-            Debug.Log("KickClient");
-
+            if (!IsHost) return;
             PlayerInfo? clientInfo = GameData.Instance.GetClientPlayerInfo();
-            if (clientInfo == null) return;
-            NetworkManager.Singleton.DisconnectClient(clientInfo.Value.NetworkId);
+            if (!clientInfo.HasValue) return;
+
+            KickClient_ClientRpc(GameUtils.GetClientParams(clientInfo.Value.NetworkId));
+        }
+
+        [ClientRpc]
+        private void KickClient_ClientRpc(ClientRpcParams clientParams = default) => Disconnect();
+
+        /// <summary>
+        /// Called on the host when the client disconnects and on the client when the host forcefully disconnects it.
+        /// </summary>
+        /// <param name="clientId">The network ID of the client that has disconnected.</param>
+        private void OnClientDisconnect(ulong clientId)
+        {
+            Debug.Log("OnClientDisconnect: " + clientId);
+
+            // The host is being informed that the client has disconnected.
+            if (IsHost && clientId != NetworkManager.Singleton.LocalClientId)
+            {
+                Debug.Log("--- Client has disconnected");
+                GameData.Instance.RemoveClientInfo();
+
+                if (SceneLoader.Instance.GetCurrentScene() == Scene.GAMEPLAY_SCENE)
+                    SceneLoader.Instance.SwitchToScene_Network(Scene.LOBBY);
+
+                return;
+            }
+
+            // The client is being informed that it has been disconnected by the host.
+            if (!IsHost)
+            {
+                Debug.Log("--- Host disconnected client");
+
+                // and it is in the main menu
+                if (NetworkManager.Singleton.DisconnectReason != "")
+                    MainMenu.Instance.SetConnectionDeniedReason(NetworkManager.Singleton.DisconnectReason);
+
+                ScreenFader.Instance.FadeIn();
+            }
         }
 
         #endregion

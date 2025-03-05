@@ -56,8 +56,8 @@ namespace Populous
 
         private void Awake()
         {
-            if (m_Instance)
-                Destroy(gameObject);
+            if (m_Instance && m_Instance != this)
+                Destroy(m_Instance.gameObject);
 
             m_Instance = this;
             DontDestroyOnLoad(gameObject);

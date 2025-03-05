@@ -120,10 +120,7 @@ namespace Populous
         private void Awake()
         {
             if (m_Instance && m_Instance != this)
-            {
-                Destroy(gameObject);
-                return;
-            }
+                Destroy(m_Instance.gameObject);
 
             m_Instance = this;
             DontDestroyOnLoad(gameObject);
@@ -169,23 +166,30 @@ namespace Populous
 
         [ServerRpc(RequireOwnership = false)]
         public void AddPlayerInfo_ServerRpc(ulong networkId, ulong steamId, Faction team)
-            => AddPlayerInfo(new PlayerInfo(networkId, steamId, team));
+            => AddPlayerInfo(new(networkId, steamId, team));
 
         private void AddPlayerInfo(PlayerInfo playerInfo)
         {
-            Debug.Log("Add Player Info: " + playerInfo.NetworkId);
-
             m_PlayersInfo.Add(playerInfo);
-            m_NetworkIdForFaction[(int)playerInfo.Faction] = playerInfo.NetworkId;
-            m_FactionForNetworkId[playerInfo.NetworkId] = playerInfo.Faction;
+            //m_NetworkIdForFaction[(int)playerInfo.Faction] = playerInfo.NetworkId;
+            //m_FactionForNetworkId[playerInfo.NetworkId] = playerInfo.Faction;
         }
 
-        [ServerRpc(RequireOwnership = false)]
-        public void RemovePlayerInfo_ServerRpc(ulong networkId)
-            => RemovePlayerInfo(networkId);
-
-        private bool RemovePlayerInfo(ulong networkId)
+        public bool RemoveClientInfo()
         {
+            Debug.Log("Removing Client Info");
+
+            if (m_PlayersInfo.Count <= 1) return false;
+            m_PlayersInfo.RemoveAt(1);
+            return true;
+        }
+
+        public void RemoveAllPlayerInfo() => m_PlayersInfo.Clear();
+
+        public bool RemovePlayerInfo(ulong networkId)
+        {
+            Debug.Log("Remove Player Info " + networkId);
+
             for (int i = 0; i < m_PlayersInfo.Count; ++i)
             {
                 if (m_PlayersInfo[i].NetworkId == networkId)

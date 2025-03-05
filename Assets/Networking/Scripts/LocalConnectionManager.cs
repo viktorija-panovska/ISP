@@ -60,7 +60,8 @@ namespace Populous
 
     public class LocalConnectionManager : MonoBehaviour, IConnectionManager
     {
-        public static LocalConnectionManager Instance;
+        private static LocalConnectionManager m_Instance;
+        public static LocalConnectionManager Instance { get => m_Instance; }
 
         private const int MAX_PLAYERS = 2;
         private const int MAX_CONNECTION_PAYLOAD = 1024;
@@ -77,13 +78,10 @@ namespace Populous
 
         private void Awake()
         {
-            if (Instance != null && Instance != this)
-            {
-                Destroy(gameObject);
-                return;
-            }
+            if (m_Instance && m_Instance != this)
+                Destroy(m_Instance.gameObject);
 
-            Instance = this;
+            m_Instance = this;
             DontDestroyOnLoad(gameObject);
         }
 
@@ -132,7 +130,7 @@ namespace Populous
 
             clientData.Add(clientGuid, new PlayerData(playerName, NetworkManager.Singleton.LocalClientId));
             clientIdToPlayerId.Add(NetworkManager.Singleton.LocalClientId, clientGuid);
-            SceneLoader.Instance.SwitchToScene(Scene.LOBBY);
+            SceneLoader.Instance.SwitchToScene_Network(Scene.LOBBY);
         }
 
         private void OnHostDisconnectRequest()
@@ -144,7 +142,7 @@ namespace Populous
             NetworkManager.Singleton.Shutdown();
             ClearAllClientData();
 
-            SceneLoader.Instance.SwitchToScene(Scene.MAIN_MENU);
+            SceneLoader.Instance.SwitchToScene_Network(Scene.MAIN_MENU);
             SceneManager.LoadScene("MainMenu");
         }
 
@@ -232,7 +230,7 @@ namespace Populous
 
                     if (gameInProgress)
                     {
-                        SceneLoader.Instance.SwitchToScene(Scene.LOBBY);
+                        SceneLoader.Instance.SwitchToScene_Network(Scene.LOBBY);
                         gameInProgress = false;
                     }
                 }
@@ -283,7 +281,7 @@ namespace Populous
         {
             gameInProgress = true;
 
-            SceneLoader.Instance.SwitchToScene(Scene.GAMEPLAY_SCENE);
+            SceneLoader.Instance.SwitchToScene_Network(Scene.GAMEPLAY_SCENE);
         }
 
         #endregion
@@ -302,6 +300,11 @@ namespace Populous
 
             else if (NetworkManager.Singleton.IsClient)
                 OnClientDisconnectRequest();
+        }
+
+        public void KickClient()
+        {
+            throw new NotImplementedException();
         }
     }
 }

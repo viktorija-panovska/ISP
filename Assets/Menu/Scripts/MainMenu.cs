@@ -207,6 +207,8 @@ namespace Populous
             m_SelectedLobbyEntry = null;
             m_LobbyEntryList = new();
 
+            // local connection doesn't have a server to get lobbies from
+            // so just create a dummy lobby to fill the list
             if (m_ConnectionManager.GetType() == typeof(LocalConnectionManager))
             {
                 LobbyListEntry lobbyEntry = Instantiate(m_LobbyEntryPrefab).GetComponent<LobbyListEntry>();
