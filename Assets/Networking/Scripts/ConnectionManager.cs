@@ -45,22 +45,14 @@ namespace Populous
         /// Disconnects the current client from the network.
         /// </summary>
         public void Disconnect();
-
-        /// <summary>
-        /// Allows the host to disconnect the client.
-        /// </summary>
-        public void KickClient();
     }
 
 
     /// <summary>
     /// The <c>ConnectionManager</c> class handles the connection and disconnection of the players over the network.
     /// </summary>
-    public class ConnectionManager : NetworkBehaviour, IConnectionManager
+    public class ConnectionManager : MonoBehaviour, IConnectionManager
     {
-        [Tooltip("A reference to the Facepunch Steamworks transport component.")]
-        [SerializeField] private FacepunchTransport m_FacepunchTransport;
-
         private static ConnectionManager m_Instance;
         /// <summary>
         /// Gets a singleton instance of this class.
@@ -108,7 +100,7 @@ namespace Populous
             SteamFriends.OnGameLobbyJoinRequested += OnGameLobbyJoinRequested;
         }
 
-        public override void OnDestroy()
+        public void OnDestroy()
         {
             Debug.Log("OnDestroy");
             SteamMatchmaking.OnLobbyCreated -= OnLobbyCreated;
@@ -124,8 +116,6 @@ namespace Populous
 
             if (NetworkManager.Singleton.SceneManager != null)
                 NetworkManager.Singleton.SceneManager.OnSceneEvent -= SceneLoader.Instance.HandleSceneEvent;
-
-            base.OnDestroy();
         }
 
         private void OnApplicationQuit() => Disconnect();
@@ -234,13 +224,13 @@ namespace Populous
         /// <param name="lobby">The <c>Lobby</c> that the user has joined.</param>
         private void OnLobbyEntered(Lobby lobby)
         {
-            if (IsHost) return;
+            if (NetworkManager.Singleton.IsHost) return;
 
             // start the client
             NetworkManager.Singleton.OnClientConnectedCallback += OnClientConnected;
             NetworkManager.Singleton.OnClientDisconnectCallback += OnClientDisconnect;
 
-            m_FacepunchTransport.targetSteamId = m_CurrentLobby.Value.Owner.Id;
+            GetComponent<FacepunchTransport>().targetSteamId = m_CurrentLobby.Value.Owner.Id;
 
             ScreenFader.Instance.OnFadeOutComplete += StartClient;
             ScreenFader.Instance.FadeOut();
@@ -349,7 +339,7 @@ namespace Populous
         {
             ScreenFader.Instance.OnFadeOutComplete -= OnGameStartReady;
 
-            if (!IsHost) return;
+            if (!NetworkManager.Singleton.IsHost) return;
             SceneLoader.Instance.SwitchToScene_Network(Scene.GAMEPLAY_SCENE);
         }
 
@@ -373,8 +363,6 @@ namespace Populous
             if (NetworkManager.Singleton.SceneManager != null)
                 NetworkManager.Singleton.SceneManager.OnSceneEvent -= SceneLoader.Instance.HandleSceneEvent;
 
-            if (IsHost) KickClient();
-
             NetworkManager.Singleton.Shutdown(true);
             SceneLoader.Instance.SwitchToScene_Local(Scene.MAIN_MENU);
 
@@ -382,19 +370,6 @@ namespace Populous
 
             Debug.Log("Disconnected");
         }
-
-
-        public void KickClient()
-        {
-            if (!IsHost) return;
-            PlayerInfo? clientInfo = GameData.Instance.GetClientPlayerInfo();
-            if (!clientInfo.HasValue) return;
-
-            KickClient_ClientRpc(GameUtils.GetClientParams(clientInfo.Value.NetworkId));
-        }
-
-        [ClientRpc]
-        private void KickClient_ClientRpc(ClientRpcParams clientParams = default) => Disconnect();
 
         /// <summary>
         /// Called on the host when the client disconnects and on the client when the host forcefully disconnects it.
@@ -405,7 +380,7 @@ namespace Populous
             Debug.Log("OnClientDisconnect: " + clientId);
 
             // The host is being informed that the client has disconnected.
-            if (IsHost && clientId != NetworkManager.Singleton.LocalClientId)
+            if (NetworkManager.Singleton.IsHost && clientId != NetworkManager.Singleton.LocalClientId)
             {
                 Debug.Log("--- Client has disconnected");
                 GameData.Instance.RemoveClientInfo();
@@ -417,7 +392,7 @@ namespace Populous
             }
 
             // The client is being informed that it has been disconnected by the host.
-            if (!IsHost)
+            if (!NetworkManager.Singleton.IsHost)
             {
                 Debug.Log("--- Host disconnected client");
 

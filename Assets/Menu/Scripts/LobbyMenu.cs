@@ -18,22 +18,32 @@ namespace Populous
         [Tooltip("Set to true if testing the game on a local network")]
         [SerializeField] private bool m_IsTestingLocal;
 
-        [SerializeField] private GameObject m_ServerOnly;
-        [SerializeField] private GameObject m_ClientOnly;
-
         [Header("Server Info")]
+        [Tooltip("The text field that should contain the lobby name.")]
         [SerializeField] private TMP_Text m_LobbyNameField;
+        [Tooltip("The text field that should contain the lobby password.")]
         [SerializeField] private TMP_Text m_LobbyPasswordField;
+        [Tooltip("The text field that should contain the game seed.")]
         [SerializeField] private TMP_Text m_MapSeedField;
 
         [Header("Player Info")]
+        [Tooltip("The images on which the players' Steam avatars should be displayed. Index 0 is for the red player and index 1 is for the blue.")]
         [SerializeField] private RawImage[] m_PlayerAvatar;
+        [Tooltip("The text fields on which the players' Steam names should be displayed. Index 0 is for the red player and index 1 is for the blue.")]
         [SerializeField] private TMP_Text[] m_PlayerName;
-        [SerializeField] private GameObject m_BluePlayerReadySignal;
+        [Tooltip("The GameObject that should be enabled to notify that the client is ready to enter the game.")]
+        [SerializeField] private GameObject m_ClientReadySignal;
 
         [Header("Buttons")]
+        [Tooltip("The GameObject containing the buttons that should be visible for the host.")]
+        [SerializeField] private GameObject m_ServerOnly;
+        [Tooltip("The GameObject containing the buttons that should be visible for the client.")]
+        [SerializeField] private GameObject m_ClientOnly;
+        [Tooltip("The button which, when pressed, allows the host to kick the client out of the lobby.")]
         [SerializeField] private Button m_KickButton;
+        [Tooltip("The button which, when pressed, allows the host to start the game..")]
         [SerializeField] private Button m_StartButton;
+        [Tooltip("The button which, when pressed, allows the client to notify the host that they are ready to start the game.")]
         [SerializeField] private Toggle m_ReadyButton;
 
         #endregion
@@ -153,7 +163,7 @@ namespace Populous
             m_PlayerAvatar[index].gameObject.SetActive(false);
 
             if (index == 1)
-                m_BluePlayerReadySignal.SetActive(false);
+                m_ClientReadySignal.SetActive(false);
         }
 
         #endregion
@@ -162,31 +172,31 @@ namespace Populous
         #region Start Game
 
         /// <summary>
-        /// Makes a call to the server, setting the state of the blue player to ready if it is not and vice versa.
+        /// Makes a call to the server, setting the state of the client to ready if it is not and vice versa.
         /// </summary>
         /// <param name="_">Toggle parameter, true if toggled on false otherwise - not in use.</param>
         public void ToggleIsClientReady(bool _)
         {
             m_ReadyButton.GetComponent<Image>().color = m_ReadyButton.isOn ? Color.gray : Color.white;
-            m_BluePlayerReadySignal.SetActive(m_ReadyButton.isOn);
+            m_ClientReadySignal.SetActive(m_ReadyButton.isOn);
 
             ToggleIsClientReady_ServerRpc(m_ReadyButton.isOn);
         }
 
         /// <summary>
-        /// 
+        /// Sets the state of the client depending on the given parameter.
         /// </summary>
-        /// <param name="isReady"></param>
+        /// <param name="isReady">True if the client is ready, false otherwise.</param>
         [ServerRpc(RequireOwnership = false)]
         private void ToggleIsClientReady_ServerRpc(bool isReady)
         {
             m_IsClientReady = isReady;
-            m_BluePlayerReadySignal.SetActive(isReady);
+            m_ClientReadySignal.SetActive(isReady);
             m_StartButton.interactable = isReady;
         }
 
         /// <summary>
-        /// Calls the <see cref="IConnectionManager"/> to start the game, if called by the host and the client is ready.
+        /// Triggers the start of the game, if called by the host and the client is ready.
         /// </summary>
         public void StartGame()
         {
@@ -194,6 +204,9 @@ namespace Populous
             StartGame_ClientRpc();
         }
 
+        /// <summary>
+        /// Calls the <see cref="IConnectionManager"/> to start the game
+        /// </summary>
         [ClientRpc]
         private void StartGame_ClientRpc() => m_ConnectionManager.StartGame();
 
@@ -205,12 +218,25 @@ namespace Populous
         /// <summary>
         /// Calls the <see cref="ConnectionManager"/> to disconnect the player from the lobby.
         /// </summary>
-        public void LeaveLobby() => m_ConnectionManager.Disconnect();
+        public void LeaveLobby()
+        {
+            m_ConnectionManager.Disconnect();
+        }
+
+        [ClientRpc]
+        private void LeaveLobby_ClientRpc(ClientRpcParams clientRpcParams = default) => LeaveLobby();
 
         /// <summary>
         /// Forcibly disconnects the client from the game, if called by the host.
         /// </summary>
-        public void KickClient() => m_ConnectionManager.KickClient();
+        public void KickClient()
+        {
+            if (!NetworkManager.Singleton.IsHost) return;
+            PlayerInfo? clientInfo = GameData.Instance.GetClientPlayerInfo();
+            if (!clientInfo.HasValue) return;
+
+            LeaveLobby_ClientRpc(GameUtils.GetClientParams(clientInfo.Value.NetworkId));
+        }
 
         #endregion
     }
