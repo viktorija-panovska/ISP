@@ -111,10 +111,8 @@ namespace Populous
             SetActivePowerIcon(Power.MOLD_TERRAIN, Power.MOLD_TERRAIN);
             SetActiveBehaviorIcon(UnitBehavior.SETTLE, UnitBehavior.SETTLE);
 
-
-            // TODO: uncomment
-            //PlayerInfo? redPlayerInfo = GameData.Instance.GetPlayerInfoByTeam(Team.RED);
-            //PlayerInfo? bluePlayerInfo = GameData.Instance.GetPlayerInfoByTeam(Team.BLUE);
+            //PlayerInfo? redPlayerInfo = GameData.Instance.GetPlayerInfoByFaction(Faction.RED);
+            //PlayerInfo? bluePlayerInfo = GameData.Instance.GetPlayerInfoByFaction(Faction.BLUE);
 
             //if (redPlayerInfo.HasValue)
             //    m_PlayerAvatars[0].texture = await InterfaceUtils.GetSteamAvatar(redPlayerInfo.Value.SteamId);

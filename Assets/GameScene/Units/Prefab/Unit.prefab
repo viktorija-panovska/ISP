@@ -58,6 +58,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b5d7a445c43ca5440b0f34a8844cae34, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_TilesPerSide: 30
 --- !u!1 &2837463902984971954
 GameObject:
   m_ObjectHideFlags: 0
@@ -429,19 +430,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f5c568a1629dc274488413d543dc4afb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_SecondsUntilEnteringEnabled: 0.5
   m_LeaderSigns:
   - {fileID: 3319941856513379266}
   - {fileID: 6475190841780479472}
   m_KnightSword: {fileID: 8455134085631431226}
-  m_SecondsUntilEnteringEnabled: 0.5
   m_Highlight: {fileID: 2837463902984971954}
   m_MinimapIcon: {fileID: 3085773139609779454}
-  m_CloseRangeDetector: {fileID: 8487823297983500840}
-  m_MidRangeDetector: {fileID: 6128104503836289826}
-  m_WideRangeDetector: {fileID: 4125043769463975922}
-  m_CloseRangeRadius: 15
-  m_MidRangeTilesPerSide: 3
-  m_WideRangeTilesPerSide: 20
+  m_CollisionDetector: {fileID: 8487823297983500840}
+  m_ChaseDetector: {fileID: 6128104503836289826}
+  m_DirectionDetector: {fileID: 4125043769463975922}
 --- !u!114 &7064862365862757736
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -518,6 +516,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6355d9e5251a96241ac504842c82a49d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_TilesPerSide: 1
 --- !u!1 &8981761370364291564
 GameObject:
   m_ObjectHideFlags: 0

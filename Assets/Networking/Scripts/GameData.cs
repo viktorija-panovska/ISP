@@ -54,7 +54,7 @@ namespace Populous
         {
             m_NetworkId = networkId;
             m_SteamId = steamId;
-            m_SteamName = steamId != 0 ? new Friend(steamId).Name : "";
+            m_SteamName = m_SteamId != 0 ? new Friend(m_SteamId).Name : "";
             m_Faction = faction;
         }
 
@@ -107,7 +107,6 @@ namespace Populous
         /// </summary>
         public string LobbyPassword { get => m_Lobby.GetData("password"); }
 
-
         private int m_GameSeed;
         private NetworkVariable<int> m_GameSeed_Network = new();
         public int GameSeed { get => m_GameSeed_Network.Value; }
@@ -153,6 +152,10 @@ namespace Populous
 
             return null;
         }
+
+        public NetworkList<PlayerInfo> GetPlayerInfoList() => m_PlayersInfo;
+
+
 
 
         public ulong GetNetworkIdByFaction(Faction team) => GetNetworkIdByFaction((int)team);

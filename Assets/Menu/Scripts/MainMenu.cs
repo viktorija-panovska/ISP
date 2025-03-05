@@ -14,6 +14,9 @@ namespace Populous
     {
         #region Inspector Fields
 
+        [Tooltip("Set to true if testing the game on a local network")]
+        [SerializeField] private bool m_IsTestingLocal;
+
         [Header("Screens")]
         [Tooltip("The GameObject representing the main screen, where the player selects whether to host or join a game.")]
         [SerializeField] private GameObject m_MainScreen;
@@ -59,6 +62,11 @@ namespace Populous
         public static MainMenu Instance { get => m_Instance; }
 
         /// <summary>
+        /// A reference to the connection manager used to establish the connection between host and client.
+        /// </summary>
+        private IConnectionManager m_ConnectionManager;
+
+        /// <summary>
         /// The menu screen that is currently active.
         /// </summary>
         private GameObject m_CurrentScreen;
@@ -89,6 +97,8 @@ namespace Populous
         {
             m_CurrentScreen = m_MainScreen;
             m_LobbyEntryList = new();
+
+            m_ConnectionManager = m_IsTestingLocal ? LocalConnectionManager.Instance : ConnectionManager.Instance;
         }
 
         #endregion
@@ -157,10 +167,10 @@ namespace Populous
                 return;
             }
 
-            ConnectionManager.Instance.CreateLobby(
-                m_LobbyNameInputField.text.ToLower(), 
-                m_PasswordInputField.text.ToLower(), 
-                m_GameSeedInputField.text.ToLower()
+            m_ConnectionManager.CreateLobby(
+                lobbyName: m_LobbyNameInputField.text.ToLower(), 
+                lobbyPassword: m_PasswordInputField.text.ToLower(), 
+                gameSeed: m_GameSeedInputField.text.ToLower()
             );
         }
 
@@ -197,8 +207,19 @@ namespace Populous
             m_SelectedLobbyEntry = null;
             m_LobbyEntryList = new();
 
-            Lobby[] lobbies = await ConnectionManager.Instance.GetActiveLobbies();
+            if (m_ConnectionManager.GetType() == typeof(LocalConnectionManager))
+            {
+                LobbyListEntry lobbyEntry = Instantiate(m_LobbyEntryPrefab).GetComponent<LobbyListEntry>();
+                lobbyEntry.SetupEmptyLobby("TEST LOBBY", false);
+                lobbyEntry.transform.SetParent(m_LobbyListContent);
+                lobbyEntry.transform.localScale = Vector3.one;
 
+                m_LobbyEntryList.Add(lobbyEntry);
+                return;
+            }
+
+            Lobby[] lobbies = await m_ConnectionManager.GetActiveLobbies();
+            
             foreach (Lobby lobby in lobbies)
             {
                 // to filter out lobbies from Spacewar that aren't from this project
@@ -264,7 +285,7 @@ namespace Populous
         /// Calls the <see cref="ConnectionManager"/> to attempt to join the selected lobby.
         /// </summary>
         private void EnterLobby(string password = "")
-            => ConnectionManager.Instance.JoinGame(m_SelectedLobbyEntry.Lobby, password);
+            => m_ConnectionManager.JoinGame(m_SelectedLobbyEntry.Lobby, password);
 
         /// <summary>
         /// Called when the connection to a lobby through a password is denied.

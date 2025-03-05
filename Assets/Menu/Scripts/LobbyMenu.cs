@@ -1,6 +1,5 @@
 using Steamworks;
 using TMPro;
-using Unity.Collections.LowLevel.Unsafe;
 using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.UI;
@@ -15,6 +14,9 @@ namespace Populous
     public class LobbyMenu : NetworkBehaviour
     {
         #region Inspector Fields
+
+        [Tooltip("Set to true if testing the game on a local network")]
+        [SerializeField] private bool m_IsTestingLocal;
 
         [SerializeField] private GameObject m_ServerOnly;
         [SerializeField] private GameObject m_ClientOnly;
@@ -38,12 +40,19 @@ namespace Populous
 
 
         /// <summary>
+        /// A reference to the connection manager used to establish the connection between host and client.
+        /// </summary>
+        private IConnectionManager m_ConnectionManager;
+
+        /// <summary>
         /// True if the client (non-hosting player) has indicated that they are ready, false otherwise.
         /// </summary>
         private bool m_IsClientReady;
 
 
         #region Event Functions
+
+        public void Start() => m_ConnectionManager = m_IsTestingLocal ? LocalConnectionManager.Instance : ConnectionManager.Instance;
 
         /// <summary>
         /// Called when this <c>NetworkObject</c> is spawned on the network, sets up the lobby.
@@ -52,8 +61,8 @@ namespace Populous
         {
             Debug.Log("OnNetworkSpawn");
 
-            m_LobbyNameField.text = GameData.Instance.LobbyName;
-            m_LobbyPasswordField.text = GameData.Instance.LobbyPassword;
+            //m_LobbyNameField.text = GameData.Instance.LobbyName;
+            //m_LobbyPasswordField.text = GameData.Instance.LobbyPassword;
             m_MapSeedField.text = GameData.Instance.GameSeed.ToString();
 
             m_ServerOnly.SetActive(false);
@@ -66,9 +75,9 @@ namespace Populous
 
             GameData.Instance.SubscribeToPlayersInfoList(OnPlayersInfoListChange);
             GameData.Instance.AddPlayerInfo_ServerRpc(
-                NetworkManager.Singleton.LocalClientId, 
+                NetworkManager.Singleton.LocalClientId,
                 SteamClient.SteamId,
-                IsHost ? Faction.RED: Faction.BLUE
+                IsHost ? Faction.RED : Faction.BLUE
             );
 
             //// as the player info cards are only populated when a player is added or removed
@@ -79,6 +88,8 @@ namespace Populous
                 if (!hostInfo.HasValue) return;
                 SetPlayerInfo(hostInfo.Value);
             }
+
+            Debug.Log(GameData.Instance.GetClientPlayerInfo());
         }
 
         /// <inheritdoc />
@@ -177,13 +188,16 @@ namespace Populous
         }
 
         /// <summary>
-        /// Calls the <see cref="ConnectionManager"/> to start the game, if called by the host and the client is ready.
+        /// Calls the <see cref="IConnectionManager"/> to start the game, if called by the host and the client is ready.
         /// </summary>
         public void StartGame()
         {
             if (!NetworkManager.Singleton.IsHost || !m_IsClientReady) return;
-            ConnectionManager.Instance.StartGame();
+            StartGame_ClientRpc();
         }
+
+        [ClientRpc]
+        private void StartGame_ClientRpc() => m_ConnectionManager.StartGame();
 
         #endregion
 
@@ -193,7 +207,7 @@ namespace Populous
         /// <summary>
         /// Calls the <see cref="ConnectionManager"/> to disconnect the player from the lobby.
         /// </summary>
-        public void LeaveLobby() => ConnectionManager.Instance.Disconnect();
+        public void LeaveLobby() => m_ConnectionManager.Disconnect();
 
         /// <summary>
         /// Forcibly disconnects the client from the game, if called by the host.
@@ -201,8 +215,24 @@ namespace Populous
         public void KickClient()
         {
             if (!NetworkManager.Singleton.IsHost) return;
-            ConnectionManager.Instance.KickClient();
+
+            Debug.Log("KickClient");
+            PlayerInfo? clientInfo = GameData.Instance.GetClientPlayerInfo();
+            if (!clientInfo.HasValue) return;
+            Debug.Log(clientInfo.Value.Faction);
+
+
+            foreach (var player in GameData.Instance.GetPlayerInfoList())
+            {
+                Debug.Log($"NetworkID: {player.NetworkId}. SteamName: {player.SteamName}. Faction: {player.Faction}");
+            }
+
+
+            LeaveLobby_ClientRpc(GameUtils.GetClientParams(clientInfo.Value.NetworkId));
         }
+
+        [ClientRpc]
+        private void LeaveLobby_ClientRpc(ClientRpcParams _ = default) => LeaveLobby();
 
         #endregion
     }

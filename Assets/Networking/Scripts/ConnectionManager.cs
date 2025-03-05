@@ -1,7 +1,6 @@
 using Netcode.Transports.Facepunch;
 using Steamworks;
 using Steamworks.Data;
-using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 using Unity.Netcode;
@@ -12,9 +11,47 @@ using Random = System.Random;
 namespace Populous
 {
     /// <summary>
+    /// The <c>IConnectionManager</c> interface defines the methods necessary for a class that provides network connection between a host and client.
+    /// </summary>
+    public interface IConnectionManager
+    {
+        /// <summary>
+        /// Sets the values of the game that is being started and its associated lobby, and starts the process of launching the host.
+        /// </summary>
+        /// <param name="lobbyName">The name of the lobby that should be created.</param>
+        /// <param name="lobbyPassword">The optional password of the lobby that should be created.</param>
+        /// <param name="gameSeed">The seed the created game should use to randomly generate the terrain and other game elements.</param>
+        public void CreateLobby(string lobbyName, string lobbyPassword, string gameSeed);
+
+        /// <summary>
+        /// Gets all the active lobbies.
+        /// </summary>
+        /// <returns>A <c>Task</c> containing a list the <c>Lobby</c> instances of all active lobbies.</returns>
+        public Task<Lobby[]> GetActiveLobbies();
+
+        /// <summary>
+        /// Triggers the client to attempt to join the given lobby.
+        /// </summary>
+        /// <param name="lobby">The <c>Lobby</c> the client wants to join.</param>
+        /// <param name="password">The password entered by the client, empty string if no password is entered.</param>
+        public void JoinGame(Lobby lobby, string password);
+
+        /// <summary>
+        /// Starts the game.
+        /// </summary>
+        public void StartGame();
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public void Disconnect();
+    }
+
+
+    /// <summary>
     /// The <c>ConnectionManager</c> class handles the connection and disconnection of the players over the network.
     /// </summary>
-    public class ConnectionManager : MonoBehaviour
+    public class ConnectionManager : MonoBehaviour, IConnectionManager
     {
         private static ConnectionManager m_Instance;
         /// <summary>
@@ -86,12 +123,7 @@ namespace Populous
 
         #region Starting a Host
 
-        /// <summary>
-        /// Sets the values of the game that is being started and its associated lobby, and starts the process of launching the host.
-        /// </summary>
-        /// <param name="lobbyName">The name of the lobby that should be created.</param>
-        /// <param name="lobbyPassword">The optional password of the lobby that should be created.</param>
-        /// <param name="gameSeed">The seed the created game should use to randomly generate the terrain and other game elements.</param>
+        /// <inheritdoc />
         public void CreateLobby(string lobbyName, string lobbyPassword, string gameSeed)
         {
             Debug.Log("Create Game");
@@ -161,17 +193,11 @@ namespace Populous
 
         #region Starting a Client
 
-        /// <summary>
-        /// Gets all the active lobbies.
-        /// </summary>
-        /// <returns>A <c>Task</c> containing a list the <c>Lobby</c> instances of all active lobbies.</returns>
+        /// <inheritdoc />
         public async Task<Lobby[]> GetActiveLobbies()
             => await SteamMatchmaking.LobbyList.RequestAsync();
 
-        /// <summary>
-        /// Triggers the client to attempt to join the given lobby.
-        /// </summary>
-        /// <param name="lobby">The <c>Lobby</c> the client wants to join.</param>
+        /// <inheritdoc />
         public void JoinGame(Lobby lobby, string password)
         {
             NetworkManager.Singleton.NetworkConfig.ConnectionData = Encoding.UTF8.GetBytes(password);
@@ -225,6 +251,7 @@ namespace Populous
         /// </summary>
         private void StartClient()
         {
+            Debug.Log("Start Client");
             ScreenFader.Instance.OnFadeOutComplete -= StartClient;
 
             if (!NetworkManager.Singleton.StartClient())
@@ -297,6 +324,10 @@ namespace Populous
             }
 
             response.Approved = true;
+
+
+
+            //KickClient(clientId);
         }
 
         #endregion
@@ -304,12 +335,10 @@ namespace Populous
 
         #region Launch Game
 
-        /// <summary>
-        /// Prepares for the starting of the game.
-        /// </summary>
-        /// <remarks>Called only by the server.</remarks>
+        /// <inheritdoc />
         public void StartGame()
         {
+            Debug.Log("Start Game");
             ScreenFader.Instance.OnFadeOutComplete += OnGameStartReady;
             ScreenFader.Instance.FadeOut();
         }
@@ -320,6 +349,8 @@ namespace Populous
         private void OnGameStartReady()
         {
             ScreenFader.Instance.OnFadeOutComplete -= OnGameStartReady;
+
+            if (!NetworkManager.Singleton.IsHost) return;
             SceneLoader.Instance.SwitchToScene(Scene.GAMEPLAY_SCENE);
         }
 
@@ -348,6 +379,7 @@ namespace Populous
             ScreenFader.Instance.FadeIn();
         }
 
+        /// <inheritdoc />
         public void Disconnect()
         {
             m_CurrentLobby?.Leave();
@@ -357,7 +389,9 @@ namespace Populous
 
             NetworkManager.Singleton.OnClientConnectedCallback -= OnClientConnected;
             NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnect;
-            NetworkManager.Singleton.SceneManager.OnSceneEvent -= SceneLoader.Instance.HandleSceneEvent;
+
+            if (NetworkManager.Singleton.SceneManager != null)
+                NetworkManager.Singleton.SceneManager.OnSceneEvent -= SceneLoader.Instance.HandleSceneEvent;
 
             if (NetworkManager.Singleton.IsHost)
                 NetworkManager.Singleton.ConnectionApprovalCallback -= OnConnectionApproval;
