@@ -199,8 +199,6 @@ namespace Populous
         /// </summary>
         private async void FillLobbyList()
         {
-            Debug.Log("Fill Lobby List");
-
             foreach (LobbyListEntry lobbyEntry in m_LobbyEntryList)
                 Destroy(lobbyEntry.gameObject);
 

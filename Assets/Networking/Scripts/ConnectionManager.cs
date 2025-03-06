@@ -102,7 +102,7 @@ namespace Populous
             SteamFriends.OnGameLobbyJoinRequested += OnGameLobbyJoinRequested;
         }
 
-        public void OnDestroy()
+        public override void OnDestroy()
         {
             Debug.Log("OnDestroy");
             SteamMatchmaking.OnLobbyCreated -= OnLobbyCreated;
@@ -118,6 +118,8 @@ namespace Populous
 
             if (NetworkManager.Singleton.SceneManager != null)
                 NetworkManager.Singleton.SceneManager.OnSceneEvent -= SceneLoader.Instance.HandleSceneEvent;
+
+            base.OnDestroy();
         }
 
         private void OnApplicationQuit() => Disconnect();
@@ -166,7 +168,7 @@ namespace Populous
         {
             if (result != Result.OK)
             {
-                Debug.Log("Lobby wasn't created");
+                Debug.LogError("Lobby wasn't created");
                 Disconnect();
                 return;
             }
@@ -191,8 +193,7 @@ namespace Populous
         #region Starting a Client
 
         /// <inheritdoc />
-        public async Task<Lobby[]> GetActiveLobbies()
-            => await SteamMatchmaking.LobbyList.RequestAsync();
+        public async Task<Lobby[]> GetActiveLobbies() => await SteamMatchmaking.LobbyList.RequestAsync();
 
         /// <inheritdoc />
         public void JoinGame(Lobby lobby, string password)
@@ -212,7 +213,7 @@ namespace Populous
 
             if (joinLobby != RoomEnter.Success)
             {
-                Debug.Log("Failed to enter lobby");
+                Debug.LogError("Failed to enter lobby");
                 NetworkManager.Singleton.NetworkConfig.ConnectionData = Encoding.UTF8.GetBytes("");
                 return;
             }
@@ -247,7 +248,7 @@ namespace Populous
 
             if (!NetworkManager.Singleton.StartClient())
             {
-                Debug.Log("Client Start Failed");
+                Debug.LogError("Client Start Failed");
                 NetworkManager.Singleton.NetworkConfig.ConnectionData = Encoding.UTF8.GetBytes("");
                 return;
             }
@@ -264,7 +265,6 @@ namespace Populous
         /// <param name="clientId">The ID of the client that was connected.</param>
         private void OnClientConnected(ulong clientId)
         {
-            Debug.Log("OnClientConnected");
             if (clientId != NetworkManager.Singleton.LocalClientId) return;
             NetworkManager.Singleton.SceneManager.OnSceneEvent += SceneLoader.Instance.HandleSceneEvent;
         }
@@ -291,29 +291,29 @@ namespace Populous
 
             if (connectionData.Length > MAX_CONNECTION_PAYLOAD)
             {
-                //Debug.Log("--- Denied");
+                Debug.Log("--- Denied");
                 //response.Approved = false;
                 //response.Reason = "Maximum payload size exceeded.";
-                //ClientDisconnector.Instance.Disconnect_ClientRpc();
+                Disconnect_ClientRpc(GameUtils.GetClientParams(clientId));
                 return;
             }
 
             string password = Encoding.UTF8.GetString(connectionData);
             if (password != GameData.Instance.LobbyPassword)
             {
-                //Debug.Log("--- Denied");
+                Debug.Log("--- Denied");
                 //response.Approved = false;
                 //response.Reason = "Incorrect password.";
-                //ClientDisconnector.Instance.Disconnect_ClientRpc();
+                Disconnect_ClientRpc(GameUtils.GetClientParams(clientId));
                 return;
             }
 
             if (NetworkManager.Singleton.ConnectedClientsIds.Count >= MAX_PLAYERS)
             {
-                //Debug.Log("--- Denied");
+                Debug.Log("--- Denied");
                 //response.Approved = false;
                 //response.Reason = "Lobby full.";
-                //ClientDisconnector.Instance.Disconnect_ClientRpc();
+                Disconnect_ClientRpc(GameUtils.GetClientParams(clientId));
                 return;
             }
 
@@ -328,7 +328,6 @@ namespace Populous
         /// <inheritdoc />
         public void StartGame()
         {
-            Debug.Log("Start Game");
             ScreenFader.Instance.OnFadeOutComplete += OnGameStartReady;
             ScreenFader.Instance.FadeOut();
         }
@@ -340,12 +339,11 @@ namespace Populous
         {
             ScreenFader.Instance.OnFadeOutComplete -= OnGameStartReady;
 
-            if (!NetworkManager.Singleton.IsHost) return;
+            if (!IsHost) return;
             SceneLoader.Instance.SwitchToScene_Network(Scene.GAMEPLAY_SCENE);
         }
 
         #endregion
-
 
 
         #region Disconnect
@@ -374,6 +372,24 @@ namespace Populous
         }
 
         /// <summary>
+        /// Disconnects a player on client-side.
+        /// </summary>
+        [ClientRpc]
+        private void Disconnect_ClientRpc(ClientRpcParams clientRpcParams = default) => Disconnect();
+
+        /// <summary>
+        /// Allows the host to disconnect the client.
+        /// </summary>
+        public void KickClient()
+        {
+            if (!IsHost) return;
+
+            PlayerInfo? clientInfo = GameData.Instance.GetClientPlayerInfo();
+            if (!clientInfo.HasValue) return;
+            Disconnect_ClientRpc(GameUtils.GetClientParams(clientInfo.Value.NetworkId));
+        }
+
+        /// <summary>
         /// Called on the host when the client disconnects and on the client when the host forcefully disconnects it.
         /// </summary>
         /// <param name="networkId">The network ID of the user that invoked this method: the network ID of the disconnected client
@@ -383,7 +399,7 @@ namespace Populous
             Debug.Log("OnClientDisconnect: " + networkId);
 
             // The host is being informed that the client has disconnected.
-            if (NetworkManager.Singleton.IsHost && networkId != NetworkManager.Singleton.LocalClientId)
+            if (IsHost && networkId != NetworkManager.Singleton.LocalClientId)
             {
                 Debug.Log("--- Client has disconnected");
                 GameData.Instance.RemoveClientInfo();
@@ -393,7 +409,7 @@ namespace Populous
             }
 
             // The client is being informed that it has been disconnected by the host.
-            else
+            if (!IsHost)
             {
                 Debug.Log("--- Host disconnected client");
 

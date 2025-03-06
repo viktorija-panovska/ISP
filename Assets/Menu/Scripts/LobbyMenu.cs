@@ -223,9 +223,6 @@ namespace Populous
             m_ConnectionManager.Disconnect();
         }
 
-        [ClientRpc]
-        private void LeaveLobby_ClientRpc(ClientRpcParams clientRpcParams = default) => LeaveLobby();
-
         /// <summary>
         /// Forcibly disconnects the client from the game, if called by the host.
         /// </summary>
@@ -235,7 +232,7 @@ namespace Populous
             PlayerInfo? clientInfo = GameData.Instance.GetClientPlayerInfo();
             if (!clientInfo.HasValue) return;
 
-            ClientDisconnector.Instance.Disconnect_ClientRpc(GameUtils.GetClientParams(clientInfo.Value.NetworkId));
+            //ClientDisconnector.Instance.Disconnect_ClientRpc(GameUtils.GetClientParams(clientInfo.Value.NetworkId));
         }
 
         #endregion
