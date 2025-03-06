@@ -1,4 +1,5 @@
 using Unity.Netcode;
+using UnityEngine;
 
 namespace Populous
 {
@@ -9,6 +10,7 @@ namespace Populous
 
         private void Awake()
         {
+            Debug.Log("Awake");
             if (m_Instance && m_Instance != this)
             {
                 Destroy(m_Instance.gameObject);
@@ -19,8 +21,8 @@ namespace Populous
             DontDestroyOnLoad(gameObject);
         }
 
-        [ClientRpc]
-        public void Disconnect_ClientRpc(ClientRpcParams clientRpcParams = default)
-            => ConnectionManager.Instance.Disconnect();
+        //[ClientRpc]
+        //public void Disconnect_ClientRpc(ClientRpcParams clientRpcParams = default)
+        //    => ConnectionManager.Instance.Disconnect();
     }
 }

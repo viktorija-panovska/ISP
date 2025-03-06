@@ -292,7 +292,7 @@ namespace Populous
                 //Debug.Log("--- Denied");
                 //response.Approved = false;
                 //response.Reason = "Maximum payload size exceeded.";
-                ClientDisconnector.Instance.Disconnect_ClientRpc();
+                //ClientDisconnector.Instance.Disconnect_ClientRpc();
                 return;
             }
 
@@ -302,7 +302,7 @@ namespace Populous
                 //Debug.Log("--- Denied");
                 //response.Approved = false;
                 //response.Reason = "Incorrect password.";
-                ClientDisconnector.Instance.Disconnect_ClientRpc();
+                //ClientDisconnector.Instance.Disconnect_ClientRpc();
                 return;
             }
 
@@ -311,15 +311,11 @@ namespace Populous
                 //Debug.Log("--- Denied");
                 //response.Approved = false;
                 //response.Reason = "Lobby full.";
-                ClientDisconnector.Instance.Disconnect_ClientRpc();
+                //ClientDisconnector.Instance.Disconnect_ClientRpc();
                 return;
             }
 
             response.Approved = true;
-
-
-
-            //KickClient(clientId);
         }
 
         #endregion
@@ -377,33 +373,38 @@ namespace Populous
         /// <summary>
         /// Called on the host when the client disconnects and on the client when the host forcefully disconnects it.
         /// </summary>
-        /// <param name="clientId">The network ID of the client that has disconnected.</param>
-        private void OnClientDisconnect(ulong clientId)
+        /// <param name="networkId">The network ID of the user that invoked this method: the network ID of the disconnected client
+        /// on the host and the network ID of the host on the client that is being forcefully disconnected.</param>
+        private void OnClientDisconnect(ulong networkId)
         {
-            Debug.Log("OnClientDisconnect: " + clientId);
+            Debug.Log("OnClientDisconnect: " + networkId);
 
             // The host is being informed that the client has disconnected.
-            if (NetworkManager.Singleton.IsHost && clientId != NetworkManager.Singleton.LocalClientId)
+            if (NetworkManager.Singleton.IsHost && networkId != NetworkManager.Singleton.LocalClientId)
             {
                 Debug.Log("--- Client has disconnected");
                 GameData.Instance.RemoveClientInfo();
 
                 if (SceneLoader.Instance.GetCurrentScene() == Scene.GAMEPLAY_SCENE)
                     SceneLoader.Instance.SwitchToScene_Network(Scene.LOBBY);
-
-                return;
             }
 
             // The client is being informed that it has been disconnected by the host.
-            if (!NetworkManager.Singleton.IsHost)
+            else
             {
                 Debug.Log("--- Host disconnected client");
-                Disconnect();
-                //// and it is in the main menu
-                //if (NetworkManager.Singleton.DisconnectReason != "")
-                //    MainMenu.Instance.SetConnectionDeniedReason(NetworkManager.Singleton.DisconnectReason);
 
-                //ScreenFader.Instance.FadeIn();
+                if (SceneLoader.Instance.GetCurrentScene() == Scene.MAIN_MENU)
+                {
+                    // and it is in the main menu
+                    if (NetworkManager.Singleton.DisconnectReason != "")
+                        MainMenu.Instance.SetConnectionDeniedReason(NetworkManager.Singleton.DisconnectReason);
+
+                    ScreenFader.Instance.FadeIn();
+                    return;
+                }
+
+                Disconnect();
             }
         }
 
