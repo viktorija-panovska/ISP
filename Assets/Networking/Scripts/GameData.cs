@@ -170,9 +170,8 @@ namespace Populous
 
         private void AddPlayerInfo(PlayerInfo playerInfo)
         {
+            Debug.Log("Adding Player Info: " + playerInfo.Faction);
             m_PlayersInfo.Add(playerInfo);
-            //m_NetworkIdForFaction[(int)playerInfo.Faction] = playerInfo.NetworkId;
-            //m_FactionForNetworkId[playerInfo.NetworkId] = playerInfo.Faction;
         }
 
         public bool RemoveClientInfo()
@@ -185,21 +184,6 @@ namespace Populous
         }
 
         public void RemoveAllPlayerInfo() => m_PlayersInfo.Clear();
-
-        public bool RemovePlayerInfo(ulong networkId)
-        {
-            Debug.Log("Remove Player Info " + networkId);
-
-            for (int i = 0; i < m_PlayersInfo.Count; ++i)
-            {
-                if (m_PlayersInfo[i].NetworkId == networkId)
-                {
-                    m_PlayersInfo.RemoveAt(i);
-                    return true;
-                }
-            }
-            return false;
-        }
 
         public void SubscribeToPlayersInfoList(Action<NetworkListEvent<PlayerInfo>> method)
             => m_PlayersInfo.OnListChanged += new NetworkList<PlayerInfo>.OnListChangedDelegate(method);

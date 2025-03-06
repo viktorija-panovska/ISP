@@ -45,6 +45,11 @@ namespace Populous
         /// Disconnects the current client from the network.
         /// </summary>
         public void Disconnect();
+
+        /// <summary>
+        /// Allows the host to disconnect the client.
+        /// </summary>
+        public void KickClient();
     }
 
 
@@ -112,7 +117,6 @@ namespace Populous
             if (NetworkManager.Singleton == null)
                 return;
 
-            NetworkManager.Singleton.ConnectionApprovalCallback -= OnConnectionApproval;
             NetworkManager.Singleton.OnClientConnectedCallback -= OnClientConnected;
             NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnect;
 
@@ -147,7 +151,6 @@ namespace Populous
 
             NetworkManager.Singleton.OnClientConnectedCallback += OnClientConnected;
             NetworkManager.Singleton.OnClientDisconnectCallback += OnClientDisconnect;
-            NetworkManager.Singleton.ConnectionApprovalCallback = OnConnectionApproval;
 
             if (!NetworkManager.Singleton.StartHost())
             {
@@ -254,11 +257,6 @@ namespace Populous
             }
         }
 
-        #endregion
-
-
-        #region Connection Control for Both Host and Client
-
         /// <summary>
         /// Called when the client's connection to the server is established, and sends the client to the server's scene.
         /// </summary>
@@ -267,57 +265,6 @@ namespace Populous
         {
             if (clientId != NetworkManager.Singleton.LocalClientId) return;
             NetworkManager.Singleton.SceneManager.OnSceneEvent += SceneLoader.Instance.HandleSceneEvent;
-        }
-
-        /// <summary>
-        /// Checks whether the client has entered the correct password for the lobby on the server.
-        /// </summary>
-        /// <param name="request">The data of the client requesting a connection.</param>
-        /// <param name="response">The response from the server, granting or denying the connection.</param>
-        private void OnConnectionApproval(NetworkManager.ConnectionApprovalRequest request, NetworkManager.ConnectionApprovalResponse response)
-        {
-            ulong clientId = request.ClientNetworkId;
-            Debug.Log("OnConnectionApproval: " + request.ClientNetworkId);
-
-            // If there is no password, there is no need to check anything. Host can enter automatically
-            if (clientId == NetworkManager.ServerClientId || string.IsNullOrEmpty(GameData.Instance.LobbyPassword))
-            {
-                Debug.Log("--- Approved");
-                response.Approved = true;
-                return;
-            }
-
-            byte[] connectionData = request.Payload;
-
-            if (connectionData.Length > MAX_CONNECTION_PAYLOAD)
-            {
-                Debug.Log("--- Denied");
-                //response.Approved = false;
-                //response.Reason = "Maximum payload size exceeded.";
-                Disconnect_ClientRpc(GameUtils.GetClientParams(clientId));
-                return;
-            }
-
-            string password = Encoding.UTF8.GetString(connectionData);
-            if (password != GameData.Instance.LobbyPassword)
-            {
-                Debug.Log("--- Denied");
-                //response.Approved = false;
-                //response.Reason = "Incorrect password.";
-                Disconnect_ClientRpc(GameUtils.GetClientParams(clientId));
-                return;
-            }
-
-            if (NetworkManager.Singleton.ConnectedClientsIds.Count >= MAX_PLAYERS)
-            {
-                Debug.Log("--- Denied");
-                //response.Approved = false;
-                //response.Reason = "Lobby full.";
-                Disconnect_ClientRpc(GameUtils.GetClientParams(clientId));
-                return;
-            }
-
-            response.Approved = true;
         }
 
         #endregion
@@ -355,7 +302,6 @@ namespace Populous
 
             if (NetworkManager.Singleton == null) return;
 
-            NetworkManager.Singleton.ConnectionApprovalCallback -= OnConnectionApproval;
             NetworkManager.Singleton.OnClientConnectedCallback -= OnClientConnected;
             NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnect;
 
@@ -377,9 +323,7 @@ namespace Populous
         [ClientRpc]
         private void Disconnect_ClientRpc(ClientRpcParams clientRpcParams = default) => Disconnect();
 
-        /// <summary>
-        /// Allows the host to disconnect the client.
-        /// </summary>
+        /// <inheritdoc />
         public void KickClient()
         {
             if (!IsHost) return;
@@ -415,9 +359,8 @@ namespace Populous
 
                 if (SceneLoader.Instance.GetCurrentScene() == Scene.MAIN_MENU)
                 {
-                    // and it is in the main menu
-                    if (NetworkManager.Singleton.DisconnectReason != "")
-                        MainMenu.Instance.SetConnectionDeniedReason(NetworkManager.Singleton.DisconnectReason);
+                    //if (NetworkManager.Singleton.DisconnectReason != "")
+                    //    MainMenu.Instance.SetConnectionDeniedReason(NetworkManager.Singleton.DisconnectReason);
 
                     ScreenFader.Instance.FadeIn();
                     return;

@@ -103,8 +103,8 @@ namespace Populous
         /// <inheritdoc />
         public override void OnDestroy()
         {
-            base.OnDestroy();
             GameData.Instance.UnsubscribeFromPlayersInfoList(OnPlayersInfoListChange);
+            base.OnDestroy();
         }
 
         #endregion
@@ -113,14 +113,12 @@ namespace Populous
         #region Players Display
 
         /// <summary>
-        /// 
+        /// Sets or removes the player data when a player is added or removed from the player information list.
         /// </summary>
-        /// <param name="event">The <c>NetworkListEvent</c>, containg the information about the list operation that was performed
-        /// and the <c>PlayerInfo</c></param> that was added or removed.
+        /// <param name="event">The <c>NetworkListEvent</c>, containg the information about the list 
+        /// operation that was performed and the <c>PlayerInfo</c></param> that was added or removed.
         private void OnPlayersInfoListChange(NetworkListEvent<PlayerInfo> @event)
         {
-            Debug.Log("OnPlayersInfoListChange: " + @event.Value);
-
             if (@event.Type == NetworkListEvent<PlayerInfo>.EventType.Add)
             {
                 SetPlayerInfo(@event.Value);
@@ -131,7 +129,7 @@ namespace Populous
 
             if (@event.Type == NetworkListEvent<PlayerInfo>.EventType.RemoveAt)
             {
-                UnsetPlayerInfo(@event.Value.Faction);
+                RemovePlayerInfo(@event.Value.Faction);
 
                 if (IsHost && @event.Value.Faction == Faction.BLUE)
                     m_KickButton.interactable = false;
@@ -139,12 +137,11 @@ namespace Populous
         }
 
         /// <summary>
-        /// 
+        /// Sets the player data of the player that controls the given faction in the lobby.
         /// </summary>
-        /// <param name="playerInfo"></param>
+        /// <param name="playerInfo">The <c>PlayerInfo</c> that needs to be set.</param>
         private async void SetPlayerInfo(PlayerInfo playerInfo)
         {
-            Debug.Log("Set Player Info");
             int index = (int)playerInfo.Faction;
             m_PlayerName[index].text = playerInfo.SteamName;
             m_PlayerAvatar[index].texture = await InterfaceUtils.GetSteamAvatar(playerInfo.SteamId);
@@ -152,18 +149,17 @@ namespace Populous
         }
 
         /// <summary>
-        /// 
+        /// Removes the player data of the player that controls the given faction from the lobby.
         /// </summary>
-        /// <param name="index"></param>
-        private void UnsetPlayerInfo(Faction faction)
+        /// <param name="faction">The <c>Faction</c> whose player data should removed</param>
+        private void RemovePlayerInfo(Faction faction)
         {
             int index = (int)faction;
             m_PlayerName[index].text = "";
             m_PlayerAvatar[index].texture = null;
             m_PlayerAvatar[index].gameObject.SetActive(false);
 
-            if (index == 1)
-                m_ClientReadySignal.SetActive(false);
+            if (faction == Faction.BLUE) m_ClientReadySignal.SetActive(false);
         }
 
         #endregion
@@ -196,7 +192,7 @@ namespace Populous
         }
 
         /// <summary>
-        /// Triggers the start of the game, if called by the host and the client is ready.
+        /// Triggers the start of the game, if the client is ready.
         /// </summary>
         public void StartGame()
         {
@@ -218,24 +214,13 @@ namespace Populous
         /// <summary>
         /// Calls the <see cref="ConnectionManager"/> to disconnect the player from the lobby.
         /// </summary>
-        public void LeaveLobby()
-        {
-            m_ConnectionManager.Disconnect();
-        }
+        public void LeaveLobby() => m_ConnectionManager.Disconnect();
 
         /// <summary>
-        /// Forcibly disconnects the client from the game, if called by the host.
+        /// Calls the <see cref="ConnectionManager"/> to forcibly disconnect the client.
         /// </summary>
-        public void KickClient()
-        {
-            if (!NetworkManager.Singleton.IsHost) return;
-            PlayerInfo? clientInfo = GameData.Instance.GetClientPlayerInfo();
-            if (!clientInfo.HasValue) return;
-
-            //ClientDisconnector.Instance.Disconnect_ClientRpc(GameUtils.GetClientParams(clientInfo.Value.NetworkId));
-        }
+        public void KickClient() => m_ConnectionManager.KickClient();
 
         #endregion
     }
-
 }
