@@ -235,7 +235,7 @@ namespace Populous
             PlayerInfo? clientInfo = GameData.Instance.GetClientPlayerInfo();
             if (!clientInfo.HasValue) return;
 
-            //ClientDisconnector.Instance.Disconnect_ClientRpc(GameUtils.GetClientParams(clientInfo.Value.NetworkId));
+            ClientDisconnector.Instance.Disconnect_ClientRpc(GameUtils.GetClientParams(clientInfo.Value.NetworkId));
         }
 
         #endregion

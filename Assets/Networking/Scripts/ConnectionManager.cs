@@ -51,8 +51,10 @@ namespace Populous
     /// <summary>
     /// The <c>ConnectionManager</c> class handles the connection and disconnection of the players over the network.
     /// </summary>
-    public class ConnectionManager : MonoBehaviour, IConnectionManager
+    public class ConnectionManager : NetworkBehaviour, IConnectionManager
     {
+        [SerializeField] private FacepunchTransport m_FacepunchTransport;
+
         private static ConnectionManager m_Instance;
         /// <summary>
         /// Gets a singleton instance of this class.
@@ -230,7 +232,7 @@ namespace Populous
             NetworkManager.Singleton.OnClientConnectedCallback += OnClientConnected;
             NetworkManager.Singleton.OnClientDisconnectCallback += OnClientDisconnect;
 
-            GetComponent<FacepunchTransport>().targetSteamId = m_CurrentLobby.Value.Owner.Id;
+            m_FacepunchTransport.targetSteamId = m_CurrentLobby.Value.Owner.Id;
 
             ScreenFader.Instance.OnFadeOutComplete += StartClient;
             ScreenFader.Instance.FadeOut();
@@ -365,6 +367,7 @@ namespace Populous
             NetworkManager.Singleton.Shutdown(true);
             SceneLoader.Instance.SwitchToScene_Local(Scene.MAIN_MENU);
 
+            Destroy(GameNetworkManager.Instance.gameObject);
             Destroy(gameObject);
 
             Debug.Log("Disconnected");

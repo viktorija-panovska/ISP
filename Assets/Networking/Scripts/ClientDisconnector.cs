@@ -21,8 +21,8 @@ namespace Populous
             DontDestroyOnLoad(gameObject);
         }
 
-        //[ClientRpc]
-        //public void Disconnect_ClientRpc(ClientRpcParams clientRpcParams = default)
-        //    => ConnectionManager.Instance.Disconnect();
+        [ClientRpc]
+        public void Disconnect_ClientRpc(ClientRpcParams clientRpcParams = default)
+            => ConnectionManager.Instance.Disconnect();
     }
 }
