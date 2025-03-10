@@ -310,33 +310,25 @@ namespace Populous
         #region Terrain Modification
 
         /// <summary>
-        /// Updates the terrain border walls and the minimap to reflect the new heights of the terrain after a modification has been performed.
-        /// </summary>
-        /// <param name="modifiedAreaCorners">A tuple of the <c>TerrainPoint</c> at the bottom left and the <c>TerrainPoint</c> on the top right
-        /// of a rectangular area containing all the points whose heights were changed in the terrain modification.</param>
-        public void UpdateTerrainAccessories((TerrainPoint bottomLeft, TerrainPoint topRight) modifiedAreaCorners)
-        {
-            BorderWalls.Instance.UpdateWallsInArea(modifiedAreaCorners.bottomLeft, modifiedAreaCorners.topRight);
-            Minimap.Instance.UpdateTextureInArea(modifiedAreaCorners.bottomLeft, modifiedAreaCorners.topRight);
-        }
-
-        /// <summary>
-        /// Triggers the units and settlements in the given area to respond to the potential change of the terrain below them after a terrain
-        /// modification is performed.
         /// </summary>
         /// <param name="modifiedAreaCorners">A tuple of the <c>TerrainPoint</c> at the bottom left and the <c>TerrainPoint</c> on the top right
         /// of a rectangular area containing all the points whose heights were changed in the terrain modification.</param>
         public void RespondToTerrainChange((TerrainPoint bottomLeft, TerrainPoint topRight) modifiedAreaCorners)
         {
+            BorderWalls.Instance.UpdateWallsInArea(modifiedAreaCorners.bottomLeft, modifiedAreaCorners.topRight);
+            Minimap.Instance.UpdateTextureInArea(modifiedAreaCorners.bottomLeft, modifiedAreaCorners.topRight);
+
+            if (!IsHost) return;
+
             StructureManager.Instance.UpdateStructuresInArea(modifiedAreaCorners.bottomLeft, modifiedAreaCorners.topRight);
             OnTerrainModified?.Invoke(modifiedAreaCorners.bottomLeft, modifiedAreaCorners.topRight); // for units
 
-            //foreach (UnitMagnet magnet in m_UnitMagnets)
-            //{
-            //    if (magnet.GridLocation.X >= modifiedAreaCorners.bottomLeft.X || magnet.GridLocation.X <= modifiedAreaCorners.topRight.X ||
-            //        magnet.GridLocation.Z >= modifiedAreaCorners.bottomLeft.Z || magnet.GridLocation.Z <= modifiedAreaCorners.topRight.Z)
-            //        magnet.UpdateHeight();
-            //}
+            foreach (UnitMagnet magnet in m_UnitMagnets)
+            {
+                if (magnet.GridLocation.X >= modifiedAreaCorners.bottomLeft.X || magnet.GridLocation.X <= modifiedAreaCorners.topRight.X ||
+                    magnet.GridLocation.Z >= modifiedAreaCorners.bottomLeft.Z || magnet.GridLocation.Z <= modifiedAreaCorners.topRight.Z)
+                    magnet.UpdateHeight();
+            }
         }
 
         #endregion
@@ -702,21 +694,7 @@ namespace Populous
         /// <param name="lower">True if the center should be lowered, false if the center should be elevated.</param>
         [ServerRpc(RequireOwnership = false)]
         public void MoldTerrain_ServerRpc(Faction team, TerrainPoint point, bool lower)
-        {
-            // mold the terrain on the client
-            MoldTerrain_ClientRpc(point, lower, new ClientRpcParams
-            {
-                Send = new ClientRpcSendParams
-                {
-                    TargetClientIds = new ulong[] { 1 }
-                }
-            });
-
-            // update everything on the host
-            (TerrainPoint, TerrainPoint) modifiedAreaCorners = Terrain.Instance.ModifyTerrain(point, lower);
-            UpdateTerrainAccessories(modifiedAreaCorners);
-            RespondToTerrainChange(modifiedAreaCorners);
-        }
+            => MoldTerrain_ClientRpc(point, lower);
 
         /// <summary>
         /// Executes the Mold Terrain power on the client.
@@ -725,7 +703,7 @@ namespace Populous
         /// <param name="lower">True if the center should be lowered, false if the center should be elevated.</param>
         [ClientRpc]
         private void MoldTerrain_ClientRpc(TerrainPoint point, bool lower, ClientRpcParams clientParams = default)
-            => UpdateTerrainAccessories(Terrain.Instance.ModifyTerrain(point, lower));
+            => RespondToTerrainChange(Terrain.Instance.ModifyTerrain(point, lower));
 
         #endregion
 
@@ -741,7 +719,7 @@ namespace Populous
         public void PlaceUnitMagnet_ServerRpc(Faction team, TerrainPoint point)
         {
             // the magnet can only be moved if there is a leader
-            //if (!HasLeader(team)) return;
+            if (!HasLeader(team)) return;
 
             RemoveManna(team, m_PowerMannaCost[(int)Power.PLACE_MAGNET]);
 
@@ -770,22 +748,7 @@ namespace Populous
         public void CreateEarthquake_ServerRpc(Faction team, TerrainPoint center)
         {
             RemoveManna(team, m_PowerMannaCost[(int)Power.EARTHQUAKE]);
-
-            int seed = new Random().Next();
-
-            // do the earthquake on the client
-            CreateEarthquake_ClientRpc(center, seed, new ClientRpcParams
-            {
-                Send = new ClientRpcSendParams
-                {
-                    TargetClientIds = new ulong[] { 1 }
-                }
-            });
-
-            // update everything on the host
-            (TerrainPoint, TerrainPoint) modifiedAreaCorners = Terrain.Instance.CauseEarthquake(center, m_EarthquakeRadius, seed);
-            UpdateTerrainAccessories(modifiedAreaCorners);
-            RespondToTerrainChange(modifiedAreaCorners);
+            CreateEarthquake_ClientRpc(center, new Random().Next());
         }
 
         /// <summary>
@@ -795,7 +758,7 @@ namespace Populous
         /// <param name="randomizerSeed">The seed used for the randomizer that sets the heights in the earthquake area.</param>
         [ClientRpc]
         private void CreateEarthquake_ClientRpc(TerrainPoint center, int randomizerSeed, ClientRpcParams clientRpc = default)
-            => UpdateTerrainAccessories(Terrain.Instance.CauseEarthquake(center, m_EarthquakeRadius, randomizerSeed));
+            => RespondToTerrainChange(Terrain.Instance.CauseEarthquake(center, m_EarthquakeRadius, randomizerSeed));
 
         #endregion
 
@@ -899,7 +862,7 @@ namespace Populous
                 knight = UnitManager.Instance.GetLeaderUnit(team);
                 UnitManager.Instance.UnsetUnitLeader(team);
                 knight.SetType(UnitType.KNIGHT);
-                UnitManager.Instance.SetUnitLeader(team, knight);
+                UnitManager.Instance.AddKnight(team, knight);
             }
 
             // if the leader is in a origin, destroy that origin and spawnPoint a knight in its position
@@ -945,19 +908,7 @@ namespace Populous
         {
             RemoveManna(team, m_PowerMannaCost[(int)Power.VOLCANO]);
 
-            // mold the terrain on the client
-            CreateVolcano_ClientRpc(center, new ClientRpcParams
-            {
-                Send = new ClientRpcSendParams
-                {
-                    TargetClientIds = new ulong[] { 1 }
-                }
-            });
-
-            // update everything on the host
-            (TerrainPoint, TerrainPoint) modifiedAreaCorners = Terrain.Instance.CauseVolcano(center, m_VolcanoRadius);
-            UpdateTerrainAccessories(modifiedAreaCorners);
-            RespondToTerrainChange(modifiedAreaCorners);
+            CreateVolcano_ClientRpc(center);
             StructureManager.Instance.PlaceVolcanoRocks(center, m_VolcanoRadius);
         }
 
@@ -966,8 +917,8 @@ namespace Populous
         /// </summary>
         /// <param name="center">The <c>TerrainPoint</c> at the center of the volcano.</param>
         [ClientRpc]
-        private void CreateVolcano_ClientRpc(TerrainPoint center, ClientRpcParams clientParams = default)
-            => UpdateTerrainAccessories(Terrain.Instance.CauseVolcano(center, m_VolcanoRadius));
+        private void CreateVolcano_ClientRpc(TerrainPoint center)
+            => RespondToTerrainChange(Terrain.Instance.CauseVolcano(center, m_VolcanoRadius));
 
         #endregion
 
@@ -985,18 +936,15 @@ namespace Populous
 
             RemoveManna(team, m_PowerMannaCost[(int)Power.FLOOD]);
 
-            CauseFlood_ClientRpc(GameUtils.GetClientParams(1));
-            CauseFlood();
+            CauseFlood_ClientRpc();
             OnFlood?.Invoke();
         }
 
         /// <summary>
-        /// Executes the Flood power on the client.
+        /// Executes the Flood Divine Intervention client-side
         /// </summary>
         [ClientRpc]
-        private void CauseFlood_ClientRpc(ClientRpcParams clientParams = default) => CauseFlood();
-
-        private void CauseFlood()
+        private void CauseFlood_ClientRpc()
         {
             Terrain.Instance.RaiseWaterLevel();
             Water.Instance.Raise();
@@ -1037,7 +985,7 @@ namespace Populous
 
 
 
-        #region Inspect Mode
+        #region Query Mode
 
         /// <summary>
         /// Gets the object the player of the given team is inspecting.

@@ -63,9 +63,6 @@ namespace Populous
         private static LocalConnectionManager m_Instance;
         public static LocalConnectionManager Instance { get => m_Instance; }
 
-        private const int MAX_PLAYERS = 2;
-        private const int MAX_CONNECTION_PAYLOAD = 1024;
-
         private string serverPassword;
         private bool gameInProgress;
 
@@ -114,9 +111,8 @@ namespace Populous
 
         #region Hosting a Game
 
-        public void CreateLobby(string lobbyName, string lobbyPassword, string gameSeed)
+        public void CreateLobby(string lobbyName, string gameSeed)
         {
-            serverPassword = lobbyPassword;
             NetworkManager.Singleton.StartHost();
         }
 
@@ -181,7 +177,7 @@ namespace Populous
 
         public async Task<Lobby[]> GetActiveLobbies() => new Lobby[0];
 
-        public void JoinGame(Lobby lobby, string password)
+        public void JoinGame(Lobby lobby)
         {
             Debug.Log("Join Game");
             string payload = JsonUtility.ToJson(new ConnectionPayload()

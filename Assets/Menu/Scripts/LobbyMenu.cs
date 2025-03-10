@@ -18,11 +18,9 @@ namespace Populous
         [Tooltip("Set to true if testing the game on a local network")]
         [SerializeField] private bool m_IsTestingLocal;
 
-        [Header("Server Info")]
+        [Header("Lobby Info")]
         [Tooltip("The text field that should contain the lobby name.")]
         [SerializeField] private TMP_Text m_LobbyNameField;
-        [Tooltip("The text field that should contain the lobby password.")]
-        [SerializeField] private TMP_Text m_LobbyPasswordField;
         [Tooltip("The text field that should contain the game seed.")]
         [SerializeField] private TMP_Text m_MapSeedField;
 
@@ -72,7 +70,6 @@ namespace Populous
             Debug.Log("OnNetworkSpawn");
 
             m_LobbyNameField.text = GameData.Instance.LobbyName;
-            m_LobbyPasswordField.text = GameData.Instance.LobbyPassword;
             m_MapSeedField.text = GameData.Instance.GameSeed.ToString();
 
             m_ServerOnly.SetActive(false);
@@ -197,14 +194,8 @@ namespace Populous
         public void StartGame()
         {
             if (!NetworkManager.Singleton.IsHost || !m_IsClientReady) return;
-            StartGame_ClientRpc();
+            ConnectionManager.Instance.StartGame();
         }
-
-        /// <summary>
-        /// Calls the <see cref="IConnectionManager"/> to start the game
-        /// </summary>
-        [ClientRpc]
-        private void StartGame_ClientRpc() => m_ConnectionManager.StartGame();
 
         #endregion
 

@@ -1,7 +1,6 @@
 using Netcode.Transports.Facepunch;
 using Steamworks;
 using Steamworks.Data;
-using System.Text;
 using System.Threading.Tasks;
 using Unity.Netcode;
 using UnityEngine;
@@ -19,9 +18,8 @@ namespace Populous
         /// Sets the values of the game that is being started and its associated lobby, and starts the process of launching the host.
         /// </summary>
         /// <param name="lobbyName">The name of the lobby that should be created.</param>
-        /// <param name="lobbyPassword">The optional password of the lobby that should be created.</param>
         /// <param name="gameSeed">The seed the created game should use to randomly generate the terrain and other game elements.</param>
-        public void CreateLobby(string lobbyName, string lobbyPassword, string gameSeed);
+        public void CreateLobby(string lobbyName, string gameSeed);
 
         /// <summary>
         /// Gets all the active lobbies.
@@ -34,7 +32,7 @@ namespace Populous
         /// </summary>
         /// <param name="lobby">The <c>Lobby</c> the client wants to join.</param>
         /// <param name="password">The password entered by the client, empty string if no password is entered.</param>
-        public void JoinGame(Lobby lobby, string password);
+        public void JoinGame(Lobby lobby);
 
         /// <summary>
         /// Starts the game.
@@ -70,10 +68,6 @@ namespace Populous
         /// The maximum number of players in the game.
         /// </summary>
         public const int MAX_PLAYERS = 2;
-        /// <summary>
-        /// Limits the amount of data that can be sent during the connection of a client to a server, so it provides light protection against DOS attacks.
-        /// </summary>
-        private const int MAX_CONNECTION_PAYLOAD = 1024;
 
         /// <summary>
         /// The lobby this client is currently in.
@@ -83,7 +77,7 @@ namespace Populous
         /// <summary>
         /// The game data that has been entered by a user that wants to create a game.
         /// </summary>
-        private (string name, string password, string seed) m_EnteredGameData;
+        private (string name, string seed) m_EnteredGameData;
 
 
         #region Event Functions
@@ -134,20 +128,9 @@ namespace Populous
         #region Starting a Host
 
         /// <inheritdoc />
-        public void CreateLobby(string lobbyName, string lobbyPassword, string gameSeed)
+        public async void CreateLobby(string lobbyName, string gameSeed)
         {
-            m_EnteredGameData = (lobbyName, lobbyPassword, gameSeed);
-
-            ScreenFader.Instance.OnFadeOutComplete += StartHost;
-            ScreenFader.Instance.FadeOut();
-        }
-
-        /// <summary>
-        /// Launches the host and creates the lobby associated with the started game.
-        /// </summary>
-        private async void StartHost()
-        {
-            ScreenFader.Instance.OnFadeOutComplete -= StartHost;
+            m_EnteredGameData = (lobbyName, gameSeed);
 
             NetworkManager.Singleton.OnClientConnectedCallback += OnClientConnected;
             NetworkManager.Singleton.OnClientDisconnectCallback += OnClientDisconnect;
@@ -155,7 +138,7 @@ namespace Populous
             if (!NetworkManager.Singleton.StartHost())
             {
                 Debug.LogError("Host Start Failed");
-                m_EnteredGameData = ("", "", "");
+                m_EnteredGameData = ("", "");
                 return;
             }
 
@@ -173,11 +156,11 @@ namespace Populous
             {
                 Debug.LogError("Lobby wasn't created");
                 Disconnect();
+                //SceneLoader.Instance.FadeIn();
                 return;
             }
 
             lobby.SetData("name", m_EnteredGameData.name);
-            lobby.SetData("password", m_EnteredGameData.password);
             lobby.SetData("seed", m_EnteredGameData.seed);
             lobby.SetData("owner", SteamClient.Name);
             lobby.SetData("isPopulous", "true");
@@ -187,6 +170,16 @@ namespace Populous
             int gameSeed = int.TryParse(m_EnteredGameData.seed, out int seed) ? seed : new Random().Next();
             GameData.Instance.Setup(lobby, gameSeed);
 
+            SceneLoader.Instance.OnFadeOutComplete += GoToLobby;
+            SceneLoader.Instance.FadeOut();
+        }
+
+        /// <summary>
+        /// Switches the scene to the Lobby scene.
+        /// </summary>
+        private void GoToLobby()
+        {
+            SceneLoader.Instance.OnFadeOutComplete -= GoToLobby;
             SceneLoader.Instance.SwitchToScene_Network(Scene.LOBBY);
         }
 
@@ -196,14 +189,11 @@ namespace Populous
         #region Starting a Client
 
         /// <inheritdoc />
-        public async Task<Lobby[]> GetActiveLobbies() => await SteamMatchmaking.LobbyList.RequestAsync();
+        public async Task<Lobby[]> GetActiveLobbies()
+            => await SteamMatchmaking.LobbyList.WithKeyValue("isPopulous", "true").RequestAsync();
 
         /// <inheritdoc />
-        public void JoinGame(Lobby lobby, string password)
-        {
-            NetworkManager.Singleton.NetworkConfig.ConnectionData = Encoding.UTF8.GetBytes(password);
-            OnGameLobbyJoinRequested(lobby, lobby.Owner.Id);
-        }
+        public void JoinGame(Lobby lobby) => OnGameLobbyJoinRequested(lobby, lobby.Owner.Id);
 
         /// <summary>
         /// Attempts to join the given lobby, which is owned by the Steam user with the given ID.
@@ -217,7 +207,6 @@ namespace Populous
             if (joinLobby != RoomEnter.Success)
             {
                 Debug.LogError("Failed to enter lobby");
-                NetworkManager.Singleton.NetworkConfig.ConnectionData = Encoding.UTF8.GetBytes("");
                 return;
             }
 
@@ -238,8 +227,8 @@ namespace Populous
 
             m_FacepunchTransport.targetSteamId = m_CurrentLobby.Value.Owner.Id;
 
-            ScreenFader.Instance.OnFadeOutComplete += StartClient;
-            ScreenFader.Instance.FadeOut();
+            SceneLoader.Instance.OnFadeOutComplete += StartClient;
+            SceneLoader.Instance.FadeOut();
         }
 
         /// <summary>
@@ -247,12 +236,11 @@ namespace Populous
         /// </summary>
         private void StartClient()
         {
-            ScreenFader.Instance.OnFadeOutComplete -= StartClient;
+            SceneLoader.Instance.OnFadeOutComplete -= StartClient;
 
             if (!NetworkManager.Singleton.StartClient())
             {
                 Debug.LogError("Client Start Failed");
-                NetworkManager.Singleton.NetworkConfig.ConnectionData = Encoding.UTF8.GetBytes("");
                 return;
             }
         }
@@ -273,10 +261,16 @@ namespace Populous
         #region Launch Game
 
         /// <inheritdoc />
-        public void StartGame()
+        public void StartGame() => StartGame_ClientRpc();
+
+        /// <summary>
+        /// 
+        /// </summary>
+        [ClientRpc]
+        private void StartGame_ClientRpc()
         {
-            ScreenFader.Instance.OnFadeOutComplete += OnGameStartReady;
-            ScreenFader.Instance.FadeOut();
+            SceneLoader.Instance.OnFadeOutComplete += OnGameStartReady;
+            SceneLoader.Instance.FadeOut();
         }
 
         /// <summary>
@@ -284,7 +278,7 @@ namespace Populous
         /// </summary>
         private void OnGameStartReady()
         {
-            ScreenFader.Instance.OnFadeOutComplete -= OnGameStartReady;
+            SceneLoader.Instance.OnFadeOutComplete -= OnGameStartReady;
 
             if (!IsHost) return;
             SceneLoader.Instance.SwitchToScene_Network(Scene.GAMEPLAY_SCENE);
@@ -356,16 +350,6 @@ namespace Populous
             if (!IsHost)
             {
                 Debug.Log("--- Host disconnected client");
-
-                if (SceneLoader.Instance.GetCurrentScene() == Scene.MAIN_MENU)
-                {
-                    //if (NetworkManager.Singleton.DisconnectReason != "")
-                    //    MainMenu.Instance.SetConnectionDeniedReason(NetworkManager.Singleton.DisconnectReason);
-
-                    ScreenFader.Instance.FadeIn();
-                    return;
-                }
-
                 Disconnect();
             }
         }

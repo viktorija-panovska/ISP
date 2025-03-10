@@ -24,14 +24,10 @@ namespace Populous
         [SerializeField] private GameObject m_HostScreen;
         [Tooltip("The GameObject representing the join screen, where the list of available lobbies is shown and the player can join one.")]
         [SerializeField] private GameObject m_JoinScreen;
-        [Tooltip("The GameObject representing the password screen, where the player is prompted to enter a password to join a lobby.")]
-        [SerializeField] private GameObject m_PasswordScreen;
 
         [Header("Host Lobby")]
         [Tooltip("The input field that the player should enter the lobby name in (required).")]
         [SerializeField] private TMP_InputField m_LobbyNameInputField;
-        [Tooltip("The input field that the player should (optionally) enter the lobby password in.")]
-        [SerializeField] private TMP_InputField m_PasswordInputField;
         [Tooltip("The input field that the player should (optionally) enter the game seed in.")]
         [SerializeField] private TMP_InputField m_GameSeedInputField;
 
@@ -42,16 +38,6 @@ namespace Populous
         [SerializeField] private Transform m_LobbyListContent;
         [Tooltip("The button the player should press to join the lobby.")]
         [SerializeField] private Button m_JoinLobbyButton;
-
-        [Header("Password Entry")]
-        [Tooltip("The text field that the lobby's name should appear in.")]
-        [SerializeField] private TMP_Text m_LobbyName;
-        [Tooltip("The input field that the player should enter the password in.")]
-        [SerializeField] private TMP_InputField m_PasswordCheckInputField;
-        [Tooltip("The GameObject of the text that shows that connection has been denied.")]
-        [SerializeField] private GameObject m_ConnectionDeniedText;
-        [Tooltip("The text field that shows the reason the client couldn't connect to the lobby.")]
-        [SerializeField] private TMP_Text m_ConnectionDeniedReasonField;
 
         #endregion
 
@@ -131,16 +117,6 @@ namespace Populous
         }
 
         /// <summary>
-        /// Switches from any screen to the lobby password entry screen.
-        /// </summary>
-        public void SwitchToPasswordScreen()
-        {
-            if (!m_SelectedLobbyEntry || !m_SelectedLobbyEntry.HasPassword) return;
-            m_LobbyName.text = m_SelectedLobbyEntry.LobbyName;
-            SwitchScreens(m_PasswordScreen);
-        }
-
-        /// <summary>
         /// Switches from the currently active screen to the given screen.
         /// </summary>
         /// <param name="screen">The <c>GameObject</c> representing the screen of the main menu that should be enabled.</param>
@@ -169,7 +145,6 @@ namespace Populous
 
             m_ConnectionManager.CreateLobby(
                 lobbyName: m_LobbyNameInputField.text.ToLower(), 
-                lobbyPassword: m_PasswordInputField.text.ToLower(), 
                 gameSeed: m_GameSeedInputField.text.ToLower()
             );
         }
@@ -180,7 +155,6 @@ namespace Populous
         private void ClearHostValues()
         {
             m_LobbyNameInputField.text = "";
-            m_PasswordInputField.text = "";
             m_GameSeedInputField.text = "";
         }
 
@@ -250,54 +224,9 @@ namespace Populous
         }
 
         /// <summary>
-        /// if the lobby has a password, switches to the password entry screen, otherwise enters the lobby.
-        /// </summary>
-        public void JoinLobby()
-        {
-            if (!m_SelectedLobbyEntry) return;
-
-            if (m_SelectedLobbyEntry.HasPassword)
-                SwitchToPasswordScreen();
-            else
-                EnterLobby();
-        }
-
-        /// <summary>
-        /// If the player has entered a password, attempts to join the lobby.
-        /// </summary>
-        public void SubmitPassword()
-        {
-            Debug.Log("Submit Password: " + m_PasswordCheckInputField.text);
-
-            m_ConnectionDeniedText.SetActive(false);
-            m_ConnectionDeniedReasonField.text = "";
-
-            if (m_PasswordCheckInputField.text.Length == 0)
-            {
-                InterfaceUtils.FlashWrong(m_PasswordCheckInputField.image);
-                return;
-            }
-
-            EnterLobby(m_PasswordCheckInputField.text.ToLower());
-        }
-
-        /// <summary>
         /// Calls the <see cref="ConnectionManager"/> to attempt to join the selected lobby.
         /// </summary>
-        private void EnterLobby(string password = "")
-            => m_ConnectionManager.JoinGame(m_SelectedLobbyEntry.Lobby, password);
-
-        /// <summary>
-        /// Called when the connection to a lobby through a password is denied.
-        /// </summary>
-        /// <param name="reason">The reason why the client couldn't connect.</param>
-        public void SetConnectionDeniedReason(string reason)
-        {
-            Debug.Log("SetConnectionDenied");
-            InterfaceUtils.FlashWrong(m_PasswordCheckInputField.image);
-            m_ConnectionDeniedText.SetActive(true);
-            m_ConnectionDeniedReasonField.text = $"Reason: {reason}";
-        }
+        public void JoinLobby() => m_ConnectionManager.JoinGame(m_SelectedLobbyEntry.Lobby);
 
         #endregion
 

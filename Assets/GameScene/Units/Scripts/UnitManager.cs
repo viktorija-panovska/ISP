@@ -596,12 +596,15 @@ namespace Populous
         /// <returns>The number of knights in the given team.</returns>
         public int GetKnightsNumber(Faction team) => m_Knights[(int)team].Count;
 
+        public void AddKnight(Faction faction, Unit knight) => m_Knights[(int)faction].Add(knight);
+
+
         /// <summary>
         /// Turns the leader of the given team into a knight, if the team has a leader.
         /// </summary>
         /// <param name="team">The <c>Team</c> that the new knight should belong to.</param>
         /// <returns>The <c>Unit</c> that has been turned into a knight, or null if no such unit exists.</returns>
-        public Unit CreateKnight(Faction team)
+        private Unit CreateKnight(Faction team)
         {
             Unit knight = null;
 

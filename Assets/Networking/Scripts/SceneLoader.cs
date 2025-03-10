@@ -1,3 +1,5 @@
+using DG.Tweening;
+using System;
 using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -28,6 +30,9 @@ namespace Populous
     [RequireComponent(typeof(NetworkObject))]
     public class SceneLoader : NetworkBehaviour
     {
+        [SerializeField] private CanvasGroup m_BlackScreen;
+
+
         private static SceneLoader m_Instance;
         /// <summary>
         /// Gets an instance of the class.
@@ -38,6 +43,11 @@ namespace Populous
         /// Stores the scenes each player is currently in. Index 0 is the host and index 1 is the client.
         /// </summary>
         private readonly Scene[] m_PlayerInScene = new Scene[2];
+
+        /// <summary>
+        /// Called when the screen has completely faded out.
+        /// </summary>
+        public Action OnFadeOutComplete;
 
 
         private void Awake()
@@ -73,7 +83,6 @@ namespace Populous
         public Scene GetCurrentScene()
             => IsHost ? m_PlayerInScene[0] : m_PlayerInScene[1];
 
-
         /// <summary>
         /// Processes all scene events types, for both the host and the clients.
         /// </summary>
@@ -95,7 +104,23 @@ namespace Populous
             }
 
             m_PlayerInScene[IsHost ? 0 : 1] = scene;
-            ScreenFader.Instance.FadeIn();
+            FadeIn();
         }
+
+
+        /// <summary>
+        /// Fades screen to black.
+        /// </summary>
+        public void FadeOut(float duration = 1f)
+        {
+            m_BlackScreen.blocksRaycasts = true;
+            m_BlackScreen.DOFade(1, duration).OnComplete(() => OnFadeOutComplete?.Invoke());
+        }
+
+        /// <summary>
+        /// Fades screen in from black.
+        /// </summary>
+        public void FadeIn(float duration = 1f)
+            => m_BlackScreen.DOFade(0, duration).OnComplete(() => m_BlackScreen.blocksRaycasts = false);
     }
 }

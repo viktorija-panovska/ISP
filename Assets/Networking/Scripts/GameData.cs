@@ -102,10 +102,6 @@ namespace Populous
         /// Gets the name of the lobby.
         /// </summary>
         public string LobbyName { get => m_Lobby.GetData("name"); }
-        /// <summary>
-        /// Gets the password of the lobby.
-        /// </summary>
-        public string LobbyPassword { get => m_Lobby.GetData("password"); }
 
         private int m_GameSeed;
         private NetworkVariable<int> m_GameSeed_Network = new();

@@ -353,10 +353,8 @@ namespace Populous
                 case Power.MOLD_TERRAIN:
                     if (m_NearestPoint.Value.IsAtMaxHeight() || CameraDetectionZone.Instance.VisibleObjectsAmount <= 0) 
                         return;
-
-                    GameController.Instance.UpdateTerrainAccessories(Terrain.Instance.ModifyTerrain(m_NearestPoint.Value, lower: false));
-
-                    //GameController.Instance.MoldTerrain_ServerRpc(Team, m_NearestPoint.Value, lower: false);
+                    
+                    GameController.Instance.MoldTerrain_ServerRpc(Faction, m_NearestPoint.Value, lower: false);
                     break;
 
                 case Power.PLACE_MAGNET:
@@ -400,9 +398,7 @@ namespace Populous
                 m_NearestPoint.Value.GetHeight() <= Terrain.Instance.WaterLevel)
                 return;
 
-            
-            GameController.Instance.UpdateTerrainAccessories(Terrain.Instance.ModifyTerrain(m_NearestPoint.Value, lower: true));
-            //GameController.Instance.MoldTerrain_ServerRpc(Team, m_NearestPoint.Value, lower: true);
+            GameController.Instance.MoldTerrain_ServerRpc(Faction, m_NearestPoint.Value, lower: true);
         }
 
         /// <summary>
