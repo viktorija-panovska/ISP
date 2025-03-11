@@ -22,7 +22,7 @@ namespace Populous
         [Tooltip("The text field that should contain the lobby name.")]
         [SerializeField] private TMP_Text m_LobbyNameField;
         [Tooltip("The text field that should contain the game seed.")]
-        [SerializeField] private TMP_Text m_MapSeedField;
+        [SerializeField] private TMP_Text m_GameSeedField;
 
         [Header("Player Info")]
         [Tooltip("The images on which the players' Steam avatars should be displayed. Index 0 is for the red player and index 1 is for the blue.")]
@@ -70,7 +70,7 @@ namespace Populous
             Debug.Log("OnNetworkSpawn");
 
             m_LobbyNameField.text = GameData.Instance.LobbyName;
-            m_MapSeedField.text = GameData.Instance.GameSeed.ToString();
+            m_GameSeedField.text = GameData.Instance.GameSeed.ToString();
 
             m_ServerOnly.SetActive(false);
             m_ClientOnly.SetActive(false);
@@ -156,7 +156,8 @@ namespace Populous
             m_PlayerAvatar[index].texture = null;
             m_PlayerAvatar[index].gameObject.SetActive(false);
 
-            if (faction == Faction.BLUE) m_ClientReadySignal.SetActive(false);
+            if (faction == Faction.BLUE) 
+                m_ClientReadySignal.SetActive(false);
         }
 
         #endregion

@@ -5,6 +5,7 @@ using UnityEngine;
 using Color = UnityEngine.Color;
 using Image = UnityEngine.UI.Image;
 
+
 namespace Populous
 {
     /// <summary>
@@ -22,11 +23,11 @@ namespace Populous
         [SerializeField] private TMP_Text m_LobbyNameField;
         [Tooltip("The text field in which the name of the player hosting the lobby should be shown.")]
         [SerializeField] private TMP_Text m_OwnerNameField;
-        [Tooltip("The image that should be turned on to indicate that the lobby is password protected.")]
-        [SerializeField] private Image m_Lock;
 
         #endregion
 
+
+        #region Class Fields
 
         private Lobby m_Lobby;
         /// <summary>
@@ -40,12 +41,6 @@ namespace Populous
         /// </summary>
         public string LobbyName { get => m_LobbyName; }
 
-        private bool m_HasPassword;
-        /// <summary>
-        /// True if the associated lobby is password protected, false otherwise.
-        /// </summary>
-        public bool HasPassword { get => m_HasPassword; }
-
         /// <summary>
         /// The color of the lobby entry when it hasn't been selected.
         /// </summary>
@@ -56,6 +51,8 @@ namespace Populous
         /// </summary>
         private bool m_IsSelected;
 
+        #endregion
+
 
         /// <summary>
         /// Setup this lobby entry to reflect the lobby it represents.
@@ -65,30 +62,27 @@ namespace Populous
         {
             m_Lobby = lobby;
             m_LobbyName = lobby.GetData("name");
-            m_HasPassword = lobby.GetData("password") != "";
 
             m_LobbyNameField.text = m_LobbyName;
             m_OwnerNameField.text = m_Lobby.GetData("owner");
-            m_Lock.gameObject.SetActive(m_HasPassword);
 
             m_DeselectedColor = m_Background.color;
         }
 
+        // TODO: Delete before final
         /// <summary>
         /// Setup this lobby entry with the given lobby name and password, but no associated lobby.
         /// </summary>
         /// <remarks>THIS IS FOR TEST PURPOSES ONLY.</remarks>
         /// <param name="lobbyName">The name of the lobby.</param>
         /// <param name="hasPassword">True if the lobby has a password, false otherwise.</param>
-        public void SetupEmptyLobby(string lobbyName, bool hasPassword)
+        public void SetupEmptyLobby(string lobbyName)
         {
             m_Lobby = new();
             m_LobbyName = lobbyName;
-            m_HasPassword = hasPassword;
 
             m_LobbyNameField.text = m_LobbyName;
             m_OwnerNameField.text = "";
-            m_Lock.gameObject.SetActive(m_HasPassword);
 
             m_DeselectedColor = m_Background.color;
         }

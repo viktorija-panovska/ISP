@@ -15,7 +15,7 @@ namespace Populous
     public interface IConnectionManager
     {
         /// <summary>
-        /// Sets the values of the game that is being started and its associated lobby, and starts the process of launching the host.
+        /// Starts the process of launching a lobby with the given values.
         /// </summary>
         /// <param name="lobbyName">The name of the lobby that should be created.</param>
         /// <param name="gameSeed">The seed the created game should use to randomly generate the terrain and other game elements.</param>
@@ -31,7 +31,6 @@ namespace Populous
         /// Triggers the client to attempt to join the given lobby.
         /// </summary>
         /// <param name="lobby">The <c>Lobby</c> the client wants to join.</param>
-        /// <param name="password">The password entered by the client, empty string if no password is entered.</param>
         public void JoinGame(Lobby lobby);
 
         /// <summary>
@@ -85,10 +84,7 @@ namespace Populous
         private void Awake()
         {
             if (m_Instance && m_Instance != this)
-            {
                 Destroy(m_Instance.gameObject);
-                return;
-            }
 
             m_Instance = this;
             DontDestroyOnLoad(gameObject);
@@ -264,7 +260,7 @@ namespace Populous
         public void StartGame() => StartGame_ClientRpc();
 
         /// <summary>
-        /// 
+        /// Fades out each client in preparation for starting the game.
         /// </summary>
         [ClientRpc]
         private void StartGame_ClientRpc()
@@ -281,7 +277,7 @@ namespace Populous
             SceneLoader.Instance.OnFadeOutComplete -= OnGameStartReady;
 
             if (!IsHost) return;
-            SceneLoader.Instance.SwitchToScene_Network(Scene.GAMEPLAY_SCENE);
+            SceneLoader.Instance.SwitchToScene_Network(Scene.GAMEPLAY);
         }
 
         #endregion
@@ -342,7 +338,7 @@ namespace Populous
                 Debug.Log("--- Client has disconnected");
                 GameData.Instance.RemoveClientInfo();
 
-                if (SceneLoader.Instance.GetCurrentScene() == Scene.GAMEPLAY_SCENE)
+                if (SceneLoader.Instance.GetCurrentScene() == Scene.GAMEPLAY)
                     SceneLoader.Instance.SwitchToScene_Network(Scene.LOBBY);
             }
 

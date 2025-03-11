@@ -49,7 +49,7 @@ namespace Populous
     }
 
     /// <summary>
-    /// The "Snap To"/"Zoom" actions available in the game.
+    /// The "Snap To" actions available in the game.
     /// </summary>
     public enum SnapTo
     {
@@ -88,32 +88,26 @@ namespace Populous
     {
         #region Inspector Fields
 
-        [Tooltip("The marker objects corresponding to each power. The index of each marker in this array corresponds to the value of its corresponding power in the Power enum.")]
+        [Tooltip("The color representing each faction. Index 0 is the Red faction, index 1 is the Blue faction, and index 2 in None faction.")]
         [SerializeField] private Color[] m_FactionColors;
-
+        [Tooltip("The GameObjects of the unit magnets of each faction. Index 0 is the Red unit magnet and index 1 is the Blue unit magnet.")]
         [SerializeField] private GameObject[] m_UnitMagnetObjects;
 
-
         [Header("Manna")]
-
         [Tooltip("The maximum amount of manna a player can have.")]
         [SerializeField] private int m_MaxManna = 100;
-
-        [Tooltip("The percentage of manna that is required to be full in order to have access to the Power with the value of the index in the Power enum.")]
+        [Tooltip("The percentage of manna that is required to be full in order to have access to a Divine Intervention." +
+            "The value for a Divine Intervention is at the index equal to the value of the Divine Intervention in the Power enum.")]
         [SerializeField] private float[] m_PowerActivationPercent = new float[Enum.GetNames(typeof(Power)).Length];
-
-        [Tooltip("The amount of manna spent after using the Power with the value of the index in the Power enum.")]
+        [Tooltip("The amount of manna spent for using a Divine Intervention." +
+            "The value for a Divine Intervention is at the index equal to the value of the Divine Intervention in the Power enum.")]
         [SerializeField] private int[] m_PowerMannaCost = new int[Enum.GetNames(typeof(Power)).Length];
 
-
-        [Header("Powers")]
-
+        [Header("Divine Interventions")]
         [Tooltip("Half the number of tiles on one side of the square area of effect of the Earthquake.")]
         [SerializeField] private int m_EarthquakeRadius = 3;
-
         [Tooltip("Half the number of tiles on one side of the square area of effect of the Swamp.")]
         [SerializeField] private int m_SwampRadius = 3;
-
         [Tooltip("Half the number of tiles on one side of the square area of effect of the Volcano.")]
         [SerializeField] private int m_VolcanoRadius = 3;
 
@@ -129,36 +123,38 @@ namespace Populous
         public static GameController Instance { get => m_Instance; }
 
         /// <summary>
-        /// An array of the colors of each team. 
+        /// An array of the colors of each faction. 
         /// </summary>
-        /// <remarks>The color at each index is the color of the team with that index.</remarks>
+        /// <remarks>The color at each index is the color of the faction with that value in the <c>Faction</c> enum.</remarks>
         public Color[] FactionColors { get => m_FactionColors; }
 
-        private UnitMagnet[] m_UnitMagnets;
+        /// <summary>
+        /// An array of references to the unit magnets of both factions.
+        /// </summary>
+        /// <remarks>The unit magnet at each index is the unit magnet of the faction with that value in the <c>Faction</c> enum.</remarks>
+        private readonly UnitMagnet[] m_UnitMagnets = new UnitMagnet[2];
 
         /// <summary>
-        /// Each cell represents one of the teams, and the object in the cell is the object that team's player is inspecting.
+        /// Each cell represents one of the factions, and the object in the cell is the object that faction's player is inspecting.
         /// </summary>
-        /// <remarks>The index of the list in the array corresponds to the value of the team in the <c>Team</c> enum.</remarks>
+        /// <remarks>The object at each index is the inspected object of the player of the faction with that value in the <c>Faction</c> enum.</remarks>
         private readonly IInspectableObject[] m_InspectedObjects = new IInspectableObject[2];
-
 
         #region Manna
 
         /// <summary>
-        /// Gets the maximum amount of manna a player can have.
+        /// Gets the maximum amount of manna a faction can have.
         /// </summary>
         public int MaxManna { get => m_MaxManna; }
         /// <summary>
-        /// An array of the amount of manna each team has.
+        /// An array of the amount of manna each faction has.
         /// </summary>
-        /// <remarks>The index of the list in the array corresponds to the value of the team in the <c>Team</c> enum.</remarks>
+        /// <remarks>The manna at each index is the manna of the faction with that value in the <c>Faction</c> enum.</remarks>
         private readonly int[] m_Manna = new int[2];
 
         #endregion
 
-
-        #region Powers
+        #region Divine Interventions
 
         /// <summary>
         /// Gets half the number of tiles on a side of the area of effect of the Earthquake.
@@ -174,24 +170,19 @@ namespace Populous
         public int VolcanoRadius { get => m_VolcanoRadius; }
 
         private bool m_IsArmageddon;
+        /// <summary>
+        /// True if the Armageddon Divine Intervention has been activated, false otherwise.
+        /// </summary>
         public bool IsArmageddon { get => m_IsArmageddon; }
 
         #endregion
-
-
-        #region Inspected Object
-
-
-
-        #endregion
-
 
         #region Camera Snap
 
         /// <summary>
         /// An array containing the index of the next fight the player's camera will snap to if the Zoom to Fight action is performed.
         /// </summary>
-        /// <remarks>The index of the list in the array corresponds to the value of the team in the <c>Team</c> enum.</remarks>
+        /// <remarks>The fight index at each array index is the fight index of the faction with that value in the <c>Faction</c> enum.</remarks>
         private readonly int[] m_FightIndex = new int[2];
         /// <summary>
         /// An array containing the index of the next knight the player's camera will snap to if the Zoom to Knight action is performed.
@@ -265,17 +256,15 @@ namespace Populous
             // just on server from here on
             //if (!IsHost) return;
 
-            //StructureManager.Instance.PlaceTreesAndRocks();
-            //UnitManager.Instance.SpawnStartingUnits();
+            StructureManager.Instance.PlaceTreesAndRocks();
+            UnitManager.Instance.SpawnStartingUnits();
 
-            // unit magnets
-            //m_UnitMagnets = new UnitMagnet[2];
-            //foreach (GameObject unitMagnetObject in m_UnitMagnetObjects)
-            //{
-            //    UnitMagnet unitMagnet = unitMagnetObject.GetComponent<UnitMagnet>();
-            //    m_UnitMagnets[(int)unitMagnet.Faction] = unitMagnet;
-            //    unitMagnet.Setup();
-            //}
+            foreach (GameObject unitMagnetObject in m_UnitMagnetObjects)
+            {
+                UnitMagnet unitMagnet = unitMagnetObject.GetComponent<UnitMagnet>();
+                m_UnitMagnets[(int)unitMagnet.Faction] = unitMagnet;
+                unitMagnet.Setup();
+            }
         }
 
         #endregion

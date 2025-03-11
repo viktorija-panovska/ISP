@@ -1410,9 +1410,9 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 477241446}
+  - component: {fileID: 477241452}
   - component: {fileID: 477241450}
   - component: {fileID: 477241451}
-  - component: {fileID: 477241452}
   m_Layer: 0
   m_Name: Network Manager
   m_TagString: Untagged
@@ -2553,7 +2553,7 @@ GameObject:
   - component: {fileID: 1388106435}
   - component: {fileID: 1388106434}
   m_Layer: 5
-  m_Name: Start
+  m_Name: Launch Host
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -3895,7 +3895,6 @@ MonoBehaviour:
   m_HostScreen: {fileID: 1649224327}
   m_JoinScreen: {fileID: 952753477}
   m_LobbyNameInputField: {fileID: 956399745}
-  m_PasswordInputField: {fileID: 0}
   m_GameSeedInputField: {fileID: 333345136}
   m_LobbyEntryPrefab: {fileID: 606450699740323588, guid: 1f123c49e1ea54444abc7153982ccab2, type: 3}
   m_LobbyListContent: {fileID: 2043187524528858407}

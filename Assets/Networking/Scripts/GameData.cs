@@ -103,9 +103,8 @@ namespace Populous
         /// </summary>
         public string LobbyName { get => m_Lobby.GetData("name"); }
 
-        private int m_GameSeed;
-        private NetworkVariable<int> m_GameSeed_Network = new();
-        public int GameSeed { get => m_GameSeed_Network.Value; }
+        private NetworkVariable<int> m_GameSeed = new();
+        public int GameSeed { get => m_GameSeed.Value; }
 
         private NetworkList<PlayerInfo> m_PlayersInfo;
 
@@ -127,8 +126,51 @@ namespace Populous
         public void Setup(Lobby lobby, int gameSeed)
         {
             m_Lobby = lobby;
-            m_GameSeed = gameSeed;
+            m_GameSeed = new(gameSeed);
         }
+
+
+
+        #region Modify Player Info List
+
+        /// <summary>
+        /// Calls the server to add the given information to the player list.
+        /// </summary>
+        /// <param name="networkId">The player's network ID.</param>
+        /// <param name="steamId">The player's Steam ID.</param>
+        /// <param name="faction">The faction the player controls.</param>
+        [ServerRpc(RequireOwnership = false)]
+        public void AddPlayerInfo_ServerRpc(ulong networkId, ulong steamId, Faction faction)
+            => AddPlayerInfo(new(networkId, steamId, faction));
+
+        private void AddPlayerInfo(PlayerInfo playerInfo)
+        {
+            Debug.Log("Adding Player Info: " + playerInfo.Faction);
+            m_PlayersInfo.Add(playerInfo);
+        }
+
+        public bool RemoveClientInfo()
+        {
+            Debug.Log("Removing Client Info");
+
+            if (m_PlayersInfo.Count <= 1) return false;
+            m_PlayersInfo.RemoveAt(1);
+            return true;
+        }
+
+        public void RemoveAllPlayerInfo() => m_PlayersInfo.Clear();
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="method"></param>
+        public void SubscribeToPlayersInfoList(Action<NetworkListEvent<PlayerInfo>> method)
+            => m_PlayersInfo.OnListChanged += new NetworkList<PlayerInfo>.OnListChangedDelegate(method);
+
+        public void UnsubscribeFromPlayersInfoList(Action<NetworkListEvent<PlayerInfo>> method)
+            => m_PlayersInfo.OnListChanged -= new NetworkList<PlayerInfo>.OnListChangedDelegate(method);
+
+        #endregion
 
 
         #region Player Info Getters
@@ -158,35 +200,6 @@ namespace Populous
         #endregion
 
 
-        #region Modify Player Info List
 
-        [ServerRpc(RequireOwnership = false)]
-        public void AddPlayerInfo_ServerRpc(ulong networkId, ulong steamId, Faction team)
-            => AddPlayerInfo(new(networkId, steamId, team));
-
-        private void AddPlayerInfo(PlayerInfo playerInfo)
-        {
-            Debug.Log("Adding Player Info: " + playerInfo.Faction);
-            m_PlayersInfo.Add(playerInfo);
-        }
-
-        public bool RemoveClientInfo()
-        {
-            Debug.Log("Removing Client Info");
-
-            if (m_PlayersInfo.Count <= 1) return false;
-            m_PlayersInfo.RemoveAt(1);
-            return true;
-        }
-
-        public void RemoveAllPlayerInfo() => m_PlayersInfo.Clear();
-
-        public void SubscribeToPlayersInfoList(Action<NetworkListEvent<PlayerInfo>> method)
-            => m_PlayersInfo.OnListChanged += new NetworkList<PlayerInfo>.OnListChangedDelegate(method);
-
-        public void UnsubscribeFromPlayersInfoList(Action<NetworkListEvent<PlayerInfo>> method)
-            => m_PlayersInfo.OnListChanged -= new NetworkList<PlayerInfo>.OnListChangedDelegate(method);
-
-        #endregion
     }
 }

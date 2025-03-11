@@ -1,3 +1,5 @@
+// TODO: Delete script before final
+
 using Steamworks.Data;
 using System;
 using System.Collections.Generic;
@@ -277,7 +279,7 @@ namespace Populous
         {
             gameInProgress = true;
 
-            SceneLoader.Instance.SwitchToScene_Network(Scene.GAMEPLAY_SCENE);
+            SceneLoader.Instance.SwitchToScene_Network(Scene.GAMEPLAY);
         }
 
         #endregion

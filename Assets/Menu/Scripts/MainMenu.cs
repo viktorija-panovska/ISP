@@ -123,8 +123,8 @@ namespace Populous
         private void SwitchScreens(GameObject screen)
         {
             m_CurrentScreen.SetActive(false);
-            screen.SetActive(true);
             m_CurrentScreen = screen;
+            m_CurrentScreen.SetActive(true);
         }
 
         #endregion
@@ -179,12 +179,13 @@ namespace Populous
             m_SelectedLobbyEntry = null;
             m_LobbyEntryList = new();
 
+            // TODO: Delete before final
             // local connection doesn't have a server to get lobbies from
             // so just create a dummy lobby to fill the list
             if (m_ConnectionManager.GetType() == typeof(LocalConnectionManager))
             {
                 LobbyListEntry lobbyEntry = Instantiate(m_LobbyEntryPrefab).GetComponent<LobbyListEntry>();
-                lobbyEntry.SetupEmptyLobby("TEST LOBBY", false);
+                lobbyEntry.SetupEmptyLobby("TEST LOBBY");
                 lobbyEntry.transform.SetParent(m_LobbyListContent);
                 lobbyEntry.transform.localScale = Vector3.one;
 
@@ -196,9 +197,8 @@ namespace Populous
             
             foreach (Lobby lobby in lobbies)
             {
-                // to filter out lobbies from Spacewar that aren't from this project
-                if (lobby.GetData("isPopulous") == "")
-                    continue;
+                //// to filter out lobbies from Spacewar that aren't from this project
+                //if (lobby.GetData("isPopulous") == "") continue;
 
                 LobbyListEntry lobbyEntry = Instantiate(m_LobbyEntryPrefab).GetComponent<LobbyListEntry>();
 

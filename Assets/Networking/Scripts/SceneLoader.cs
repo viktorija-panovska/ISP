@@ -23,13 +23,13 @@ namespace Populous
         /// <summary>
         /// The Gameplay scene
         /// </summary>
-        GAMEPLAY_SCENE
+        GAMEPLAY
     }
-
 
     [RequireComponent(typeof(NetworkObject))]
     public class SceneLoader : NetworkBehaviour
     {
+        [Tooltip("The Canvas that is attached to the GameObject of this script.")]
         [SerializeField] private CanvasGroup m_BlackScreen;
 
 
@@ -60,6 +60,8 @@ namespace Populous
         }
 
 
+        #region Switch Scenes
+
         /// <summary>
         /// Loads the destination scene in Single mode through the network.
         /// </summary>
@@ -77,11 +79,10 @@ namespace Populous
         public void SwitchToScene_Local(Scene scene) => SceneManager.LoadScene(scene.ToString(), LoadSceneMode.Single);
 
         /// <summary>
-        /// 
+        /// Gets the scene the user is currently in.
         /// </summary>
-        /// <returns></returns>
-        public Scene GetCurrentScene()
-            => IsHost ? m_PlayerInScene[0] : m_PlayerInScene[1];
+        /// <returns>Returns the <c>Scene</c> value of the user depending on if they are the host or the client.</returns>
+        public Scene GetCurrentScene() => m_PlayerInScene[IsHost ? 0 : 1];
 
         /// <summary>
         /// Processes all scene events types, for both the host and the clients.
@@ -93,20 +94,22 @@ namespace Populous
                (sceneEvent.SceneEventType != SceneEventType.LoadComplete && sceneEvent.SceneEventType != SceneEventType.SynchronizeComplete))
                 return;
 
-            Debug.Log("Handle Scene Event");
-
             Scene scene = Scene.NONE;
             switch (sceneEvent.SceneName)
             {
                 case "MAIN_MENU": scene = Scene.MAIN_MENU; break;
                 case "LOBBY": scene = Scene.LOBBY; break;
-                case "GAME_SCENE": scene = Scene.GAMEPLAY_SCENE; break;
+                case "GAME_SCENE": scene = Scene.GAMEPLAY; break;
             }
 
             m_PlayerInScene[IsHost ? 0 : 1] = scene;
             FadeIn();
         }
 
+        #endregion
+
+
+        #region Fade in/out
 
         /// <summary>
         /// Fades screen to black.
@@ -122,5 +125,7 @@ namespace Populous
         /// </summary>
         public void FadeIn(float duration = 1f)
             => m_BlackScreen.DOFade(0, duration).OnComplete(() => m_BlackScreen.blocksRaycasts = false);
+
+        #endregion
     }
 }
