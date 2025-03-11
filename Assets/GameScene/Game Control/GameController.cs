@@ -122,6 +122,7 @@ namespace Populous
         /// </summary>
         public static GameController Instance { get => m_Instance; }
 
+
         /// <summary>
         /// An array of the colors of each faction. 
         /// </summary>

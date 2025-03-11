@@ -7,10 +7,22 @@ using UnityEngine;
 
 namespace Populous
 {
+    /// <summary>
+    /// The names of the Factions in the game.
+    /// </summary>
     public enum Faction
     {
+        /// <summary>
+        /// The Red faction.
+        /// </summary>
         RED,
+        /// <summary>
+        /// The Blue faction.
+        /// </summary>
         BLUE,
+        /// <summary>
+        /// An empty faction, used as a placeholder.
+        /// </summary>
         NONE
     }
 
@@ -98,14 +110,22 @@ namespace Populous
         /// The lobby this game is running out of.
         /// </summary>
         private Lobby m_Lobby;
+
+        private readonly NetworkVariable<string> m_LobbyName = new();
         /// <summary>
         /// Gets the name of the lobby.
         /// </summary>
-        public string LobbyName { get => m_Lobby.GetData("name"); }
+        public string LobbyName { get => m_LobbyName.Value; }
 
-        private NetworkVariable<int> m_GameSeed = new();
+        private readonly NetworkVariable<int> m_GameSeed = new();
+        /// <summary>
+        /// Gets the seed for generating the terrain and other game elements.
+        /// </summary>
         public int GameSeed { get => m_GameSeed.Value; }
 
+        /// <summary>
+        /// A list of the <c>PlayerInfo</c> instances for all the connected players.
+        /// </summary>
         private NetworkList<PlayerInfo> m_PlayersInfo;
 
         private readonly ulong[] m_NetworkIdForFaction = new ulong[2];
@@ -123,10 +143,16 @@ namespace Populous
             m_PlayersInfo = new();
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="lobby"></param>
+        /// <param name="gameSeed"></param>
         public void Setup(Lobby lobby, int gameSeed)
         {
             m_Lobby = lobby;
-            m_GameSeed = new(gameSeed);
+            m_LobbyName.Value = m_Lobby.GetData(ConnectionManager.LOBBY_NAME_KEY);
+            m_GameSeed.Value = gameSeed;
         }
 
 
@@ -144,15 +170,10 @@ namespace Populous
             => AddPlayerInfo(new(networkId, steamId, faction));
 
         private void AddPlayerInfo(PlayerInfo playerInfo)
-        {
-            Debug.Log("Adding Player Info: " + playerInfo.Faction);
-            m_PlayersInfo.Add(playerInfo);
-        }
+            => m_PlayersInfo.Add(playerInfo);
 
         public bool RemoveClientInfo()
         {
-            Debug.Log("Removing Client Info");
-
             if (m_PlayersInfo.Count <= 1) return false;
             m_PlayersInfo.RemoveAt(1);
             return true;
@@ -188,9 +209,6 @@ namespace Populous
             return null;
         }
 
-        public NetworkList<PlayerInfo> GetPlayerInfoList() => m_PlayersInfo;
-
-
 
 
         public ulong GetNetworkIdByFaction(Faction team) => GetNetworkIdByFaction((int)team);
@@ -198,8 +216,5 @@ namespace Populous
         public Faction GetFactionByNetworkId(ulong networkId) => m_FactionForNetworkId[networkId];
 
         #endregion
-
-
-
     }
 }

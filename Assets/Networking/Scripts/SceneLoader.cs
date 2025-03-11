@@ -29,7 +29,7 @@ namespace Populous
     [RequireComponent(typeof(NetworkObject))]
     public class SceneLoader : NetworkBehaviour
     {
-        [Tooltip("The Canvas that is attached to the GameObject of this script.")]
+        [Tooltip("The Canvas that is parented to the GameObject of this script.")]
         [SerializeField] private CanvasGroup m_BlackScreen;
 
 

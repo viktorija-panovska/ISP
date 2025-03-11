@@ -113,7 +113,7 @@ namespace Populous
 
         #region Hosting a Game
 
-        public void CreateLobby(string lobbyName, string gameSeed)
+        public void CreateLobby(string lobbyName, int gameSeed)
         {
             NetworkManager.Singleton.StartHost();
         }

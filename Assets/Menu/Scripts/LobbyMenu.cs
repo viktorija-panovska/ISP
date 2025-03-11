@@ -67,8 +67,6 @@ namespace Populous
         /// </summary>
         public override void OnNetworkSpawn()
         {
-            Debug.Log("OnNetworkSpawn");
-
             m_LobbyNameField.text = GameData.Instance.LobbyName;
             m_GameSeedField.text = GameData.Instance.GameSeed.ToString();
 

@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using Unity.Netcode;
 using UnityEngine;
 
-using Random = System.Random;
 
 namespace Populous
 {
@@ -19,7 +18,7 @@ namespace Populous
         /// </summary>
         /// <param name="lobbyName">The name of the lobby that should be created.</param>
         /// <param name="gameSeed">The seed the created game should use to randomly generate the terrain and other game elements.</param>
-        public void CreateLobby(string lobbyName, string gameSeed);
+        public void CreateLobby(string lobbyName, int gameSeed);
 
         /// <summary>
         /// Gets all the active lobbies.
@@ -55,6 +54,7 @@ namespace Populous
     /// </summary>
     public class ConnectionManager : NetworkBehaviour, IConnectionManager
     {
+        [Tooltip("A reference to the Facepunch Transport component, found in the NetworkManager object.")]
         [SerializeField] private FacepunchTransport m_FacepunchTransport;
 
         private static ConnectionManager m_Instance;
@@ -69,6 +69,23 @@ namespace Populous
         public const int MAX_PLAYERS = 2;
 
         /// <summary>
+        /// The key in the lobby data for the name of the lobby.
+        /// </summary>
+        public const string LOBBY_NAME_KEY = "name";
+        /// <summary>
+        /// The key in the lobby data for the game seed.
+        /// </summary>
+        public const string LOBBY_SEED_KEY = "seed";
+        /// <summary>
+        /// The key in the lobby data for the Steam name of the owner of the lobby.
+        /// </summary>
+        public const string LOBBY_OWNER_KEY = "owner";
+        /// <summary>
+        /// The key in the lobby data that serves as an identifier for lobbies of this project.
+        /// </summary>
+        public const string LOBBY_PROJECT_CHECK_KEY = "isPopulousPlus";
+
+        /// <summary>
         /// The lobby this client is currently in.
         /// </summary>
         private Lobby? m_CurrentLobby;
@@ -76,7 +93,7 @@ namespace Populous
         /// <summary>
         /// The game data that has been entered by a user that wants to create a game.
         /// </summary>
-        private (string name, string seed) m_EnteredGameData;
+        private (string name, int seed) m_EnteredGameData;
 
 
         #region Event Functions
@@ -99,7 +116,6 @@ namespace Populous
 
         public override void OnDestroy()
         {
-            Debug.Log("OnDestroy");
             SteamMatchmaking.OnLobbyCreated -= OnLobbyCreated;
             SteamMatchmaking.OnLobbyEntered -= OnLobbyEntered;
             SteamFriends.OnGameLobbyJoinRequested -= OnGameLobbyJoinRequested;
@@ -124,7 +140,7 @@ namespace Populous
         #region Starting a Host
 
         /// <inheritdoc />
-        public async void CreateLobby(string lobbyName, string gameSeed)
+        public async void CreateLobby(string lobbyName, int gameSeed)
         {
             m_EnteredGameData = (lobbyName, gameSeed);
 
@@ -133,8 +149,8 @@ namespace Populous
 
             if (!NetworkManager.Singleton.StartHost())
             {
-                Debug.LogError("Host Start Failed");
-                m_EnteredGameData = ("", "");
+                Debug.LogError("Failed to start host.");
+                m_EnteredGameData = ("", 0);
                 return;
             }
 
@@ -150,22 +166,19 @@ namespace Populous
         {
             if (result != Result.OK)
             {
-                Debug.LogError("Lobby wasn't created");
+                Debug.LogError("Failed to create lobby.");
                 Disconnect();
-                //SceneLoader.Instance.FadeIn();
                 return;
             }
 
-            lobby.SetData("name", m_EnteredGameData.name);
-            lobby.SetData("seed", m_EnteredGameData.seed);
-            lobby.SetData("owner", SteamClient.Name);
-            lobby.SetData("isPopulous", "true");
+            lobby.SetData(LOBBY_NAME_KEY, m_EnteredGameData.name);
+            lobby.SetData(LOBBY_SEED_KEY, m_EnteredGameData.seed.ToString());
+            lobby.SetData(LOBBY_OWNER_KEY, SteamClient.Name);
+            lobby.SetData(LOBBY_PROJECT_CHECK_KEY, "true");
             lobby.SetPublic();
             lobby.SetJoinable(true);
 
-            int gameSeed = int.TryParse(m_EnteredGameData.seed, out int seed) ? seed : new Random().Next();
-            GameData.Instance.Setup(lobby, gameSeed);
-
+            GameData.Instance.Setup(lobby, m_EnteredGameData.seed);
             SceneLoader.Instance.OnFadeOutComplete += GoToLobby;
             SceneLoader.Instance.FadeOut();
         }
@@ -176,6 +189,8 @@ namespace Populous
         private void GoToLobby()
         {
             SceneLoader.Instance.OnFadeOutComplete -= GoToLobby;
+
+            NetworkManager.Singleton.SceneManager.OnSceneEvent += SceneLoader.Instance.HandleSceneEvent;
             SceneLoader.Instance.SwitchToScene_Network(Scene.LOBBY);
         }
 
@@ -186,7 +201,7 @@ namespace Populous
 
         /// <inheritdoc />
         public async Task<Lobby[]> GetActiveLobbies()
-            => await SteamMatchmaking.LobbyList.WithKeyValue("isPopulous", "true").RequestAsync();
+            => await SteamMatchmaking.LobbyList.WithKeyValue(LOBBY_PROJECT_CHECK_KEY, "true").RequestAsync();
 
         /// <inheritdoc />
         public void JoinGame(Lobby lobby) => OnGameLobbyJoinRequested(lobby, lobby.Owner.Id);
@@ -202,7 +217,7 @@ namespace Populous
 
             if (joinLobby != RoomEnter.Success)
             {
-                Debug.LogError("Failed to enter lobby");
+                Debug.LogError("Failed to enter lobby.");
                 return;
             }
 
@@ -236,7 +251,9 @@ namespace Populous
 
             if (!NetworkManager.Singleton.StartClient())
             {
-                Debug.LogError("Client Start Failed");
+                Debug.LogError("Failed to start client.");
+                Disconnect();
+                SceneLoader.Instance.FadeIn();
                 return;
             }
         }
@@ -299,12 +316,9 @@ namespace Populous
                 NetworkManager.Singleton.SceneManager.OnSceneEvent -= SceneLoader.Instance.HandleSceneEvent;
 
             NetworkManager.Singleton.Shutdown(true);
+            GameNetworkManager.Instance.Destroy();
+
             SceneLoader.Instance.SwitchToScene_Local(Scene.MAIN_MENU);
-
-            Destroy(GameNetworkManager.Instance.gameObject);
-            Destroy(gameObject);
-
-            Debug.Log("Disconnected");
         }
 
         /// <summary>
@@ -330,12 +344,9 @@ namespace Populous
         /// on the host and the network ID of the host on the client that is being forcefully disconnected.</param>
         private void OnClientDisconnect(ulong networkId)
         {
-            Debug.Log("OnClientDisconnect: " + networkId);
-
             // The host is being informed that the client has disconnected.
             if (IsHost && networkId != NetworkManager.Singleton.LocalClientId)
             {
-                Debug.Log("--- Client has disconnected");
                 GameData.Instance.RemoveClientInfo();
 
                 if (SceneLoader.Instance.GetCurrentScene() == Scene.GAMEPLAY)
@@ -344,10 +355,7 @@ namespace Populous
 
             // The client is being informed that it has been disconnected by the host.
             if (!IsHost)
-            {
-                Debug.Log("--- Host disconnected client");
                 Disconnect();
-            }
         }
 
         #endregion

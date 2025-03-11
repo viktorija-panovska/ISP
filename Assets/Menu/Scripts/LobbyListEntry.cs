@@ -27,8 +27,6 @@ namespace Populous
         #endregion
 
 
-        #region Class Fields
-
         private Lobby m_Lobby;
         /// <summary>
         /// Gets the lobby represented by this lobby entry.
@@ -50,8 +48,6 @@ namespace Populous
         /// True if the entry has been selected, false if it hasn't.
         /// </summary>
         private bool m_IsSelected;
-
-        #endregion
 
 
         /// <summary>

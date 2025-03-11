@@ -111,14 +111,14 @@ namespace Populous
             SetActivePowerIcon(Power.MOLD_TERRAIN, Power.MOLD_TERRAIN);
             SetActiveBehaviorIcon(UnitBehavior.SETTLE, UnitBehavior.SETTLE);
 
-            //PlayerInfo? redPlayerInfo = GameData.Instance.GetPlayerInfoByFaction(Faction.RED);
-            //PlayerInfo? bluePlayerInfo = GameData.Instance.GetPlayerInfoByFaction(Faction.BLUE);
+            PlayerInfo? redPlayerInfo = GameData.Instance.GetPlayerInfoByFaction(Faction.RED);
+            PlayerInfo? bluePlayerInfo = GameData.Instance.GetPlayerInfoByFaction(Faction.BLUE);
 
-            //if (redPlayerInfo.HasValue)
-            //    m_PlayerAvatars[0].texture = await InterfaceUtils.GetSteamAvatar(redPlayerInfo.Value.SteamId);
+            if (redPlayerInfo.HasValue)
+                m_PlayerAvatars[0].texture = await InterfaceUtils.GetSteamAvatar(redPlayerInfo.Value.SteamId);
 
-            //if (bluePlayerInfo.HasValue)
-            //    m_PlayerAvatars[1].texture = await InterfaceUtils.GetSteamAvatar(bluePlayerInfo.Value.SteamId);
+            if (bluePlayerInfo.HasValue)
+                m_PlayerAvatars[1].texture = await InterfaceUtils.GetSteamAvatar(bluePlayerInfo.Value.SteamId);
         }
 
         #endregion

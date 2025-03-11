@@ -4,6 +4,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
+using Random = System.Random;
 
 namespace Populous
 {
@@ -143,9 +144,16 @@ namespace Populous
                 return;
             }
 
+            int seed = 0;
+            if (m_GameSeedInputField.text.Length != 0 && !int.TryParse(m_GameSeedInputField.text, out seed))
+            {
+                InterfaceUtils.FlashWrong(m_GameSeedInputField.image);
+                return;
+            }
+
             m_ConnectionManager.CreateLobby(
-                lobbyName: m_LobbyNameInputField.text.ToLower(), 
-                gameSeed: m_GameSeedInputField.text.ToLower()
+                lobbyName: m_LobbyNameInputField.text.ToLower(),
+                gameSeed: m_GameSeedInputField.text.Length == 0 ? new Random().Next() : seed
             );
         }
 
@@ -197,9 +205,6 @@ namespace Populous
             
             foreach (Lobby lobby in lobbies)
             {
-                //// to filter out lobbies from Spacewar that aren't from this project
-                //if (lobby.GetData("isPopulous") == "") continue;
-
                 LobbyListEntry lobbyEntry = Instantiate(m_LobbyEntryPrefab).GetComponent<LobbyListEntry>();
 
                 lobbyEntry.Setup(lobby);

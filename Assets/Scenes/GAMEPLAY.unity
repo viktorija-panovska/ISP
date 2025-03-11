@@ -6248,18 +6248,6 @@ MonoBehaviour:
       m_Calls:
       - m_Target: {fileID: 1741060427155153001}
         m_TargetAssemblyTypeName: PauseMenuController, Assembly-CSharp
-        m_MethodName: PlayButtonSound
-        m_Mode: 1
-        m_Arguments:
-          m_ObjectArgument: {fileID: 0}
-          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
-          m_IntArgument: 0
-          m_FloatArgument: 0
-          m_StringArgument: 
-          m_BoolArgument: 0
-        m_CallState: 2
-      - m_Target: {fileID: 1741060427155153001}
-        m_TargetAssemblyTypeName: PauseMenuController, Assembly-CSharp
         m_MethodName: Unpause
         m_Mode: 1
         m_Arguments:
@@ -6411,18 +6399,6 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 1741060427155153001}
-        m_TargetAssemblyTypeName: PauseMenuController, Assembly-CSharp
-        m_MethodName: PlayButtonSound
-        m_Mode: 1
-        m_Arguments:
-          m_ObjectArgument: {fileID: 0}
-          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
-          m_IntArgument: 0
-          m_FloatArgument: 0
-          m_StringArgument: 
-          m_BoolArgument: 0
-        m_CallState: 2
       - m_Target: {fileID: 1741060427155153001}
         m_TargetAssemblyTypeName: PauseMenuController, Assembly-CSharp
         m_MethodName: LeaveGame
@@ -6920,7 +6896,7 @@ GameObject:
   - component: {fileID: 1741060426921921486}
   - component: {fileID: 1741060426921921487}
   m_Layer: 5
-  m_Name: Map Seed
+  m_Name: Game Seed
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -7070,9 +7046,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_MenuCanvas: {fileID: 1741060426526100884}
   m_GameSeedField: {fileID: 1741060426921921487}
-  m_Buttons:
-  - {fileID: 1741060425670462224}
-  - {fileID: 1741060426026730916}
 --- !u!1 &1741060427210028426
 GameObject:
   m_ObjectHideFlags: 0
@@ -7166,8 +7139,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -133, y: -295}
-  m_SizeDelta: {x: 258.32605, y: 65.865295}
+  m_AnchoredPosition: {x: -137.99223, y: -295}
+  m_SizeDelta: {x: 275.9845, y: 65.8653}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &1741060427380083915
 GameObject:
@@ -7181,7 +7154,7 @@ GameObject:
   - component: {fileID: 1741060427380083916}
   - component: {fileID: 1741060427380083917}
   m_Layer: 5
-  m_Name: Map Seed Title
+  m_Name: Game Seed Title
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -7215,7 +7188,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: 'MAP SEED:'
+  m_text: 'GAME SEED:'
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 9f5cda18d326310479392ba61dc47bc5, type: 2}
   m_sharedMaterial: {fileID: -3989017678758685875, guid: 9f5cda18d326310479392ba61dc47bc5, type: 2}
@@ -11082,7 +11055,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 6bd81baa36e90c14c9942bb297368d49, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 86f0e4821075e74439ae6bc056a79d17, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -11616,8 +11589,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 19.913282, y: -20.5792}
-  m_SizeDelta: {x: 309.9874, y: 313.1583}
+  m_AnchoredPosition: {x: 20.2056, y: -5.1453}
+  m_SizeDelta: {x: 324.5969, y: 370.9071}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &6290967351975057641
 MonoBehaviour:
@@ -11722,8 +11695,6 @@ MonoBehaviour:
   m_BlueFrame: {fileID: 6290967351793104554}
   m_WinnerName: {fileID: 6290967352914407686}
   m_WinnerAvatar: {fileID: 6290967351975057641}
-  m_Buttons:
-  - {fileID: 6290967352435107754}
 --- !u!1 &6290967352262019209
 GameObject:
   m_ObjectHideFlags: 0
@@ -12014,18 +11985,6 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 6290967352180042695}
-        m_TargetAssemblyTypeName: EndGameMenuController, Assembly-CSharp
-        m_MethodName: PlayButtonSound
-        m_Mode: 1
-        m_Arguments:
-          m_ObjectArgument: {fileID: 0}
-          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
-          m_IntArgument: 0
-          m_FloatArgument: 0
-          m_StringArgument: 
-          m_BoolArgument: 0
-        m_CallState: 2
       - m_Target: {fileID: 6290967352180042695}
         m_TargetAssemblyTypeName: EndGameMenuController, Assembly-CSharp
         m_MethodName: BackToMenu
