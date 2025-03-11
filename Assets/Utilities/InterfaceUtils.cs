@@ -41,7 +41,10 @@ namespace Populous
         /// <param name="canvas">The canvas to be faded.</param>
         /// <param name="duration">The time until full opacity.</param>
         public static void FadeMenuIn(CanvasGroup canvas, float duration = 1f)
-            => canvas.DOFade(1, duration).OnComplete(() => canvas.interactable = true);
+            => canvas.DOFade(1, duration).OnComplete(() => {
+                canvas.interactable = true;
+                canvas.blocksRaycasts = true;
+            });
 
         /// <summary>
         /// Fades the opacity of the canvas to full transparency.
@@ -49,7 +52,10 @@ namespace Populous
         /// <param name="canvas">The canvas to be faded.</param>
         /// <param name="duration">The time until full transparency.</param>
         public static void FadeMenuOut(CanvasGroup canvas, float duration = 1f)
-            => canvas.DOFade(0, duration).OnComplete(() => canvas.interactable = false);
+            => canvas.DOFade(0, duration).OnComplete(() => {
+                canvas.interactable = false;
+                canvas.blocksRaycasts = false;
+            });
 
         /// <summary>
         /// Converts the Steam Avatar of the given player into a <c>Texture2D</c>.

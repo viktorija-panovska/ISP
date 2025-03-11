@@ -202,7 +202,9 @@ namespace Populous
             }
 
             Lobby[] lobbies = await m_ConnectionManager.GetActiveLobbies();
-            
+
+            if (lobbies == null) return;
+
             foreach (Lobby lobby in lobbies)
             {
                 LobbyListEntry lobbyEntry = Instantiate(m_LobbyEntryPrefab).GetComponent<LobbyListEntry>();

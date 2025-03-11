@@ -44,6 +44,7 @@ namespace Populous
             m_Instance = this;
         }
 
+
         /// <summary>
         /// Sets up the winner information and fades in the end game UI.
         /// </summary>

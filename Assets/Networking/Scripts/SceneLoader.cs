@@ -11,6 +11,9 @@ namespace Populous
     /// </summary>
     public enum Scene
     {
+        /// <summary>
+        /// Placeholder scene.
+        /// </summary>
         NONE,
         /// <summary>
         /// The Main Menu scene
@@ -40,9 +43,9 @@ namespace Populous
         public static SceneLoader Instance { get => m_Instance; }
 
         /// <summary>
-        /// Stores the scenes each player is currently in. Index 0 is the host and index 1 is the client.
+        /// Stores the scene the host is currently in.
         /// </summary>
-        private readonly Scene[] m_PlayerInScene = new Scene[2];
+        private Scene m_HostScene;
 
         /// <summary>
         /// Called when the screen has completely faded out.
@@ -70,6 +73,7 @@ namespace Populous
         {
             if (!IsHost) return;
             NetworkManager.Singleton.SceneManager.LoadScene(scene.ToString(), LoadSceneMode.Single);
+            m_HostScene = scene;
         }
 
         /// <summary>
@@ -79,10 +83,11 @@ namespace Populous
         public void SwitchToScene_Local(Scene scene) => SceneManager.LoadScene(scene.ToString(), LoadSceneMode.Single);
 
         /// <summary>
-        /// Gets the scene the user is currently in.
+        /// Gets the scene the host is currently in.
         /// </summary>
-        /// <returns>Returns the <c>Scene</c> value of the user depending on if they are the host or the client.</returns>
-        public Scene GetCurrentScene() => m_PlayerInScene[IsHost ? 0 : 1];
+        /// <returns>Returns the <c>Scene</c> the host is currently in.</returns>
+        public Scene GetHostScene() => m_HostScene;
+
 
         /// <summary>
         /// Processes all scene events types, for both the host and the clients.
@@ -91,18 +96,10 @@ namespace Populous
         public void HandleSceneEvent(SceneEvent sceneEvent)
         {
             if (sceneEvent.ClientId != NetworkManager.Singleton.LocalClientId || 
-               (sceneEvent.SceneEventType != SceneEventType.LoadComplete && sceneEvent.SceneEventType != SceneEventType.SynchronizeComplete))
+               (sceneEvent.SceneEventType != SceneEventType.LoadComplete && 
+                sceneEvent.SceneEventType != SceneEventType.SynchronizeComplete))
                 return;
 
-            Scene scene = Scene.NONE;
-            switch (sceneEvent.SceneName)
-            {
-                case "MAIN_MENU": scene = Scene.MAIN_MENU; break;
-                case "LOBBY": scene = Scene.LOBBY; break;
-                case "GAME_SCENE": scene = Scene.GAMEPLAY; break;
-            }
-
-            m_PlayerInScene[IsHost ? 0 : 1] = scene;
             FadeIn();
         }
 

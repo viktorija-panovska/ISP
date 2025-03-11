@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using Unity.Netcode;
@@ -227,10 +228,6 @@ namespace Populous
         #endregion
 
 
-
-
-
-
         #region Event Functions
 
         private void Awake()
@@ -260,12 +257,12 @@ namespace Populous
             StructureManager.Instance.PlaceTreesAndRocks();
             UnitManager.Instance.SpawnStartingUnits();
 
-            foreach (GameObject unitMagnetObject in m_UnitMagnetObjects)
-            {
-                UnitMagnet unitMagnet = unitMagnetObject.GetComponent<UnitMagnet>();
-                m_UnitMagnets[(int)unitMagnet.Faction] = unitMagnet;
-                unitMagnet.Setup();
-            }
+            //foreach (GameObject unitMagnetObject in m_UnitMagnetObjects)
+            //{
+            //    UnitMagnet unitMagnet = unitMagnetObject.GetComponent<UnitMagnet>();
+            //    m_UnitMagnets[(int)unitMagnet.Faction] = unitMagnet;
+            //    unitMagnet.Setup();
+            //}
         }
 
         #endregion

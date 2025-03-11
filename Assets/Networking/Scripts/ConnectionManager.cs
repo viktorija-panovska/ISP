@@ -349,12 +349,12 @@ namespace Populous
             {
                 GameData.Instance.RemoveClientInfo();
 
-                if (SceneLoader.Instance.GetCurrentScene() == Scene.GAMEPLAY)
+                if (SceneLoader.Instance.GetHostScene() == Scene.GAMEPLAY)
                     SceneLoader.Instance.SwitchToScene_Network(Scene.LOBBY);
             }
 
             // The client is being informed that it has been disconnected by the host.
-            if (!IsHost)
+            if (!IsHost) 
                 Disconnect();
         }
 

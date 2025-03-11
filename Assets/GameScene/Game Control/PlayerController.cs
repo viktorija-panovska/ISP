@@ -140,7 +140,6 @@ namespace Populous
         public void EndGame(Faction winner)
         {
             m_IsPaused = true;
-            Time.timeScale = 0;
             EndGameUI.Instance.ShowEndGameUI(winner);
         }
 
