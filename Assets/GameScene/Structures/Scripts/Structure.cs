@@ -97,7 +97,7 @@ namespace Populous
             // in the corners of the tile and the structure doesn't need to be moved.
             // for drown, if the structure wasn't destroyed, there could have been a change
             if (m_DestroyMethod == DestroyMethod.DROWN)
-                SetHeight/*_ClientRpc*/((int)m_OccupiedTile.GetCenterHeight());
+                SetHeight_ClientRpc/*_ClientRpc*/((int)m_OccupiedTile.GetCenterHeight());
         }
 
         /// <summary>
@@ -124,8 +124,8 @@ namespace Populous
         /// Sets the height the structure is sitting at to the given value.
         /// </summary>
         /// <param name="height">The value that the height the structure is sitting at should be set to.</param>
-        //[ClientRpc]
-        protected void SetHeight/*_ClientRpc*/(float height)
+        [ClientRpc]
+        protected void SetHeight_ClientRpc(float height)
             => transform.position = new Vector3(transform.position.x, height, transform.position.z);
 
         #endregion

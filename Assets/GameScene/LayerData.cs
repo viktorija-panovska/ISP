@@ -23,6 +23,10 @@ namespace Populous
         /// The name of the layer containing the units and structures that don't belong to any faction.
         /// </summary>
         public const string NONE_FACTION_LAYER_NAME = "None Team";
+        /// <summary>
+        /// The name of the layer containing scene elements that should only appear on the minimap.
+        /// </summary>
+        public const string MINIMAP_LAYER_NAME = "Minimap";
 
         /// <summary>
         /// The layer mask including the layer containing the terrain.
@@ -40,6 +44,10 @@ namespace Populous
         /// The layer mask including the layer containing the units and structures that don't belong to any faction.
         /// </summary>
         public static int NoneFactionLayer = LayerMask.NameToLayer(NONE_FACTION_LAYER_NAME);
+        /// <summary>
+        /// The layer mask including the layer containing only the elements that should appear on the minimap.
+        /// </summary>
+        public static int MinimapLayer = LayerMask.NameToLayer(MINIMAP_LAYER_NAME);
 
         /// <summary>
         /// An array containing the layer masks including each faction, where index 0 is the layer mask for the Red faction, 

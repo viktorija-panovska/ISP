@@ -111,14 +111,14 @@ namespace Populous
             SetActivePowerIcon(Power.MOLD_TERRAIN, Power.MOLD_TERRAIN);
             SetActiveBehaviorIcon(UnitBehavior.SETTLE, UnitBehavior.SETTLE);
 
-            PlayerInfo? redPlayerInfo = GameData.Instance.GetPlayerInfoByFaction(Faction.RED);
-            PlayerInfo? bluePlayerInfo = GameData.Instance.GetPlayerInfoByFaction(Faction.BLUE);
+            //PlayerInfo? redPlayerInfo = GameData.Instance.GetPlayerInfoByFaction(Faction.RED);
+            //PlayerInfo? bluePlayerInfo = GameData.Instance.GetPlayerInfoByFaction(Faction.BLUE);
 
-            if (redPlayerInfo.HasValue)
-                m_PlayerAvatars[0].texture = await InterfaceUtils.GetSteamAvatar(redPlayerInfo.Value.SteamId);
+            //if (redPlayerInfo.HasValue)
+            //    m_PlayerAvatars[0].texture = await InterfaceUtils.GetSteamAvatar(redPlayerInfo.Value.SteamId);
 
-            if (bluePlayerInfo.HasValue)
-                m_PlayerAvatars[1].texture = await InterfaceUtils.GetSteamAvatar(bluePlayerInfo.Value.SteamId);
+            //if (bluePlayerInfo.HasValue)
+            //    m_PlayerAvatars[1].texture = await InterfaceUtils.GetSteamAvatar(bluePlayerInfo.Value.SteamId);
         }
 
         #endregion
@@ -455,32 +455,32 @@ namespace Populous
         /// <summary>
         /// Triggers camera to show the object the player is inspecting.
         /// </summary>
-        public void OnShowInspectedObjectClicked() => PlayerController.Instance.SnapCamera(SnapTo.INSPECTED_OBJECT);
+        public void OnShowInspectedObjectClicked() => PlayerController.Instance.SnapCameraToObject(SnapTo.INSPECTED_OBJECT);
 
         /// <summary>
         /// Triggers camera to show the player's unit magnet.
         /// </summary>
-        public void OnShowMagnetClicked() => PlayerController.Instance.SnapCamera(SnapTo.UNIT_MAGNET);
+        public void OnShowMagnetClicked() => PlayerController.Instance.SnapCameraToObject(SnapTo.UNIT_MAGNET);
 
         /// <summary>
         /// Triggers camera to show the player's faction's leader.
         /// </summary>
-        public void OnShowLeaderClicked() => PlayerController.Instance.SnapCamera(SnapTo.LEADER);
+        public void OnShowLeaderClicked() => PlayerController.Instance.SnapCameraToObject(SnapTo.LEADER);
 
         /// <summary>
         /// Triggers camera to show the player's faction's settlements.
         /// </summary>
-        public void OnShowSettlementsClicked() => PlayerController.Instance.SnapCamera(SnapTo.SETTLEMENT);
+        public void OnShowSettlementsClicked() => PlayerController.Instance.SnapCameraToObject(SnapTo.SETTLEMENT);
 
         /// <summary>
         /// Triggers camera to show the fights currenly happening.
         /// </summary>
-        public void OnShowFightsClicked() => PlayerController.Instance.SnapCamera(SnapTo.FIGHT);
+        public void OnShowFightsClicked() => PlayerController.Instance.SnapCameraToObject(SnapTo.FIGHT);
 
         /// <summary>
         /// Triggers camera to show the player's faction's knights.
         /// </summary>
-        public void OnShowKnightsClicked() => PlayerController.Instance.SnapCamera(SnapTo.KNIGHT);
+        public void OnShowKnightsClicked() => PlayerController.Instance.SnapCameraToObject(SnapTo.KNIGHT);
 
         #endregion
 

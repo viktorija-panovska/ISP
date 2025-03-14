@@ -31,6 +31,8 @@ namespace Populous
         private GameObject m_ChaseTarget;
 
 
+        private void Awake() => GetComponent<Collider>().enabled = false;
+
         private void OnTriggerEnter(Collider other)
         {
             if ((m_Unit.Behavior == UnitBehavior.FIGHT && other.gameObject.layer != LayerData.FactionLayers[(int)m_EnemyFaction]) ||
@@ -70,6 +72,8 @@ namespace Populous
                 m_TilesPerSide * Terrain.Instance.UnitsPerTileSide
             );
             m_Collider.center = new Vector3(0, m_Collider.size.y / 4, m_Collider.size.x / 2);
+
+            m_Collider.enabled = true;
         }
 
         /// <summary>

@@ -19,6 +19,8 @@ namespace Populous
         /// </summary>
         private Faction m_EnemyFaction;
 
+        private void Awake() => GetComponent<Collider>().enabled = false;
+
         private void OnTriggerEnter(Collider other)
         {
             Unit otherUnit = other.GetComponent<Unit>();
@@ -46,6 +48,7 @@ namespace Populous
         {
             m_Unit = unit;
             m_EnemyFaction = unit.Faction == Faction.RED ? Faction.BLUE : Faction.RED;
+            GetComponent<Collider>().enabled = false;
         }
     }
 }

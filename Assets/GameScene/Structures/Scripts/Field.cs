@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Unity.Netcode;
 using UnityEngine;
 
 namespace Populous
@@ -27,7 +28,7 @@ namespace Populous
         public override void Setup(Faction faction, TerrainTile occupiedTile)
         {
             base.Setup(faction, occupiedTile);
-            m_Fields[(int)m_Faction].SetActive(true);//.GetComponent<ObjectActivator>().SetActiveClientRpc(true);
+            ToggleField_ClientRpc(m_Faction, true);
         }
 
         /// <inheritdoc />
@@ -60,12 +61,27 @@ namespace Populous
         {
             if (faction == m_Faction) return;
 
-            m_Fields[(int)m_Faction].SetActive(false);//.GetComponent<ObjectActivator>().SetActiveClientRpc(false);
+            ToggleField_ClientRpc(m_Faction, false);
             m_Faction = faction;
-            m_Fields[(int)m_Faction].SetActive(true);//.GetComponent<ObjectActivator>().SetActiveClientRpc(true);
+            ToggleField_ClientRpc(m_Faction, true);
 
             if (m_Faction == Faction.NONE)
                 Cleanup();
+        }
+
+        /// <summary>
+        /// Activates or deactivates the field object of the given faction.
+        /// </summary>
+        /// <param name="faction">The <c>Faction</c> whose field should be activated.</param>
+        /// <param name="isOn">True if the field should be activated, false otherwise.</param>
+        [ClientRpc]
+        private void ToggleField_ClientRpc(Faction faction, bool isOn)
+        {
+            //m_Fields[(int)faction].SetActive(isOn);
+
+            GameObject field = GameUtils.GetChildWithTag(gameObject, TagData.FactionTags[(int)faction]);
+            if (!field) return;
+            field.SetActive(isOn);
         }
 
         #endregion

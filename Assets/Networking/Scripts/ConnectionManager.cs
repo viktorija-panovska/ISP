@@ -351,11 +351,12 @@ namespace Populous
 
                 if (SceneLoader.Instance.GetHostScene() == Scene.GAMEPLAY)
                     SceneLoader.Instance.SwitchToScene_Network(Scene.LOBBY);
+
+                return;
             }
 
             // The client is being informed that it has been disconnected by the host.
-            if (!IsHost) 
-                Disconnect();
+            Disconnect();
         }
 
         #endregion

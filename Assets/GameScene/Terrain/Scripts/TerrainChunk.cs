@@ -74,7 +74,7 @@ namespace Populous
 
             m_ChunkIndex = (gridX, gridZ);
             m_MeshData = ConstructTerrainGrid();
-            //SetVertexHeights();
+            SetVertexHeights();
             SetMesh();
         }
 

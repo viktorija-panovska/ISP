@@ -49,5 +49,14 @@ namespace Populous
                     TargetClientIds = new ulong[] { clientId }
                 }
             };
+
+        public static GameObject GetChildWithTag(GameObject parent, string tag)
+        {
+            foreach (Transform child in parent.GetComponentInChildren<Transform>(includeInactive: true))
+                if (child.gameObject.CompareTag(tag))
+                    return child.gameObject;
+
+            return null;
+        }
     }
 }

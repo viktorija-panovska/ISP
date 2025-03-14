@@ -25,27 +25,19 @@ namespace Populous
         [SerializeField] private GameObject m_FieldPrefab;
         [SerializeField] private GameObject m_SwampPrefab;
 
-
         [Header("Trees and Rocks Properties")]
-
         [Tooltip("The percentage of the terrain that should be covered by trees (includes water).")]
         [SerializeField, Range(0, 1)] private float m_TreePercentage;
-
         [Tooltip("The percentage of the terrain that should be covered by black rocks (includes water).")]
         [SerializeField, Range(0, 1)] private float m_BlackRockPercentage;
-
         [Tooltip("The percentage of the terrain that should be covered by white rocks (includes water).")]
         [SerializeField, Range(0, 1)] private float m_WhiteRockPercentage;
-
         [Tooltip("The percentage of the volcano area that should be covered by white rocks.")]
         [SerializeField, Range(0, 1)] private float m_VolcanoRockPercentage;
 
-
         [Header("UI")]
-
         [Tooltip("The scale of the settlement icons on the minimap.")]
-        [SerializeField] private int m_MinimapIconScale;
-
+        [SerializeField] private int m_MinimapIconScale = 30;
         [Tooltip("The colors of the settlement icons on the minimap, where 0 is the color of the red faction and 1 is the color of the blue faciton.")]
         [SerializeField] private Color[] m_MinimapSettlementColors;
 
@@ -128,21 +120,23 @@ namespace Populous
         /// <summary>
         /// Creates a structure belonging to the given faction on the given tile and spawns it on the network.
         /// </summary>
-        /// <param name="prefab">The <c>GameObject</c> for the structure that should be created.</param>
+        /// <param name="structurePrefab">The <c>GameObject</c> for the structure that should be created.</param>
         /// <param name="tile">The <c>TerrainTile</c> the created structure should occupy.</param>
         /// <param name="faction">The <c>Faction</c> the created structure should belong to.</param>
         /// <returns>The <c>GameObject</c> of the created structure.</returns>
-        private GameObject SpawnStructure(GameObject prefab, TerrainTile tile, Faction faction = Faction.NONE)
+        private GameObject SpawnStructure(GameObject structurePrefab, TerrainTile tile, Faction faction = Faction.NONE)
         {
-            //if (!IsHost) return null;
+            if (!IsHost) return null;
+
+            structurePrefab.GetComponent<Renderer>().enabled = false;
 
             GameObject structureObject = Instantiate(
-                prefab,
-                prefab.transform.position + tile.GetCenterPosition(),
+                structurePrefab,
+                structurePrefab.transform.position + tile.GetCenterPosition(),
                 Quaternion.identity
             );
 
-            //structureObject.GetComponent<NetworkObject>().Spawn(true);
+            structureObject.GetComponent<NetworkObject>().Spawn(true);
 
             // Structure properties
             Structure structure = structureObject.GetComponent<Structure>();
@@ -160,9 +154,9 @@ namespace Populous
         /// Despawns the given structure from the network and destroys is.
         /// </summary>
         /// <param name="structureObject">The <c>GameObject</c> of the structrue to be destroyed.</param>
-        public void DespawnStructure(GameObject structureObject)
+        public void DespawnStructure(GameObject structureObject, bool updateNearbySettlements = false)
         {
-            //if (!IsHost) return;
+            if (!IsHost) return;
 
             Structure structure = structureObject.GetComponent<Structure>();
 
@@ -179,9 +173,17 @@ namespace Populous
                     new Vector2(structure.transform.position.x, structure.transform.position.z),
                     structure.Faction
                 );
+
+                if (updateNearbySettlements)
+                    UpdateNearbySettlements(structure.OccupiedTile);
+
+                //GameController.Instance.RemoveVisibleObject_ClientRpc(
+                //    GetComponent<NetworkObject>().NetworkObjectId,
+                //    GameUtils.GetClientParams(GameData.Instance.GetNetworkIdByFaction(structure.Faction))
+                //);
             }
 
-            //structure.GetComponent<NetworkObject>().Despawn();
+            structure.GetComponent<NetworkObject>().Despawn();
             Destroy(structureObject);
         }
 
@@ -278,7 +280,7 @@ namespace Populous
             {
                 TerrainTile tile = new(bottomLeft.X + i % width, bottomLeft.Z + Mathf.FloorToInt((float)i / height));
 
-                if (!tile.IsInBounds()) continue;
+                if (!tile.IsInBounds() || tile.IsOccupied()) continue;
 
                 count--;
                 int randomIndex = random.Next(count + 1);
@@ -317,7 +319,7 @@ namespace Populous
         public void CreateRuin(Settlement settlement)
         {
             TerrainTile tile = settlement.OccupiedTile;
-            DespawnStructure(settlement.gameObject);
+            DespawnStructure(settlement.gameObject, updateNearbySettlements: true);
             SpawnStructure(m_RuinPrefab, tile);
         }
 
@@ -329,6 +331,11 @@ namespace Populous
         public void ChangeSettlementFaction(Settlement settlement, Faction faction)
         {
             if (faction == settlement.Faction) return;
+
+            GameController.Instance.RemoveVisibleObject_ClientRpc(
+                GetComponent<NetworkObject>().NetworkObjectId,
+                GameUtils.GetClientParams(GameData.Instance.GetNetworkIdByFaction(settlement.Faction))
+            );
 
             RemoveSettlementPosition(settlement.transform.position, settlement.Faction);
             settlement.ChangeFaction(faction);
@@ -369,50 +376,30 @@ namespace Populous
         public void RemoveSettlementPosition(Vector2 position, Faction faction) 
             => m_SettlementLocations[(int)faction].Remove(position);
 
-
-        #region Leader
-
         /// <summary>
-        /// Checks whether the given faction has a leader that is in a settlement.
+        /// Updates the types of the settlements that are close enough to the settlement at the given tile that they could be sharing fields with it.
         /// </summary>
-        /// <param name="faction">The <c>Faction</c> whose leader should be checked.</param>
-        /// <returns>True if the faction has a leader that is in a settlement, false otherwise.</returns>
-        public bool HasSettlementLeader(Faction faction) => m_LeaderSettlements[(int)faction];
-
-        /// <summary>
-        /// Gets the <c>Settlement</c> the faction leader is part of, if such a settlement exists.
-        /// </summary>
-        /// <param name="faction">The <c>Faction</c> whose leader should be returned.</param>
-        /// <returns>The <c>Settlement</c> of the team's leader, null if the leader is not part of a settlement.</returns>
-        public Settlement GetLeaderSettlement(Faction faction) => m_LeaderSettlements[(int)faction];
-
-        /// <summary>
-        /// Sets the given settlement as the leader of the given faction.
-        /// </summary>
-        /// <param name="faction">The <c>Faction</c> whose settlement should be set.</param>
-        /// <param name="settlement">The <c>Settlement</c> that should be set as the leader.</param>
-        public void SetLeaderSettlement(Faction faction, Settlement settlement)
+        /// <param name="settlementTile">The <c>TerrainTile</c> of the central settlement.</param>
+        public void UpdateNearbySettlements(TerrainTile settlementTile)
         {
-            UnsetLeaderSettlement(faction);
+            for (int z = -4; z <= 4; ++z)
+            {
+                for (int x = -4; x <= 4; ++x)
+                {
+                    if ((x, z) == (0, 0)) continue;
 
-            m_LeaderSettlements[(int)faction] = settlement;
-            settlement.SetLeader(true);
-            UnitManager.Instance.OnNewLeaderGained?.Invoke();
+                    TerrainTile tile = new(settlementTile.X + x, settlementTile.Z + z);
+
+                    if (!tile.IsInBounds()) continue;
+
+                    Structure structure = GetStructureOnTile(tile);
+                    if (!structure || structure.GetType() != typeof(Settlement)) continue;
+
+                    Settlement settlement = (Settlement)structure;
+                    settlement.SetType();
+                }
+            }
         }
-
-        /// <summary>
-        /// Removes the leader settlement of the given faction, if it exists.
-        /// </summary>
-        /// <param name="faction">The <c>Faction</c> whose leader settlement should be removed.</param>
-        public void UnsetLeaderSettlement(Faction faction)
-        {
-            if (!HasSettlementLeader(faction)) return;
-
-            m_LeaderSettlements[(int)faction].SetLeader(false);
-            m_LeaderSettlements[(int)faction] = null;
-        }
-
-        #endregion
 
         #endregion
 
@@ -450,8 +437,7 @@ namespace Populous
 
                     TerrainTile tile = new(settlement.OccupiedTile.X + x, settlement.OccupiedTile.Z + z);
 
-                    if (!tile.IsInBounds() || !tile.IsFlat())
-                        continue;
+                    if (!tile.IsInBounds() || !tile.IsFlat()) continue;
 
                     Structure structure = tile.GetStructure();
 

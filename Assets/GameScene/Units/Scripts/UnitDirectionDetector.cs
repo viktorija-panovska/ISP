@@ -35,6 +35,8 @@ namespace Populous
         private HashSet<GameObject> m_NearbyObjects = new();
 
 
+        private void Awake() => GetComponent<Collider>().enabled = false;
+
         private void OnTriggerEnter(Collider other)
         {
             if ((m_Unit.Behavior == UnitBehavior.FIGHT && other.gameObject.layer != LayerData.FactionLayers[(int)m_EnemyFaction]) ||
@@ -68,12 +70,10 @@ namespace Populous
             // setup collider
             m_Collider = GetComponent<BoxCollider>();
             m_Collider.enabled = false;
-            m_Collider.size = new Vector3(
-                m_TilesPerSide * Terrain.Instance.UnitsPerTileSide,
-                Terrain.Instance.MaxHeight,
-                m_TilesPerSide * Terrain.Instance.UnitsPerTileSide
-            );
+            SetDetectorSize(m_TilesPerSide);
             m_Collider.center = new Vector3(0, Terrain.Instance.MaxHeight / 2, 0);
+
+            m_Collider.enabled = true;
         }
 
         /// <summary>
@@ -91,6 +91,17 @@ namespace Populous
             else
                 m_Collider.enabled = false;
         }
+
+        /// <summary>
+        /// Makes the detector's collider cover the given number of tiles on each side.
+        /// </summary>
+        /// <param name="tilesPerSide">The number of tiles the collider should cover on a side.</param>
+        public void SetDetectorSize(int tilesPerSide)
+            => m_Collider.size = new Vector3(
+                tilesPerSide * Terrain.Instance.UnitsPerTileSide,
+                Terrain.Instance.MaxHeight,
+                tilesPerSide * Terrain.Instance.UnitsPerTileSide
+            );
 
         /// <summary>
         /// Computes the average vector from the positions of all the units and settlements of the desired type in the vicinity.

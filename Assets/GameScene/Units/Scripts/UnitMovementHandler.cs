@@ -158,7 +158,7 @@ namespace Populous
             m_StartPosition = m_Unit.ClosestTerrainPoint.ToScenePosition();
             StartLocation = m_Unit.ClosestTerrainPoint;
 
-            Roam();
+            //Roam();
         }
 
         /// <summary>
@@ -666,7 +666,7 @@ namespace Populous
         /// 
 
         /// make it so it distinguishes between unit leader and settlement leader
-        public void FollowLeader() => FollowUnit(UnitManager.Instance.GetLeaderUnit(m_Unit.Faction));
+        public void FollowLeader() => FollowUnit(GameController.Instance.GetLeaderUnit(m_Unit.Faction));
 
         /// <summary>
         /// Make this unit go after the given unit.
@@ -726,8 +726,8 @@ namespace Populous
 
             if (m_Unit.Type == UnitType.LEADER || !GameController.Instance.HasLeader(m_Unit.Faction))
                 SetPath(GameController.Instance.GetUnitMagnetPosition(m_Unit.Faction));
-            else if (StructureManager.Instance.HasSettlementLeader(m_Unit.Faction))
-                SetPath(StructureManager.Instance.GetLeaderSettlement(m_Unit.Faction).transform.position);
+            else if (GameController.Instance.HasLeaderSettlement(m_Unit.Faction))
+                SetPath(GameController.Instance.GetLeaderSettlement(m_Unit.Faction).transform.position);
             else
                 FollowLeader();
         }

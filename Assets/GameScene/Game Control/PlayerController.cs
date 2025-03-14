@@ -1,3 +1,4 @@
+using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -11,17 +12,13 @@ namespace Populous
     {
         #region Inspector Fields
 
-        [Header("Power Markers")]
-
+        [Header("Markers")]
         [Tooltip("The color of the marker when the power can be used.")]
         [SerializeField] private Color m_HighlightMarkerColor;
-
         [Tooltip("The color of the marker when the power cannot be used.")]
         [SerializeField] private Color m_GrayedOutMarkerColor;
-
         [Tooltip("The marker objects corresponding to each power. The index of each marker in this array corresponds to the value of its corresponding power in the Power enum.")]
         [SerializeField] private GameObject[] m_Markers;
-
         [Tooltip("An increase to the height at which a marker sits to make it not clip into the terrain.")]
         [SerializeField] private float m_MarkerExtraHeight = 2;
 
@@ -41,7 +38,7 @@ namespace Populous
         /// </summary>
         private PlayerInfo? m_PlayerInfo = null;
         /// <summary>
-        /// Gets the team this player controls, or Team.NONE if the player hasn't been set.
+        /// Gets the faction this player controls, or NONE if the player hasn't been set.
         /// </summary>
         public Faction Faction { get => m_PlayerInfo.HasValue ? m_PlayerInfo.Value.Faction : Faction.NONE; }
         /// <summary>
@@ -53,11 +50,13 @@ namespace Populous
         /// True if the game is paused, false otherwise.
         /// </summary>
         private bool m_IsPaused;
+
+        private bool m_IsQueryModeActive;
         /// <summary>
         /// True if the game is in Inspect Mode, false otherwise.
         /// </summary>
-        private bool m_IsInspectActive;
-        public bool IsInspectActive { get => m_IsInspectActive; }
+        public bool IsQueryModeActive { get => m_IsQueryModeActive; }
+        
         /// <summary>
         /// True if the player's input should be processed, false otherwise.
         /// </summary>
@@ -65,22 +64,22 @@ namespace Populous
         /// <summary>
         /// True if the player can activate powers, false otherwise.
         /// </summary>
-        private bool CanUseActions { get => CanInteract && !m_IsInspectActive && m_ActivePower != Power.ARMAGEDDON; }
+        private bool CanUseActions { get => CanInteract && !m_IsQueryModeActive && m_ActivePower != Power.ARMAGEDDON; }
 
         /// <summary>
         /// The <c>TerrainPoint</c> closest to the player's cursor. Null if the player's cursor is outside the bounds of the terrain
         /// </summary>
         private TerrainPoint? m_NearestPoint = null;
         /// <summary>
-        /// Gets the player's current active power.
+        /// Gets the player's current active Divine Intervention.
         /// </summary>
         private Power m_ActivePower = Power.MOLD_TERRAIN;
         /// <summary>
-        /// Gets the current active behavior of the units in the player's team.
+        /// Gets the current active behavior of the units in the player's faction.
         /// </summary>
         private UnitBehavior m_ActiveBehavior = UnitBehavior.SETTLE;
         /// <summary>
-        /// The markerIndex of the power marker that's currently active.
+        /// The index of the Divine Intervention marker that's currently active.
         /// </summary>
         private int m_ActiveMarkerIndex = 0;
 
@@ -102,19 +101,23 @@ namespace Populous
 
         private void Start() 
         {
-            m_PlayerInfo = new(0, 0, Faction.RED); //GameData.Instance.GetPlayerInfoByNetworkId(NetworkManager.Singleton.LocalClientId);
+            // TODO: set from Game Data
+
+            if (NetworkManager.Singleton && NetworkManager.Singleton.LocalClientId == 0)
+                m_PlayerInfo = new(0, 0, Faction.RED);
+            else
+                m_PlayerInfo = new(0, 0, Faction.BLUE);
+
             SetupMarkers();
         }
 
         private void Update()
         {
-            if (!CanUseActions || m_ActivePower == Power.KNIGHT || m_ActivePower == Power.FLOOD)
-                return;
+            if (!CanUseActions) return;
 
             m_NearestPoint = GetNearestPoint();
-
-            if (m_NearestPoint.HasValue)
-                PlaceMarkerAtPoint(m_NearestPoint.Value);
+            if (!m_NearestPoint.HasValue) return;
+            PlaceMarkerAtPoint(m_NearestPoint.Value);
         }
 
         #endregion
@@ -146,68 +149,10 @@ namespace Populous
         #endregion
 
 
-        #region Units
+        #region Divine Interventions
 
         /// <summary>
-        /// Sets the behavior of the units of this player's team to the given behavior.
-        /// </summary>
-        /// <param name="behavior">The new behavior that should be applied to all the units.</param>
-        public void SetUnitBehavior(UnitBehavior behavior)
-        {
-            if (!CanUseActions || behavior == m_ActiveBehavior) 
-                return;
-
-            GameUI.Instance.SetActiveBehaviorIcon(currentBehavior: behavior, lastBehavior: m_ActiveBehavior);
-            m_ActiveBehavior = behavior;
-            UnitManager.Instance.ChangeUnitBehavior_ServerRpc(Faction, m_ActiveBehavior);
-        }
-
-        #endregion
-
-
-        #region Camera Snap
-
-        public void SnapCamera(SnapTo cameraSnap)
-        {
-            if (!CanUseActions) return;
-
-            switch (cameraSnap)
-            {
-                case SnapTo.INSPECTED_OBJECT:
-                    GameController.Instance.ShowInspectedObject_ServerRpc(Faction);
-                    break;
-
-                case SnapTo.UNIT_MAGNET:
-                    GameController.Instance.ShowMagnet_ServerRpc(Faction);
-                    break;
-
-                case SnapTo.LEADER:
-                    GameController.Instance.ShowLeader_ServerRpc(Faction);
-                    break;
-
-                case SnapTo.SETTLEMENT:
-                    GameController.Instance.ShowSettlements_ServerRpc(Faction);
-                    break;
-
-                case SnapTo.FIGHT:
-                    GameController.Instance.ShowFights_ServerRpc(Faction);
-                    break;
-
-                case SnapTo.KNIGHT:
-                    GameController.Instance.ShowKnights_ServerRpc(Faction);
-                    break;
-            }
-
-            GameUI.Instance.SimulateClickOnSnapIcon(cameraSnap);
-        }
-
-        #endregion
-
-
-        #region Powers
-
-        /// <summary>
-        /// Checks with the server if the given power can be activated for this player.
+        /// Checks with the server if the given Divine Intervention can be activated for this player.
         /// </summary>
         /// <param name="power">The <c>Power</c> that the player wants to activate.</param>
         public void TryActivatePower(Power power)
@@ -220,7 +165,7 @@ namespace Populous
         }
 
         /// <summary>
-        /// Recieves information whether the given power has been activated or not and acts accordingly.
+        /// Recieves information whether the given Divine Intervention has been activated or not and acts accordingly.
         /// </summary>
         /// <param name="power">The <c>Power</c> the player wanted to activate.</param>
         /// <param name="isActivated">True if the power has been activated, false otherwise.</param>
@@ -252,13 +197,11 @@ namespace Populous
             m_ActivePower = power;
         }
 
-        #endregion
 
-
-        #region Power Markers
+        #region Markers
 
         /// <summary>
-        /// Sizes the markers according to the size of the areas of their respective powers.
+        /// Sizes the markers according to the size of the areas of their respective Divine Interventions.
         /// </summary>
         private void SetupMarkers()
         {
@@ -268,7 +211,7 @@ namespace Populous
         }
 
         /// <summary>
-        /// Finds the closest <c>TerrainPoint</c> and places the marker there.
+        /// Finds the closest <c>TerrainPoint</c> to the cursor.
         /// </summary>
         /// <returns>The nearest <c>TerrainPoint</c> to the cursor, or null if none is found.</returns>
         private TerrainPoint? GetNearestPoint()
@@ -276,12 +219,12 @@ namespace Populous
             if (Physics.Raycast(Camera.main.ScreenPointToRay(Mouse.current.position.ReadValue()), out RaycastHit hit,
                 maxDistance: Mathf.Infinity, layerMask: LayerMask.GetMask(LayerData.TERRAIN_LAYER_NAME)))
                 return new(hit.point);
-           
+
             return null;
         }
 
         /// <summary>
-        /// Sets the marker's posiiton to the nearest <c>Terrainpoint</c> and changes its color to show whether the power can be executed.
+        /// Sets the marker's posiiton to the given <c>Terrainpoint</c> and changes its color to show whether the power can be executed.
         /// </summary>
         private void PlaceMarkerAtPoint(TerrainPoint point)
         {
@@ -295,13 +238,13 @@ namespace Populous
         }
 
         /// <summary>
-        /// Sets the active marker to the marker of the given power.
+        /// Sets the active marker to the marker of the given Divine Intervention.
         /// </summary>
-        /// <param name="newPower">The power whose marker should be activated.</param>
+        /// <param name="newPower">The <c>Power</c> whose marker should be activated.</param>
         private void SwitchActiveMarker(Power newPower)
         {
-            if (m_ActivePower == newPower || m_ActivePower == Power.KNIGHT ||
-                m_ActivePower == Power.FLOOD || m_ActivePower == Power.ARMAGEDDON)
+            if (m_ActivePower == newPower || newPower == Power.KNIGHT ||
+                newPower == Power.FLOOD || newPower == Power.ARMAGEDDON)
                 return;
 
             m_Markers[m_ActiveMarkerIndex].SetActive(false);
@@ -311,16 +254,69 @@ namespace Populous
 
         #endregion
 
+        #endregion
 
-        #region Inspect Mode
+
+        #region Other Player Actions
 
         /// <summary>
-        /// Toggles the Inspect Mode from on to off and vice versa, and passes that state to the server.
+        /// Tells the server to set the behavior of the units of this player's team to the given behavior.
+        /// </summary>
+        /// <param name="behavior">The new behavior that should be applied to all the units.</param>
+        public void SetUnitBehavior(UnitBehavior behavior)
+        {
+            if (!CanUseActions || behavior == m_ActiveBehavior) return;
+
+            GameUI.Instance.SetActiveBehaviorIcon(currentBehavior: behavior, lastBehavior: m_ActiveBehavior);
+            m_ActiveBehavior = behavior;
+            UnitManager.Instance.ChangeUnitBehavior_ServerRpc(Faction, m_ActiveBehavior);
+        }
+
+        /// <summary>
+        /// Tells the server to snap the camera to the position of an object, depending on the given <c>SnapTo</c> enum value.
+        /// </summary>
+        /// <param name="cameraSnap">The <c>SnapTo</c> enum value represents the object that the camera should move to.</param>
+        public void SnapCameraToObject(SnapTo cameraSnap)
+        {
+            if (!CanUseActions) return;
+
+            switch (cameraSnap)
+            {
+                case SnapTo.INSPECTED_OBJECT:
+                    GameController.Instance.SnapToInspectedObject_ServerRpc(Faction);
+                    break;
+
+                case SnapTo.UNIT_MAGNET:
+                    GameController.Instance.SnapToUnitMagnet_ServerRpc(Faction);
+                    break;
+
+                case SnapTo.LEADER:
+                    GameController.Instance.SnapToLeader_ServerRpc(Faction);
+                    break;
+
+                case SnapTo.SETTLEMENT:
+                    GameController.Instance.SnapToSettlements_ServerRpc(Faction);
+                    break;
+
+                case SnapTo.FIGHT:
+                    GameController.Instance.SnapToFights_ServerRpc(Faction);
+                    break;
+
+                case SnapTo.KNIGHT:
+                    GameController.Instance.SnapToKnights_ServerRpc(Faction);
+                    break;
+            }
+
+            GameUI.Instance.SimulateClickOnSnapIcon(cameraSnap);
+        }
+
+        /// <summary>
+        /// Toggles the Query Mode from on to off and vice versa, and passes that state to the server.
         /// </summary>
         public void ToggleQuery() 
         { 
-            m_IsInspectActive = !m_IsInspectActive;
-            GameUI.Instance.SetQueryIcon(m_IsInspectActive);
+            m_IsQueryModeActive = !m_IsQueryModeActive;
+            GameUI.Instance.SetQueryIcon(m_IsQueryModeActive);
         }
 
         #endregion
@@ -353,28 +349,21 @@ namespace Populous
                     if (m_NearestPoint.Value.IsAtMaxHeight() || CameraDetectionZone.Instance.VisibleObjectsAmount <= 0) 
                         return;
                     
-                    GameController.Instance.MoldTerrain_ServerRpc(Faction, m_NearestPoint.Value, lower: false);
+                    GameController.Instance.MoldTerrain_ServerRpc(m_NearestPoint.Value, lower: false);
                     break;
 
                 case Power.PLACE_MAGNET:
                     if (m_NearestPoint.Value.IsUnderwater()) return;
-                    TerrainTile tile = new(m_NearestPoint.Value.X, m_NearestPoint.Value.Z);
-                    StructureManager.Instance.CreateSettlement(tile, Faction.RED);
-                    //GameController.Instance.PlaceUnitMagnet_ServerRpc(Team, m_NearestPoint.Value);
+
+                    GameController.Instance.PlaceUnitMagnet_ServerRpc(Faction, m_NearestPoint.Value);
                     break;
 
                 case Power.EARTHQUAKE:
-                    TerrainTile tileA = new(m_NearestPoint.Value.X, m_NearestPoint.Value.Z);
-                    StructureManager.Instance.CreateSettlement(tileA, Faction.BLUE);
-
-                    //GameController.Instance.CreateEarthquake_ServerRpc(Team, m_NearestPoint.Value);
+                    GameController.Instance.CreateEarthquake_ServerRpc(Faction, m_NearestPoint.Value);
                     break;
 
                 case Power.SWAMP:
-                    TerrainTile tileB = new(m_NearestPoint.Value.X, m_NearestPoint.Value.Z);
-                    Settlement settlement = (Settlement)tileB.GetStructure();
-                    settlement.BurnDown();
-                    //GameController.Instance.CreateSwamp_ServerRpc(Faction,m_NearestPoint.Value);
+                    GameController.Instance.CreateSwamp_ServerRpc(Faction, m_NearestPoint.Value);
                     break;
 
                 case Power.VOLCANO:
@@ -397,14 +386,14 @@ namespace Populous
                 m_NearestPoint.Value.GetHeight() <= Terrain.Instance.WaterLevel)
                 return;
 
-            GameController.Instance.MoldTerrain_ServerRpc(Faction, m_NearestPoint.Value, lower: true);
+            GameController.Instance.MoldTerrain_ServerRpc(m_NearestPoint.Value, lower: true);
         }
 
         /// <summary>
         /// Triggers the toggling of the Inspect Mode.
         /// </summary>
         /// <param name="context"></param>
-        public void OnInspectActivated(InputAction.CallbackContext context)
+        public void OnQueryToggled(InputAction.CallbackContext context)
         {
             if (!context.performed) return;
             ToggleQuery();
@@ -520,7 +509,7 @@ namespace Populous
         public void OnShowInspectedObject(InputAction.CallbackContext context)
         {
             if (!context.performed) return;
-            SnapCamera(SnapTo.INSPECTED_OBJECT);
+            SnapCameraToObject(SnapTo.INSPECTED_OBJECT);
         }
 
         /// <summary>
@@ -530,7 +519,7 @@ namespace Populous
         public void OnShowMagnet(InputAction.CallbackContext context)
         {
             if (!context.performed) return;
-            SnapCamera(SnapTo.UNIT_MAGNET);
+            SnapCameraToObject(SnapTo.UNIT_MAGNET);
         }
 
         /// <summary>
@@ -540,7 +529,7 @@ namespace Populous
         public void OnShowLeader(InputAction.CallbackContext context)
         {
             if (!context.performed) return;
-            SnapCamera(SnapTo.LEADER);
+            SnapCameraToObject(SnapTo.LEADER);
         }
 
         /// <summary>
@@ -550,7 +539,7 @@ namespace Populous
         public void OnShowSettlements(InputAction.CallbackContext context)
         {
             if (!context.performed) return;
-            SnapCamera(SnapTo.SETTLEMENT);
+            SnapCameraToObject(SnapTo.SETTLEMENT);
         }
 
         /// <summary>
@@ -560,7 +549,7 @@ namespace Populous
         public void OnShowFights(InputAction.CallbackContext context)
         {
             if (!context.performed) return;
-            SnapCamera(SnapTo.FIGHT);
+            SnapCameraToObject(SnapTo.FIGHT);
         }
 
         /// <summary>
@@ -570,16 +559,16 @@ namespace Populous
         public void OnShowKnights(InputAction.CallbackContext context)
         {
             if (!context.performed) return;
-            SnapCamera(SnapTo.KNIGHT);
+            SnapCameraToObject(SnapTo.KNIGHT);
         }
 
         #endregion
 
 
-        #region Powers Inputs
+        #region Divine Intervention Inputs
 
         /// <summary>
-        /// Activates the Mold Terrain power.
+        /// Activates the Mold Terrain Divine Intervention.
         /// </summary>
         /// <param name="context">Details about the input action which triggered this event.</param>
         public void OnMoldTerrainSelected(InputAction.CallbackContext context)
@@ -589,7 +578,7 @@ namespace Populous
         }
 
         /// <summary>
-        /// Activates the Place Unit Magnet power.
+        /// Activates the Place Unit Magnet Divine Intervention.
         /// </summary>
         /// <param name="context">Details about the input action which triggered this event.</param>
         public void OnPlaceUnitMagnet(InputAction.CallbackContext context)
@@ -600,31 +589,29 @@ namespace Populous
         }
 
         /// <summary>
-        /// Activates the Earthquake power.
+        /// Activates the Earthquake Divine Intervention.
         /// </summary>
         /// <param name="context">Details about the input action which triggered this event.</param>
         public void OnEarthquakeSelected(InputAction.CallbackContext context)
         {
             if (!context.performed) return;
             SetActivePower(Power.EARTHQUAKE);
-
             //TryActivatePower(Power.EARTHQUAKE);
         }
 
         /// <summary>
-        /// Activates the Swamp power.
+        /// Activates the Swamp Divine Intervention.
         /// </summary>
         /// <param name="context">Details about the input action which triggered this event.</param>
         public void OnSwampSelected(InputAction.CallbackContext context)
         {
             if (!context.performed) return;
             SetActivePower(Power.SWAMP);
-
             //TryActivatePower(Power.SWAMP);
         }
 
         /// <summary>
-        /// Activates the KNIGHT power.
+        /// Activates the Knight Divine Intervention.
         /// </summary>
         /// <param name="context">Details about the input action which triggered this event.</param>
         public void OnKnightSelected(InputAction.CallbackContext context)
@@ -634,33 +621,36 @@ namespace Populous
         }
 
         /// <summary>
-        /// Activates the Volcano power.
+        /// Activates the Volcano Divine Intervention.
         /// </summary>
         /// <param name="context">Details about the input action which triggered this event.</param>
         public void OnVolcanoSelected(InputAction.CallbackContext context)
         {
             if (!context.performed) return;
-            TryActivatePower(Power.VOLCANO);
+            SetActivePower(Power.VOLCANO);
+            //TryActivatePower(Power.VOLCANO);
         }
 
         /// <summary>
-        /// Activates the Flood power.
+        /// Activates the Flood Divine Intervention.
         /// </summary>
         /// <param name="context">Details about the input action which triggered this event.</param>
         public void OnFloodSelected(InputAction.CallbackContext context)
         {
             if (!context.performed) return;
-            TryActivatePower(Power.FLOOD);
+            SetActivePower(Power.FLOOD);
+            //TryActivatePower(Power.FLOOD);
         }
 
         /// <summary>
-        /// Activates the Armagheddon power.
+        /// Activates the Armagheddon Divine Intervention.
         /// </summary>
         /// <param name="context">Details about the input action which triggered this event.</param>
         public void OnArmagheddonSelected(InputAction.CallbackContext context)
         {
             if (!context.performed) return;
-            TryActivatePower(Power.ARMAGEDDON);
+            SetActivePower(Power.ARMAGEDDON);
+            //TryActivatePower(Power.ARMAGEDDON);
         }
 
         #endregion

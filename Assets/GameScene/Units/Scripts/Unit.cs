@@ -8,25 +8,20 @@ namespace Populous
     /// <summary>
     /// The <c>Unit</c> class represents and handles the functioning of one unit.
     /// </summary>
-    public class Unit : NetworkBehaviour, IInspectableObject
+    public class Unit : NetworkBehaviour, IInspectableObject, ILeader
     {
         #region Inspector Fields
 
         [Tooltip("The amount of seconds between a unit being spawned and it being able to enter settlements.")]
         [SerializeField] private float m_SecondsUntilEnteringEnabled = 0.5f;
-
         [Tooltip("The GameObjects of the signs carried by a Leader unit, where index 0 is the red leader sign and index 1 is the blue leader sign.")]
         [SerializeField] private GameObject[] m_LeaderSigns;
-
         [Tooltip("The GameObject of the sword carried by a Knight unit.")]
         [SerializeField] private GameObject m_KnightSword;
-
         [Tooltip("The GameObject of the highlight enabled when the unit is clicked in Query mode.")]
         [SerializeField] private GameObject m_Highlight;
-
         [Tooltip("The GameObject of the icon for the unit on the minimap.")]
         [SerializeField] private GameObject m_MinimapIcon;
-
 
         [Header("Detectors")]
         [SerializeField] private UnitCollisionDetector m_CollisionDetector;
@@ -128,11 +123,11 @@ namespace Populous
             m_CanEnterSettlement = canEnterSettlement;
 
             SetObjectInfo_ClientRpc(
-                NetworkObjectId,
                 $"{m_Faction} Unit",
                 GameController.Instance.FactionColors[(int)m_Faction],
                 LayerData.FactionLayers[(int)m_Faction]
             );
+            //GameObject.GetComponent<MeshRenderer>().material.color = GameController.Instance.FactionColors[(int)m_Faction];
 
             m_CollisionDetector.Setup(this);
             m_ChaseDetector.Setup(this);
@@ -147,11 +142,13 @@ namespace Populous
             if (m_Faction == Faction.RED)
             {
                 UnitManager.Instance.OnRedBehaviorChange += SetBehavior;
+                UnitManager.Instance.OnNewRedLeaderGained += FollowLeader;
                 GameController.Instance.OnRedMagnetMoved += UpdateUnitMagnetTargetLocation;
             }
             else if (m_Faction == Faction.BLUE)
             {
                 UnitManager.Instance.OnBlueBehaviorChange += SetBehavior;
+                UnitManager.Instance.OnNewBlueLeaderGained += FollowLeader;
                 GameController.Instance.OnBlueMagnetMoved += UpdateUnitMagnetTargetLocation;
             }
 
@@ -159,7 +156,6 @@ namespace Populous
             GameController.Instance.OnTerrainModified += CheckIfTargetTileFlat;
             GameController.Instance.OnFlood += UpdateHeight;
             GameController.Instance.OnFlood += CheckIfTargetTileFlat;
-            UnitManager.Instance.OnNewLeaderGained += FollowLeader;
             UnitManager.Instance.OnRemoveReferencesToUnit += RemoveRefrencesToUnit;
             StructureManager.Instance.OnRemoveReferencesToSettlement += RemoveRefrencesToSettlement;
 
@@ -175,13 +171,11 @@ namespace Populous
         /// <param name="color">The color the body of the unit should be set to.</param>
         /// <param name="layer">An integer representing the layer the unit should be on.</param>
         [ClientRpc]
-        private void SetObjectInfo_ClientRpc(ulong unitNetworkId, string name, Color color, int layer)
+        private void SetObjectInfo_ClientRpc(string name, Color color, int layer)
         {
-            GameObject unitObject = GetNetworkObject(unitNetworkId).gameObject;
-            unitObject.name = name;
-            unitObject.layer = layer;
-            unitObject.transform.parent = UnitManager.Instance.gameObject.transform;
-            unitObject.GetComponent<MeshRenderer>().material.color = color;
+            gameObject.name = name;
+            gameObject.layer = layer;
+            gameObject.GetComponent<MeshRenderer>().material.color = color;
         }
 
         /// <summary>
@@ -189,7 +183,7 @@ namespace Populous
         /// </summary>
         private void SetupMinimapIcon()
         {
-            float scale = Terrain.Instance.UnitsPerSide / UnitManager.Instance.MinimapIconScale;
+            float scale = UnitManager.Instance.MinimapIconScale;
 
             m_MinimapIcon.transform.localScale = new(scale, m_MinimapIcon.transform.localScale.y, scale);
             m_MinimapIcon.GetComponent<MeshRenderer>().material.color = UnitManager.Instance.MinimapUnitColors[(int)m_Faction];
@@ -209,11 +203,13 @@ namespace Populous
             if (m_Faction == Faction.RED)
             {
                 UnitManager.Instance.OnRedBehaviorChange -= SetBehavior;
+                UnitManager.Instance.OnNewRedLeaderGained -= FollowLeader;
                 GameController.Instance.OnRedMagnetMoved -= UpdateUnitMagnetTargetLocation;
             }
             else if (m_Faction == Faction.BLUE)
             {
                 UnitManager.Instance.OnBlueBehaviorChange -= SetBehavior;
+                UnitManager.Instance.OnNewBlueLeaderGained -= FollowLeader;
                 GameController.Instance.OnBlueMagnetMoved -= UpdateUnitMagnetTargetLocation;
             }
 
@@ -221,7 +217,6 @@ namespace Populous
             GameController.Instance.OnTerrainModified -= CheckIfTargetTileFlat;
             GameController.Instance.OnFlood -= UpdateHeight;
             GameController.Instance.OnFlood -= CheckIfTargetTileFlat;
-            UnitManager.Instance.OnNewLeaderGained -= FollowLeader;
             UnitManager.Instance.OnRemoveReferencesToUnit -= RemoveRefrencesToUnit;
             StructureManager.Instance.OnRemoveReferencesToSettlement -= RemoveRefrencesToSettlement;
 
@@ -258,7 +253,7 @@ namespace Populous
         #endregion
 
 
-        #region Behavior and Class
+        #region Behavior and Type
 
         /// <summary>
         /// Sets the current type of the unit to the given type.
@@ -269,26 +264,32 @@ namespace Populous
             if (m_Type == unitType) return;
 
             if (m_Type == UnitType.LEADER)
-                ToggleLeaderSign(false);
+                ToggleLeaderSign_ClientRpc(m_Faction, false);
 
             if (m_Type == UnitType.KNIGHT)
-                ToggleKnightSword(false);
+                ToggleKnightSword_ClientRpc(false);
 
             m_Type = unitType;
 
             if (m_Type == UnitType.LEADER)
-                ToggleLeaderSign(true);
+                ToggleLeaderSign_ClientRpc(m_Faction, true);
 
             if (m_Type == UnitType.KNIGHT)
             {
-                ToggleKnightSword(true);
+                ToggleKnightSword_ClientRpc(true);
                 SetBehavior(UnitBehavior.FIGHT);
-                //m_WideRangeDetector.SetDetectorSize(Terrain.Instance.TilesPerSide);
+                m_DirectionDetector.SetDetectorSize(Terrain.Instance.TilesPerSide);
             }
 
             if (IsInspected)
-                GameController.Instance.UpdateInspectedUnit(this, updateClass: true);
+                GameController.Instance.UpdateInspectedUnit(this, updateType: true);
         }
+
+        /// <summary>
+        /// Sets or unsets this unit as the leader, based on the given value.
+        /// </summary>
+        /// <param name="isLeader">True if the unit should be set as the leader, false otherwise.</param>
+        public void SetLeader(bool isLeader) => SetType(isLeader ? UnitType.LEADER : UnitType.WALKER);
 
         /// <summary>
         /// Sets the current behavior of the unit to the given behavior.
@@ -300,8 +301,6 @@ namespace Populous
 
             m_Behavior = unitBehavior;
 
-            UnitManager.Instance.ResetGridSteps(m_Faction);
-
             m_ChaseDetector.UpdateDetector();
             m_DirectionDetector.UpdateDetector();
             m_MovementHandler.StartRoaming();
@@ -310,21 +309,33 @@ namespace Populous
         /// <summary>
         /// Activates or deactivates the sign the leader should be holding.
         /// </summary>
+        /// <param name="faction">The <c>Faction</c> whose leader sign should be activated.</param>
         /// <param name="isOn">True if the sign should be activated, false otherwise.</param>
-        private void ToggleLeaderSign(bool isOn)
+        [ClientRpc]
+        private void ToggleLeaderSign_ClientRpc(Faction faction, bool isOn)
         {
-            m_LeaderSigns[(int)m_Faction].SetActive(isOn);
-            //m_LeaderSigns[(int)m_Faction].GetComponent<ObjectActivator>().SetActiveClientRpc(isOn);
+            //m_LeaderSigns[(int)faction].SetActive(isOn);
+
+            GameObject flag = GameUtils.GetChildWithTag(gameObject, TagData.LeaderTags[(int)faction]);
+            Debug.Log(flag);
+
+            if (!flag) return;
+
+            flag.SetActive(isOn);
         }
 
         /// <summary>
         /// Activates or deactivates the sword a knight should be holding.
         /// </summary>
         /// <param name="isOn">True if the sword should be activated, false otherwise.</param>
-        private void ToggleKnightSword(bool isOn)
+        [ClientRpc]
+        private void ToggleKnightSword_ClientRpc(bool isOn)
         {
-            m_KnightSword.SetActive(isOn);
-            //m_KnightSword.GetComponent<ObjectActivator>().SetActiveClientRpc(isOn);
+            //m_KnightSword.SetActive(isOn);
+
+            GameObject sword = GameUtils.GetChildWithTag(gameObject, TagData.SWORD_TAG);
+            if (!sword) return;
+            sword.SetActive(isOn);
         }
 
         /// <summary>
@@ -369,11 +380,11 @@ namespace Populous
         { 
             m_Strength -= amount;
 
-            if (IsInspected)
+            if (IsInspected && !IsInFight)
                 GameController.Instance.UpdateInspectedUnit(this, updateStrength: true);
 
-            if (m_Strength == 0)
-                UnitManager.Instance.DespawnUnit(gameObject, hasDied: isDamaged);
+            //if (m_Strength == 0)
+            //    UnitManager.Instance.DespawnUnit(gameObject, hasDied: isDamaged);
         }
 
         #endregion
@@ -401,6 +412,8 @@ namespace Populous
                 transform.position.z < bottomLeftPosition.z || transform.position.z > topRightPosition.z)
                 return;
 
+            Debug.Log("Update Height");
+
             float height;
 
             Vector3 startPosition = m_MovementHandler.StartLocation.ToScenePosition();
@@ -424,7 +437,7 @@ namespace Populous
             if (CurrentTile.IsUnderwater())
                 UnitManager.Instance.DespawnUnit(gameObject, hasDied: true);
             else
-                SetHeight/*_ClientRpc*/(height);
+                SetHeight_ClientRpc(height);
 
             m_MovementHandler.UpdateTargetPointHeight();
         }
@@ -433,8 +446,8 @@ namespace Populous
         /// Sets the height that the unit stands at.
         /// </summary>
         /// <param name="height">The height the unit should stand at.</param>
-        //[ClientRpc]
-        private void SetHeight/*_ClientRpc*/(float height) 
+        [ClientRpc]
+        private void SetHeight_ClientRpc(float height) 
             => transform.position = new Vector3(transform.position.x, height, transform.position.z);
 
         #endregion
@@ -455,9 +468,7 @@ namespace Populous
         //[ClientRpc]
         public void Rotate/*_ClientRpc*/(Vector3 lookPosition)
         {
-            if (lookPosition == Vector3.zero)
-                return;
-
+            if (lookPosition == Vector3.zero) return;
             transform.rotation = Quaternion.LookRotation(lookPosition);
         }
 
@@ -576,11 +587,11 @@ namespace Populous
         /// <summary>
         /// Enters the unit into a fight.
         /// </summary>
-        public void StartFight(int id)
+        public void StartFight(int fightId)
         {
             m_MovementHandler.Pause(true);
             m_IsInFight = true;
-            m_FightId = id;
+            m_FightId = fightId;
         }
 
         /// <summary>
@@ -605,7 +616,7 @@ namespace Populous
         /// <param name="eventData">Event data for the pointer event.</param>
         public void OnPointerEnter(PointerEventData eventData)
         {
-            if (!PlayerController.Instance.IsInspectActive) return;
+            if (!PlayerController.Instance.IsQueryModeActive) return;
             SetHighlight(true);
         }
 
@@ -627,7 +638,7 @@ namespace Populous
         /// <param name="eventData">Event data for the pointer event.</param>
         public void OnPointerClick(PointerEventData eventData)
         {
-            if (!PlayerController.Instance.IsInspectActive) return;
+            if (!PlayerController.Instance.IsQueryModeActive) return;
             GameController.Instance.SetInspectedObject_ServerRpc(PlayerController.Instance.Faction, GetComponent<NetworkObject>());
         }
 

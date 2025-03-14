@@ -192,8 +192,8 @@ namespace Populous
         /// </summary>
         public void StartGame()
         {
-            if (!NetworkManager.Singleton.IsHost || !m_IsClientReady) return;
-            ConnectionManager.Instance.StartGame();
+            if (!m_IsClientReady) return;
+            m_ConnectionManager.StartGame();
         }
 
         #endregion

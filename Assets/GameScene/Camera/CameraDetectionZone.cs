@@ -46,39 +46,33 @@ namespace Populous
 
         private void OnTriggerEnter(Collider other)
         {
-            if (other.gameObject.layer == LayerData.TerrainLayer && other.GetComponent<Renderer>())
-            {
-                other.GetComponent<Renderer>().enabled = true;
+            if (!other.GetComponent<Renderer>() || other.gameObject.layer == LayerData.MinimapLayer)
                 return;
-            }
+
+            other.GetComponent<Renderer>().enabled = true;
 
             // Count visible units and structures
-            Faction team = PlayerController.Instance.Faction;
+            Faction faction = PlayerController.Instance.Faction;
 
             // using network object ID instead of instance ID because it needs to be the same
             // when it is passed from server to client
 
-            if (other.GetComponent<NetworkObject>() &&
-                (team == Faction.RED && other.gameObject.layer == LayerData.FactionLayers[(int)Faction.RED] ||
-                team == Faction.BLUE && other.gameObject.layer == LayerData.FactionLayers[(int)Faction.BLUE]))
+            if (faction == Faction.RED && other.gameObject.layer == LayerData.FactionLayers[(int)Faction.RED] ||
+                faction == Faction.BLUE && other.gameObject.layer == LayerData.FactionLayers[(int)Faction.BLUE])
                 m_VisibleTeamObjectIds.Add(other.GetComponent<NetworkObject>().NetworkObjectId);
         }
 
         private void OnTriggerExit(Collider other)
         {
-            // Handle chunk despawning
-            if (other.gameObject.layer == LayerData.TerrainLayer && other.GetComponent<Renderer>())
-            {
-                other.GetComponent<Renderer>().enabled = false;
+            if (!other.GetComponent<Renderer>() || other.gameObject.layer == LayerData.MinimapLayer)
                 return;
-            }
 
-            // Count visible units and structures
-            Faction team = PlayerController.Instance.Faction;
+            other.GetComponent<Renderer>().enabled = false;
 
-            if (other.GetComponent<NetworkObject>() &&
-                (team == Faction.RED && other.gameObject.layer == LayerData.FactionLayers[(int)Faction.RED] ||
-                team == Faction.BLUE && other.gameObject.layer == LayerData.FactionLayers[(int)Faction.BLUE]))
+            Faction faction = PlayerController.Instance.Faction;
+
+            if (faction == Faction.RED && other.gameObject.layer == LayerData.FactionLayers[(int)Faction.RED] ||
+                faction == Faction.BLUE && other.gameObject.layer == LayerData.FactionLayers[(int)Faction.BLUE])
                 m_VisibleTeamObjectIds.Remove(other.GetComponent<NetworkObject>().NetworkObjectId);
         }
 
@@ -99,7 +93,6 @@ namespace Populous
 
             BoxCollider collider = GetComponent<BoxCollider>();
             collider.size = new Vector3(sizeX, sizeY, sizeZ);
-            collider.center = new Vector3(collider.center.x, collider.center.y, sizeZ / 2);
         }
 
 

@@ -14,7 +14,7 @@ GameObject:
   - component: {fileID: 2604065103154998271}
   m_Layer: 0
   m_Name: RedField
-  m_TagString: Untagged
+  m_TagString: RedTeam
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -62,7 +62,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 563d08a9dbb01ba488d870a80c126b43, type: 2}
+  - {fileID: -7506264231671978109, guid: ad5ff3282fd59304298dfc68664c941c, type: 3}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -184,7 +184,7 @@ GameObject:
   - component: {fileID: 7129400003878257683}
   m_Layer: 0
   m_Name: BlueField
-  m_TagString: Untagged
+  m_TagString: BlueTeam
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -232,7 +232,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 1226068b76f476f45ac8fd001953da44, type: 2}
+  - {fileID: 2100000, guid: 6ebf218861ae6a5458eb38e5040a1c4c, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -281,7 +281,7 @@ GameObject:
   - component: {fileID: 9159402916693360308}
   m_Layer: 0
   m_Name: RuinedField
-  m_TagString: Untagged
+  m_TagString: NoneTeam
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0

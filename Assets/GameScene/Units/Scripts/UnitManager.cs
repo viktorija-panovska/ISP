@@ -63,37 +63,26 @@ namespace Populous
 
         [Tooltip("The GameObject that should be created when a unit is spawned.")]
         [SerializeField] private GameObject m_UnitPrefab;
-
         [Tooltip("The maximum number of followers for each team.")]
         [SerializeField] private int m_MaxFollowersInFaction = 1000;
-
         [Tooltip("The maximum possible number of followers that can be in a single unit.")]
         [SerializeField] private int m_MaxUnitStrength = 100;
-
         [Tooltip("The number of unit steps after which the unit loses one follower.")]
         [SerializeField] private int m_UnitDecayRate = 20;
-
         [Tooltip("The number of seconds between each time the units in a fight deal damage to each other.")]
         [SerializeField] private float m_FightWaitDuration = 5f;
-
         [Tooltip("The amount of manna lost when a leader dies.")]
         [SerializeField] private int m_LeaderDeathManna = 10;
 
-
         [Header("Starting Units")]
-
         [Tooltip("The number of units each team has at the start of the match.")]
         [SerializeField] private int m_StartingUnits = 15;
-
         [Tooltip("The amount of followers in each of the starting units.")]
         [SerializeField] private int m_StartingUnitStrength = 1;
 
-
         [Header("UI")]
-
         [Tooltip("The scale of the unit icons on the minimap.")]
-        [SerializeField] private int m_MinimapIconScale;
-
+        [SerializeField] private int m_MinimapIconScale = 30;
         [Tooltip("The colors of the icons for the units on the minimap, where 0 is the color of the red faction and 1 is the color of the blue faciton.")]
         [SerializeField] private Color[] m_MinimapUnitColors;
 
@@ -192,9 +181,13 @@ namespace Populous
         /// </summary>
         public Action<UnitBehavior> OnBlueBehaviorChange;
         /// <summary>
-        /// Action to be called when a new unit is assigned as the leader of the team.
+        /// Action to be called when a new unit is assigned as the leader of the red faction.
         /// </summary>
-        public Action OnNewLeaderGained;
+        public Action OnNewRedLeaderGained;
+        /// <summary>
+        /// Action to be called when a new unit is assigned as the leader of the blue faction.
+        /// </summary>
+        public Action OnNewBlueLeaderGained;
         /// <summary>
         /// Action to be called when a unit is despawned to remove references to it from other objects.
         /// </summary>
@@ -226,13 +219,15 @@ namespace Populous
         /// </summary>
         /// <param name="location">The <c>TerrainPoint</c> at which the new unit should be spawned.</param>
         /// <param name="faction">The faction the new unit should belong to.</param>
-        /// <param name="unitClass">The class of the unit, Walker by default.</param>
+        /// <param name="type">The type of the unit, Walker by default.</param>
         /// <param name="strength">The initial number of followers in the unit, 1 by default.</param>
         /// <param name="origin">The settlement the unit was created by, null for the starting units.</param>
         /// <returns>The <c>GameObject</c> of the newly spawned unit.</returns>
-        public GameObject SpawnUnit(TerrainPoint location, Faction faction, UnitType unitClass = UnitType.WALKER, int strength = 1, Settlement origin = null)
+        public GameObject SpawnUnit(TerrainPoint location, Faction faction, UnitType type = UnitType.WALKER, int strength = 1, Settlement origin = null)
         {
             if (!IsHost || strength == 0) return null;
+
+            m_UnitPrefab.GetComponent<Renderer>().enabled = false;
 
             GameObject unitObject = Instantiate(
                 m_UnitPrefab,
@@ -243,21 +238,20 @@ namespace Populous
                 Quaternion.identity
             );
 
+            // spawn on network
+            NetworkObject networkUnit = unitObject.GetComponent<NetworkObject>();
+            networkUnit.Spawn(true);
+
             Unit unit = unitObject.GetComponent<Unit>();
 
             unit.Setup(faction, strength, origin);
             unit.SetBehavior(m_ActiveBehavior[(int)faction]);
 
-            if (unitClass == UnitType.LEADER)
-                SetUnitLeader(faction, unit);
+            if (type == UnitType.LEADER)
+                GameController.Instance.SetLeader(faction, unit);
 
-            // TODO Knight
-            if (unitClass == UnitType.KNIGHT)
-                unit.SetType(UnitType.KNIGHT);
-
-            // spawn on network
-            NetworkObject networkUnit = unitObject.GetComponent<NetworkObject>();
-            networkUnit.Spawn(true);
+            if (type == UnitType.KNIGHT)
+                SetKnight(faction, unit);
 
             return unitObject;
         }
@@ -277,7 +271,7 @@ namespace Populous
 
             if (unit.Type == UnitType.LEADER)
             {
-                UnsetUnitLeader(unit.Faction);
+                GameController.Instance.RemoveLeader(unit.Faction);
 
                 if (hasDied)
                 {
@@ -288,11 +282,7 @@ namespace Populous
             }
 
             if (unit.Type == UnitType.KNIGHT)
-            {
-                // TODO Knight
-                m_Knights[(int)unit.Faction].Remove(unit);
-                unit.SetType(UnitType.WALKER);
-            }
+                RemoveKnight(unit.Faction, unit);
 
             unitObject.GetComponent<NetworkObject>().Despawn();
             Destroy(unitObject);
@@ -308,8 +298,6 @@ namespace Populous
         /// </summary>
         public void SpawnStartingUnits()
         {
-            if (!IsHost) return;
-
             ResetGridSteps(Faction.RED);
             ResetGridSteps(Faction.BLUE);
 
@@ -319,17 +307,14 @@ namespace Populous
             if (m_StartingUnits > m_MaxFollowersInFaction)
                 m_StartingUnits = m_MaxFollowersInFaction;
 
-            List<(int, int)> redSpawnPoints = new();
-            List<(int, int)> blueSpawnPoints = new();
-
-            FindSpawnPoints(ref redSpawnPoints, ref blueSpawnPoints);
-
             Random random = new(!GameData.Instance ? 0 : GameData.Instance.GameSeed);
 
-            // go over both teams
-            for (int team = 0; team <= 1; ++team)
+            (List<TerrainPoint> redSpawnPoints, List<TerrainPoint> blueSpawnPoints) = FindSpawnPoints();
+
+            // go over both factions
+            for (int faction = 0; faction <= 1; ++faction)
             {
-                List<(int, int)> spawnPoints = team == 0 ? redSpawnPoints : blueSpawnPoints;
+                List<TerrainPoint> spawnPoints = faction == 0 ? redSpawnPoints : blueSpawnPoints;
                 List<int> spawnIndices = Enumerable.Range(0, spawnPoints.Count).ToList();
                 int leader = random.Next(0, m_StartingUnits);
 
@@ -337,7 +322,7 @@ namespace Populous
 
                 // shuffle algorithm
                 int count = spawnIndices.Count;
-                foreach ((int x, int z) spawnPoint in spawnPoints)
+                foreach (TerrainPoint spawnPoint in spawnPoints)
                 {
                     count--;
                     int randomIndex = random.Next(count + 1);
@@ -346,28 +331,26 @@ namespace Populous
                     if (spawnIndices[count] < m_StartingUnits)
                     {
                         SpawnUnit(
-                            new TerrainPoint(spawnPoint.x, spawnPoint.z), 
-                            team == 0 ? Faction.RED : Faction.BLUE, 
-                            strength: m_StartingUnitStrength, 
-                            unitClass: spawned == leader ? UnitType.LEADER : UnitType.WALKER, 
+                            location: spawnPoint,
+                            faction: faction == 0 ? Faction.RED : Faction.BLUE,
+                            strength: m_StartingUnitStrength,
+                            type: spawned == leader ? UnitType.LEADER : UnitType.WALKER,
                             origin: null
                         );
                         spawned++;
                     }
                 }
 
-                if (spawned == m_StartingUnits || spawnPoints.Count == 0)
-                    continue;
+                if (spawned == m_StartingUnits || spawnPoints.Count == 0) continue;
 
                 // if there weren't enough places to spawn all the units we want on, spawn the remaining units randomly
                 for (int i = 0; i < m_StartingUnits - spawned; ++i)
                 {
-                    (int x, int z) point = spawnPoints[random.Next(spawnPoints.Count)];
                     SpawnUnit(
-                        new TerrainPoint(point.x, point.z),
-                        team == 0 ? Faction.RED : Faction.BLUE,
+                        location: spawnPoints[random.Next(spawnPoints.Count)],
+                        faction: faction == 0 ? Faction.RED : Faction.BLUE,
                         strength: m_StartingUnitStrength,
-                        unitClass: spawned == leader ? UnitType.LEADER : UnitType.WALKER,
+                        type: spawned == leader ? UnitType.LEADER : UnitType.WALKER,
                         origin: null
                     );
                     spawned++;
@@ -376,49 +359,34 @@ namespace Populous
         }
 
         /// <summary>
-        /// Collects a list of available terrain points for each team to spawn the starting units on.
+        /// Finds a list of terrain points for each faction that that faction's units can be spawned on.
         /// </summary>
-        /// <param name="redSpawns">A reference to the list of available spawn points for the red team.</param>
-        /// <param name="blueSpawns">A reference to the list of available spawn points for the blue team.</param>
-        private void FindSpawnPoints(ref List<(int x, int z)> redSpawns, ref List<(int x, int z)> blueSpawns)
+        /// <returns>A tuple, the first element of which is a list of <c>TerrainPoints</c> the red units can be spawned on,
+        /// and the second element is a list of <c>TerrainPoints</c> the blue units can be spawned on.</returns>
+        private (List<TerrainPoint>, List<TerrainPoint>) FindSpawnPoints()
         {
-            // going from the corners towards the center of the terrain
-            for (int dist = 0; dist < Terrain.Instance.TilesPerSide; ++dist)
+            List<TerrainPoint> redSpawns = new();
+            List<TerrainPoint> blueSpawns = new();
+
+            for (int z = 0; z <= Terrain.Instance.TilesPerSide / 2; ++z)
             {
-                for (int tile_z = 0; tile_z <= dist; ++tile_z)
+                for (int x = 0; x <= Terrain.Instance.TilesPerSide / 2; ++x)
                 {
-                    (int, int)[] tiles;
-                    if (tile_z == dist)
-                        tiles = new (int, int)[] { (dist, dist) };                       // diagonal
-                    else
-                        tiles = new (int, int)[] { (tile_z, dist), (dist, tile_z) };     // up and down
+                    TerrainPoint redPoint = new(x, z);
+                    TerrainPoint bluePoint = new(Terrain.Instance.TilesPerSide - x, Terrain.Instance.TilesPerSide - z);
 
-                    //foreach ((int x, int z) tile in tiles)
-                    //{
-                    //    // we want to get at most twice the amount of tiles as there are units to spawn
-                    //    if (redSpawns.Count <= 2 * m_StartingUnits && !blueSpawns.Contains(tile) &&
-                    //        !StructureManager.Instance.IsTileOccupied(tile) && !(new TerrainTile(tile).IsUnderwater()))
-                    //        redSpawns.Add(tile);
+                    if (!redPoint.IsUnderwater()) 
+                        redSpawns.Add(redPoint);
 
-                    //    (int x, int z) oppositeTile = (Terrain.Instance.TilesPerSide - tile.x - 1, Terrain.Instance.TilesPerSide - tile.z - 1);
-
-                    //    if (blueSpawns.Count <= 2 * m_StartingUnits && !redSpawns.Contains(oppositeTile) &&
-                    //        !StructureManager.Instance.IsTileOccupied(oppositeTile) && !(new TerrainTile(oppositeTile).IsUnderwater()))
-                    //        blueSpawns.Add(oppositeTile);
-
-                    //    if (redSpawns.Count > 2 * m_StartingUnits && blueSpawns.Count > 2 * m_StartingUnits)
-                    //        return;
-                    //}
+                    if (!bluePoint.IsUnderwater()) 
+                        blueSpawns.Add(bluePoint);
                 }
             }
+
+            return (redSpawns, blueSpawns);
         }
 
         #endregion
-
-
-
-
-
 
 
         #region Followers
@@ -479,36 +447,6 @@ namespace Populous
         #endregion
 
 
-        #region Behavior
-
-        /// <summary>
-        /// Switches the behavior of all the units of the given faction to the given behavior.
-        /// </summary>
-        /// <param name="faction">The <c>Faction</c> whose units should be targeted.</param>
-        /// <param name="behavior">The <c>UnitBehavior</c> that should be applied to all units in the faction.</param>
-        [ServerRpc(RequireOwnership = false)]
-        public void ChangeUnitBehavior_ServerRpc(Faction faction, UnitBehavior behavior)
-        {
-            if (m_ActiveBehavior[(int)faction] == behavior) return;
-
-            m_ActiveBehavior[(int)faction] = behavior;
-
-            if (faction == Faction.RED)
-                OnRedBehaviorChange?.Invoke(behavior);
-            else if (faction == Faction.BLUE)
-                OnBlueBehaviorChange?.Invoke(behavior);
-        }
-
-        /// <summary>
-        /// Gets the currently active behavior of the units in the given faction.
-        /// </summary>
-        /// <param name="faction">The <c>Faction</c> whose active unit behavior should be returned.</param>
-        /// <returns>The currently active <c>UnitBehavior</c>.</returns>
-        public UnitBehavior GetActiveBehavior(Faction faction) => m_ActiveBehavior[(int)faction];
-
-        #endregion
-
-
         #region Grid Steps
 
         /// <summary>
@@ -536,103 +474,90 @@ namespace Populous
         #endregion
 
 
-        #region Leader Unit
+        #region Behavior
 
         /// <summary>
-        /// Checks whether the given faction has a leader that is in a unit.
+        /// Switches the behavior of all the units of the given faction to the given behavior.
         /// </summary>
-        /// <param name="faction">The <c>Faction</c> whose leader should be checked.</param>
-        /// <returns>True if the faction has a leader that is in a unit, false otherwise.</returns>
-        public bool HasUnitLeader(Faction faction) => m_LeaderUnits[(int)faction];
-
-        /// <summary>
-        /// Gets the leader unit of the faction, if such a unit exists.
-        /// </summary>
-        /// <param name="faction">The <c>Faction</c> whose leader should be returned.</param>
-        /// <returns>The <c>Unit</c> of the faction's leader, null if the leader is not part of a unit.</returns>
-        public Unit GetLeaderUnit(Faction faction) => m_LeaderUnits[(int)faction];
-
-        /// <summary>
-        /// Sets the given unit as the leader of the given faction.
-        /// </summary>
-        /// <param name="faction">The <c>Faction</c> whose leader should be set.</param>
-        /// <param name="unit">The <c>Unit</c> that should be set as the leader.</param>
-        public void SetUnitLeader(Faction faction, Unit unit)
+        /// <param name="faction">The <c>Faction</c> whose units should be targeted.</param>
+        /// <param name="behavior">The <c>UnitBehavior</c> that should be applied to all units in the faction.</param>
+        [ServerRpc(RequireOwnership = false)]
+        public void ChangeUnitBehavior_ServerRpc(Faction faction, UnitBehavior behavior)
         {
-            UnsetUnitLeader(faction);
+            if (m_ActiveBehavior[(int)faction] == behavior) return;
 
-            m_LeaderUnits[(int)faction] = unit;
-            unit.SetType(UnitType.LEADER);
-            OnNewLeaderGained?.Invoke();
+            m_ActiveBehavior[(int)faction] = behavior;
+            ResetGridSteps(faction);
+
+            if (faction == Faction.RED)
+                OnRedBehaviorChange?.Invoke(behavior);
+            else if (faction == Faction.BLUE)
+                OnBlueBehaviorChange?.Invoke(behavior);
         }
 
-        public void UnsetUnitLeader(Faction team)
+        /// <summary>
+        /// Gets the currently active behavior of the units in the given faction.
+        /// </summary>
+        /// <param name="faction">The <c>Faction</c> whose active unit behavior should be returned.</param>
+        /// <returns>The currently active <c>UnitBehavior</c>.</returns>
+        public UnitBehavior GetActiveBehavior(Faction faction) => m_ActiveBehavior[(int)faction];
+
+        /// <summary>
+        /// Called when a new leader has been created, informs the units of the change.
+        /// </summary>
+        /// <param name="faction">The <c>Faction</c> that got a new leader.</param>
+        public void SwitchLeaderTarget(Faction faction)
         {
-            if (!HasUnitLeader(team)) return;
+            if (m_ActiveBehavior[(int)faction] != UnitBehavior.GO_TO_MAGNET) return;
 
-            m_LeaderUnits[(int)team].SetType(UnitType.WALKER);
-            m_LeaderUnits[(int)team] = null;
+            if (faction == Faction.RED)
+                OnNewRedLeaderGained?.Invoke();
+
+            if (faction == Faction.BLUE)
+                OnNewBlueLeaderGained?.Invoke();
         }
-
 
         #endregion
-
 
 
         #region Knight
 
         /// <summary>
-        /// Gets the knight from the given team that is at the given index in the list of knights.
+        /// Gets the knight from the given faction that is at the given index in the list of knights.
         /// </summary>
-        /// <param name="team">The <c>Team</c> that the returned knight should belong to.</param>
+        /// <param name="faction">The <c>Faction</c> that the returned knight should belong to.</param>
         /// <param name="index">The index of the knight that should be returned.</param>
         /// <returns>A <c>Unit</c> of the Knight class from the given team.</returns>
-        public Unit GetKnight(Faction team, int index) => index >= m_Knights[(int)team].Count ? null : m_Knights[(int)team][index];
+        public Unit GetKnight(Faction faction, int index) 
+            => index >= m_Knights[(int)faction].Count ? null : m_Knights[(int)faction][index];
 
         /// <summary>
-        /// Returns the number of knights in the given team.
+        /// Returns the number of knights in the given faction.
         /// </summary>
-        /// <param name="team">The <c>Team</c> that the returned knight should belong to.</param>
-        /// <returns>The number of knights in the given team.</returns>
-        public int GetKnightsNumber(Faction team) => m_Knights[(int)team].Count;
-
-        public void AddKnight(Faction faction, Unit knight) => m_Knights[(int)faction].Add(knight);
-
+        /// <param name="faction">The <c>Faction</c> whose knight number should be returned.</param>
+        /// <returns>The number of knights in the given faction.</returns>
+        public int GetKnightsNumber(Faction faction) => m_Knights[(int)faction].Count;
 
         /// <summary>
-        /// Turns the leader of the given team into a knight, if the team has a leader.
+        /// Sets the given unit as a Knight unit of the given faction.
         /// </summary>
-        /// <param name="team">The <c>Team</c> that the new knight should belong to.</param>
-        /// <returns>The <c>Unit</c> that has been turned into a knight, or null if no such unit exists.</returns>
-        private Unit CreateKnight(Faction team)
+        /// <param name="faction">The <c>Faction</c> that should gain a knight.</param>
+        /// <param name="unit">The <c>Unit</c> that should be set as the knight.</param>
+        public void SetKnight(Faction faction, Unit unit)
         {
-            Unit knight = null;
+            m_Knights[(int)faction].Add(unit);
+            unit.SetType(UnitType.KNIGHT);
+        }
 
-            // if the leader is in a unit, just turn that unit into a knight
-            if (HasUnitLeader(team))
-            {
-                knight = GetLeaderUnit(team);
-                UnsetUnitLeader(team);
-                knight.SetType(UnitType.KNIGHT);
-                m_Knights[(int)team].Add(knight);
-            }
-
-            // if the leader is in a origin, destroy that origin and spawnPoint a knight in its position
-            if (StructureManager.Instance.HasSettlementLeader(team))
-            {
-                //Settlement settlement = StructureManager.Instance.GetLeaderSettlement(team);
-                //StructureManager.Instance.UnsetLeaderSettlement(team);
-                //knight = SpawnUnit(
-                //    location: settlement.OccupiedTile, 
-                //    team, 
-                //    unitClass: UnitClass.KNIGHT, 
-                //    followers: settlement.FollowersInSettlement,
-                //    origin: settlement
-                //).GetComponent<Unit>();
-                //settlement.DestroySettlement(updateNeighbors: true);
-            }
-
-            return knight;
+        /// <summary>
+        /// Removes the given knight unit from the given faction's list of knights.
+        /// </summary>
+        /// <param name="faction">The <c>Faction</c> whose knight should be removed.</param>
+        /// <param name="knight">The <c>Unit</c> that is the knight that should be removed.</param>
+        private void RemoveKnight(Faction faction, Unit knight)
+        {
+            m_Knights[(int)faction].Remove(knight);
+            knight.SetType(UnitType.WALKER);
         }
 
         #endregion
@@ -641,18 +566,18 @@ namespace Populous
         #region Fights
 
         /// <summary>
-        /// Gets the location of the fight at the given index in the fight IDs list.
-        /// </summary>
-        /// <param name="index">The index of the fight in the fight IDs list whose location we want.</param>
-        /// <returns>The position of the fight.</returns>
-        public Vector3? GetFightLocation(int index) 
-            => index >= m_FightIds.Count ? null : m_Fights[m_FightIds[index]].red.gameObject.transform.position;
-
-        /// <summary>
         /// Gets the number of fights currently happening.
         /// </summary>
         /// <returns>The number of fights.</returns>
         public int GetFightsNumber() => m_FightIds.Count;
+
+        /// <summary>
+        /// Gets the location of the fight at the given index in the fight IDs list.
+        /// </summary>
+        /// <param name="index">The index of the fight in the fight IDs list whose location we want.</param>
+        /// <returns>The position of the fight in the scene.</returns>
+        public Vector3? GetFightLocation(int index) 
+            => index >= m_FightIds.Count ? null : m_Fights[m_FightIds[index]].red.gameObject.transform.position;
 
         /// <summary>
         /// Gets the two units participating in the fight with the given ID.
@@ -661,12 +586,13 @@ namespace Populous
         /// <returns>A tuple of participants in the fight, where the first element is the red unit and the second element is the blue unit.</returns>
         public (Unit red, Unit blue) GetFightParticipants(int fightId) => m_Fights[fightId];
 
+
         /// <summary>
-        /// Sets up and begins a fight between two units.
+        /// Sets up and begins a fight between the given two units.
         /// </summary>
         /// <param name="red">The <c>Unit</c> from the red team.</param>
         /// <param name="blue">The <c>Unit</c> from the blue team.</param>
-        /// <param name="settlementDefense">A <c>Settlement</c> if the fight occured due to an attempt to claim a origin, null otherwise.</param>
+        /// <param name="settlementDefense">A <c>Settlement</c> if the fight occured due to an attempt to claim a settlement, null otherwise.</param>
         public void StartFight(Unit red, Unit blue, Settlement settlementDefense = null)
         {
             m_Fights.Add(m_NextFightId, (red, blue));
@@ -704,6 +630,9 @@ namespace Populous
 
                 if (red.Strength == 0 || blue.Strength == 0)
                     break;
+
+                if (red.IsInspected || blue.IsInspected)
+                    GameController.Instance.UpdateInspectedFight(red, blue);
             }
 
             Unit winner = null, loser = null;
@@ -744,10 +673,11 @@ namespace Populous
             if (loser) loser.EndFight();
         }
 
+
         /// <summary>
-        /// Handles the attack of a unit on an enemy origin.
+        /// Handles the attack of a unit on an enemy settlement.
         /// </summary>
-        /// <param name="unit">the <c>Unit</c> which is attacking the origin.</param>
+        /// <param name="unit">the <c>Unit</c> which is attacking the settlement.</param>
         /// <param name="settlement">The <c>Settlement</c> that is being attacked.</param>
         public void AttackSettlement(Unit unit, Settlement settlement)
         {
@@ -757,18 +687,18 @@ namespace Populous
             settlement.IsAttacked = true;
             unit.ToggleMovement(pause: true);
 
-            // unit leaves the origin
-            int followersInUnit = 0;
+            // an enemy unit leaves the settlement
+            int strength = 0;
             if (settlement.FollowersInSettlement >= settlement.ReleasedUnitStrength)
-                followersInUnit = settlement.ReleasedUnitStrength;
+                strength = settlement.ReleasedUnitStrength;
             else if (settlement.FollowersInSettlement > 0)
-                followersInUnit = settlement.FollowersInSettlement;
+                strength = settlement.FollowersInSettlement;
 
             Unit other = SpawnUnit(
                 location: unit.ClosestTerrainPoint, 
                 faction: settlement.Faction, 
-                unitClass: UnitType.WALKER, 
-                strength: followersInUnit,
+                type: UnitType.WALKER, 
+                strength: strength,
                 origin: settlement
             ).GetComponent<Unit>();
 
@@ -782,20 +712,20 @@ namespace Populous
         }
 
         /// <summary>
-        /// Handles the aftermath of the attack by a unit on the enemy origin.
+        /// Handles the aftermath of the attack by a unit on the enemy settlement.
         /// </summary>
-        /// <param name="winner">The <c>Unit</c> that won the battle for the origin.</param>
+        /// <param name="winner">The <c>Unit</c> that won the battle for the settlement.</param>
         /// <param name="settlement">The <c>Settlement</c> that was being attacked.</param>
         private void ResolveSettlementAttack(Unit winner, Settlement settlement)
         {
+            settlement.IsAttacked = false;
+
             if (winner.Faction == settlement.Faction) return;
 
             if (winner.Type == UnitType.KNIGHT)
                 settlement.BurnDown();
             else
                 StructureManager.Instance.ChangeSettlementFaction(settlement, winner.Faction);
-
-            settlement.IsAttacked = false;
         }
 
         #endregion

@@ -65,7 +65,6 @@ namespace Populous
         private static LocalConnectionManager m_Instance;
         public static LocalConnectionManager Instance { get => m_Instance; }
 
-        private string serverPassword;
         private bool gameInProgress;
 
         private Dictionary<string, PlayerData> clientData;
@@ -135,7 +134,7 @@ namespace Populous
         {
             foreach (var pair in clientSceneMap)
                 if (NetworkManager.Singleton.LocalClientId != pair.Key)
-                    KickClient(pair.Key);
+                    KickClient();
 
             NetworkManager.Singleton.Shutdown();
             ClearAllClientData();
@@ -164,20 +163,12 @@ namespace Populous
             }
         }
 
-        public void KickClient(ulong clientId)
-        {
-            if (!NetworkManager.Singleton.IsHost)
-                return;
-
-            NetworkManager.Singleton.DisconnectClient(clientId);
-        }
-
         #endregion
 
 
         #region Joining a Game
 
-        public async Task<Lobby[]> GetActiveLobbies() => new Lobby[0];
+        public Task<Lobby[]> GetActiveLobbies() => null;
 
         public void JoinGame(Lobby lobby)
         {
@@ -198,13 +189,8 @@ namespace Populous
 
         private void OnClientConnected(ulong clientId)
         {
-            Debug.Log("OnClientConnected");
-
             if (clientId != NetworkManager.Singleton.LocalClientId)
                 return;
-
-            //if (!NetworkManager.Singleton.IsHost)
-            //    GameData.Instance.AddPlayerInfo_ServerRpc(NetworkManager.Singleton.LocalClientId, SteamClient.SteamId, Faction.BLUE);
 
             NetworkManager.Singleton.OnClientDisconnectCallback += OnClientDisconnect;
             NetworkManager.Singleton.SceneManager.OnSceneEvent += SceneLoader.Instance.HandleSceneEvent;
@@ -214,7 +200,6 @@ namespace Populous
         {
             if (NetworkManager.Singleton.IsHost)
             {
-                //GameData.Instance.RemovePlayerInfo(clientId);   
                 clientSceneMap.Remove(clientId);
 
                 if (clientId == NetworkManager.Singleton.LocalClientId)
@@ -249,36 +234,19 @@ namespace Populous
         #endregion
 
 
-        #region Getters
-
-        public PlayerData? GetPlayerData(ulong clientId)
-        {
-            if (clientIdToPlayerId.TryGetValue(clientId, out string clientGuid))
-                if (clientData.TryGetValue(clientGuid, out PlayerData playerData))
-                    return playerData;
-
-            return null;
-        }
-
-        public string GetServerPassword() => serverPassword;
-
-        #endregion
-
-
         #region Scene Management
 
         private void GoToMainMenu()
         {
-            if (SceneManager.GetActiveScene().name == "MainMenu")
+            if (SceneManager.GetActiveScene().name == "MAIN_MENU")
                 return;
 
-            SceneManager.LoadScene("MainMenu");
+            SceneManager.LoadScene("MAIN_MENU");
         }
 
         public void StartGame()
         {
             gameInProgress = true;
-
             SceneLoader.Instance.SwitchToScene_Network(Scene.GAMEPLAY);
         }
 

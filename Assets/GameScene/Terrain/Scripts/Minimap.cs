@@ -8,6 +8,9 @@ namespace Populous
     [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
     public class Minimap : MonoBehaviour
     {
+        [SerializeField] private Color m_LandColor;
+        [SerializeField] private Color m_WaterColor;
+
         private static Minimap m_Instance;
         /// <summary>
         /// Gets a singleton instance of the class.
@@ -58,7 +61,7 @@ namespace Populous
             for (int z = 0; z <= Terrain.Instance.TilesPerSide; ++z)
                 for (int x = 0; x <= Terrain.Instance.TilesPerSide; ++x)
                     colors[z * m_MinimapTexture.width + x] =
-                        new TerrainPoint(x, z).GetHeight() > Terrain.Instance.WaterLevel ? Color.green : Color.blue;
+                        new TerrainPoint(x, z).GetHeight() > Terrain.Instance.WaterLevel ? m_LandColor : m_WaterColor;
 
             m_MinimapTexture.SetPixels32(colors);
             m_MinimapTexture.Apply();
@@ -76,7 +79,7 @@ namespace Populous
             for (int z = bottomLeft.Z; z <= topRight.Z; ++z)
                 for (int x = bottomLeft.X; x <= topRight.X; ++x)
                     colors[z * m_MinimapTexture.width + x] =
-                        new TerrainPoint(x, z).GetHeight() > Terrain.Instance.WaterLevel ? Color.green : Color.blue;
+                        new TerrainPoint(x, z).GetHeight() > Terrain.Instance.WaterLevel ? m_LandColor : m_WaterColor;
 
             m_MinimapTexture.SetPixels32(colors);
             m_MinimapTexture.Apply();

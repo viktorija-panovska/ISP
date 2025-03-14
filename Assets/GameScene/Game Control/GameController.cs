@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using Unity.Netcode;
@@ -123,7 +122,6 @@ namespace Populous
         /// </summary>
         public static GameController Instance { get => m_Instance; }
 
-
         /// <summary>
         /// An array of the colors of each faction. 
         /// </summary>
@@ -137,10 +135,17 @@ namespace Populous
         private readonly UnitMagnet[] m_UnitMagnets = new UnitMagnet[2];
 
         /// <summary>
+        /// Each cell represents one of the factions, and the object in the cell is that faction's leader.
+        /// </summary>
+        /// <remarks>The object at each index is the leader of the faction with that value in the <c>Faction</c> enum.</remarks>
+        private readonly ILeader[] m_Leaders = new ILeader[2];
+
+        /// <summary>
         /// Each cell represents one of the factions, and the object in the cell is the object that faction's player is inspecting.
         /// </summary>
         /// <remarks>The object at each index is the inspected object of the player of the faction with that value in the <c>Faction</c> enum.</remarks>
         private readonly IInspectableObject[] m_InspectedObjects = new IInspectableObject[2];
+
 
         #region Manna
 
@@ -155,6 +160,7 @@ namespace Populous
         private readonly int[] m_Manna = new int[2];
 
         #endregion
+
 
         #region Divine Interventions
 
@@ -178,6 +184,7 @@ namespace Populous
         public bool IsArmageddon { get => m_IsArmageddon; }
 
         #endregion
+
 
         #region Camera Snap
 
@@ -252,17 +259,17 @@ namespace Populous
             MinimapCamera.Instance.Setup();
 
             // just on server from here on
-            //if (!IsHost) return;
+            if (!IsHost) return;
 
-            StructureManager.Instance.PlaceTreesAndRocks();
+            //StructureManager.Instance.PlaceTreesAndRocks();
             UnitManager.Instance.SpawnStartingUnits();
 
-            //foreach (GameObject unitMagnetObject in m_UnitMagnetObjects)
-            //{
-            //    UnitMagnet unitMagnet = unitMagnetObject.GetComponent<UnitMagnet>();
-            //    m_UnitMagnets[(int)unitMagnet.Faction] = unitMagnet;
-            //    unitMagnet.Setup();
-            //}
+            foreach (GameObject unitMagnetObject in m_UnitMagnetObjects)
+            {
+                UnitMagnet unitMagnet = unitMagnetObject.GetComponent<UnitMagnet>();
+                m_UnitMagnets[(int)unitMagnet.Faction] = unitMagnet;
+                unitMagnet.Setup();
+            }
         }
 
         #endregion
@@ -294,62 +301,6 @@ namespace Populous
         #endregion
 
 
-        #region Terrain Modification
-
-        /// <summary>
-        /// </summary>
-        /// <param name="modifiedAreaCorners">A tuple of the <c>TerrainPoint</c> at the bottom left and the <c>TerrainPoint</c> on the top right
-        /// of a rectangular area containing all the points whose heights were changed in the terrain modification.</param>
-        public void RespondToTerrainChange((TerrainPoint bottomLeft, TerrainPoint topRight) modifiedAreaCorners)
-        {
-            BorderWalls.Instance.UpdateWallsInArea(modifiedAreaCorners.bottomLeft, modifiedAreaCorners.topRight);
-            Minimap.Instance.UpdateTextureInArea(modifiedAreaCorners.bottomLeft, modifiedAreaCorners.topRight);
-
-            if (!IsHost) return;
-
-            StructureManager.Instance.UpdateStructuresInArea(modifiedAreaCorners.bottomLeft, modifiedAreaCorners.topRight);
-            OnTerrainModified?.Invoke(modifiedAreaCorners.bottomLeft, modifiedAreaCorners.topRight); // for units
-
-            foreach (UnitMagnet magnet in m_UnitMagnets)
-            {
-                if (magnet.GridLocation.X >= modifiedAreaCorners.bottomLeft.X || magnet.GridLocation.X <= modifiedAreaCorners.topRight.X ||
-                    magnet.GridLocation.Z >= modifiedAreaCorners.bottomLeft.Z || magnet.GridLocation.Z <= modifiedAreaCorners.topRight.Z)
-                    magnet.UpdateHeight();
-            }
-        }
-
-        #endregion
-
-
-        #region Leader
-
-        /// <summary>
-        /// Checks whether the given faction has a leader.
-        /// </summary>
-        /// <param name="faction">The <c>Faction</c> whose leader should be checked.</param>
-        /// <returns>True if the faction has a leader, false otherwise.</returns>
-        public bool HasLeader(Faction faction) 
-            => UnitManager.Instance.HasUnitLeader(faction) || StructureManager.Instance.HasSettlementLeader(faction);
-
-        /// <summary>
-        /// Gets the <c>GameObject</c> of the leader of the faction, regardless of whether it is part of a unit or a settlement.
-        /// </summary>
-        /// <param name="faction">The <c>Faction</c> whose leader should be returned.</param>
-        /// <returns>The <c>GameObject</c> of the team's leader, null if the team doesn't have a leader.</returns>
-        public GameObject GetLeaderObject(Faction faction)
-        {
-            if (UnitManager.Instance.HasUnitLeader(faction))
-                return UnitManager.Instance.GetLeaderUnit(faction).gameObject;
-
-            if (StructureManager.Instance.HasSettlementLeader(faction))
-                return StructureManager.Instance.GetLeaderSettlement(faction).gameObject;
-
-            return null;
-        }
-
-        #endregion
-
-
         #region Unit Magnets
 
         /// <summary>
@@ -365,31 +316,19 @@ namespace Populous
         /// <param name="faction">The <c>Faction</c> the unit magnet belongs to.</param>
         /// <param name="point">The <c>TerrainPoint</c> that the unit magnet should be placed at.</param>
         public void PlaceUnitMagnetAtPoint(Faction faction, TerrainPoint point)
-        {
-            UnitMagnet magnet = m_UnitMagnets[(int)faction];
-            Vector3 position = point.ToScenePosition();
-            if (position == magnet.transform.position) return;
-            magnet.SetPosition_ClientRpc(position);
-        }
+            => m_UnitMagnets[(int)faction].MoveToPoint(point);
 
         #endregion
 
 
-
-
-
-
-
-
-
-        #region Camera Snap
+        #region Snap Camera to Object
 
         /// <summary>
         /// Sends the camera of the player of the given team to the location of the inspected object.
         /// </summary>
         /// <param name="serverRpcParams">RPC data for the client RPC.</param>
         [ServerRpc(RequireOwnership = false)]
-        public void ShowInspectedObject_ServerRpc(Faction team, ServerRpcParams serverRpcParams = default)
+        public void SnapToInspectedObject_ServerRpc(Faction team, ServerRpcParams serverRpcParams = default)
         {
             IInspectableObject inspected = GetInspectedObject(team);
 
@@ -399,13 +338,9 @@ namespace Populous
                 return;
             }
 
-            SetCameraLookPosition_ClientRpc(inspected.GameObject.transform.position, new()
-                {
-                    Send = new ClientRpcSendParams
-                    {
-                        TargetClientIds = new ulong[] { serverRpcParams.Receive.SenderClientId }
-                    }
-                }
+            SetCameraLookPosition_ClientRpc(
+                inspected.GameObject.transform.position,
+                GameUtils.GetClientParams(serverRpcParams.Receive.SenderClientId)
             );
         }
 
@@ -415,15 +350,11 @@ namespace Populous
         /// <param name="team">The <c>Team</c> whose camera should be moved.</param>
         /// <param name="serverRpcParams">RPC data for the client RPC.</param>
         [ServerRpc(RequireOwnership = false)]
-        public void ShowMagnet_ServerRpc(Faction team, ServerRpcParams serverRpcParams = default)
+        public void SnapToUnitMagnet_ServerRpc(Faction team, ServerRpcParams serverRpcParams = default)
         {
-            SetCameraLookPosition_ClientRpc(GetUnitMagnetPosition(team), new()
-                {
-                    Send = new ClientRpcSendParams
-                    {
-                        TargetClientIds = new ulong[] { serverRpcParams.Receive.SenderClientId }
-                    }
-                }
+            SetCameraLookPosition_ClientRpc(
+                GetUnitMagnetPosition(team),
+                GameUtils.GetClientParams(serverRpcParams.Receive.SenderClientId)
             );
         }
 
@@ -433,23 +364,19 @@ namespace Populous
         /// <param name="team">The <c>Team</c> whose camera should be moved.</param>
         /// <param name="serverRpcParams">RPC data for the client RPC.</param>
         [ServerRpc(RequireOwnership = false)]
-        public void ShowLeader_ServerRpc(Faction team, ServerRpcParams serverRpcParams = default)
+        public void SnapToLeader_ServerRpc(Faction team, ServerRpcParams serverRpcParams = default)
         {
-            GameObject leader = GetLeaderObject(team);
+            ILeader leader = GetLeader(team);
 
-            if (!leader)
+            if (leader == null)
             {
                 NotifyCannotSnap_ClientRpc(SnapTo.LEADER);
                 return;
             }
 
-            SetCameraLookPosition_ClientRpc(leader.transform.position, new()
-                {
-                    Send = new ClientRpcSendParams
-                    {
-                        TargetClientIds = new ulong[] { serverRpcParams.Receive.SenderClientId }
-                    }
-                }
+            SetCameraLookPosition_ClientRpc(
+                leader.GameObject.transform.position,
+                GameUtils.GetClientParams(serverRpcParams.Receive.SenderClientId)
             );
         }
 
@@ -459,7 +386,7 @@ namespace Populous
         /// <param name="team">The <c>Team</c> whose camera should be moved.</param>
         /// <param name="serverRpcParams">RPC data for the client RPC.</param>
         [ServerRpc(RequireOwnership = false)]
-        public void ShowSettlements_ServerRpc(Faction team, ServerRpcParams serverRpcParams = default)
+        public void SnapToSettlements_ServerRpc(Faction team, ServerRpcParams serverRpcParams = default)
         {
             int teamIndex = (int)team;
 
@@ -470,13 +397,9 @@ namespace Populous
                 return;
             }
 
-            SetCameraLookPosition_ClientRpc(new(position.Value.x, 0, position.Value.z), new()
-                {
-                    Send = new ClientRpcSendParams
-                    {
-                        TargetClientIds = new ulong[] { serverRpcParams.Receive.SenderClientId }
-                    }
-                }
+            SetCameraLookPosition_ClientRpc(
+                new(position.Value.x, Terrain.Instance.WaterLevel, position.Value.z),
+                GameUtils.GetClientParams(serverRpcParams.Receive.SenderClientId)
             );
 
             m_SettlementIndex[teamIndex] = GameUtils.GetNextArrayIndex(m_SettlementIndex[teamIndex], 1, StructureManager.Instance.GetSettlementsNumber(team));
@@ -488,7 +411,7 @@ namespace Populous
         /// <param name="team">The <c>Team</c> whose camera should be moved.</param>
         /// <param name="serverRpcParams">RPC data for the client RPC.</param>
         [ServerRpc(RequireOwnership = false)]
-        public void ShowFights_ServerRpc(Faction team, ServerRpcParams serverRpcParams = default)
+        public void SnapToFights_ServerRpc(Faction team, ServerRpcParams serverRpcParams = default)
         {
             int teamIndex = (int)team;
 
@@ -499,13 +422,9 @@ namespace Populous
                 return;
             }
 
-            SetCameraLookPosition_ClientRpc(new(position.Value.x, 0, position.Value.z), new()
-                {
-                    Send = new ClientRpcSendParams
-                    {
-                        TargetClientIds = new ulong[] { serverRpcParams.Receive.SenderClientId }
-                    }
-                }
+            SetCameraLookPosition_ClientRpc(
+                new(position.Value.x, Terrain.Instance.WaterLevel, position.Value.z),
+                GameUtils.GetClientParams(serverRpcParams.Receive.SenderClientId)
             );
 
             m_FightIndex[teamIndex] = GameUtils.GetNextArrayIndex(m_FightIndex[teamIndex], 1, UnitManager.Instance.GetFightsNumber());
@@ -517,7 +436,7 @@ namespace Populous
         /// <param name="team">The <c>Team</c> whose camera should be moved.</param>
         /// <param name="serverRpcParams">RPC data for the client RPC.</param>
         [ServerRpc(RequireOwnership = false)]
-        public void ShowKnights_ServerRpc(Faction team, ServerRpcParams serverRpcParams = default)
+        public void SnapToKnights_ServerRpc(Faction team, ServerRpcParams serverRpcParams = default)
         {
             int teamIndex = (int)team;
 
@@ -528,15 +447,11 @@ namespace Populous
                 return;
             }
 
-            Vector3 knightPosition = knight.transform.position;
+            Vector3 position = knight.transform.position;
 
-            SetCameraLookPosition_ClientRpc(new(knightPosition.x, 0, knightPosition.z), new()
-                {
-                    Send = new ClientRpcSendParams
-                    {
-                        TargetClientIds = new ulong[] { serverRpcParams.Receive.SenderClientId }
-                    }
-                }
+            SetCameraLookPosition_ClientRpc(
+                new(position.x, Terrain.Instance.WaterLevel, position.z),
+                GameUtils.GetClientParams(serverRpcParams.Receive.SenderClientId)
             );
 
             m_KnightsIndex[teamIndex] = GameUtils.GetNextArrayIndex(m_KnightsIndex[teamIndex], 1, UnitManager.Instance.GetKnightsNumber(team));
@@ -549,24 +464,92 @@ namespace Populous
         /// <param name="clientRpcParams">RPC parameters for the client RPC.</param>
         [ClientRpc]
         public void SetCameraLookPosition_ClientRpc(Vector3 position, ClientRpcParams clientRpcParams = default)
-            => PlayerCamera.Instance.SetCameraLookPosition(position);
+        {
+            Debug.Log("Camera");
+            PlayerCamera.Instance.SetCameraLookPosition(position);
+        }
 
         /// <summary>
         /// Triggers the client's UI to show that snapping the camera to the given object was impossible.
         /// </summary>
         /// <param name="snapOption">The camera snapping option that was attempted.</param>
         [ClientRpc]
-        private void NotifyCannotSnap_ClientRpc(SnapTo snapOption) 
+        private void NotifyCannotSnap_ClientRpc(SnapTo snapOption)
             => GameUI.Instance.NotifyCannotSnapTo(snapOption);
 
         #endregion
 
 
+        #region Leader
+
+        /// <summary>
+        /// Checks whether the given faction has a leader.
+        /// </summary>
+        /// <param name="faction">The <c>Faction</c> whose leader should be checked.</param>
+        /// <returns>True if the faction has a leader, false otherwise.</returns>
+        public bool HasLeader(Faction faction) => m_Leaders[(int)faction] != null;
+        /// <summary>
+        /// Checks whether the given faction has a leader that is an unit.
+        /// </summary>
+        /// <param name="faction">The <c>Faction</c> whose leader should be checked.</param>
+        /// <returns>True if the faction has a leader unit, false otherwise.</returns>
+        public bool HasLeaderUnit(Faction faction) => HasLeader(faction) && m_Leaders[(int)faction].GetType() == typeof(Unit);
+        /// <summary>
+        /// Checks whether the given faction has a leader that is a settlement.
+        /// </summary>
+        /// <param name="faction">The <c>Faction</c> whose leader should be checked.</param>
+        /// <returns>True if the faction has a settlement leader, false otherwise.</returns>
+        public bool HasLeaderSettlement(Faction faction) => HasLeader(faction) && m_Leaders[(int)faction].GetType() == typeof(Settlement);
+
+        /// <summary>
+        /// Gets the leader of the given faction.
+        /// </summary>
+        /// <param name="faction">The <c>Faction</c> whose leader should be returned.</param>
+        /// <returns>The <c>ILeader</c> of the given faction, null if there is none.</returns>
+        public ILeader GetLeader(Faction faction) => m_Leaders[(int)faction];
+        /// <summary>
+        /// Gets the unit leader of the given faction.
+        /// </summary>
+        /// <param name="faction">The <c>Faction</c> whose leader should be returned.</param>
+        /// <returns>The <c>Unit</c> that is the leader of the given faction, null if there is none.</returns>
+        public Unit GetLeaderUnit(Faction faction) => (Unit)GetLeader(faction);
+        /// <summary>
+        /// Gets the settlement leader of the given faction.
+        /// </summary>
+        /// <param name="faction">The <c>Faction</c> whose leader should be returned.</param>
+        /// <returns>The <c>Settlement</c> that is the leader of the given faction, null if there is none.</returns>
+        public Settlement GetLeaderSettlement(Faction faction) => (Settlement)GetLeader(faction);
+
+        /// <summary>
+        /// Sets the given <c>ILeader</c> as the leader of the given faction.
+        /// </summary>
+        /// <param name="faction">The <c>Faction</c> that the leader should be set to.</param>
+        /// <param name="leader">The <c>ILeader</c> that should be set as the leader.</param>
+        public void SetLeader(Faction faction, ILeader leader)
+        {
+            if (HasLeader(faction))
+                RemoveLeader(faction);
+
+            Debug.Log("Set Leader");
+            m_Leaders[(int)faction] = leader;
+            leader.SetLeader(true);
+            UnitManager.Instance.SwitchLeaderTarget(faction);
+        }
+
+        /// <summary>
+        /// Removes the leader of the given faction, if it exists.
+        /// </summary>
+        /// <param name="faction">The <c>Faction</c> whose leader should be removed.</param>
+        public void RemoveLeader(Faction faction)
+        {
+            m_Leaders[(int)faction].SetLeader(false);
+            m_Leaders[(int)faction] = null;
+        }
+
+        #endregion
 
 
-
-
-        #region Powers
+        #region Divine Interventions
 
         #region Manna
 
@@ -587,13 +570,13 @@ namespace Populous
         /// <summary>
         /// Sets the manna of the given team to the given amount.
         /// </summary>
-        /// <param name="team">The <c>Team</c> whose manna should be set.</param>
+        /// <param name="faction">The <c>Team</c> whose manna should be set.</param>
         /// <param name="amount">The amount of manna the given team should have.</param>
-        private void SetManna(Faction team, int amount)
+        private void SetManna(Faction faction, int amount)
         {
-            if (amount == m_Manna[(int)team]) return;
+            if (amount == m_Manna[(int)faction]) return;
 
-            m_Manna[(int)team] = amount;
+            m_Manna[(int)faction] = amount;
 
             int activePowers = -1;
             foreach (float threshold in m_PowerActivationPercent)
@@ -602,14 +585,11 @@ namespace Populous
                 activePowers++;
             }
 
-            UpdateMannaUI_ClientRpc(amount, activePowers, new ClientRpcParams
-            {
-                Send = new ClientRpcSendParams
-                {
-                    TargetClientIds = new ulong[] { GameData.Instance.GetNetworkIdByFaction(team) }
-                }
-            }
-            );
+            //UpdateMannaUI_ClientRpc(
+            //    amount, 
+            //    activePowers, 
+            //    GameUtils.GetClientParams(GameData.Instance.GetNetworkIdByFaction(faction))
+            //);
         }
 
         /// <summary>
@@ -622,41 +602,38 @@ namespace Populous
         private void UpdateMannaUI_ClientRpc(int manna, int activePowers, ClientRpcParams clientParams = default)
             => GameUI.Instance.UpdateMannaBar(manna, activePowers);
 
-
         /// <summary>
         /// Checks whether the player from the given team can use the given power.
         /// </summary>
-        /// <param name="team">The <c>Team</c> the player controls.</param>
+        /// <param name="faction">The <c>Team</c> the player controls.</param>
         /// <param name="power">The <c>Power</c> the player wants to activate.</param>
         [ServerRpc(RequireOwnership = false)]
-        public void TryActivatePower_ServerRpc(Faction team, Power power)
+        public void TryActivatePower_ServerRpc(Faction faction, Power power)
         {
             bool powerActivated = true;
 
-            if (m_Manna[(int)team] < m_PowerActivationPercent[(int)power] * m_MaxManna ||
-                (power == Power.KNIGHT && !HasLeader(team)) ||
-                (power == Power.FLOOD && Terrain.Instance.HasReachedMaxWaterLevel()))
-                powerActivated = false;
+            //if (m_Manna[(int)faction] < m_PowerActivationPercent[(int)power] * m_MaxManna ||
+            //    (power == Power.KNIGHT && !HasLeader(faction)) ||
+            //    (power == Power.FLOOD && Terrain.Instance.HasReachedMaxWaterLevel()))
+            //    powerActivated = false;
 
             if (powerActivated)
             {
                 if (power == Power.KNIGHT)
-                    CreateKnight(team);
+                    CreateKnight(faction);
 
                 if (power == Power.FLOOD)
-                    CauseFlood(team);
+                    CauseFlood(faction);
 
                 if (power == Power.ARMAGEDDON)
-                    StartArmageddon(team);
+                    StartArmageddon(faction);
             }
 
-            SendPowerActivationInfo_ClientRpc(power, powerActivated, new ClientRpcParams
-            {
-                Send = new ClientRpcSendParams
-                {
-                    TargetClientIds = new ulong[] { GameData.Instance.GetNetworkIdByFaction(team) }
-                }
-            });
+            SendPowerActivationInfo_ClientRpc(
+                power,
+                powerActivated,
+                GameUtils.GetClientParams(GameData.Instance.GetNetworkIdByFaction(faction))
+            );
         }
 
         /// <summary>
@@ -672,95 +649,84 @@ namespace Populous
         #endregion
 
 
-        #region Mold Terrain
-
         /// <summary>
-        /// Triggers the execution of the Mold Terrain power on both clients.
+        /// Triggers the execution of the Mold Terrain Divine Intervention.
         /// </summary>
-        /// <param name="point">The <c>TerrainPoint</c> which should be modified.</param>
-        /// <param name="lower">True if the center should be lowered, false if the center should be elevated.</param>
+        /// <param name="point">The <c>TerrainPoint</c> that should be modified.</param>
+        /// <param name="lower">True if the point should be lowered, false if the point should be elevated.</param>
         [ServerRpc(RequireOwnership = false)]
-        public void MoldTerrain_ServerRpc(Faction team, TerrainPoint point, bool lower)
+        public void MoldTerrain_ServerRpc(TerrainPoint point, bool lower)
             => MoldTerrain_ClientRpc(point, lower);
-
+        
         /// <summary>
         /// Executes the Mold Terrain power on the client.
         /// </summary>
-        /// <param name="point">The <c>TerrainPoint</c> which should be modified.</param>
-        /// <param name="lower">True if the center should be lowered, false if the center should be elevated.</param>
+        /// <param name="point">The <c>TerrainPoint</c> that should be modified.</param>
+        /// <param name="lower">True if the point should be lowered, false if the point should be elevated.</param>
         [ClientRpc]
-        private void MoldTerrain_ClientRpc(TerrainPoint point, bool lower, ClientRpcParams clientParams = default)
+        private void MoldTerrain_ClientRpc(TerrainPoint point, bool lower)
             => RespondToTerrainChange(Terrain.Instance.ModifyTerrain(point, lower));
 
-        #endregion
+        public void MoldTerrain(TerrainPoint point, bool lower)
+            => RespondToTerrainChange(Terrain.Instance.ModifyTerrain(point, lower));
 
-
-        #region Place Unit Magnet
 
         /// <summary>
-        /// Sets a new position for the unit magnet of the given team.
+        /// Executes the Place Unit Magnet Divine Intervention.
         /// </summary>
         /// <param name="point">The <c>TerrainPoint</c> on which the magnet should be set.</param>
-        /// <param name="team">The <c>Team</c> whose magnet should be moved.</param>
+        /// <param name="faction">The <c>Faction</c> whose magnet should be moved.</param>
         [ServerRpc(RequireOwnership = false)]
-        public void PlaceUnitMagnet_ServerRpc(Faction team, TerrainPoint point)
+        public void PlaceUnitMagnet_ServerRpc(Faction faction, TerrainPoint point)
         {
             // the magnet can only be moved if there is a leader
-            if (!HasLeader(team)) return;
+            if (!HasLeader(faction)) return;
 
-            RemoveManna(team, m_PowerMannaCost[(int)Power.PLACE_MAGNET]);
+            RemoveManna(faction, m_PowerMannaCost[(int)Power.PLACE_MAGNET]);
 
-            PlaceUnitMagnetAtPoint(team, point);
+            PlaceUnitMagnetAtPoint(faction, point);
 
-            if (UnitManager.Instance.GetActiveBehavior(team) != UnitBehavior.GO_TO_MAGNET)
+            if (UnitManager.Instance.GetActiveBehavior(faction) != UnitBehavior.GO_TO_MAGNET)
                 return;
 
-            if (team == Faction.RED)
+            if (faction == Faction.RED)
                 OnRedMagnetMoved?.Invoke();
-            else if (team == Faction.BLUE)
+            else if (faction == Faction.BLUE)
                 OnBlueMagnetMoved?.Invoke();
         }
 
-        #endregion
-
-
-        #region Earthquake
 
         /// <summary>
-        /// Triggers the execution of the Earthquake power on both clients.
+        /// Triggers the execution of the Earthquake Divine Intervention.
         /// </summary>
-        /// <param name="team">The <c>Team</c> of the player that triggered the power.</param>
+        /// <param name="faction">The <c>Faction</c> of the player that triggered the action.</param>
         /// <param name="center">The <c>TerrainPoint</c> at the center of the earthquake.</param>
         [ServerRpc(RequireOwnership = false)]
-        public void CreateEarthquake_ServerRpc(Faction team, TerrainPoint center)
+        public void CreateEarthquake_ServerRpc(Faction faction, TerrainPoint center)
         {
-            RemoveManna(team, m_PowerMannaCost[(int)Power.EARTHQUAKE]);
+            RemoveManna(faction, m_PowerMannaCost[(int)Power.EARTHQUAKE]);
             CreateEarthquake_ClientRpc(center, new Random().Next());
         }
-
+        
         /// <summary>
-        /// Executes the Earthquake power on the client.
+        /// Executes the Earthquake Divine Intervention on the client.
         /// </summary>
         /// <param name="center">The <c>TerrainPoint</c> at the center of the earthquake.</param>
         /// <param name="randomizerSeed">The seed used for the randomizer that sets the heights in the earthquake area.</param>
         [ClientRpc]
-        private void CreateEarthquake_ClientRpc(TerrainPoint center, int randomizerSeed, ClientRpcParams clientRpc = default)
+        private void CreateEarthquake_ClientRpc(TerrainPoint center, int randomizerSeed)
             => RespondToTerrainChange(Terrain.Instance.CauseEarthquake(center, m_EarthquakeRadius, randomizerSeed));
 
-        #endregion
-
-
-        #region Swamp
 
         /// <summary>
-        /// Populates the tiles in the swamp area centered on the given center randomly with swamps.
+        /// Executes the Swamp Divine Intervention.
         /// </summary>
-        /// <param name="team">The <c>Team</c> of the player that triggered the power.</param>
+        /// <param name="faction">The <c>Faction</c> of the player that triggered the action.</param>
         /// <param name="center">The <c>TerrainPoint</c> at the center of the swamp.</param>
         [ServerRpc(RequireOwnership = false)]
-        public void CreateSwamp_ServerRpc(Faction team, TerrainPoint center)
+        public void CreateSwamp_ServerRpc(Faction faction, TerrainPoint center)
         {
-            RemoveManna(team, m_PowerMannaCost[(int)Power.SWAMP]);
+            RemoveManna(faction, m_PowerMannaCost[(int)Power.SWAMP]);
 
             // gets all the flat tiles in the swamp area
             List<TerrainTile> flatTiles = new();
@@ -770,7 +736,7 @@ namespace Populous
                 {
                     TerrainTile neighborTile = new(center.X + x, center.Z + z);
 
-                    if (!neighborTile.IsInBounds() || neighborTile.IsFlat())
+                    if (!neighborTile.IsInBounds() || !neighborTile.IsFlat())
                         continue;
 
                     Structure structure = StructureManager.Instance.GetStructureOnTile(neighborTile);
@@ -823,112 +789,94 @@ namespace Populous
                 settlement.SetType();
         }
 
-        #endregion
-
-
-        #region Knight
 
         /// <summary>
-        /// Transforms the leader of the given team into a knight.
+        /// Executes the Knight Divine Intervention.
         /// </summary>
-        /// <param name="team">The <c>Team</c> that should gain a knight.</param>
-        public void CreateKnight(Faction team)
+        /// <param name="faction">The <c>Faction</c> that should gain a knight.</param>
+        public void CreateKnight(Faction faction)
         {
             // the team has to have a leader to turn into a knight.
-            if (!HasLeader(team)) return;
+            if (!HasLeader(faction)) return;
 
-            RemoveManna(team, m_PowerMannaCost[(int)Power.KNIGHT]);
-
-            //Unit knight = UnitManager.Instance.CreateKnight(team);
+            RemoveManna(faction, m_PowerMannaCost[(int)Power.KNIGHT]);
             
             Unit knight = null;
 
             // if the leader is in a unit, just turn that unit into a knight
-            if (UnitManager.Instance.HasUnitLeader(team))
+            if (HasLeaderUnit(faction))
             {
-                knight = UnitManager.Instance.GetLeaderUnit(team);
-                UnitManager.Instance.UnsetUnitLeader(team);
-                knight.SetType(UnitType.KNIGHT);
-                UnitManager.Instance.AddKnight(team, knight);
+                knight = GetLeaderUnit(faction);
+                RemoveLeader(faction);
+                UnitManager.Instance.SetKnight(faction, knight);
             }
 
             // if the leader is in a origin, destroy that origin and spawnPoint a knight in its position
-            if (StructureManager.Instance.HasSettlementLeader(team))
+            if (HasLeaderSettlement(faction))
             {
-                //Settlement settlement = StructureManager.Instance.GetLeaderSettlement(team);
-                //StructureManager.Instance.UnsetLeaderSettlement(team);
-                //knight = SpawnUnit(
-                //    location: settlement.OccupiedTile, 
-                //    team, 
-                //    unitClass: UnitClass.KNIGHT, 
-                //    followers: settlement.FollowersInSettlement,
-                //    origin: settlement
-                //).GetComponent<Unit>();
-                //settlement.DestroySettlement(updateNeighbors: true);
+                Settlement settlement = GetLeaderSettlement(faction);
+                RemoveLeader(faction);
+
+                knight = UnitManager.Instance.SpawnUnit(
+                    location: new(settlement.OccupiedTile.X, settlement.OccupiedTile.Z),
+                    faction,
+                    type: UnitType.KNIGHT,
+                    strength: settlement.FollowersInSettlement,
+                    origin: settlement
+                ).GetComponent<Unit>();
+
+                settlement.Destroy(updateNearbySettlements: true);
             }
 
-            PlaceUnitMagnetAtPoint(team, knight.ClosestTerrainPoint);
+            PlaceUnitMagnetAtPoint(faction, knight.ClosestTerrainPoint);
 
             // show the knight
-            SetCameraLookPosition_ClientRpc(new(knight.transform.position.x, 0, knight.transform.position.z), new()
-                {
-                    Send = new ClientRpcSendParams
-                    {
-                        TargetClientIds = new ulong[] { GameData.Instance.GetNetworkIdByFaction(knight.Faction) }
-                    }
-                }
+            SetCameraLookPosition_ClientRpc(
+                new(knight.transform.position.x, 0, knight.transform.position.z),
+                GameUtils.GetClientParams(GameData.Instance.GetNetworkIdByFaction(faction))
             );
         }
 
-        #endregion
-
-
-        #region Volcano
 
         /// <summary>
-        /// Triggers the execution of the Volcano power on both clients.
+        /// Triggers the execution of the Volcano Divine Intervention.
         /// </summary>
-        /// <param name="team">The <c>Team</c> of the player that triggered the power.</param>
+        /// <param name="faction">The <c>Faction</c> of the player that triggered the action.</param>
         /// <param name="center">The <c>TerrainPoint</c> at the center of the volcano.</param>
         [ServerRpc(RequireOwnership = false)]
-        public void CreateVolcano_ServerRpc(Faction team, TerrainPoint center, ServerRpcParams serverParams = default)
+        public void CreateVolcano_ServerRpc(Faction faction, TerrainPoint center)
         {
-            RemoveManna(team, m_PowerMannaCost[(int)Power.VOLCANO]);
+            RemoveManna(faction, m_PowerMannaCost[(int)Power.VOLCANO]);
 
             CreateVolcano_ClientRpc(center);
             StructureManager.Instance.PlaceVolcanoRocks(center, m_VolcanoRadius);
         }
-
+        
         /// <summary>
-        /// Executes the Volcano power on the client.
+        /// Executes the Volcano Divine Intervention on the client.
         /// </summary>
         /// <param name="center">The <c>TerrainPoint</c> at the center of the volcano.</param>
         [ClientRpc]
         private void CreateVolcano_ClientRpc(TerrainPoint center)
             => RespondToTerrainChange(Terrain.Instance.CauseVolcano(center, m_VolcanoRadius));
 
-        #endregion
-
-
-        #region Flood
 
         /// <summary>
-        /// Triggers the execution of the Flood power on the clients.
+        /// Triggers the execution of the Flood Divine Intervention on the clients.
         /// </summary>
-        /// <param name="team">The <c>Team</c> of the player that triggered the power.</param>
-        public void CauseFlood(Faction team)
+        /// <param name="faction">The <c>Faction</c> of the player that triggered the action.</param>
+        public void CauseFlood(Faction faction)
         {
-            if (Terrain.Instance.HasReachedMaxWaterLevel())
-                return;
+            if (Terrain.Instance.HasReachedMaxWaterLevel()) return;
 
-            RemoveManna(team, m_PowerMannaCost[(int)Power.FLOOD]);
+            RemoveManna(faction, m_PowerMannaCost[(int)Power.FLOOD]);
 
             CauseFlood_ClientRpc();
             OnFlood?.Invoke();
         }
-
+        
         /// <summary>
-        /// Executes the Flood Divine Intervention client-side
+        /// Executes the Flood Divine Intervention on the client.
         /// </summary>
         [ClientRpc]
         private void CauseFlood_ClientRpc()
@@ -939,15 +887,11 @@ namespace Populous
             Minimap.Instance.SetTexture();
         }
 
-        #endregion
-
-
-        #region Armagheddon
 
         /// <summary>
-        /// Executes the Armageddon power.
+        /// Executes the Armageddon Divine Intervention.
         /// </summary>
-        /// <param name="team">The <c>Team</c> of the player that triggered the power.</param>
+        /// <param name="team">The <c>Faction</c> of the player that triggered the action.</param>
         public void StartArmageddon(Faction team)
         {
             RemoveManna(team, m_PowerMannaCost[(int)Power.ARMAGEDDON]);
@@ -968,46 +912,78 @@ namespace Populous
 
         #endregion
 
-        #endregion
 
+        /// <summary>
+        /// Updates the terrain accessories, the structures, the units, and the unit magnets after a terrain modification.
+        /// </summary>
+        /// <param name="modifiedAreaCorners">A tuple of the <c>TerrainPoint</c> at the bottom left and the <c>TerrainPoint</c> on the top right
+        /// of a rectangular area containing all the points whose heights were changed in the terrain modification.</param>
+        public void RespondToTerrainChange((TerrainPoint bottomLeft, TerrainPoint topRight) modifiedAreaCorners)
+        {
+            BorderWalls.Instance.UpdateWallsInArea(modifiedAreaCorners.bottomLeft, modifiedAreaCorners.topRight);
+            Minimap.Instance.UpdateTextureInArea(modifiedAreaCorners.bottomLeft, modifiedAreaCorners.topRight);
+
+            if (!IsHost) return;
+
+            Debug.Log("Respond");
+            StructureManager.Instance.UpdateStructuresInArea(modifiedAreaCorners.bottomLeft, modifiedAreaCorners.topRight);
+            OnTerrainModified?.Invoke(modifiedAreaCorners.bottomLeft, modifiedAreaCorners.topRight); // for units
+
+            foreach (UnitMagnet magnet in m_UnitMagnets)
+            {
+                if (magnet.GridLocation.X >= modifiedAreaCorners.bottomLeft.X || magnet.GridLocation.X <= modifiedAreaCorners.topRight.X ||
+                    magnet.GridLocation.Z >= modifiedAreaCorners.bottomLeft.Z || magnet.GridLocation.Z <= modifiedAreaCorners.topRight.Z)
+                    magnet.UpdateHeight();
+            }
+        }
+
+        /// <summary>
+        /// Notifies the client that the object with the given ID is not in the camera's field of view anymore.
+        /// </summary>
+        /// <remarks>Used when an object is despawned.</remarks>
+        /// <param name="objectId">The network ID of the object that is not visible anymore.</param>
+        /// <param name="clientParams">RPC parameters for the client RPC.</param>
+        [ClientRpc]
+        public void RemoveVisibleObject_ClientRpc(ulong objectId, ClientRpcParams clientParams = default)
+            => CameraDetectionZone.Instance.RemoveVisibleObject(objectId);
 
 
         #region Query Mode
 
         /// <summary>
-        /// Gets the object the player of the given team is inspecting.
+        /// Gets the object the player of the given faction is inspecting.
         /// </summary>
-        /// <param name="team">The <c>Team</c> whose inspected object should be returned.</param>
-        /// <returns>The <c>IInspectableObject</c> that the player is inspecting.</returns>
-        public IInspectableObject GetInspectedObject(Faction team) => m_InspectedObjects[(int)team];
+        /// <param name="faction">The <c>Faction</c> whose inspected object should be returned.</param>
+        /// <returns>The <c>IInspectableObject</c> that the player is inspecting, null if there is none.</returns>
+        public IInspectableObject GetInspectedObject(Faction faction) => m_InspectedObjects[(int)faction];
 
         /// <summary>
-        /// Gets the team of the player that is inspecting the given object.
+        /// Gets the faction of the player that is inspecting the given object.
         /// </summary>
         /// <param name="inspectedObject">The object that is being checked.</param>
-        /// <returns>The value of the team whose player is inspecting the object in the <c>Team</c> enum.</returns>
+        /// <returns>The value of the faction whose player is inspecting the object in the <c>Faction</c> enum, -1 if the object is not being inspected.</returns>
         public int GetPlayerInspectingObject(IInspectableObject inspectedObject) => Array.IndexOf(m_InspectedObjects, inspectedObject);
 
         /// <summary>
-        /// Sets the given object as the object being inspected by the player of the given team.
+        /// Sets the given object as the object being inspected by the player of the given faction.
         /// </summary>
-        /// <param name="team">The <c>Team</c> of the player that's inspecting the object.</param>
+        /// <param name="faction">The <c>Faction</c> of the player that's inspecting the object.</param>
         /// <param name="inspectedObject">A <c>NetworkObjectReference</c> of the object being inspected.</param>
         /// <param name="serverRpcParams">RPC parameters for the server RPC.</param>
         [ServerRpc(RequireOwnership = false)]
-        public void SetInspectedObject_ServerRpc(Faction team, NetworkObjectReference inspectedObject, ServerRpcParams serverRpcParams = default)
+        public void SetInspectedObject_ServerRpc(Faction faction, NetworkObjectReference inspectedObject, ServerRpcParams serverRpcParams = default)
         {
             if (!inspectedObject.TryGet(out NetworkObject networkObject) || networkObject.GetComponent<IInspectableObject>() == null)
                 return;
 
             IInspectableObject inspectObject = networkObject.GetComponent<IInspectableObject>();
-            IInspectableObject lastInspectedObject = m_InspectedObjects[(int)team];
+            IInspectableObject lastInspectedObject = m_InspectedObjects[(int)faction];
 
             // stop inspecting the last inspected object
             if (lastInspectedObject != null)
             {
                 lastInspectedObject.SetHighlight(false);
-                m_InspectedObjects[(int)team] = null;
+                m_InspectedObjects[(int)faction] = null;
                 lastInspectedObject.IsInspected = false;
                 HideInspectedObjectPanel_ClientRpc(GameUtils.GetClientParams(serverRpcParams.Receive.SenderClientId));
             }
@@ -1017,7 +993,7 @@ namespace Populous
 
             ClientRpcParams clientParams = GameUtils.GetClientParams(serverRpcParams.Receive.SenderClientId);
 
-            m_InspectedObjects[(int)team] = inspectObject;
+            m_InspectedObjects[(int)faction] = inspectObject;
             inspectObject.IsInspected = true;
 
             if (inspectObject.GetType() == typeof(Unit))
@@ -1059,30 +1035,30 @@ namespace Populous
         }
 
 
-        #region Show Inspected UI
+        #region Show/Hide Inspected Object UI
 
         /// <summary>
         /// Tells the client to show the given data on the Inspected Unit panel.
         /// </summary>
-        /// <param name="team">The <c>Team</c> the unit belongs to.</param>
-        /// <param name="unitClass">The class of the unit.</param>
+        /// <param name="faction">The <c>Faction</c> the unit belongs to.</param>
+        /// <param name="type">The type of the unit.</param>
         /// <param name="strength">The current strength of the unit.</param>
         /// <param name="clientParams">RPC parameters for the client RPC.</param>
         [ClientRpc]
-        private void ShowUnitData_ClientRpc(Faction team, UnitType unitClass, int strength, ClientRpcParams clientParams = default)
-            => GameUI.Instance.ShowUnitData(team, unitClass, strength);
+        private void ShowUnitData_ClientRpc(Faction faction, UnitType type, int strength, ClientRpcParams clientParams = default)
+            => GameUI.Instance.ShowUnitData(faction, type, strength);
 
         /// <summary>
         /// Tells the client to show the given data on the Inspected Settlement panel.
         /// </summary>
-        /// <param name="team">The <c>Team</c> the settlement belongs to.</param>
+        /// <param name="faction">The <c>Faction</c> the settlement belongs to.</param>
         /// <param name="type">The type of the settlement.</param>
         /// <param name="unitsInSettlement">The number of units currently in the settlement.</param>
         /// <param name="maxUnitsInSettlement">The maximum number of units for the settlement.</param>
         /// <param name="clientParams">RPC parameters for the client RPC.</param>
         [ClientRpc]
-        private void ShowSettlementData_ClientRpc(Faction team, SettlementType type, int unitsInSettlement, int maxUnitsInSettlement, ClientRpcParams clientParams = default)
-            => GameUI.Instance.ShowSettlementData(team, type, unitsInSettlement, maxUnitsInSettlement);
+        private void ShowSettlementData_ClientRpc(Faction faction, SettlementType type, int unitsInSettlement, int maxUnitsInSettlement, ClientRpcParams clientParams = default)
+            => GameUI.Instance.ShowSettlementData(faction, type, unitsInSettlement, maxUnitsInSettlement);
 
         /// <summary>
         /// Tells the client to show the given data on the Inspected Fight panel.
@@ -1099,7 +1075,8 @@ namespace Populous
         /// </summary>
         /// <param name="clientParams">RPC parameters for the client RPC.</param>
         [ClientRpc]
-        private void HideInspectedObjectPanel_ClientRpc(ClientRpcParams clientParams = default) => GameUI.Instance.HideInspectedObjectPanel();
+        private void HideInspectedObjectPanel_ClientRpc(ClientRpcParams clientParams = default) 
+            => GameUI.Instance.HideInspectedObjectPanel();
 
         #endregion
 
@@ -1110,39 +1087,35 @@ namespace Populous
         /// Handles the update of the given unit data on the UI of the player focusing on the unit.
         /// </summary>
         /// <param name="unit">The unit whose UI data should be updated.</param>
-        /// <param name="updateClass">True if the unit's class should be updated, false otherwise.</param>
+        /// <param name="updateType">True if the unit's type should be updated, false otherwise.</param>
         /// <param name="updateStrength">True if the unit's strength should be updated, false otherwise.</param>
-        public void UpdateInspectedUnit(Unit unit, bool updateClass = false, bool updateStrength = false)
+        public void UpdateInspectedUnit(Unit unit, bool updateType = false, bool updateStrength = false)
         {
-            int index = GetPlayerInspectingObject(unit);
-            if (index < 0) return;
+            IEnumerable<int> playerIndices = Enumerable.Range(0, m_InspectedObjects.Length)
+                .Where(i => m_InspectedObjects[i].GameObject == unit.GameObject);
 
-            ClientRpcParams clientParams = new()
+            if (playerIndices.Count() == 0) return;
+
+            foreach (int playerIndex in playerIndices)
             {
-                Send = new ClientRpcSendParams
-                {
-                    TargetClientIds = new ulong[] { GameData.Instance.GetNetworkIdByFaction(index) }
-                }
-            };
+                ClientRpcParams clientParams = GameUtils.GetClientParams(GameData.Instance.GetNetworkIdByFaction(playerIndex));
 
-            if (updateClass)
-                UpdateInspectedUnitClass_ClientRpc(unit.Type, clientParams);
+                if (updateType)
+                    UpdateInspectedUnitType_ClientRpc(unit.Type, clientParams);
 
-            //if (updateStrength && unit.IsInFight)
-            //    UpdateInspectedFight_ClientRpc(unit.Faction, unit.Followers, clientParams);
-
-            if (updateStrength)
-                UpdateInspectedUnitStrength_ClientRpc(unit.Strength, clientParams);
+                if (updateStrength)
+                    UpdateInspectedUnitStrength_ClientRpc(unit.Strength, clientParams);
+            }
         }
 
         /// <summary>
-        /// Triggers the update of the inspected unit's class on the UI of the client.
+        /// Triggers the update of the inspected unit's type on the UI of the client.
         /// </summary>
-        /// <param name="unitClass">The new class that should be set.</param>
+        /// <param name="type">The new type that should be set.</param>
         /// <param name="clientParams">RPC parameters for the client RPC.</param>
         [ClientRpc]
-        private void UpdateInspectedUnitClass_ClientRpc(UnitType unitClass, ClientRpcParams clientParams = default)
-            => GameUI.Instance.UpdateUnitType(unitClass);
+        private void UpdateInspectedUnitType_ClientRpc(UnitType type, ClientRpcParams clientParams = default)
+            => GameUI.Instance.UpdateUnitType(type);
 
         /// <summary>
         /// Triggers the update of the inspected unit's strength on the UI of the client.
@@ -1152,16 +1125,6 @@ namespace Populous
         [ClientRpc]
         private void UpdateInspectedUnitStrength_ClientRpc(int strength, ClientRpcParams clientParams = default)
             => GameUI.Instance.UpdateUnitStrength(strength);
-
-        /// <summary>
-        /// Triggers the update of the strength of the unit of the given team in the inspected fight on the UI of the client.
-        /// </summary>
-        /// <param name="team">The <c>Team</c> whose unit's strength should be updated.</param>
-        /// <param name="strength">The new strength of the unit.</param>
-        /// <param name="clientParams">RPC parameters for the client RPC.</param>
-        [ClientRpc]
-        private void UpdateInspectedFight_ClientRpc(int redStrength, int blueStrength, ClientRpcParams clientParams = default)
-            => GameUI.Instance.UpdateFight(redStrength, blueStrength);
 
 
         /// <summary>
@@ -1173,35 +1136,34 @@ namespace Populous
         /// <param name="updateFollowers">True if the amount of followers in the settlement should be updated, false otherwise.</param>
         public void UpdateInspectedSettlement(Settlement settlement, bool updateTeam = false, bool updateType = false, bool updateFollowers = false)
         {
-            int index = GetPlayerInspectingObject(settlement);
-            if (index < 0) return;
+            IEnumerable<int> playerIndices = Enumerable.Range(0, m_InspectedObjects.Length)
+                .Where(i => m_InspectedObjects[i].GameObject == settlement.GameObject);
 
-            ClientRpcParams clientParams = new()
+            if (playerIndices.Count() == 0) return;
+
+            foreach (int playerIndex in playerIndices)
             {
-                Send = new ClientRpcSendParams
-                {
-                    TargetClientIds = new ulong[] { GameData.Instance.GetNetworkIdByFaction(index) }
-                }
-            };
+                ClientRpcParams clientParams = GameUtils.GetClientParams(GameData.Instance.GetNetworkIdByFaction(playerIndex));
 
-            if (updateTeam)
-                UpdateInspectedSettlementTeam_ClientRpc(settlement.Faction, clientParams);
+                if (updateTeam)
+                    UpdateInspectedSettlementFaction_ClientRpc(settlement.Faction, clientParams);
 
-            if (updateType)
-                UpdateInspectedSettlementType_ClientRpc(settlement.Type, settlement.Capacity, clientParams);
+                if (updateType)
+                    UpdateInspectedSettlementType_ClientRpc(settlement.Type, settlement.Capacity, clientParams);
 
-            if (updateFollowers)
-                UpdateInspectedSettlementFollowers_ClientRpc(settlement.FollowersInSettlement, clientParams);
+                if (updateFollowers)
+                    UpdateInspectedSettlementFollowers_ClientRpc(settlement.FollowersInSettlement, clientParams);
+            }
         }
 
         /// <summary>
-        /// Triggers the update of the inspected settlement's team on the UI of the client.
+        /// Triggers the update of the inspected settlement's faction on the UI of the client.
         /// </summary>
-        /// <param name="team">The new <c>Team</c> of the settlement.</param>
+        /// <param name="faction">The new <c>Faction</c> of the settlement.</param>
         /// <param name="clientParams">RPC parameters for the client RPC.</param>
         [ClientRpc]
-        private void UpdateInspectedSettlementTeam_ClientRpc(Faction team, ClientRpcParams clientParams = default)
-            => GameUI.Instance.UpdateSettlementTeam(team);
+        private void UpdateInspectedSettlementFaction_ClientRpc(Faction faction, ClientRpcParams clientParams = default)
+            => GameUI.Instance.UpdateSettlementTeam(faction);
 
         /// <summary>
         /// Triggers the update of the inspected settlement's type on the UI of the client.
@@ -1222,20 +1184,35 @@ namespace Populous
         private void UpdateInspectedSettlementFollowers_ClientRpc(int followers, ClientRpcParams clientParams = default)
             => GameUI.Instance.UpdateSettlementFollowers(followers);
 
-        #endregion
-
-        #endregion
-
-
 
         /// <summary>
-        /// Notifies the client that the object with the given ID is not visible anymore.
+        /// Handles the update of the strengths of the given units, which are involved in a fight.
         /// </summary>
-        /// <remarks>Used when an object is despawned.</remarks>
-        /// <param name="objectId">The ID of the object that is not visible anymore.</param>
+        /// <param name="red">The <c>Unit</c> of the Red faction in the fight.</param>
+        /// <param name="blue">The <c>Unit</c> of the Blue faction in the fight.</param>
+        public void UpdateInspectedFight(Unit red, Unit blue)
+        {
+            IEnumerable<int> playerIndices = Enumerable.Range(0, m_InspectedObjects.Length)
+                .Where(i => m_InspectedObjects[i].GameObject == red.GameObject || m_InspectedObjects[i].GameObject == blue.GameObject);
+
+            if (playerIndices.Count() == 0) return;
+
+            foreach (int playerIndex in playerIndices)
+                UpdateInspectedFight_ClientRpc(red.Strength, blue.Strength, GameUtils.GetClientParams(GameData.Instance.GetNetworkIdByFaction(playerIndex)));
+        }
+
+        /// <summary>
+        /// Triggers the update of the strengths of the units in the inspected fight.
+        /// </summary>
+        /// <param name="redStrength">The strength of the Red unit in the fight.</param>
+        /// <param name="blueStrength">The strength of the Blue unit in the fight.</param>
         /// <param name="clientParams">RPC parameters for the client RPC.</param>
         [ClientRpc]
-        public void RemoveVisibleObject_ClientRpc(ulong objectId, ClientRpcParams clientParams = default)
-            => CameraDetectionZone.Instance.RemoveVisibleObject(objectId);
+        private void UpdateInspectedFight_ClientRpc(int redStrength, int blueStrength, ClientRpcParams clientParams = default)
+            => GameUI.Instance.UpdateFight(redStrength, blueStrength);
+
+        #endregion
+
+        #endregion
     }
 }

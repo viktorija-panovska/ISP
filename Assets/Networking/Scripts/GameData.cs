@@ -196,11 +196,6 @@ namespace Populous
         }
 
         /// <summary>
-        /// Removes all player info.
-        /// </summary>
-        public void RemoveAllPlayerInfo() => m_PlayersInfo.Clear();
-
-        /// <summary>
         /// Removes the player info of the client.
         /// </summary>
         public void RemoveClientInfo()
