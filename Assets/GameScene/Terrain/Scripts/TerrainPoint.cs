@@ -212,6 +212,8 @@ namespace Populous
             }
         }
 
+        public readonly int GetStepsByFaction(Faction faction) => UnitManager.Instance.GetStepsAtPoint(faction, this);
+
         #endregion
 
 

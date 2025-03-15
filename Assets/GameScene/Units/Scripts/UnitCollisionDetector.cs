@@ -48,7 +48,7 @@ namespace Populous
         {
             m_Unit = unit;
             m_EnemyFaction = unit.Faction == Faction.RED ? Faction.BLUE : Faction.RED;
-            GetComponent<Collider>().enabled = false;
+            GetComponent<Collider>().enabled = true;
         }
     }
 }

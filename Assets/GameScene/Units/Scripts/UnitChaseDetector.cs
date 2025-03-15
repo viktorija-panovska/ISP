@@ -73,7 +73,7 @@ namespace Populous
             );
             m_Collider.center = new Vector3(0, m_Collider.size.y / 4, m_Collider.size.x / 2);
 
-            m_Collider.enabled = true;
+            //m_Collider.enabled = true;
         }
 
         /// <summary>

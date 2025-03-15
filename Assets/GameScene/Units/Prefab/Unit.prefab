@@ -440,9 +440,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_MoveSpeed: 40
   m_PositionLeeway: 0.5
-  m_RoamingViewTileDistance: 5
-  m_RoamingViewTileWidth: 3
-  m_MaxStepsInRoamDirection: 10
+  m_ViewTileDistance: 10
+  m_RoamingViewTileWidth: 10
+  m_MaxStepsInRoamDirection: 20
   m_MaxChaseSteps: 10
 --- !u!1 &7310643680187887681
 GameObject:

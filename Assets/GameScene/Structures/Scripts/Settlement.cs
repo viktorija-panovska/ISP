@@ -121,13 +121,13 @@ namespace Populous
             Unit unit = other.GetComponent<Unit>();
             if (!unit) return;
 
-            if (unit.Faction == m_Faction && m_ContainsLeader)
-                GameController.Instance.SetLeader(unit.Faction, unit);
-            else if (unit.Faction == m_Faction && !IsSettlementFull && unit.CanEnterSettlement && unit.Behavior != UnitBehavior.GO_TO_MAGNET)
-                TakeFollowersFromUnit(unit);
+            //if (unit.Faction == m_Faction && m_ContainsLeader)
+            //    GameController.Instance.SetLeader(unit.Faction, unit);
+            //else if (unit.Faction == m_Faction && !IsSettlementFull && unit.CanEnterSettlement && unit.Behavior != UnitBehavior.GO_TO_MAGNET)
+            //    TakeFollowersFromUnit(unit);
 
-            if (unit.Faction != m_Faction && !IsAttacked && unit.Behavior != UnitBehavior.GO_TO_MAGNET)
-                UnitManager.Instance.AttackSettlement(unit, this);
+            //if (unit.Faction != m_Faction && !IsAttacked && unit.Behavior != UnitBehavior.GO_TO_MAGNET)
+            //    UnitManager.Instance.AttackSettlement(unit, this);
         }
 
         #endregion

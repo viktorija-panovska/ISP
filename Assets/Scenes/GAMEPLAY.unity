@@ -1103,9 +1103,9 @@ MonoBehaviour:
   m_MaxFollowersInFaction: 1000
   m_MaxUnitStrength: 100
   m_UnitDecayRate: 20
-  m_FightWaitDuration: 5
+  m_FightWaitDuration: 1
   m_LeaderDeathManna: 10
-  m_StartingUnits: 10
+  m_StartingUnits: 1
   m_StartingUnitStrength: 1
   m_MinimapIconScale: 30
   m_MinimapUnitColors:
@@ -9532,8 +9532,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_ChunkPrefab: {fileID: 3529950447808904562, guid: 4757c215c126a194e9349a71efc65037, type: 3}
   m_TerrainMaterial: {fileID: 2100000, guid: 9d6a44b0d4d72774483f5474a1efa3ce, type: 2}
-  m_ChunksPerSide: 7
-  m_TilesPerChunkSide: 8
+  m_ChunksPerSide: 1
+  m_TilesPerChunkSide: 3
   m_UnitsPerTileSide: 50
   m_StepHeight: 50
   m_MaxHeightSteps: 7

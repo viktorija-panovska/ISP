@@ -128,7 +128,8 @@ namespace Populous
         {
             if (!IsHost) return null;
 
-            structurePrefab.GetComponent<Renderer>().enabled = false;
+            if (structurePrefab.GetComponent<Renderer>())
+                structurePrefab.GetComponent<Renderer>().enabled = false;
 
             GameObject structureObject = Instantiate(
                 structurePrefab,

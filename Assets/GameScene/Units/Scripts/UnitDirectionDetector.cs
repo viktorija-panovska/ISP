@@ -73,7 +73,7 @@ namespace Populous
             SetDetectorSize(m_TilesPerSide);
             m_Collider.center = new Vector3(0, Terrain.Instance.MaxHeight / 2, 0);
 
-            m_Collider.enabled = true;
+            //m_Collider.enabled = true;
         }
 
         /// <summary>

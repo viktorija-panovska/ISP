@@ -227,7 +227,8 @@ namespace Populous
         {
             if (!IsHost || strength == 0) return null;
 
-            m_UnitPrefab.GetComponent<Renderer>().enabled = false;
+            if (m_UnitPrefab.GetComponent<Renderer>())
+                m_UnitPrefab.GetComponent<Renderer>().enabled = false;
 
             GameObject unitObject = Instantiate(
                 m_UnitPrefab,

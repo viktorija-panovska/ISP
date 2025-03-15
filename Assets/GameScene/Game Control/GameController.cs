@@ -464,10 +464,7 @@ namespace Populous
         /// <param name="clientRpcParams">RPC parameters for the client RPC.</param>
         [ClientRpc]
         public void SetCameraLookPosition_ClientRpc(Vector3 position, ClientRpcParams clientRpcParams = default)
-        {
-            Debug.Log("Camera");
-            PlayerCamera.Instance.SetCameraLookPosition(position);
-        }
+            => PlayerCamera.Instance.SetCameraLookPosition(position);
 
         /// <summary>
         /// Triggers the client's UI to show that snapping the camera to the given object was impossible.
@@ -530,7 +527,6 @@ namespace Populous
             if (HasLeader(faction))
                 RemoveLeader(faction);
 
-            Debug.Log("Set Leader");
             m_Leaders[(int)faction] = leader;
             leader.SetLeader(true);
             UnitManager.Instance.SwitchLeaderTarget(faction);
@@ -665,9 +661,6 @@ namespace Populous
         /// <param name="lower">True if the point should be lowered, false if the point should be elevated.</param>
         [ClientRpc]
         private void MoldTerrain_ClientRpc(TerrainPoint point, bool lower)
-            => RespondToTerrainChange(Terrain.Instance.ModifyTerrain(point, lower));
-
-        public void MoldTerrain(TerrainPoint point, bool lower)
             => RespondToTerrainChange(Terrain.Instance.ModifyTerrain(point, lower));
 
 
@@ -925,7 +918,6 @@ namespace Populous
 
             if (!IsHost) return;
 
-            Debug.Log("Respond");
             StructureManager.Instance.UpdateStructuresInArea(modifiedAreaCorners.bottomLeft, modifiedAreaCorners.topRight);
             OnTerrainModified?.Invoke(modifiedAreaCorners.bottomLeft, modifiedAreaCorners.topRight); // for units
 

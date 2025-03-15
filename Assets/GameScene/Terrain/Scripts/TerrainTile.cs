@@ -94,7 +94,7 @@ namespace Populous
         /// Checks whether the tile can be built on.
         /// </summary>
         /// <returns>True if the tile is free, false otherwise.</returns>
-        public readonly bool IsFree() => IsFlat() && !IsOccupied();
+        public readonly bool IsFree() => IsInBounds() && IsFlat() && !IsOccupied() && !IsUnderwater();
 
         /// <summary>
         /// Checks whether all the corner points of the given tile are on or below the water level.

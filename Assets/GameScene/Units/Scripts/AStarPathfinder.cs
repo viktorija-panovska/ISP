@@ -160,7 +160,7 @@ namespace Populous
 
                     TerrainPoint newLocation = new(x, z);
 
-                    if (!newLocation.IsOnEdge() && !UnitMovementHandler.IsStepTargetReachable(start, newLocation))
+                    if (!newLocation.IsOnEdge() && !UnitMovementHandler.IsTileCrossable(start, newLocation))
                         continue;
 
                     float cost = GetDistanceCost(newLocation, end);

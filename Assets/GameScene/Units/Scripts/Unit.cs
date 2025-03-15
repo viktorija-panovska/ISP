@@ -127,7 +127,6 @@ namespace Populous
                 GameController.Instance.FactionColors[(int)m_Faction],
                 LayerData.FactionLayers[(int)m_Faction]
             );
-            //GameObject.GetComponent<MeshRenderer>().material.color = GameController.Instance.FactionColors[(int)m_Faction];
 
             m_CollisionDetector.Setup(this);
             m_ChaseDetector.Setup(this);
@@ -153,9 +152,9 @@ namespace Populous
             }
 
             GameController.Instance.OnTerrainModified += UpdateHeight;
-            GameController.Instance.OnTerrainModified += CheckIfTargetTileFlat;
+            GameController.Instance.OnTerrainModified += m_MovementHandler.CheckTargetTile;
             GameController.Instance.OnFlood += UpdateHeight;
-            GameController.Instance.OnFlood += CheckIfTargetTileFlat;
+            GameController.Instance.OnFlood += m_MovementHandler.CheckTargetTile;
             UnitManager.Instance.OnRemoveReferencesToUnit += RemoveRefrencesToUnit;
             StructureManager.Instance.OnRemoveReferencesToSettlement += RemoveRefrencesToSettlement;
 
@@ -214,9 +213,9 @@ namespace Populous
             }
 
             GameController.Instance.OnTerrainModified -= UpdateHeight;
-            GameController.Instance.OnTerrainModified -= CheckIfTargetTileFlat;
+            GameController.Instance.OnTerrainModified -= m_MovementHandler.CheckTargetTile;
             GameController.Instance.OnFlood -= UpdateHeight;
-            GameController.Instance.OnFlood -= CheckIfTargetTileFlat;
+            GameController.Instance.OnFlood -=  m_MovementHandler.CheckTargetTile;
             UnitManager.Instance.OnRemoveReferencesToUnit -= RemoveRefrencesToUnit;
             StructureManager.Instance.OnRemoveReferencesToSettlement -= RemoveRefrencesToSettlement;
 
@@ -303,7 +302,6 @@ namespace Populous
 
             m_ChaseDetector.UpdateDetector();
             m_DirectionDetector.UpdateDetector();
-            m_MovementHandler.StartRoaming();
         }
 
         /// <summary>
@@ -383,8 +381,8 @@ namespace Populous
             if (IsInspected && !IsInFight)
                 GameController.Instance.UpdateInspectedUnit(this, updateStrength: true);
 
-            //if (m_Strength == 0)
-            //    UnitManager.Instance.DespawnUnit(gameObject, hasDied: isDamaged);
+            if (m_Strength == 0)
+                UnitManager.Instance.DespawnUnit(gameObject, hasDied: isDamaged);
         }
 
         #endregion
@@ -407,12 +405,12 @@ namespace Populous
             Vector3 bottomLeftPosition = bottomLeft.ToScenePosition();
             Vector3 topRightPosition = topRight.ToScenePosition();
 
+            m_MovementHandler.UpdateTargetPointHeight(bottomLeftPosition, topRightPosition);
+
             // only update points in this area
             if (transform.position.x < bottomLeftPosition.x || transform.position.x > topRightPosition.x ||
                 transform.position.z < bottomLeftPosition.z || transform.position.z > topRightPosition.z)
                 return;
-
-            Debug.Log("Update Height");
 
             float height;
 
@@ -438,8 +436,6 @@ namespace Populous
                 UnitManager.Instance.DespawnUnit(gameObject, hasDied: true);
             else
                 SetHeight_ClientRpc(height);
-
-            m_MovementHandler.UpdateTargetPointHeight();
         }
 
         /// <summary>
@@ -522,29 +518,6 @@ namespace Populous
         }
 
         /// <summary>
-        /// Check if the target tile was modified by a terrain modification and go back to roaming if it was.
-        /// </summary>
-        private void CheckIfTargetTileFlat() => CheckIfTargetTileFlat(new(0, 0), new(Terrain.Instance.TilesPerSide, Terrain.Instance.TilesPerSide));
-
-        /// <summary>
-        /// Check if the target tile was in the modified area and modified by a terrain modification, and go back to roaming if it was.
-        /// </summary>
-        /// <param name="bottomLeft">The bottom-left corner of a rectangular area containing all modified terrain points.</param>
-        /// <param name="topRight">The top-right corner of a rectangular area containing all modified terrain points.</param>
-        private void CheckIfTargetTileFlat(TerrainPoint bottomLeft, TerrainPoint topRight)
-        {
-            if (m_Behavior != UnitBehavior.SETTLE) return;
-
-            TerrainTile? targetTile = m_MovementHandler.TargetTile;
-
-            if (targetTile.HasValue && targetTile.Value.X >= bottomLeft.X - 1 && targetTile.Value.X <= topRight.X &&
-                targetTile.Value.Z >= bottomLeft.Z - 1 && targetTile.Value.Z <= topRight.Z && targetTile.Value.IsFlat())
-                return;
-
-            m_MovementHandler.StartRoaming();
-        }
-
-        /// <summary>
         /// Has the unit follow the faction leader, if the unit is not the leader and it is going to the unit magnet.
         /// </summary>
         public void FollowLeader()
@@ -564,7 +537,7 @@ namespace Populous
         public void UpdateUnitMagnetTargetLocation()
         {
             if (m_Behavior != UnitBehavior.GO_TO_MAGNET) return;
-            m_MovementHandler.GoToMagnet();
+            m_MovementHandler.GoToUnitMagnet();
         }
 
         /// <summary>
