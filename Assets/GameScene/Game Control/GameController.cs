@@ -261,7 +261,7 @@ namespace Populous
             // just on server from here on
             if (!IsHost) return;
 
-            //StructureManager.Instance.PlaceTreesAndRocks();
+            StructureManager.Instance.PlaceTreesAndRocks();
             UnitManager.Instance.SpawnStartingUnits();
 
             foreach (GameObject unitMagnetObject in m_UnitMagnetObjects)
@@ -308,7 +308,7 @@ namespace Populous
         /// </summary>
         /// <param name="faction">The <c>Faction</c> the unit magnet belongs to.</param>
         /// <returns>A <c>Vector3</c> of the position of the unit magnet in the scene.</returns>
-        public Vector3 GetUnitMagnetPosition(Faction faction) => m_UnitMagnets[(int)faction].transform.position;
+        public TerrainPoint GetUnitMagnetLocation(Faction faction) => m_UnitMagnets[(int)faction].GridLocation;
 
         /// <summary>
         /// Sets the unit magnet of the given faction to the position of the given terrain point.
@@ -353,7 +353,7 @@ namespace Populous
         public void SnapToUnitMagnet_ServerRpc(Faction team, ServerRpcParams serverRpcParams = default)
         {
             SetCameraLookPosition_ClientRpc(
-                GetUnitMagnetPosition(team),
+                GetUnitMagnetLocation(team).ToScenePosition(),
                 GameUtils.GetClientParams(serverRpcParams.Receive.SenderClientId)
             );
         }

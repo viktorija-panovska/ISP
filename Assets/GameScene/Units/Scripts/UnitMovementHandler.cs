@@ -53,7 +53,6 @@ namespace Populous
         [SerializeField] private int m_ViewTileDistance = 5;
         [SerializeField] private int m_ViewTileWidth = 3;
         [SerializeField] private int m_MaxStepsInRoamDirection = 10;
-        [SerializeField] private int m_MaxChaseSteps = 10;
 
         #endregion
 
@@ -153,6 +152,8 @@ namespace Populous
         /// </summary>
         private Unit m_TargetUnit = null;
 
+        private Settlement m_TargetSettlement = null;
+
         #endregion
 
         #endregion
@@ -198,7 +199,7 @@ namespace Populous
             m_Unit = GetComponent<Unit>();
             m_Rigidbody = GetComponent<Rigidbody>();
 
-            SwitchMoveState(MoveState.FREE_MOVE);
+            SetFreeRoam();
         }
 
         /// <summary>
@@ -236,17 +237,19 @@ namespace Populous
             if (m_CurrentMoveState == MoveState.GO_TO_FREE_TILE && m_TargetTile.HasValue && m_TargetTile.Value.IsFree())
                 OnFreeTileReached();
 
-            //// if we have a settlement (that still exists) and we have reached the end of the path, we have reached the settlement
-            //else if (m_CurrentMoveState == MoveState.GO_TO_SETTLEMENT && m_TargetTile.HasValue && m_TargetTile.Value.HasSettlement())
-            //    OnSettlementReached();
+            // if we are following a unit, take the next step towards it
+            else if (m_CurrentMoveState == MoveState.FOLLOW && m_TargetUnit)
+                GetNextStepToFollowTarget();
 
-            //// if we are following a unit, take the next step towards it
-            //else if (m_CurrentMoveState == MoveState.FOLLOW && m_TargetUnit)
-            //    GetNextStepToFollowTarget();
+            // if we have a settlement (that still exists) and we have reached the end of the path, we have reached the settlement
+            // the activities in the settlement will be handled in the settlement by the collider
+            else if (m_CurrentMoveState == MoveState.GO_TO_SETTLEMENT && m_TargetSettlement)
+                SetFreeRoam();
+
 
             //// if we have reached the unit magnet, roam around it
             //else if (m_CurrentMoveState == MoveState.GO_TO_MAGNET && m_IsUnitMagnetReached)
-            //    WanderAroundPoint();
+            //    WanderAroundUnitMagnet();
 
             //// if we haven't reached the unit magnet, keep going towards it
             //else if (m_CurrentMoveState == MoveState.GO_TO_MAGNET)
@@ -256,13 +259,22 @@ namespace Populous
             {
                 SwitchMoveState(MoveState.FREE_MOVE);
 
+                if (m_CurrentRoamDirection == (0, 0))
+                {
+                    FreeRoam();
+                    return;
+                }
+
                 // if the behavior is settle and we find a free tile, just go there
-                if (m_CurrentRoamDirection != (0, 0) && m_Unit.Behavior == UnitBehavior.SETTLE && GoToFreeTile()) 
+                if (m_Unit.Behavior == UnitBehavior.SETTLE && GoToFreeTile())
                     return;
 
+                else if ((m_Unit.Behavior == UnitBehavior.GATHER || m_Unit.Behavior == UnitBehavior.FIGHT) && 
+                    (GoToOtherUnit() || GoToSettlement() || GoInDirection()))
+                    return;
 
                 // otherwise just roam
-                else FreeRoam();
+                FreeRoam();
             }
 
         }
@@ -271,12 +283,6 @@ namespace Populous
 
 
         #region Movement Along Path
-
-        /// <summary>
-        /// Gets the path from the current position to the given end position and sets it as the path the unit should follow.
-        /// </summary>
-        /// <param name="end">The <c>Vector3</c> position of the end point.</param>
-        private void GoTo(Vector3 end) => SetNewPath(AStarPathfinder.FindPath(m_Unit.ClosestTerrainPoint, new(end)));
 
         /// <summary>
         /// Sets the path the unit should follow and initializes the movement along it.
@@ -306,6 +312,20 @@ namespace Populous
         {
             StartLocation = m_Unit.ClosestTerrainPoint;
             Vector3 m_StartPosition = StartLocation.ToScenePosition();
+
+            TerrainPoint next = m_Path[m_PathIndex];
+
+            // when Armageddon is active, the units can build their own land to cross water
+            if (next.IsUnderwater())
+            {
+                if (!GameController.Instance.IsArmageddon)
+                {
+                    SwitchMoveState(MoveState.STOP);
+                    return;
+                }
+
+                Terrain.Instance.ModifyTerrain(next, lower: false);
+            }
 
             // pick next target
             Vector3 target = m_Path[m_PathIndex].ToScenePosition();
@@ -359,11 +379,9 @@ namespace Populous
         /// <param name="start">A <c>TerrainPoint</c> representing the start corner.</param>
         /// <param name="end">A <c>TerrainPoint</c> representing the end corner.</param>
         /// <returns>True if the tile can be crossed, false otherwise.</returns>
-        public static bool IsTileCrossable(TerrainPoint start, TerrainPoint end)
+        public static bool IsTileCrossable(TerrainPoint start, TerrainPoint end, bool canCrossWater)
         {
-            if (GameController.Instance.IsArmageddon) return true;
-
-            if (end.IsUnderwater()) return false;
+            if (!canCrossWater && end.IsUnderwater()) return false;
 
             int dx = end.X - start.X;
             int dz = end.Z - start.Z;
@@ -419,6 +437,18 @@ namespace Populous
         #region Free Roam
 
         /// <summary>
+        /// Tells the unit to roam freely.
+        /// </summary>
+        public void SetFreeRoam()
+        {
+            ClearPath();
+            m_TargetTile = null;
+            m_TargetUnit = null;
+            m_TargetSettlement = null;
+            SwitchMoveState(MoveState.FREE_MOVE);
+        }
+
+        /// <summary>
         /// Controls the unit's roaming.
         /// </summary>
         private void FreeRoam()
@@ -431,7 +461,7 @@ namespace Populous
             else
                 ChooseRoamDirection(currentLocation);
 
-            GoTo(ChooseNextRoamTarget(currentLocation).ToScenePosition());
+            SetNewPath(new() { ChooseNextRoamTarget(currentLocation) });
         }
 
         /// <summary>
@@ -488,7 +518,7 @@ namespace Populous
                 foreach ((int dx, int dz) in d)
                 {
                     TerrainPoint point = new(start.X + dx, start.Z + dz);
-                    if (!point.IsInBounds() || point.IsUnderwater() || !IsTileCrossable(start, point))
+                    if (!point.IsInBounds() || point.IsUnderwater() || !IsTileCrossable(start, point, GameController.Instance.IsArmageddon))
                         continue;
 
                     availableDirections.Add((dx, dz));
@@ -536,7 +566,7 @@ namespace Populous
         {
             TerrainPoint target = new(current.X + m_CurrentRoamDirection.x, current.Z + m_CurrentRoamDirection.z);
 
-            if (!target.IsInBounds() || target.IsUnderwater() || !IsTileCrossable(current, target))
+            if (!target.IsInBounds() || target.IsUnderwater() || !IsTileCrossable(current, target, GameController.Instance.IsArmageddon))
             {
                 m_RoamStepsInDirection = 0;
                 ChooseRoamDirection(current);
@@ -559,10 +589,11 @@ namespace Populous
         {
             TerrainPoint current = m_Unit.ClosestTerrainPoint;
             TerrainTile? target = null;
+            List<TerrainPoint> pathToTile = null;
 
             FindFreeTile_Surrounding();
 
-            if (!target.HasValue && m_CurrentRoamDirection.x == 0 && m_CurrentRoamDirection.z == 0 && m_CurrentRoamDirection != (0, 0))
+            if (!target.HasValue && m_CurrentRoamDirection != (0, 0) && (m_CurrentRoamDirection.x == 0 || m_CurrentRoamDirection.z == 0))
                 FindFreeTile_Parallel();
 
             else if (!target.HasValue)
@@ -572,28 +603,21 @@ namespace Populous
             {
                 SwitchMoveState(MoveState.GO_TO_FREE_TILE);
                 m_TargetTile = target.Value;
-                GoTo(target.Value.GetClosestCorner(current).ToScenePosition());
+                SetNewPath(pathToTile);
                 return true;
             }
 
             return false;
 
             /// <summary>
-            /// Searches the tiles immediately around the current location.
+            /// Searches the tiles immediately around the current point.
             /// </summary>
             void FindFreeTile_Surrounding()
             {
                 for (int z = 0; z >= -1; --z)
-                {
                     for (int x = 0; x >= -1; --x)
-                    {
-                        TerrainTile tile = new(current.X + x, current.Z + z);
-                        if (!tile.IsFree()) continue;
-
-                        target = tile;
-                        return;
-                    }
-                }
+                        if (TryGoToTile(new(current.X + x, current.Z + z)))
+                            return;
             }
 
             /// <summary>
@@ -610,14 +634,13 @@ namespace Populous
                     for (int width = -m_ViewTileWidth; width < m_ViewTileWidth; ++width)
                     {
                         int widthTarget = m_CurrentRoamDirection.x == 0 ? (current.X + width) : (current.Z + width);
-
                         if (widthTarget < 0 || widthTarget >= Terrain.Instance.TilesPerSide) continue;
 
-                        TerrainTile tile = m_CurrentRoamDirection.x == 0 ? new(widthTarget, distanceTarget) : new(distanceTarget, widthTarget);
-                        if (!tile.IsFree()) continue;
-
-                        target = tile;
-                        return;
+                        if (TryGoToTile(new(
+                                x: m_CurrentRoamDirection.x == 0 ? widthTarget : distanceTarget, 
+                                z: m_CurrentRoamDirection.x == 0 ? distanceTarget : widthTarget))
+                            ) 
+                            return;
                     }
                 }
             }
@@ -644,14 +667,24 @@ namespace Populous
                             int targetX = current.X + m_CurrentRoamDirection.x * dx;
                             int targetZ = current.Z + m_CurrentRoamDirection.z * dz;
 
-                            TerrainTile tile = new(targetX, targetZ);
-                            if (!tile.IsFree()) continue;
-                            target = tile;
-                            return;
+                            if (TryGoToTile(new(targetX, targetZ)))
+                                return;
                         }
                     }
                 }
             }
+        
+            bool TryGoToTile(TerrainTile tile)
+            {
+                if (!tile.IsFree()) return false;
+
+                List<TerrainPoint> path = AStarPathfinder.FindPath(current, tile.GetClosestCorner(current), GameController.Instance.IsArmageddon);
+                if (path == null || path.Count == 0) return false;
+
+                target = tile;
+                pathToTile = path;
+                return true;
+            }        
         }
 
         /// <summary>
@@ -660,11 +693,9 @@ namespace Populous
         private void OnFreeTileReached()
         {
             SwitchMoveState(MoveState.STOP);
-            StructureManager.Instance.CreateSettlement(m_TargetTile.Value, m_Unit.Faction);
-
-            RemoveTargetTile();
+            //StructureManager.Instance.CreateSettlement(m_TargetTile.Value, m_Unit.Faction);
+            //SetFreeRoam();
         }
-
 
         /// <summary>
         /// Check if the target tile was modified by a terrain modification and go back to roaming if it was.
@@ -685,19 +716,109 @@ namespace Populous
                 m_TargetTile.Value.IsFree())
                 return;
 
-            RemoveTargetTile();
-        }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        private void RemoveTargetTile()
-        {
-            m_TargetTile = null;
-            SwitchMoveState(MoveState.FREE_MOVE);
+            SetFreeRoam();
         }
 
         #endregion
+
+
+        #region Gather / Fight
+
+        private bool GoInDirection()
+        {
+            Vector3 direction = m_Unit.GetDetectedDirection();
+            (int x, int z) roamDirection = (Mathf.RoundToInt(direction.x), Mathf.RoundToInt(direction.z));
+            if (roamDirection == (0, 0)) return false;
+
+            m_CurrentRoamDirection = roamDirection;
+            SetNewPath(new() { ChooseNextRoamTarget(m_Unit.ClosestTerrainPoint) });
+
+            return true;
+        }
+
+
+        #region Follow Unit
+
+        private bool GoToOtherUnit()
+        {
+            Unit unitInRange = m_Unit.GetUnitInChaseRange();
+            if (!unitInRange) return false;
+
+            FollowUnit(unitInRange);
+            return true;
+        }
+
+        /// <summary>
+        /// Make this unit go after the given unit.
+        /// </summary>
+        /// <param name="unit">The <c>Unit</c> which we want to go after.</param>
+        private void FollowUnit(Unit unit)
+        {
+            SwitchMoveState(MoveState.FOLLOW);
+            m_TargetUnit = unit;
+        }
+
+        /// <summary>
+        /// Gets the next step this unit should take, going after the target unit.
+        /// </summary>
+        private void GetNextStepToFollowTarget()
+        {
+            TerrainPoint? step = AStarPathfinder.FindNextStep(m_Unit.ClosestTerrainPoint, m_TargetUnit.ClosestTerrainPoint, GameController.Instance.IsArmageddon);
+
+            if (!step.HasValue)
+            {
+                SetFreeRoam();
+                return;
+            }
+
+            SetNewPath(new List<TerrainPoint>() { step.Value });
+        }
+
+        /// <summary>
+        /// Stops following the current target unit if it matches the given unit.
+        /// </summary>
+        /// <param name="targetUnit"></param>
+        public void LoseTargetUnit(Unit targetUnit)
+        {
+            if (m_TargetUnit != targetUnit) return;
+            SetFreeRoam();
+        }
+
+        #endregion
+
+
+        #region Go To Settlement
+
+        private bool GoToSettlement()
+        {
+            Settlement settlementInRange = m_Unit.GetSettlementInChaseRange();
+            if (!settlementInRange)
+                return false;
+
+            SwitchMoveState(MoveState.GO_TO_SETTLEMENT);
+
+            TerrainPoint current = m_Unit.ClosestTerrainPoint;
+            List<TerrainPoint> path = AStarPathfinder.FindPath(current, settlementInRange.OccupiedTile.GetClosestCorner(current), GameController.Instance.IsArmageddon);
+            if (path == null || path.Count == 0)
+                return false;
+
+            m_TargetSettlement = settlementInRange;
+            SetNewPath(path);
+            return true;
+        }
+
+        public void LoseTargetSettlement(Settlement targetSettlement)
+        {
+            if (m_TargetUnit != targetSettlement) return;
+            SetFreeRoam();
+        }
+
+        #endregion
+
+        #endregion
+
+
+
 
 
         #region Go To Unit Magnet
@@ -707,30 +828,74 @@ namespace Populous
         /// </summary>
         public void GoToUnitMagnet()
         {
+            Debug.Log("Go To Unit Magnet");
+
             m_IsUnitMagnetReached = false;
             SwitchMoveState(MoveState.GO_TO_MAGNET);
 
-            // The leader and units that don't have a leader, go straight to the magnet
+            if (GameController.Instance.HasLeader(m_Unit.Faction) && m_Unit.Type == UnitType.WALKER)
+            {
+                Debug.Log("Follow leader");
+                FollowLeaderUnit();
+                return;
+            }
+
+            TerrainPoint current = m_Unit.ClosestTerrainPoint;
+            TerrainPoint? target = null;
+
+            // go right to magnet
             if (m_Unit.Type == UnitType.LEADER || !GameController.Instance.HasLeader(m_Unit.Faction))
-                GoTo(GameController.Instance.GetUnitMagnetPosition(m_Unit.Faction));
+            {
+                TerrainPoint magnet = GameController.Instance.GetUnitMagnetLocation(m_Unit.Faction);
+                if (magnet == current)  // we're already at magnet
+                {
+                    m_IsUnitMagnetReached = true;
+                    return;
+                }
 
-            // If the leader is in a settlement, go to the settlement. The first unit there will become the leader
-            else if (GameController.Instance.HasLeaderSettlement(m_Unit.Faction))
-                GoTo(GameController.Instance.GetLeaderSettlement(m_Unit.Faction).transform.position);
+                target = magnet;
+            }
 
-            else
-                FollowLeader();
+            //// go to the leader settlement to become the leader
+            //else if (GameController.Instance.HasLeaderSettlement(m_Unit.Faction))
+            //    target = GameController.Instance.GetLeaderSettlement(m_Unit.Faction).OccupiedTile.GetClosestCorner(current);
+
+            List<TerrainPoint> path = AStarPathfinder.FindPath(current, target.Value, GameController.Instance.IsArmageddon);
+            if (path == null || path.Count == 0)
+            {
+                if (GameController.Instance.IsArmageddon)
+                {
+                    SwitchMoveState(MoveState.STOP);
+                    return;
+                }
+
+                List<TerrainPoint> waterPath = AStarPathfinder.FindPath(current, target.Value, true);
+
+                if (waterPath == null || waterPath.Count == 0)
+                {
+                    SwitchMoveState(MoveState.STOP);
+                    return;
+                }
+
+                path = waterPath;
+                return;
+            }
+
+            SetNewPath(path);
         }
 
         /// <summary>
         /// Sets the unit to wander around its current location.
         /// </summary>
-        private void WanderAroundPoint()
+        private void WanderAroundUnitMagnet()
         {
-            TerrainPoint lastPoint = m_Unit.ClosestTerrainPoint;
+            Debug.Log("Reached");
+            SwitchMoveState(MoveState.STOP);
 
-            // goes to the neightbor, and then back to the starting point
-            SetNewPath(new List<TerrainPoint> { GetNeighboringPoint(lastPoint), lastPoint });
+            //TerrainPoint lastPoint = m_Unit.ClosestTerrainPoint;
+
+            //// goes to the neightbor, and then back to the starting point
+            //SetNewPath(new List<TerrainPoint> { GetNeighboringPoint(lastPoint), lastPoint });
         }
 
 
@@ -762,138 +927,12 @@ namespace Populous
         }
 
 
-        #endregion
-
-
-
-
-        #region 
-
-        /// <summary>
-        /// Stops the unit's movement to the given tile, if that tile is the unit's target.
-        /// </summary>
-        /// <param name="tile">The target tile.</param>
-        public void StopMovingToTile(TerrainTile tile)
-        {
-            if (m_TargetTile != tile) return;
-
-            m_TargetTile = null;
-            SwitchMoveState(MoveState.FREE_MOVE);
-        }
-
-        #region
-
-        /// <summary>
-        /// Checks whether the normal roaming bahevior should be modified based on the current behavior of the unit, and performs the modifications if so.
-        /// </summary>
-        /// <param name="currentLocation">The <c>TerrainPoint</c> of the current location of this unit.</param>
-        /// <returns>True if the normal roam behavior has been modified, false if not.</returns>
-        private bool CheckUnitBehavior(TerrainPoint currentLocation)
-        {
-
-            // If we are battling or gathering, go in the direction of other units or settlements, if some are detected.
-            if (m_Unit.Behavior == UnitBehavior.FIGHT || m_Unit.Behavior == UnitBehavior.GATHER)
-            {
-                Unit unitInRange = m_Unit.GetUnitInChaseRange();
-                if (unitInRange)
-                {
-                    FollowUnit(unitInRange);
-                    return true;
-                }
-
-                Settlement settlementInRange = m_Unit.GetSettlementInChaseRange();
-                if (settlementInRange)
-                {
-                    SwitchMoveState(MoveState.GO_TO_SETTLEMENT);
-                    //m_TargetTile = settlementInRange.OccupiedTile;
-                    GoTo(m_TargetTile.Value.GetClosestCorner(currentLocation).ToScenePosition());
-                    return true;
-                }
-                
-                Vector3 direction = m_Unit.GetDetectedDirection();
-                if (direction != Vector3.zero)
-                {
-                    m_CurrentRoamDirection = (Mathf.RoundToInt(direction.x), Mathf.RoundToInt(direction.z));
-                    GoTo(ChooseNextRoamTarget(currentLocation).ToScenePosition());
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-
-
-        #endregion
-
-
-
-        #region Follow
-
         /// <summary>
         /// Make this unit go after the leader of its faction, if a leader exists.
         /// </summary>
         /// 
-
         /// make it so it distinguishes between unit leader and settlement leader
-        public void FollowLeader() => FollowUnit(GameController.Instance.GetLeaderUnit(m_Unit.Faction));
-
-        /// <summary>
-        /// Make this unit go after the given unit.
-        /// </summary>
-        /// <param name="unit">The <c>Unit</c> which we want to go after.</param>
-        private void FollowUnit(Unit unit)
-        {
-            SwitchMoveState(MoveState.FOLLOW);
-            m_TargetUnit = unit;
-            GetNextStepToFollowTarget();
-        }
-
-        /// <summary>
-        /// Gets the next step this unit should take, going after the target unit.
-        /// </summary>
-        private void GetNextStepToFollowTarget()
-        {
-            TerrainPoint? step = AStarPathfinder.FindNextStep(m_Unit.ClosestTerrainPoint, m_TargetUnit.ClosestTerrainPoint);
-
-            if (!step.HasValue) return;
-            SetNewPath(new List<TerrainPoint>() { step.Value });
-        }
-
-        /// <summary>
-        /// Stops following the current target unit if it matches the given unit.
-        /// </summary>
-        /// <param name="targetUnit"></param>
-        public void StopFollowingUnit(Unit targetUnit)
-        {
-            if (m_TargetUnit != targetUnit)
-                return;
-
-            StopFollowingUnit();
-        }
-
-        /// <summary>
-        /// Stops following the current target unit.
-        /// </summary>
-        public void StopFollowingUnit() 
-        {
-            m_TargetUnit = null;
-            SwitchMoveState(MoveState.FREE_MOVE);
-        }
-
-        #endregion
-
-
-
-
-        /// <summary>
-        /// Sets the unit's actions when it has reached a settlement.
-        /// </summary>
-        private void OnSettlementReached()
-        {
-            m_TargetTile = null;
-            SwitchMoveState(MoveState.FREE_MOVE);
-        }
+        public void FollowLeaderUnit() => FollowUnit(GameController.Instance.GetLeaderUnit(m_Unit.Faction));
 
         #endregion
     }

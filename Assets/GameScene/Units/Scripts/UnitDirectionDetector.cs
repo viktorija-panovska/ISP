@@ -39,17 +39,14 @@ namespace Populous
 
         private void OnTriggerEnter(Collider other)
         {
-            if ((m_Unit.Behavior == UnitBehavior.FIGHT && other.gameObject.layer != LayerData.FactionLayers[(int)m_EnemyFaction]) ||
-                (m_Unit.Behavior == UnitBehavior.GATHER && other.gameObject.layer != LayerData.FactionLayers[(int)m_Unit.Faction]))
-                return;
-
-            m_NearbyObjects.Add(other.gameObject);
+            if ((m_Unit.Behavior == UnitBehavior.FIGHT && other.gameObject.layer == LayerData.FactionLayers[(int)m_EnemyFaction]) ||
+                (m_Unit.Behavior == UnitBehavior.GATHER && other.gameObject.layer == LayerData.FactionLayers[(int)m_Unit.Faction]))
+                m_NearbyObjects.Add(other.gameObject);
         }
 
         private void OnTriggerExit(Collider other)
         {
-            if ((m_Unit.Behavior == UnitBehavior.FIGHT && other.gameObject.layer != LayerData.FactionLayers[(int)m_EnemyFaction]) ||
-                (m_Unit.Behavior == UnitBehavior.GATHER && other.gameObject.layer != LayerData.FactionLayers[(int)m_Unit.Faction]))
+            if (m_NearbyObjects.Count == 0 || m_Unit.Behavior != UnitBehavior.FIGHT || m_Unit.Behavior != UnitBehavior.GATHER || !m_NearbyObjects.Contains(other.gameObject)) 
                 return;
 
             m_NearbyObjects.Remove(other.gameObject);
@@ -73,7 +70,7 @@ namespace Populous
             SetDetectorSize(m_TilesPerSide);
             m_Collider.center = new Vector3(0, Terrain.Instance.MaxHeight / 2, 0);
 
-            //m_Collider.enabled = true;
+            m_Collider.enabled = true;
         }
 
         /// <summary>
@@ -84,12 +81,12 @@ namespace Populous
             if (m_CurrentBehavior == m_Unit.Behavior) return;
 
             m_CurrentBehavior = m_Unit.Behavior;
+
             m_NearbyObjects = new();
+            m_Collider.enabled = false;
 
             if (m_CurrentBehavior == UnitBehavior.GATHER || m_CurrentBehavior == UnitBehavior.FIGHT)
                 m_Collider.enabled = true;
-            else
-                m_Collider.enabled = false;
         }
 
         /// <summary>

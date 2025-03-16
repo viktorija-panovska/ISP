@@ -26,6 +26,10 @@ namespace Populous
         /// </summary>
         private BoxCollider m_Collider;
         /// <summary>
+        /// The unit behavior that the detector is operating under.
+        /// </summary>
+        private UnitBehavior m_CurrentBehavior;
+        /// <summary>
         /// The GameObject the collider has detected as a potential chase target for the current unit.
         /// </summary>
         private GameObject m_ChaseTarget;
@@ -35,19 +39,15 @@ namespace Populous
 
         private void OnTriggerEnter(Collider other)
         {
-            if ((m_Unit.Behavior == UnitBehavior.FIGHT && other.gameObject.layer != LayerData.FactionLayers[(int)m_EnemyFaction]) ||
-                (m_Unit.Behavior == UnitBehavior.GATHER && (!other.GetComponent<Unit>() || other.gameObject.layer != LayerData.FactionLayers[(int)m_Unit.Faction]) ||
-                (m_ChaseTarget && Vector3.Distance(other.transform.position, transform.position) >= Vector3.Distance(m_ChaseTarget.transform.position, transform.position))))
-                return;
-
-            m_ChaseTarget = other.gameObject;
+            if ((m_Unit.Behavior == UnitBehavior.FIGHT && other.gameObject.layer == LayerData.FactionLayers[(int)m_EnemyFaction] ||
+                 m_Unit.Behavior == UnitBehavior.GATHER && other.GetComponent<Unit>() && other.gameObject.layer == LayerData.FactionLayers[(int)m_Unit.Faction]) &&
+                (!m_ChaseTarget || Vector3.Distance(other.transform.position, transform.position) < Vector3.Distance(m_ChaseTarget.transform.position, transform.position)))
+                m_ChaseTarget = other.gameObject;
         }
 
         private void OnTriggerExit(Collider other)
         {
-            if ((m_Unit.Behavior == UnitBehavior.FIGHT && other.gameObject.layer != LayerData.FactionLayers[(int)m_EnemyFaction]) ||
-                (m_Unit.Behavior == UnitBehavior.GATHER && (!other.GetComponent<Unit>() || other.gameObject.layer != LayerData.FactionLayers[(int)m_Unit.Faction])))
-                return;
+            if (!other || other.gameObject != m_ChaseTarget) return;
 
             RemoveTarget(other.gameObject);
         }
@@ -73,7 +73,7 @@ namespace Populous
             );
             m_Collider.center = new Vector3(0, m_Collider.size.y / 4, m_Collider.size.x / 2);
 
-            //m_Collider.enabled = true;
+            m_Collider.enabled = true;
         }
 
         /// <summary>
@@ -81,10 +81,15 @@ namespace Populous
         /// </summary>
         public void UpdateDetector()
         {
-            if (m_Unit.Behavior == UnitBehavior.GATHER || m_Unit.Behavior == UnitBehavior.FIGHT)
+            if (m_CurrentBehavior == m_Unit.Behavior) return;
+
+            m_CurrentBehavior = m_Unit.Behavior;
+
+            RemoveTarget(m_ChaseTarget);
+            m_Collider.enabled = false;
+
+            if (m_CurrentBehavior == UnitBehavior.GATHER || m_CurrentBehavior == UnitBehavior.FIGHT)
                 m_Collider.enabled = true;
-            else
-                m_Collider.enabled = false;
         }
 
         /// <summary>

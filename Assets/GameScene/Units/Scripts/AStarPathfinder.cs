@@ -89,8 +89,10 @@ namespace Populous
         /// <param name="start">The <c>TerrainPoint</c> that the unit is at.</param>
         /// <param name="end">The <c>TerrainPoint</c> that should be reached.</param>
         /// <returns>A list of <c>TerrainPoint</c>s making up the path.</returns>
-        public static List<TerrainPoint> FindPath(TerrainPoint start, TerrainPoint end)
+        public static List<TerrainPoint> FindPath(TerrainPoint start, TerrainPoint end, bool canCrossWater)
         {
+            if (!canCrossWater && end.IsUnderwater()) return null;
+
             Dictionary<Vector2, PathNode> nodes = new();        // all nodes
             List<Vector2> openList = new();                     // nodes on the frontier - nodes that need to be explored
             HashSet<Vector2> closedList = new();                // nodes that have already been explored
@@ -112,7 +114,7 @@ namespace Populous
                 openList.Remove(current);
                 closedList.Add(current);
 
-                foreach (Vector2 neighbor in GetNeighborNodes(nodes[current], ref nodes))
+                foreach (Vector2 neighbor in GetNeighborNodes(nodes[current], canCrossWater, ref nodes))
                 {
                     // node has already been visited
                     if (closedList.Contains(neighbor)) continue;
@@ -141,7 +143,7 @@ namespace Populous
         /// <param name="start">The <c>TerrainPoint</c> that this unit is at.</param>
         /// <param name="end">The <c>TerrainPoint</c> that is the final destination.</param>
         /// <returns>A <c>TerrainPoint</c> which this unit should go to next, null if no such point is found.</returns>
-        public static TerrainPoint? FindNextStep(TerrainPoint start, TerrainPoint end)
+        public static TerrainPoint? FindNextStep(TerrainPoint start, TerrainPoint end, bool canCrossWater)
         {
             TerrainPoint? next = null;
             float minCost = GetDistanceCost(start, end);
@@ -155,12 +157,9 @@ namespace Populous
                     int x = start.X + xOffset;
                     int z = start.Z + zOffset;
 
-                    if (x < 0 || x > Terrain.Instance.TilesPerSide || z < 0 || z > Terrain.Instance.TilesPerSide)
-                        continue;
-
                     TerrainPoint newLocation = new(x, z);
 
-                    if (!newLocation.IsOnEdge() && !UnitMovementHandler.IsTileCrossable(start, newLocation))
+                    if (!newLocation.IsInBounds() || !UnitMovementHandler.IsTileCrossable(start, newLocation, canCrossWater))
                         continue;
 
                     float cost = GetDistanceCost(newLocation, end);
@@ -207,7 +206,7 @@ namespace Populous
         /// <param name="currentNode">The current <c>PathNode</c>.</param>
         /// <param name="allNodes"></param>
         /// <returns></returns>
-        private static List<Vector2> GetNeighborNodes(PathNode currentNode, ref Dictionary<Vector2, PathNode> allNodes)
+        private static List<Vector2> GetNeighborNodes(PathNode currentNode, bool canCrossWater, ref Dictionary<Vector2, PathNode> allNodes)
         {
             List<Vector2> neighbors = new();
 
@@ -220,19 +219,15 @@ namespace Populous
                     int x = currentNode.Point.X + xOffset;
                     int z = currentNode.Point.Z + zOffset;
 
-                    if (x < 0 || x > Terrain.Instance.TilesPerSide || z < 0 || z > Terrain.Instance.TilesPerSide)
+                    TerrainPoint neighbor = new(x, z);
+
+                    if (!neighbor.IsInBounds() || !UnitMovementHandler.IsTileCrossable(currentNode.Point, neighbor, canCrossWater))
                         continue;
 
-                    TerrainPoint neighborPoint = new(x, z);
-
-                    // checks whether it will need to cross a tile that contains a structure or water to reach the neighbor
-                    //if (!Terrain.Instance.IsTileCornerReachable(currentNode.Point, neighborPoint))
-                    //    continue;
-
-                    Vector2 key = GetKey(neighborPoint);
+                    Vector2 key = GetKey(neighbor);
 
                     if (!allNodes.ContainsKey(key))
-                        allNodes.Add(key, new PathNode(neighborPoint, prevNode: currentNode));
+                        allNodes.Add(key, new PathNode(neighbor, prevNode: currentNode));
 
                     neighbors.Add(key);
                 }
@@ -265,7 +260,9 @@ namespace Populous
             List<TerrainPoint> path = new() { endNode.Point };
 
             PathNode currentNode = endNode;
-            while (currentNode.PrevNode != null)
+
+            // exclude the first point, because that will be the point we are currently at
+            while (currentNode.PrevNode != null && currentNode.PrevNode.PrevNode != null)
             {
                 path.Add(currentNode.PrevNode.Point);
                 currentNode = currentNode.PrevNode;

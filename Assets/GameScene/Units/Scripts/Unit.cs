@@ -2,6 +2,7 @@ using System.Collections;
 using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using static UnityEditor.Experimental.GraphView.GraphView;
 
 namespace Populous
 {
@@ -142,13 +143,13 @@ namespace Populous
             {
                 UnitManager.Instance.OnRedBehaviorChange += SetBehavior;
                 UnitManager.Instance.OnNewRedLeaderGained += FollowLeader;
-                GameController.Instance.OnRedMagnetMoved += UpdateUnitMagnetTargetLocation;
+                GameController.Instance.OnRedMagnetMoved += UpdateGoToMagnetTarget;
             }
             else if (m_Faction == Faction.BLUE)
             {
                 UnitManager.Instance.OnBlueBehaviorChange += SetBehavior;
                 UnitManager.Instance.OnNewBlueLeaderGained += FollowLeader;
-                GameController.Instance.OnBlueMagnetMoved += UpdateUnitMagnetTargetLocation;
+                GameController.Instance.OnBlueMagnetMoved += UpdateGoToMagnetTarget;
             }
 
             GameController.Instance.OnTerrainModified += UpdateHeight;
@@ -203,13 +204,13 @@ namespace Populous
             {
                 UnitManager.Instance.OnRedBehaviorChange -= SetBehavior;
                 UnitManager.Instance.OnNewRedLeaderGained -= FollowLeader;
-                GameController.Instance.OnRedMagnetMoved -= UpdateUnitMagnetTargetLocation;
+                GameController.Instance.OnRedMagnetMoved -= UpdateGoToMagnetTarget;
             }
             else if (m_Faction == Faction.BLUE)
             {
                 UnitManager.Instance.OnBlueBehaviorChange -= SetBehavior;
                 UnitManager.Instance.OnNewBlueLeaderGained -= FollowLeader;
-                GameController.Instance.OnBlueMagnetMoved -= UpdateUnitMagnetTargetLocation;
+                GameController.Instance.OnBlueMagnetMoved -= UpdateGoToMagnetTarget;
             }
 
             GameController.Instance.OnTerrainModified -= UpdateHeight;
@@ -234,7 +235,7 @@ namespace Populous
         /// <param name="unit">The <c>Unit</c> that should be removed.</param>
         public void RemoveRefrencesToUnit(Unit unit)
         {
-            m_MovementHandler.StopFollowingUnit(unit);
+            m_MovementHandler.LoseTargetUnit(unit);
             m_DirectionDetector.RemoveObject(unit.gameObject);
             m_ChaseDetector.RemoveTarget(unit.gameObject);
         }
@@ -245,6 +246,7 @@ namespace Populous
         /// <param name="settlement">The <c>Settlement</c> that should be removed.</param>
         public void RemoveRefrencesToSettlement(Settlement settlement)
         {
+            m_MovementHandler.LoseTargetSettlement(settlement);
             m_DirectionDetector.RemoveObject(settlement.gameObject);
             m_ChaseDetector.RemoveTarget(settlement.gameObject);
         }
@@ -302,6 +304,11 @@ namespace Populous
 
             m_ChaseDetector.UpdateDetector();
             m_DirectionDetector.UpdateDetector();
+
+            if (m_Behavior == UnitBehavior.GO_TO_MAGNET)
+                m_MovementHandler.GoToUnitMagnet();
+            else
+                m_MovementHandler.SetFreeRoam();
         }
 
         /// <summary>
@@ -505,25 +512,18 @@ namespace Populous
         /// <param name="target">The <c>GameObject</c> that should be checked against the target.</param>
         public void LoseTarget(GameObject target)
         {
+            if (!target) return;
+
             Unit unit = target.GetComponent<Unit>();
             if (unit)
             {
-                m_MovementHandler.StopFollowingUnit(unit);
+                m_MovementHandler.LoseTargetUnit(unit);
                 return;
             }
 
             Settlement settlement = target.GetComponent<Settlement>();
             if (settlement)
-                m_MovementHandler.StopMovingToTile(settlement.OccupiedTile);
-        }
-
-        /// <summary>
-        /// Has the unit follow the faction leader, if the unit is not the leader and it is going to the unit magnet.
-        /// </summary>
-        public void FollowLeader()
-        {
-            if (m_Type == UnitType.LEADER || m_Behavior != UnitBehavior.GO_TO_MAGNET) return;
-            m_MovementHandler.FollowLeader();
+                m_MovementHandler.LoseTargetSettlement(settlement);
         }
 
         #endregion
@@ -531,12 +531,25 @@ namespace Populous
 
         #region Unit Magnet
 
+
+        /// <summary>
+        /// Has the unit follow the faction leader, if the unit is not the leader and it is going to the unit magnet.
+        /// </summary>
+        public void FollowLeader()
+        {
+            if (m_Type == UnitType.LEADER || m_Behavior != UnitBehavior.GO_TO_MAGNET) return;
+            m_MovementHandler.FollowLeaderUnit();
+        }
+
+
         /// <summary>
         /// Sets a new target for the unit's movement, if the unit is going to the unit magnet.
         /// </summary>
-        public void UpdateUnitMagnetTargetLocation()
+        public void UpdateGoToMagnetTarget()
         {
             if (m_Behavior != UnitBehavior.GO_TO_MAGNET) return;
+
+            Debug.Log("Update");
             m_MovementHandler.GoToUnitMagnet();
         }
 

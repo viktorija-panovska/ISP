@@ -97,7 +97,7 @@ namespace Populous
             // in the corners of the tile and the structure doesn't need to be moved.
             // for drown, if the structure wasn't destroyed, there could have been a change
             if (m_DestroyMethod == DestroyMethod.DROWN)
-                SetHeight_ClientRpc/*_ClientRpc*/((int)m_OccupiedTile.GetCenterHeight());
+                SetHeight_ClientRpc((int)m_OccupiedTile.GetCenterHeight());
         }
 
         /// <summary>
