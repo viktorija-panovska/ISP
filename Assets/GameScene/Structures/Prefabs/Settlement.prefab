@@ -111,7 +111,7 @@ GameObject:
   - component: {fileID: 7394272528562312019}
   - component: {fileID: 4356391194417125182}
   - component: {fileID: -5025910172482942144}
-  m_Layer: 7
+  m_Layer: 0
   m_Name: Settlement
   m_TagString: Untagged
   m_Icon: {fileID: 0}

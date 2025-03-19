@@ -58,16 +58,10 @@ namespace Populous
         private Structure[,] m_StructureOnTile;
 
         /// <summary>
-        /// An array with a list for each team containing the locations of their settlements.
+        /// An array with a list for each faction containing the locations of their settlements.
         /// </summary>
-        /// <remarks>The index of the list in the array corresponds to the value of the team in the <c>Team</c> enum.</remarks>
+        /// <remarks>The index of the list in the array corresponds to the value of the faction in the <c>Faction</c> enum.</remarks>
         private readonly List<Vector2>[] m_SettlementLocations = new List<Vector2>[] { new(), new() };
-
-        /// <summary>
-        /// An array of the leaders in each team that are part of a settlement, null if the team's leader is not in a settlement.
-        /// </summary>
-        /// <remarks>The index of the list in the array corresponds to the value of the team in the <c>Team</c> enum.</remarks>
-        private readonly Settlement[] m_LeaderSettlements = new Settlement[2];
 
         /// <summary>
         /// The scale for the settlement icons on the minimap.
@@ -102,14 +96,13 @@ namespace Populous
                 return;
             }
 
-            m_Instance = this;
+            m_Instance = this;   
         }
 
         private void Start()
         {
+            if (!IsHost) return;
             m_StructureOnTile = new Structure[Terrain.Instance.TilesPerSide, Terrain.Instance.TilesPerSide];
-            //GameUtils.ResizeGameObject(m_FieldPrefab, Terrain.Instance.UnitsPerTileSide);
-            GameUtils.ResizeGameObject(m_SwampPrefab, Terrain.Instance.UnitsPerTileSide);
         }
 
         #endregion
@@ -178,10 +171,15 @@ namespace Populous
                 if (updateNearbySettlements)
                     UpdateNearbySettlements(structure.OccupiedTile);
 
-                //GameController.Instance.RemoveVisibleObject_ClientRpc(
-                //    GetComponent<NetworkObject>().NetworkObjectId,
-                //    GameUtils.GetClientParams(GameData.Instance.GetNetworkIdByFaction(structure.Faction))
-                //);
+                GameController.Instance.RemoveVisibleObject_ClientRpc(
+                    GetComponent<NetworkObject>().NetworkObjectId,
+                    GameUtils.GetClientParams(GameData.Instance.GetNetworkIdByFaction(structure.Faction))
+                );
+
+                Settlement settlement = (Settlement)structure;
+
+                if (settlement.IsInspected)
+                    QueryModeController.Instance.RemoveInspectedObject(settlement);
             }
 
             structure.GetComponent<NetworkObject>().Despawn();
@@ -309,9 +307,8 @@ namespace Populous
         /// Creates a settlement of the given faction on the given tile.
         /// </summary>
         /// <param name="tile">The tile that the settlement should occupy.</param>
-        /// <param name="faction">The team the settlement should belong to.</param>
-        public void CreateSettlement(TerrainTile tile, Faction faction) 
-            => SpawnStructure(m_SettlementPrefab, tile, faction);
+        /// <param name="faction">The faction the settlement should belong to.</param>
+        public void CreateSettlement(TerrainTile tile, Faction faction) => SpawnStructure(m_SettlementPrefab, tile, faction);
 
         /// <summary>
         /// Transforms the given settlement into a ruin.
@@ -346,7 +343,7 @@ namespace Populous
         }
 
         /// <summary>
-        /// Gets the settlement location at the given index in the list of settlement locations of the given team.
+        /// Gets the settlement location at the given index in the list of settlement locations of the given faction.
         /// </summary>
         /// <param name="faction">The <c>Faction</c> the settlement that should be returned belongs to.</param>
         /// <param name="index">The index in the settlement location list of the settlement.</param>
@@ -358,7 +355,7 @@ namespace Populous
         /// Gets the number of settlements of the given faction currently on the terrain.
         /// </summary>
         /// <param name="faction">The <c>Faction</c> whose number of settlements should be returned.</param>
-        /// <returns>The number of settlements of the given team.</returns>
+        /// <returns>The number of settlements of the given faction.</returns>
         public int GetSettlementsNumber(Faction faction) => m_SettlementLocations[(int)faction].Count;
 
         /// <summary>
@@ -366,16 +363,14 @@ namespace Populous
         /// </summary>
         /// <param name="faction">The <c>Faction</c> whose settlement position should be removed.</param>
         /// <param name="position">The position of the settlement.</param>
-        public void AddSettlementPosition(Vector2 position, Faction faction) 
-            => m_SettlementLocations[(int)faction].Add(position);
+        public void AddSettlementPosition(Vector2 position, Faction faction) => m_SettlementLocations[(int)faction].Add(position);
 
         /// <summary>
         /// Removes the position of a settlement of the given faction from the settlement locations list.
         /// </summary>
         /// <param name="faction">The <c>Faction</c> whose settlement position should be removed.</param>
         /// <param name="position">The position of the settlement.</param>
-        public void RemoveSettlementPosition(Vector2 position, Faction faction) 
-            => m_SettlementLocations[(int)faction].Remove(position);
+        public void RemoveSettlementPosition(Vector2 position, Faction faction) => m_SettlementLocations[(int)faction].Remove(position);
 
         /// <summary>
         /// Updates the types of the settlements that are close enough to the settlement at the given tile that they could be sharing fields with it.
@@ -413,11 +408,8 @@ namespace Populous
         /// <param name="tile">The <c>TerrainTile</c> the field should occupy.</param>
         /// <param name="faction">The <c>Faction</c> the field should belong to.</param>
         /// <returns>The <c>Field</c> that was created.</returns>
-        private void SpawnField(TerrainTile tile, Faction faction, Settlement spawningSettlement) 
-        {
-            Field field = SpawnStructure(m_FieldPrefab, tile, faction).GetComponent<Field>();
-            field.AddSettlementServed(spawningSettlement);
-        }
+        private void SpawnField(TerrainTile tile, Faction faction, Settlement spawningSettlement)
+            => SpawnStructure(m_FieldPrefab, tile, faction).GetComponent<Field>().AddSettlementServed(spawningSettlement);
 
         /// <summary>
         /// Creates fields in the flat spaces in a 5x5 square around the settlement.
@@ -551,7 +543,7 @@ namespace Populous
         /// Creates a swamp on the given tile.
         /// </summary>
         /// <param name="tile">The <c>TerrainTile</c> the swamp should occupy.</param>
-        public void SpawnSwamp(TerrainTile tile) => SpawnStructure(m_SwampPrefab, tile);
+        public void SpawnSwamp(TerrainTile tile) => SpawnStructure(m_SwampPrefab, tile).GetComponent<Swamp>();
 
         #endregion
     }

@@ -56,14 +56,13 @@ namespace Populous
     /// <summary>
     /// The <c>UnitManager</c> class manages the creation, destruction, and behavior of all the units in the game.
     /// </summary>
-    [RequireComponent(typeof(NetworkObject))]
     public class UnitManager : NetworkBehaviour
     {
         #region Inspector Fields
 
         [Tooltip("The GameObject that should be created when a unit is spawned.")]
         [SerializeField] private GameObject m_UnitPrefab;
-        [Tooltip("The maximum number of followers for each team.")]
+        [Tooltip("The maximum number of followers for each faction.")]
         [SerializeField] private int m_MaxFollowersInFaction = 1000;
         [Tooltip("The maximum possible number of followers that can be in a single unit.")]
         [SerializeField] private int m_MaxUnitStrength = 100;
@@ -72,10 +71,10 @@ namespace Populous
         [Tooltip("The number of seconds between each time the units in a fight deal damage to each other.")]
         [SerializeField] private float m_FightWaitDuration = 5f;
         [Tooltip("The amount of manna lost when a leader dies.")]
-        [SerializeField] private int m_LeaderDeathManna = 10;
+        [SerializeField] private int m_LeaderDeathMannaLoss = 10;
 
         [Header("Starting Units")]
-        [Tooltip("The number of units each team has at the start of the match.")]
+        [Tooltip("The number of units each faction has at the start of the match.")]
         [SerializeField] private int m_StartingUnits = 15;
         [Tooltip("The amount of followers in each of the starting units.")]
         [SerializeField] private int m_StartingUnitStrength = 1;
@@ -131,12 +130,6 @@ namespace Populous
         /// </summary>
         /// <remarks>The index of the list in the array corresponds to the value of the faction in the <c>Faction</c> enum.</remarks>
         private readonly int[][,] m_GridPointSteps = new int[2][,];
-
-        /// <summary>
-        /// An array of the leaders in each faction that are part of a unit, null if the faction's leader is not in a unit.
-        /// </summary>
-        /// <remarks>The index of the list in the array corresponds to the value of the faction in the <c>Faction</c> enum.</remarks>
-        private readonly Unit[] m_LeaderUnits = new Unit[2];
 
         /// <summary>
         /// An array of lists containing all the active knights of each faction.
@@ -276,8 +269,8 @@ namespace Populous
 
                 if (hasDied)
                 {
-                    GameController.Instance.RemoveManna(unit.Faction, m_LeaderDeathManna);
-                    GameController.Instance.AddManna(unit.Faction == Faction.RED ? Faction.BLUE : Faction.RED, m_LeaderDeathManna);
+                    DivineInterventionsController.Instance.RemoveManna(unit.Faction, m_LeaderDeathMannaLoss);
+                    DivineInterventionsController.Instance.AddManna(unit.Faction == Faction.RED ? Faction.BLUE : Faction.RED, m_LeaderDeathMannaLoss);
                     GameController.Instance.PlaceUnitMagnetAtPoint(unit.Faction, unit.ClosestTerrainPoint);
                 }
             }
@@ -285,7 +278,17 @@ namespace Populous
             if (unit.Type == UnitType.KNIGHT)
                 RemoveKnight(unit.Faction, unit);
 
-            unitObject.GetComponent<NetworkObject>().Despawn();
+            NetworkObject netObject = unitObject.GetComponent<NetworkObject>();
+
+            GameController.Instance.RemoveVisibleObject_ClientRpc(
+                netObject.NetworkObjectId,
+                GameUtils.GetClientParams(GameData.Instance.GetNetworkIdByFaction(unit.Faction))
+            );
+
+            if (unit.IsInspected)
+                QueryModeController.Instance.RemoveInspectedObject(unit);
+
+            netObject.Despawn();
             Destroy(unitObject);
         }
 
@@ -295,7 +298,7 @@ namespace Populous
         #region Starter Units
 
         /// <summary>
-        /// Creates the starting units for both teams.
+        /// Creates the starting units for both factions.
         /// </summary>
         public void SpawnStartingUnits()
         {
@@ -408,7 +411,7 @@ namespace Populous
         {
             amount = Mathf.Clamp(m_Followers[(int)faction] + amount, 0, m_MaxFollowersInFaction);
             SetFollowers(faction, amount);
-            GameController.Instance.AddManna(faction, amount);
+            DivineInterventionsController.Instance.AddManna(faction, amount);
         }
 
         /// <summary>
@@ -528,7 +531,7 @@ namespace Populous
         /// </summary>
         /// <param name="faction">The <c>Faction</c> that the returned knight should belong to.</param>
         /// <param name="index">The index of the knight that should be returned.</param>
-        /// <returns>A <c>Unit</c> of the Knight class from the given team.</returns>
+        /// <returns>A <c>Unit</c> of the Knight class from the given faction.</returns>
         public Unit GetKnight(Faction faction, int index) 
             => index >= m_Knights[(int)faction].Count ? null : m_Knights[(int)faction][index];
 
@@ -591,8 +594,8 @@ namespace Populous
         /// <summary>
         /// Sets up and begins a fight between the given two units.
         /// </summary>
-        /// <param name="red">The <c>Unit</c> from the red team.</param>
-        /// <param name="blue">The <c>Unit</c> from the blue team.</param>
+        /// <param name="red">The <c>Unit</c> from the red faction.</param>
+        /// <param name="blue">The <c>Unit</c> from the blue faction.</param>
         /// <param name="settlementDefense">A <c>Settlement</c> if the fight occured due to an attempt to claim a settlement, null otherwise.</param>
         public void StartFight(Unit red, Unit blue, Settlement settlementDefense = null)
         {
@@ -610,8 +613,8 @@ namespace Populous
         /// <summary>
         /// Handles the fighting between two units.
         /// </summary>
-        /// <param name="red">The <c>Unit</c> from the red team.</param>
-        /// <param name="blue">The <c>Unit</c> from the blue team.</param>
+        /// <param name="red">The <c>Unit</c> from the red faction.</param>
+        /// <param name="blue">The <c>Unit</c> from the blue faction.</param>
         /// <param name="settlementDefense">A <c>Settlement</c> if the fight occured due to an attempt to claim a origin, null otherwise.</param>
         /// <returns>An <c>IEnumerator</c> which waits for a number of seconds before simulating another attack.</returns>
         private IEnumerator Fight(Unit red, Unit blue, Settlement settlementDefense = null)
@@ -633,7 +636,7 @@ namespace Populous
                     break;
 
                 if (red.IsInspected || blue.IsInspected)
-                    GameController.Instance.UpdateInspectedFight(red, blue);
+                    QueryModeController.Instance.UpdateInspectedFight(red, blue);
             }
 
             Unit winner = null, loser = null;

@@ -35,7 +35,7 @@ namespace Populous
                 UnitManager.Instance.DespawnUnit(otherUnit.gameObject, hasDied: false);
             }
 
-            // make only the red team able to start a fight so both units don't try to do it
+            // make only the red faction able to start a fight so both units don't try to do it
             if (otherUnit.Faction == m_EnemyFaction && m_Unit.Faction == Faction.RED && !m_Unit.IsInFight && !otherUnit.IsInFight)
                 UnitManager.Instance.StartFight(m_Unit, otherUnit);
         }

@@ -5,7 +5,7 @@ namespace Populous
     /// <summary>
     /// The <c>Frame</c> class controls the behavior of the object surrounding the generated terrain.
     /// </summary>
-    [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
+    [RequireComponent(typeof(Renderer))]
     public class Frame : MonoBehaviour
     {
         private static Frame m_Instance;

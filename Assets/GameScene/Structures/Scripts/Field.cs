@@ -19,7 +19,13 @@ namespace Populous
         public HashSet<Settlement> SettlementsServed { get => m_SettlementsServed; }
 
 
-        private void Start() => m_DestroyMethod = DestroyMethod.TERRAIN_CHANGE;
+        private void Start()
+        {
+            m_DestroyMethod = DestroyMethod.TERRAIN_CHANGE;
+
+            foreach (Renderer child in GetComponentsInChildren<Renderer>())
+                GameUtils.ResizeGameObject(child.gameObject, Terrain.Instance.UnitsPerTileSide);
+        }
 
 
         #region Settlement Override
@@ -77,8 +83,6 @@ namespace Populous
         [ClientRpc]
         private void ToggleField_ClientRpc(Faction faction, bool isOn)
         {
-            //m_Fields[(int)faction].SetActive(isOn);
-
             GameObject field = GameUtils.GetChildWithTag(gameObject, TagData.FactionTags[(int)faction]);
             if (!field) return;
             field.SetActive(isOn);

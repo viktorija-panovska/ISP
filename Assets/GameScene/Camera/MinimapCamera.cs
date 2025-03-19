@@ -5,6 +5,7 @@ namespace Populous
     /// <summary>
     /// The <c>MinimapCamera</c> class controls the behavior of the camera capturing the minimap.
     /// </summary>
+    [RequireComponent(typeof(Camera))]
     public class MinimapCamera : MonoBehaviour
     {
         private static MinimapCamera m_Instance;

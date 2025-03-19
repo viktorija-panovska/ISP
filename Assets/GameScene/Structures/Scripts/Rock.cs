@@ -5,7 +5,6 @@ namespace Populous
     /// <summary>
     /// The <c>Rock</c> class is a <c>Structure</c> that represents one of the rocks on the terrain.
     /// </summary>
-    
     public class Rock : Structure
     {
         /// <summary>
@@ -26,7 +25,6 @@ namespace Populous
         [Tooltip("Black rocks are destroyed by any modification of the terrain under them, while white rocks are destroyed when the terrain is lowered to the water level.")]
         [SerializeField] private RockType m_Type;
 
-        private void Start() 
-            => m_DestroyMethod = m_Type == RockType.WHITE ? DestroyMethod.DROWN : DestroyMethod.TERRAIN_CHANGE;
+        private void Start()  => m_DestroyMethod = m_Type == RockType.WHITE ? DestroyMethod.DROWN : DestroyMethod.TERRAIN_CHANGE;
     }
 }

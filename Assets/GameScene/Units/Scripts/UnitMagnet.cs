@@ -7,7 +7,7 @@ namespace Populous
     /// <summary>
     /// The <c>UnitMagnet</c> class represents the unit magnet of one of the factions.
     /// </summary>
-    [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer), typeof(Collider))]
+    [RequireComponent(typeof(Collider))]
     public class UnitMagnet : NetworkBehaviour
     {
         [SerializeField] private Faction m_Faction;
@@ -23,15 +23,19 @@ namespace Populous
         public TerrainPoint GridLocation { get => m_GridLocation; }
 
 
+        private void Start() => GetComponent<Collider>().enabled = false;
+
         /// <summary>
         /// Sets up the initial state of the unit magnet.
         /// </summary>
         public void Setup()
         {
             m_GridLocation = Terrain.Instance.TerrainCenter;
-            GameController.Instance.OnFlood += UpdateHeight;
+            DivineInterventionsController.Instance.OnFlood += UpdateHeight;
 
             SetPosition_ClientRpc(m_GridLocation.ToScenePosition());
+
+            GetComponent<Collider>().enabled = true;
         }
 
 
@@ -53,7 +57,7 @@ namespace Populous
 
         public override void OnDestroy()
         {
-            GameController.Instance.OnFlood -= UpdateHeight;
+            DivineInterventionsController.Instance.OnFlood -= UpdateHeight;
             base.OnDestroy();
         }
 

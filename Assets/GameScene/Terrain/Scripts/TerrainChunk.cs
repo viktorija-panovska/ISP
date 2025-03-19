@@ -109,7 +109,7 @@ namespace Populous
 
                         Vector3 vertex = new(
                             (x + MeshProperties.VertexOffsets[index].x) * Terrain.Instance.UnitsPerTileSide,
-                            60,
+                            0,
                             (z + MeshProperties.VertexOffsets[index].z) * Terrain.Instance.UnitsPerTileSide
                         );
                         meshData.AddVertex(vertexIndex + i, vertex);

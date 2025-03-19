@@ -2,13 +2,14 @@ using System.Collections;
 using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.EventSystems;
-using static UnityEditor.Experimental.GraphView.GraphView;
+
 
 namespace Populous
 {
     /// <summary>
     /// The <c>Unit</c> class represents and handles the functioning of one unit.
     /// </summary>
+    [RequireComponent(typeof(UnitMovementHandler), typeof(Collider))]
     public class Unit : NetworkBehaviour, IInspectableObject, ILeader
     {
         #region Inspector Fields
@@ -89,7 +90,7 @@ namespace Populous
 
         private bool m_IsInFight;
         /// <summary>
-        /// True if the unit is currently in a fight with a unit of the opposite team, false otherwise.
+        /// True if the unit is currently in a fight with a unit of the opposite faction, false otherwise.
         /// </summary>
         public bool IsInFight { get => m_IsInFight; }
 
@@ -107,6 +108,9 @@ namespace Populous
         public bool IsInspected { get => m_IsInspected.Value; set => m_IsInspected.Value = value; }
 
         #endregion
+
+
+        private void Start() => GetComponent<UnitMovementHandler>().enabled = IsHost;
 
 
         #region Setup
@@ -152,10 +156,12 @@ namespace Populous
                 GameController.Instance.OnBlueMagnetMoved += UpdateGoToMagnetTarget;
             }
 
-            GameController.Instance.OnTerrainModified += UpdateHeight;
-            GameController.Instance.OnTerrainModified += m_MovementHandler.CheckTargetTile;
-            GameController.Instance.OnFlood += UpdateHeight;
-            GameController.Instance.OnFlood += m_MovementHandler.CheckTargetTile;
+            DivineInterventionsController.Instance.OnTerrainModified += UpdateHeight;
+            DivineInterventionsController.Instance.OnTerrainModified += m_MovementHandler.UpdateTargetPointHeight;
+            DivineInterventionsController.Instance.OnTerrainModified += m_MovementHandler.CheckTargetTile;
+            DivineInterventionsController.Instance.OnFlood += UpdateHeight;
+            DivineInterventionsController.Instance.OnFlood += m_MovementHandler.UpdateTargetPointHeight;
+            DivineInterventionsController.Instance.OnFlood += m_MovementHandler.CheckTargetTile;
             UnitManager.Instance.OnRemoveReferencesToUnit += RemoveRefrencesToUnit;
             StructureManager.Instance.OnRemoveReferencesToSettlement += RemoveRefrencesToSettlement;
 
@@ -213,20 +219,14 @@ namespace Populous
                 GameController.Instance.OnBlueMagnetMoved -= UpdateGoToMagnetTarget;
             }
 
-            GameController.Instance.OnTerrainModified -= UpdateHeight;
-            GameController.Instance.OnTerrainModified -= m_MovementHandler.CheckTargetTile;
-            GameController.Instance.OnFlood -= UpdateHeight;
-            GameController.Instance.OnFlood -=  m_MovementHandler.CheckTargetTile;
+            DivineInterventionsController.Instance.OnTerrainModified -= UpdateHeight;
+            DivineInterventionsController.Instance.OnTerrainModified -= m_MovementHandler.UpdateTargetPointHeight;
+            DivineInterventionsController.Instance.OnTerrainModified -= m_MovementHandler.CheckTargetTile;
+            DivineInterventionsController.Instance.OnFlood -= UpdateHeight;
+            DivineInterventionsController.Instance.OnFlood -= m_MovementHandler.UpdateTargetPointHeight;
+            DivineInterventionsController.Instance.OnFlood -=  m_MovementHandler.CheckTargetTile;
             UnitManager.Instance.OnRemoveReferencesToUnit -= RemoveRefrencesToUnit;
             StructureManager.Instance.OnRemoveReferencesToSettlement -= RemoveRefrencesToSettlement;
-
-            if (IsInspected)
-                GameController.Instance.RemoveInspectedObject(this);
-
-            //GameController.Instance.RemoveVisibleObject_ClientRpc(
-            //    GetComponent<NetworkObject>().NetworkObjectId,
-            //    GameUtils.GetClientParams(GameData.Instance.GetNetworkIdByTeam(m_Faction))
-            //);
         }
 
         /// <summary>
@@ -283,7 +283,7 @@ namespace Populous
             }
 
             if (IsInspected)
-                GameController.Instance.UpdateInspectedUnit(this, updateType: true);
+                QueryModeController.Instance.UpdateInspectedUnit(this, updateType: true);
         }
 
         /// <summary>
@@ -319,14 +319,9 @@ namespace Populous
         [ClientRpc]
         private void ToggleLeaderSign_ClientRpc(Faction faction, bool isOn)
         {
-            //m_LeaderSigns[(int)faction].SetActive(isOn);
-
-            GameObject flag = GameUtils.GetChildWithTag(gameObject, TagData.LeaderTags[(int)faction]);
-            Debug.Log(flag);
-
-            if (!flag) return;
-
-            flag.SetActive(isOn);
+            GameObject sign = GameUtils.GetChildWithTag(gameObject, TagData.LeaderTags[(int)faction]);
+            if (!sign) return;
+            sign.SetActive(isOn);
         }
 
         /// <summary>
@@ -336,8 +331,6 @@ namespace Populous
         [ClientRpc]
         private void ToggleKnightSword_ClientRpc(bool isOn)
         {
-            //m_KnightSword.SetActive(isOn);
-
             GameObject sword = GameUtils.GetChildWithTag(gameObject, TagData.SWORD_TAG);
             if (!sword) return;
             sword.SetActive(isOn);
@@ -373,8 +366,8 @@ namespace Populous
         {
             m_Strength += amount;
 
-            if (IsInspected)
-                GameController.Instance.UpdateInspectedUnit(this, updateStrength: true);
+            if (IsInspected && !IsInFight)
+                QueryModeController.Instance.UpdateInspectedUnit(this, updateStrength: true);
         }
 
         /// <summary>
@@ -386,7 +379,7 @@ namespace Populous
             m_Strength -= amount;
 
             if (IsInspected && !IsInFight)
-                GameController.Instance.UpdateInspectedUnit(this, updateStrength: true);
+                QueryModeController.Instance.UpdateInspectedUnit(this, updateStrength: true);
 
             if (m_Strength == 0)
                 UnitManager.Instance.DespawnUnit(gameObject, hasDied: isDamaged);
@@ -411,8 +404,6 @@ namespace Populous
         {
             Vector3 bottomLeftPosition = bottomLeft.ToScenePosition();
             Vector3 topRightPosition = topRight.ToScenePosition();
-
-            m_MovementHandler.UpdateTargetPointHeight(bottomLeftPosition, topRightPosition);
 
             // only update points in this area
             if (transform.position.x < bottomLeftPosition.x || transform.position.x > topRightPosition.x ||
@@ -468,8 +459,8 @@ namespace Populous
         /// Rotates the unit to face in the given direction.
         /// </summary>
         /// <param name="lookPosition">The direction the unit should be turned towards.</param>
-        //[ClientRpc]
-        public void Rotate/*_ClientRpc*/(Vector3 lookPosition)
+        [ClientRpc]
+        public void Rotate_ClientRpc(Vector3 lookPosition)
         {
             if (lookPosition == Vector3.zero) return;
             transform.rotation = Quaternion.LookRotation(lookPosition);
@@ -529,6 +520,7 @@ namespace Populous
         #endregion
 
 
+        // unfinished
         #region Unit Magnet
 
 
@@ -625,7 +617,7 @@ namespace Populous
         public void OnPointerClick(PointerEventData eventData)
         {
             if (!PlayerController.Instance.IsQueryModeActive) return;
-            GameController.Instance.SetInspectedObject_ServerRpc(PlayerController.Instance.Faction, GetComponent<NetworkObject>());
+            QueryModeController.Instance.SetInspectedObject_ServerRpc(PlayerController.Instance.Faction, GetComponent<NetworkObject>());
         }
 
         /// <summary>

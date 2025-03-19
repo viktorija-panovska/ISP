@@ -59,7 +59,7 @@ namespace Populous
         {
             m_Faction = faction;
             m_OccupiedTile = occupiedTile;
-            GameController.Instance.OnFlood += ReactToTerrainChange;
+            DivineInterventionsController.Instance.OnFlood += ReactToTerrainChange;
 
             if (m_DestroyMethod == DestroyMethod.TERRAIN_CHANGE)
             {
@@ -72,11 +72,7 @@ namespace Populous
         /// <summary>
         /// Cleans up references to other objects before the destruction of the structure.
         /// </summary>
-        public virtual void Cleanup() 
-        {
-            if (GameController.Instance.OnFlood != null)
-                GameController.Instance.OnFlood -= ReactToTerrainChange;
-        }
+        public virtual void Cleanup() => DivineInterventionsController.Instance.OnFlood -= ReactToTerrainChange;
 
 
         #region Terrain Change

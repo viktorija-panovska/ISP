@@ -20,13 +20,13 @@ namespace Populous
         public static CameraDetectionZone Instance { get => m_Instance; }
 
         /// <summary>
-        /// The instance IDs of the objects of the player's team that are in the camera's field of view.
+        /// The instance IDs of the objects of the player's faction that are in the camera's field of view.
         /// </summary>
-        private readonly HashSet<ulong> m_VisibleTeamObjectIds = new() { 1 };
+        private readonly HashSet<ulong> m_VisibleFactionObjectIds = new() { 1 };
         /// <summary>
-        /// The number of objects of the player's team that are in the camera's field of view.
+        /// The number of objects of the player's faction that are in the camera's field of view.
         /// </summary>
-        public int VisibleObjectsAmount { get =>  m_VisibleTeamObjectIds.Count; }
+        public int VisibleObjectsAmount { get =>  m_VisibleFactionObjectIds.Count; }
 
 
         #region Event Functions
@@ -51,6 +51,8 @@ namespace Populous
 
             other.GetComponent<Renderer>().enabled = true;
 
+            if (!other.GetComponent<NetworkObject>()) return;
+
             // Count visible units and structures
             Faction faction = PlayerController.Instance.Faction;
 
@@ -59,7 +61,7 @@ namespace Populous
 
             if (faction == Faction.RED && other.gameObject.layer == LayerData.FactionLayers[(int)Faction.RED] ||
                 faction == Faction.BLUE && other.gameObject.layer == LayerData.FactionLayers[(int)Faction.BLUE])
-                m_VisibleTeamObjectIds.Add(other.GetComponent<NetworkObject>().NetworkObjectId);
+                m_VisibleFactionObjectIds.Add(other.GetComponent<NetworkObject>().NetworkObjectId);
         }
 
         private void OnTriggerExit(Collider other)
@@ -69,11 +71,13 @@ namespace Populous
 
             other.GetComponent<Renderer>().enabled = false;
 
+            if (!other.GetComponent<NetworkObject>()) return;
+
             Faction faction = PlayerController.Instance.Faction;
 
             if (faction == Faction.RED && other.gameObject.layer == LayerData.FactionLayers[(int)Faction.RED] ||
                 faction == Faction.BLUE && other.gameObject.layer == LayerData.FactionLayers[(int)Faction.BLUE])
-                m_VisibleTeamObjectIds.Remove(other.GetComponent<NetworkObject>().NetworkObjectId);
+                m_VisibleFactionObjectIds.Remove(other.GetComponent<NetworkObject>().NetworkObjectId);
         }
 
         #endregion
@@ -95,9 +99,6 @@ namespace Populous
             collider.size = new Vector3(sizeX, sizeY, sizeZ);
         }
 
-
-        #region Visible Objects
-
         /// <summary>
         /// Removes the object with the given ID from the list of visible objects.
         /// </summary>
@@ -105,12 +106,10 @@ namespace Populous
         /// <param name="objectId">The Network Object ID of the object that should be removed.</param>
         public void RemoveVisibleObject(ulong objectId)
         {
-            if (!m_VisibleTeamObjectIds.Contains(objectId))
+            if (!m_VisibleFactionObjectIds.Contains(objectId))
                 return;
 
-            m_VisibleTeamObjectIds.Remove(objectId);
+            m_VisibleFactionObjectIds.Remove(objectId);
         }
-
-        #endregion
     }
 }

@@ -30,10 +30,8 @@ namespace Populous
     {
         [Tooltip("Higher values create more varied noise, and vice versa.")]
         [SerializeField] private float m_Scale = 2f;
-
         [Tooltip("Higher values create more complex noise, and vice versa.")]
         [SerializeField] private int m_Octaves = 2;
-
         [Tooltip("Lower factors create landmasses with more land and less water, and vice versa.")]
         [SerializeField] private float m_FalloffScaleFactor = 0.5f;
 

@@ -10,6 +10,7 @@ namespace Populous
     /// <summary>
     /// The <c>UnitMovementHandler</c> class handles the movement of an individual unit.
     /// </summary>
+    [RequireComponent(typeof(Unit), typeof(Rigidbody))]
     public class UnitMovementHandler : MonoBehaviour
     {
         /// <summary>
@@ -148,10 +149,12 @@ namespace Populous
         /// </summary>
         private TerrainTile? m_TargetTile;
         /// <summary>
-        /// The <c>Unit</c> target this unit is chasing, null if the unit isn't chasing anyone.
+        /// The <c>Unit</c> this unit is chasing, null if there is none.
         /// </summary>
         private Unit m_TargetUnit = null;
-
+        /// <summary>
+        /// The <c>Settlement</c> this unit is going to, null if there is none.
+        /// </summary>
         private Settlement m_TargetSettlement = null;
 
         #endregion
@@ -161,6 +164,7 @@ namespace Populous
 
         private void FixedUpdate()
         {
+            Debug.Log("Fixed Update");
             if (m_CurrentMoveState == MoveState.STOP) return;
 
             Vector3 currentPosition = transform.position;
@@ -185,6 +189,7 @@ namespace Populous
                 ClearPath();
             }
 
+            // there is no path, so choose an action
             ChooseNextAction();
         }
 
@@ -246,6 +251,7 @@ namespace Populous
             else if (m_CurrentMoveState == MoveState.GO_TO_SETTLEMENT && m_TargetSettlement)
                 SetFreeRoam();
 
+            // TODO: fix GoToMagnet movement
 
             //// if we have reached the unit magnet, roam around it
             //else if (m_CurrentMoveState == MoveState.GO_TO_MAGNET && m_IsUnitMagnetReached)
@@ -318,7 +324,7 @@ namespace Populous
             // when Armageddon is active, the units can build their own land to cross water
             if (next.IsUnderwater())
             {
-                if (!GameController.Instance.IsArmageddon)
+                if (!DivineInterventionsController.Instance.IsArmageddon)
                 {
                     SwitchMoveState(MoveState.STOP);
                     return;
@@ -340,7 +346,7 @@ namespace Populous
             }
 
             // rotate unit to face the next target
-            m_Unit.Rotate/*_ClientRpc*/((target - Vector3.up * target.y) - (m_StartPosition - Vector3.up * m_StartPosition.y));
+            m_Unit.Rotate_ClientRpc/*_ClientRpc*/((target - Vector3.up * target.y) - (m_StartPosition - Vector3.up * m_StartPosition.y));
 
             // if we are moving diagonally across the tile, the next step will be to the center of the tile
             if (!m_MoveToCenter && m_StartPosition.x != target.x && m_StartPosition.z != target.z)
@@ -379,9 +385,9 @@ namespace Populous
         /// <param name="start">A <c>TerrainPoint</c> representing the start corner.</param>
         /// <param name="end">A <c>TerrainPoint</c> representing the end corner.</param>
         /// <returns>True if the tile can be crossed, false otherwise.</returns>
-        public static bool IsTileCrossable(TerrainPoint start, TerrainPoint end, bool canCrossWater)
+        public static bool IsTileCrossable(TerrainPoint start, TerrainPoint end)
         {
-            if (!canCrossWater && end.IsUnderwater()) return false;
+            if (!DivineInterventionsController.Instance.IsArmageddon && end.IsUnderwater()) return false;
 
             int dx = end.X - start.X;
             int dz = end.Z - start.Z;
@@ -411,13 +417,22 @@ namespace Populous
             return false;
         }
 
+        /// <summary>
+        /// Updates the height of the target point of the movement.
+        /// </summary>
+        /// <remarks>Called after terrain modification.</remarks>
+        public void UpdateTargetPointHeight()
+            => UpdateTargetPointHeight(new(0, 0), new(Terrain.Instance.TilesPerSide, Terrain.Instance.TilesPerSide));
 
         /// <summary>
         /// Updates the height of the target point of the movement.
         /// </summary>
         /// <remarks>Called after terrain modification.</remarks>
-        public void UpdateTargetPointHeight(Vector3 bottomLeftPosition, Vector3 topRightPosition)
+        public void UpdateTargetPointHeight(TerrainPoint bottomLeft, TerrainPoint topRight)
         {
+            Vector3 bottomLeftPosition = bottomLeft.ToScenePosition();
+            Vector3 topRightPosition = topRight.ToScenePosition();
+
             if (!m_TargetPoint.HasValue ||
                 (transform.position.x < bottomLeftPosition.x || transform.position.x > topRightPosition.x ||
                 transform.position.z < bottomLeftPosition.z || transform.position.z > topRightPosition.z)) 
@@ -441,6 +456,7 @@ namespace Populous
         /// </summary>
         public void SetFreeRoam()
         {
+            Debug.Log("Start Roam");
             ClearPath();
             m_TargetTile = null;
             m_TargetUnit = null;
@@ -518,7 +534,7 @@ namespace Populous
                 foreach ((int dx, int dz) in d)
                 {
                     TerrainPoint point = new(start.X + dx, start.Z + dz);
-                    if (!point.IsInBounds() || point.IsUnderwater() || !IsTileCrossable(start, point, GameController.Instance.IsArmageddon))
+                    if (!point.IsInBounds() || point.IsUnderwater() || !IsTileCrossable(start, point))
                         continue;
 
                     availableDirections.Add((dx, dz));
@@ -566,7 +582,7 @@ namespace Populous
         {
             TerrainPoint target = new(current.X + m_CurrentRoamDirection.x, current.Z + m_CurrentRoamDirection.z);
 
-            if (!target.IsInBounds() || target.IsUnderwater() || !IsTileCrossable(current, target, GameController.Instance.IsArmageddon))
+            if (!target.IsInBounds() || target.IsUnderwater() || !IsTileCrossable(current, target))
             {
                 m_RoamStepsInDirection = 0;
                 ChooseRoamDirection(current);
@@ -674,17 +690,20 @@ namespace Populous
                 }
             }
         
+            /// <summary>
+            /// Returns true if the given tile is flat and there is a path to it.
+            /// </summary>
             bool TryGoToTile(TerrainTile tile)
             {
                 if (!tile.IsFree()) return false;
 
-                List<TerrainPoint> path = AStarPathfinder.FindPath(current, tile.GetClosestCorner(current), GameController.Instance.IsArmageddon);
+                List<TerrainPoint> path = AStarPathfinder.FindPath(current, tile.GetClosestCorner(current));
                 if (path == null || path.Count == 0) return false;
 
                 target = tile;
                 pathToTile = path;
                 return true;
-            }        
+            }
         }
 
         /// <summary>
@@ -692,6 +711,7 @@ namespace Populous
         /// </summary>
         private void OnFreeTileReached()
         {
+            Debug.Log("Free TIle");
             SwitchMoveState(MoveState.STOP);
             //StructureManager.Instance.CreateSettlement(m_TargetTile.Value, m_Unit.Faction);
             //SetFreeRoam();
@@ -763,7 +783,7 @@ namespace Populous
         /// </summary>
         private void GetNextStepToFollowTarget()
         {
-            TerrainPoint? step = AStarPathfinder.FindNextStep(m_Unit.ClosestTerrainPoint, m_TargetUnit.ClosestTerrainPoint, GameController.Instance.IsArmageddon);
+            TerrainPoint? step = AStarPathfinder.FindNextStep(m_Unit.ClosestTerrainPoint, m_TargetUnit.ClosestTerrainPoint);
 
             if (!step.HasValue)
             {
@@ -798,7 +818,7 @@ namespace Populous
             SwitchMoveState(MoveState.GO_TO_SETTLEMENT);
 
             TerrainPoint current = m_Unit.ClosestTerrainPoint;
-            List<TerrainPoint> path = AStarPathfinder.FindPath(current, settlementInRange.OccupiedTile.GetClosestCorner(current), GameController.Instance.IsArmageddon);
+            List<TerrainPoint> path = AStarPathfinder.FindPath(current, settlementInRange.OccupiedTile.GetClosestCorner(current));
             if (path == null || path.Count == 0)
                 return false;
 
@@ -820,7 +840,7 @@ namespace Populous
 
 
 
-
+        // unfinished
         #region Go To Unit Magnet
 
         /// <summary>
@@ -860,25 +880,10 @@ namespace Populous
             //else if (GameController.Instance.HasLeaderSettlement(m_Unit.Faction))
             //    target = GameController.Instance.GetLeaderSettlement(m_Unit.Faction).OccupiedTile.GetClosestCorner(current);
 
-            List<TerrainPoint> path = AStarPathfinder.FindPath(current, target.Value, GameController.Instance.IsArmageddon);
+            List<TerrainPoint> path = AStarPathfinder.FindPath(current, target.Value);
             if (path == null || path.Count == 0)
             {
-                if (GameController.Instance.IsArmageddon)
-                {
-                    SwitchMoveState(MoveState.STOP);
-                    return;
-                }
-
-                List<TerrainPoint> waterPath = AStarPathfinder.FindPath(current, target.Value, true);
-
-                if (waterPath == null || waterPath.Count == 0)
-                {
-                    SwitchMoveState(MoveState.STOP);
-                    return;
-                }
-
-                path = waterPath;
-                return;
+                // roam
             }
 
             SetNewPath(path);

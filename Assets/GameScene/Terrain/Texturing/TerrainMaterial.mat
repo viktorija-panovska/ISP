@@ -41,7 +41,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _LandTexture:
-        m_Texture: {fileID: 2800000, guid: 6c99e5efe17405f49abd16b0abcc5b27, type: 3}
+        m_Texture: {fileID: 2800000, guid: d594bfc902a6c8d44a73071163b7edd9, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MainTex:
@@ -65,7 +65,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _ShoreTexture:
-        m_Texture: {fileID: 2800000, guid: c3f81186b791d9049bf99656f79d068f, type: 3}
+        m_Texture: {fileID: 2800000, guid: dc729cec9e106164cb2e563aa08d43db, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _TerrainHolesTexture:
@@ -88,6 +88,7 @@ Material:
     - _Glossiness: 0.5
     - _GlossyReflections: 1
     - _LandScale: 5
+    - _LandTextureScale: 20
     - _Metallic: 0
     - _Mode: 0
     - _OcclusionStrength: 1
@@ -95,6 +96,7 @@ Material:
     - _SandHeight: 5
     - _SandScale: 5
     - _ShoreHeight: 20
+    - _ShoreTextureScale: 20
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
     - _SrcBlend: 1
@@ -102,6 +104,7 @@ Material:
     - _UVSec: 0
     - _WaterColorSize: 0.05
     - _WaterScale: 50
+    - _WaterTextureScale: 5
     - _ZWrite: 1
     - _textureScale: 10
     - _waterColorSize: 0.05

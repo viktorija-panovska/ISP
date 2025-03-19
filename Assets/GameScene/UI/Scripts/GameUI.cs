@@ -16,10 +16,8 @@ namespace Populous
 
         [Tooltip("The images the player avatars should be placed on, where index 0 is the image for the red faction, and index 1 is the image for the blue faction.")]
         [SerializeField] private RawImage[] m_PlayerAvatars;
-
         [Tooltip("The sliders for the population bars, where index 0 is the slider for the red faction, and index 1 is the slider for the blue faction.")]
         [SerializeField] private Slider[] m_PopulationBars;
-
         [Tooltip("The slider for the manna bar.")]
         [SerializeField] private Slider m_MannaBar;
 
@@ -28,7 +26,7 @@ namespace Populous
         [SerializeField] private Image m_QueryIcon;
         [SerializeField] private Image[] m_BehaviorIcons;
         [SerializeField] private Image[] m_CameraSnapIcons;
-        [SerializeField] private Button[] m_PowerIcons;
+        [SerializeField] private Button[] m_DivineInterventionIcons;
 
         [Header("Minimap")]
         [SerializeField] private RectTransform m_Minimap;
@@ -108,9 +106,10 @@ namespace Populous
                 bar.value = (float)UnitManager.Instance.StartingUnits / UnitManager.Instance.MaxFollowersInFaction;
 
             UpdateMannaBar(0, 0);
-            SetActivePowerIcon(Power.MOLD_TERRAIN, Power.MOLD_TERRAIN);
+            SetActiveDivineInterventionIcon(DivineIntervention.MOLD_TERRAIN, DivineIntervention.MOLD_TERRAIN);
             SetActiveBehaviorIcon(UnitBehavior.SETTLE, UnitBehavior.SETTLE);
 
+            // TODO: uncomment
             //PlayerInfo? redPlayerInfo = GameData.Instance.GetPlayerInfoByFaction(Faction.RED);
             //PlayerInfo? bluePlayerInfo = GameData.Instance.GetPlayerInfoByFaction(Faction.BLUE);
 
@@ -139,10 +138,10 @@ namespace Populous
         #region Population Bars
 
         /// <summary>
-        /// Updates the slider position of the population slider for the given team.
+        /// Updates the slider position of the population slider for the given faction.
         /// </summary>
         /// <param name="faction">The <c>Faction</c> whose population bar should be updated.</param>
-        /// <param name="currentPopulation">The amount of population the given team has.</param>
+        /// <param name="currentPopulation">The amount of population the given faction has.</param>
         public void UpdatePopulationBar(Faction faction, int currentPopulation)
             => m_PopulationBars[(int)faction].value = (float)currentPopulation / UnitManager.Instance.MaxFollowersInFaction;
 
@@ -188,34 +187,34 @@ namespace Populous
         #region Manna Bar
 
         /// <summary>
-        /// Updates the fill of the manna bar and enables the icons of the available powers, based on the current amount of manna.
+        /// Updates the fill of the manna bar and enables the icons of the available Divine Interventions, based on the current amount of manna.
         /// </summary>
         /// <param name="currentManna">The current amount of manna.</param>
-        /// <param name="activePowers">The number of powers that are available to the player, in order.</param>
-        public void UpdateMannaBar(int currentManna, int activePowers) 
+        /// <param name="activeDivineIntervention">The number of Divine Interventions that are available to the player, in order.</param>
+        public void UpdateMannaBar(int currentManna, int activeDivineIntervention) 
         {
-            m_MannaBar.value = (float)currentManna / GameController.Instance.MaxManna;
+            m_MannaBar.value = (float)currentManna / DivineInterventionsController.Instance.MaxManna;
 
-            for (int i = 0; i < m_PowerIcons.Length; ++i)
-                m_PowerIcons[i].interactable = i <= activePowers;
+            for (int i = 0; i < m_DivineInterventionIcons.Length; ++i)
+                m_DivineInterventionIcons[i].interactable = i <= activeDivineIntervention;
         }
 
         /// <summary>
-        /// Flashes the icon of the given power red, notifying the player that they don't have enough manna to execute it.
+        /// Flashes the icon of the given Divine Intervention red, notifying the player that they don't have enough manna to execute it.
         /// </summary>
-        /// <param name="power">The <c>Power</c> the player wants to execute.</param>
-        public void ShowNotEnoughManna(Power power)
-            => InterfaceUtils.FlashWrong(m_PowerIcons[(int)power].GetComponent<Image>());
+        /// <param name="divineIntervention">The <c>DivineIntervention</c> the player wants to execute.</param>
+        public void ShowNotEnoughManna(DivineIntervention divineIntervention)
+            => InterfaceUtils.FlashWrong(m_DivineInterventionIcons[(int)divineIntervention].GetComponent<Image>());
 
         /// <summary>
-        /// Lights up the icon of the currently active power.
+        /// Lights up the icon of the currently active Divine Intervention.
         /// </summary>
-        /// <param name="currentPower">The currently active <c>Power</c>.</param>
-        /// <param name="lastPower">The previously active <c>Power</c>.</param>
-        public void SetActivePowerIcon(Power currentPower, Power lastPower)
+        /// <param name="currentIntervention">The currently active <c>DivineIntervention</c>.</param>
+        /// <param name="lastIntervention">The previously active <c>DivineIntervention</c>.</param>
+        public void SetActiveDivineInterventionIcon(DivineIntervention currentIntervention, DivineIntervention lastIntervention)
         {
-            InterfaceUtils.ShowActiveIcon(m_PowerIcons[(int)lastPower].GetComponent<Image>(), isActive: false);
-            InterfaceUtils.ShowActiveIcon(m_PowerIcons[(int)currentPower].GetComponent<Image>(), isActive: true);
+            InterfaceUtils.ShowActiveIcon(m_DivineInterventionIcons[(int)lastIntervention].GetComponent<Image>(), isActive: false);
+            InterfaceUtils.ShowActiveIcon(m_DivineInterventionIcons[(int)currentIntervention].GetComponent<Image>(), isActive: true);
         }
 
         #endregion
@@ -333,7 +332,7 @@ namespace Populous
         {
             HideInspectedObjectPanel();
 
-            UpdateSettlementTeam(faction);
+            UpdateSettlementFaction(faction);
             UpdateSettlementType(type, settlementCapacity);
             UpdateSettlementFollowers(followers);
 
@@ -377,7 +376,7 @@ namespace Populous
         /// Displays the settlement image for the settlement belonging to the given faction on the Inspect Settlement panel.
         /// </summary>
         /// <param name="faction">The <c>Faction</c> the settlement belongs to.</param>
-        public void UpdateSettlementTeam(Faction faction)
+        public void UpdateSettlementFaction(Faction faction)
         {
             m_CurrentlyShownSettlementImage = (int)faction;
             m_SettlementImages[m_CurrentlyShownSettlementImage].gameObject.SetActive(true);
@@ -422,7 +421,7 @@ namespace Populous
         /// <summary>
         /// Activates the Query action if it is inactive, and vice versa.
         /// </summary>
-        public void OnQueryClicked() => PlayerController.Instance.ToggleQuery();
+        public void OnQueryClicked() => PlayerController.Instance.ToggleQueryMode();
 
 
         #region Influence Behavior Buttons
@@ -485,47 +484,47 @@ namespace Populous
         #endregion
 
 
-        #region Powers Buttons
+        #region Divine Intervention Buttons
 
         /// <summary>
-        /// Activates the Mold Terrain power.
+        /// Activates the Mold Terrain Divine Intervention.
         /// </summary>
-        public void OnMoldTerrainClicked() => PlayerController.Instance.TryActivatePower(Power.MOLD_TERRAIN);
+        public void OnMoldTerrainClicked() => PlayerController.Instance.TryActivateDivineIntervention(DivineIntervention.MOLD_TERRAIN);
 
         /// <summary>
-        /// Activates the Place Unit Magnet power.
+        /// Activates the Place Unit Magnet Divine Intervention.
         /// </summary>
-        public void OnPlaceUnitMagnetClicked() => PlayerController.Instance.TryActivatePower(Power.PLACE_MAGNET);
+        public void OnPlaceUnitMagnetClicked() => PlayerController.Instance.TryActivateDivineIntervention(DivineIntervention.PLACE_MAGNET);
 
         /// <summary>
-        /// Activates the Earthquake power.
+        /// Activates the Earthquake Divine Intervention.
         /// </summary>
-        public void OnEarthquakeClicked() => PlayerController.Instance.TryActivatePower(Power.EARTHQUAKE);
+        public void OnEarthquakeClicked() => PlayerController.Instance.TryActivateDivineIntervention(DivineIntervention.EARTHQUAKE);
 
         /// <summary>
-        /// Activates the Swamp power.
+        /// Activates the Swamp Divine Intervention.
         /// </summary>
-        public void OnSwampClicked() => PlayerController.Instance.TryActivatePower(Power.SWAMP);
+        public void OnSwampClicked() => PlayerController.Instance.TryActivateDivineIntervention(DivineIntervention.SWAMP);
 
         /// <summary>
-        /// Activates the KNIGHT power.
+        /// Activates the KNIGHT Divine Intervention.
         /// </summary>
-        public void OnKnightClicked() => PlayerController.Instance.TryActivatePower(Power.KNIGHT);
+        public void OnKnightClicked() => PlayerController.Instance.TryActivateDivineIntervention(DivineIntervention.KNIGHT);
 
         /// <summary>
-        /// Activates the Volcano power.
+        /// Activates the Volcano Divine Intervention.
         /// </summary>
-        public void OnVolcanoClicked() => PlayerController.Instance.TryActivatePower(Power.VOLCANO);
+        public void OnVolcanoClicked() => PlayerController.Instance.TryActivateDivineIntervention(DivineIntervention.VOLCANO);
 
         /// <summary>
-        /// Activates the Flood power.
+        /// Activates the Flood Divine Intervention.
         /// </summary>
-        public void OnFloodClicked() => PlayerController.Instance.TryActivatePower(Power.FLOOD);
+        public void OnFloodClicked() => PlayerController.Instance.TryActivateDivineIntervention(DivineIntervention.FLOOD);
 
         /// <summary>
-        /// Activates the Armagheddon power.
+        /// Activates the Armagheddon Divine Intervention.
         /// </summary>
-        public void OnArmagheddonClicked() => PlayerController.Instance.TryActivatePower(Power.ARMAGEDDON);
+        public void OnArmagheddonClicked() => PlayerController.Instance.TryActivateDivineIntervention(DivineIntervention.ARMAGEDDON);
 
         #endregion
 

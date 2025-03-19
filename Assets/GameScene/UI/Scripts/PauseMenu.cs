@@ -40,8 +40,7 @@ namespace Populous
             m_Instance = this;
         }
 
-        private void Start()
-            => m_GameSeedField.text = GameData.Instance ? GameData.Instance.GameSeed.ToString() : "";
+        private void Start() => m_GameSeedField.text = GameData.Instance ? GameData.Instance.GameSeed.ToString() : "";
 
         #endregion
 

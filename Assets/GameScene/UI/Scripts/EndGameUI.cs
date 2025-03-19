@@ -48,7 +48,7 @@ namespace Populous
         /// <summary>
         /// Sets up the winner information and fades in the end game UI.
         /// </summary>
-        /// <param name="winner">The <c>Team</c> that won the game.</param>
+        /// <param name="winner">The <c>Faction</c> that won the game.</param>
         public async void ShowEndGameUI(Faction winner)
         {
             PlayerInfo? winnerInfo = GameData.Instance.GetPlayerInfoByFaction(winner);

@@ -5,7 +5,7 @@ namespace Populous
     /// <summary>
     /// The <c>Minimap</c> class manages the texture of the minimap.
     /// </summary>
-    [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
+    [RequireComponent(typeof(MeshRenderer))]
     public class Minimap : MonoBehaviour
     {
         [SerializeField] private Color m_LandColor;

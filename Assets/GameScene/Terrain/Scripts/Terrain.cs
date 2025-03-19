@@ -13,27 +13,18 @@ namespace Populous
     {
         #region Inspector Fields
 
-        [Tooltip("The prefab from which the terrain chunks are spawned.")]
-        [SerializeField] private GameObject m_ChunkPrefab;
-
         [Tooltip("A material that uses the Terrain shader.")]
         [SerializeField] private Material m_TerrainMaterial;
 
-
         [Header("Terrain Properties")]
-
         [Tooltip("The number of terrain chunks on each side of the terrain.")]
         [SerializeField] private int m_ChunksPerSide = 7;
-
         [Tooltip("The number of tiles on each side of a terrain chunk.")]
         [SerializeField] private int m_TilesPerChunkSide = 8;
-
         [Tooltip("The length of each side of a terrain tile, in Unity units.")]
         [SerializeField] private int m_UnitsPerTileSide = 50;
-
         [Tooltip("The distance of one height step, in Unity units (i.e. the only possible height difference between two neighboring points that are not on the same height).")]
         [SerializeField] private int m_StepHeight = 50;
-
         [Tooltip("The maximum number of height steps above the initial water level that a terrain point can sit at.")]
         [SerializeField] private int m_MaxHeightSteps = 7;
 
@@ -169,8 +160,7 @@ namespace Populous
         /// <summary>
         /// Sets up the variables in the Terrain shader of the terrain material.
         /// </summary>
-        private void SetupTerrainShader()
-            => m_TerrainMaterial.SetInteger("waterLevel", m_WaterLevel);
+        private void SetupTerrainShader() => m_TerrainMaterial.SetInteger("waterLevel", m_WaterLevel);
 
         #endregion
 
@@ -246,11 +236,10 @@ namespace Populous
             {
                 for (int x = -radius; x <= radius; ++x)
                 {
-                    if (center.X + x < 0 || center.X + x > TilesPerSide ||
-                        center.Z + z < 0 || center.Z + z > TilesPerSide)
-                        continue;
-
                     TerrainPoint point = new(center.X + x, center.Z + z);
+
+                    if (!point.IsInBounds()) continue;
+
                     int randomStep = random.Next(0, 2);
                     ChangePointHeight(point, false, m_WaterLevel + (randomStep * m_StepHeight));
                     newHeights.Add(point, m_WaterLevel);

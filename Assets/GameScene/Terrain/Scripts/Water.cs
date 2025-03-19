@@ -5,7 +5,7 @@ namespace Populous
     /// <summary>
     /// The <c>Water</c> class handles the behavior of the water plane.
     /// </summary>
-    [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
+    [RequireComponent(typeof(Renderer))]
     public class Water : MonoBehaviour
     {
         private static Water m_Instance;
@@ -45,7 +45,7 @@ namespace Populous
         /// <summary>
         /// Increases the height of the water plane by one step.
         /// </summary>
-        /// <remarks>Used for the Flood power.</remarks>
+        /// <remarks>Used for the Flood Divine Intervention.</remarks>
         public void Raise() => transform.position += Vector3.up * Terrain.Instance.StepHeight;
     }
 }

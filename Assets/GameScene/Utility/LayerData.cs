@@ -14,15 +14,15 @@ namespace Populous
         /// <summary>
         /// The name of the layer containing the units and settlements of the Red faction.
         /// </summary>
-        public const string RED_FACTION_LAYER_NAME = "Red Team";
+        public const string RED_FACTION_LAYER_NAME = "Red Faction";
         /// <summary>
         /// The name of the layer containing the units and settlements of the Blue faction.
         /// </summary>
-        public const string BLUE_FACTION_LAYER_NAME = "Blue Team";
+        public const string BLUE_FACTION_LAYER_NAME = "Blue Faction";
         /// <summary>
         /// The name of the layer containing the units and structures that don't belong to any faction.
         /// </summary>
-        public const string NONE_FACTION_LAYER_NAME = "None Team";
+        public const string NONE_FACTION_LAYER_NAME = "None Faction";
         /// <summary>
         /// The name of the layer containing scene elements that should only appear on the minimap.
         /// </summary>

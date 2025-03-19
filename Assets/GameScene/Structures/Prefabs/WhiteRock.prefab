@@ -13,7 +13,7 @@ GameObject:
   - component: {fileID: 3064694700215613125}
   - component: {fileID: 9082392114773686547}
   - component: {fileID: 75224730082808730}
-  m_Layer: 8
+  m_Layer: 0
   m_Name: WhiteRock
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -71,7 +71,7 @@ MeshRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 6900855947707496703}
-  m_Enabled: 1
+  m_Enabled: 0
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1

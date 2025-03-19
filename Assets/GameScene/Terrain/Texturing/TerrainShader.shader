@@ -2,11 +2,15 @@ Shader "Custom/TerrainShader"
 {
     Properties
     {
-        _TextureScale ("Texture scale", float) = 5
-        _ShoreHeight ("Shore height", float) = 5
+        _WaterTextureScale ("Water texture scale", float) = 5
         _WaterTexture ("Water texture", 2D) = "" {}
+
+        _LandTextureScale ("Land texture scale", float) = 5
         _LandTexture ("Land texture", 2D) = "" {}
+
+        _ShoreTextureScale ("Shore texture scale", float) = 5
         _ShoreTexture ("Shore texture", 2D) = "" {}
+        _ShoreHeight ("Shore height", float) = 20
     }
     
     SubShader
@@ -18,12 +22,16 @@ Shader "Custom/TerrainShader"
         #pragma surface surf Standard fullforwardshadows
         #pragma target 3.0
 
-        float _TextureScale;
+        sampler2D _WaterTexture;
+        float _WaterTextureScale;
+
+        sampler2D _LandTexture;
+        float _LandTextureScale;
+
+        sampler2D _ShoreTexture;
+        float _ShoreTextureScale;
         float _ShoreHeight;
 
-        sampler2D _WaterTexture;
-        sampler2D _LandTexture;
-        sampler2D _ShoreTexture;
 
         int waterLevel;
 
@@ -36,14 +44,14 @@ Shader "Custom/TerrainShader"
 
         void surf (Input IN, inout SurfaceOutputStandard o)
         {
-            float3 scaledWorldPos = IN.worldPos / _TextureScale;
-
             if (IN.worldPos.y >= waterLevel + _ShoreHeight)
-                o.Albedo = tex2D(_LandTexture, scaledWorldPos.xz);
+                o.Albedo = tex2D(_LandTexture, (IN.worldPos / _LandTextureScale).xz);
+
             else if (IN.worldPos.y > waterLevel && IN.worldPos.y < waterLevel + _ShoreHeight)
-                o.Albedo = tex2D(_ShoreTexture, scaledWorldPos.xz);
+                o.Albedo = tex2D(_ShoreTexture, (IN.worldPos / _ShoreTextureScale).xz);
+
             else 
-                o.Albedo = tex2D(_WaterTexture, scaledWorldPos.xz);
+                o.Albedo = tex2D(_WaterTexture, (IN.worldPos / _WaterTextureScale).xz);
         }
 
         ENDCG
