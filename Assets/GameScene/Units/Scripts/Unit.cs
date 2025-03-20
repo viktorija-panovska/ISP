@@ -14,8 +14,9 @@ namespace Populous
     {
         #region Inspector Fields
 
-        [Tooltip("The amount of seconds between a unit being spawned and it being able to enter settlements.")]
-        [SerializeField] private float m_SecondsUntilEnteringEnabled = 0.5f;
+        [Tooltip("The amount of seconds between a unit being spawned from a settlement and it being able to enter that settlement again." +
+            "Used to stop the unit from being reabsorbed into the settlement immediately after being spawned.")]
+        [SerializeField] private float m_SecondsUntilEnteringEnabled = 2f;
         [Tooltip("The GameObjects of the signs carried by a Leader unit, where index 0 is the red leader sign and index 1 is the blue leader sign.")]
         [SerializeField] private GameObject[] m_LeaderSigns;
         [Tooltip("The GameObject of the sword carried by a Knight unit.")]
@@ -65,11 +66,11 @@ namespace Populous
         /// <remarks>The strength of the unit is the number of followers represented by this one unit.</remarks>
         public int Strength { get => m_Strength; }
 
-        private bool m_CanEnterSettlement;
+        private Settlement m_Origin;
         /// <summary>
-        /// True if the followers from the unit can enter a settlement, false otherwise.
+        /// The settlement that spawned this object, null if it is irrelevant.
         /// </summary>
-        public bool CanEnterSettlement { get => m_CanEnterSettlement; }
+        public Settlement Origin { get => m_Origin; }
 
 
         /// <summary>
@@ -121,11 +122,11 @@ namespace Populous
         /// <param name="faction">The <c>Faction</c> the structure belongs to.</param>
         /// <param name="strength">The starting strength of the unit.</param>
         /// <param name="canEnterSettlement">True if the unit can enter a settlement immediately after spawning, false if it has to wait a bit.</param>
-        public void Setup(Faction faction, int strength, bool canEnterSettlement)
+        public void Setup(Faction faction, int strength, Settlement origin)
         {
             m_Faction = faction;
             m_Strength = strength;
-            m_CanEnterSettlement = canEnterSettlement;
+            m_Origin = origin;
 
             SetObjectInfo_ClientRpc(
                 $"{m_Faction} Unit",
@@ -165,7 +166,7 @@ namespace Populous
             UnitManager.Instance.OnRemoveReferencesToUnit += RemoveRefrencesToUnit;
             StructureManager.Instance.OnRemoveReferencesToSettlement += RemoveRefrencesToSettlement;
 
-            if (!m_CanEnterSettlement)
+            if (origin)
                 StartCoroutine(WaitToEnableEntering());
         }
 
@@ -227,6 +228,15 @@ namespace Populous
             DivineInterventionsController.Instance.OnFlood -=  m_MovementHandler.CheckTargetTile;
             UnitManager.Instance.OnRemoveReferencesToUnit -= RemoveRefrencesToUnit;
             StructureManager.Instance.OnRemoveReferencesToSettlement -= RemoveRefrencesToSettlement;
+
+            GameController.Instance.RemoveVisibleObject_ClientRpc(
+                GetComponent<NetworkObject>().NetworkObjectId,
+                GameUtils.GetClientParams(GameData.Instance.GetNetworkIdByFaction(m_Faction))
+            );
+
+            if (IsInspected)
+                QueryModeController.Instance.RemoveInspectedObject(this);
+
         }
 
         /// <summary>
@@ -344,7 +354,7 @@ namespace Populous
         private IEnumerator WaitToEnableEntering()
         {
             yield return new WaitForSeconds(m_SecondsUntilEnteringEnabled);
-            m_CanEnterSettlement = true;
+            m_Origin = null;
         }
 
         #endregion
@@ -356,7 +366,7 @@ namespace Populous
         /// Checks whether the unit has maximum strength.
         /// </summary>
         /// <returns>True if the unit has maximum strength, false otherwise.</returns>
-        public bool HasMaxStrength() => m_Strength == UnitManager.Instance.MaxUnitStrength;
+        public bool HasMaxStrength() => m_Strength == UnitManager.Instance.MaxFollowersInFaction;
 
         /// <summary>
         /// Adds the given amount of strength to the unit.
@@ -374,6 +384,8 @@ namespace Populous
         /// Removes the given amount of strength from the unit.
         /// </summary>
         /// <param name="amount">The amount of strength to be removed.</param>
+        /// <param name="isDamaged">True if the strength has been lost because the unit has been hit in a fight or decayed, false if the 
+        /// followers from the unit went to another unit or a settlement.</param>
         public void LoseStrength(int amount, bool isDamaged = true) 
         { 
             m_Strength -= amount;

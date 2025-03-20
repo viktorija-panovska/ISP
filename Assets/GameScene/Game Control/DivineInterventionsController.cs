@@ -386,7 +386,7 @@ namespace Populous
 
             // updates settlements whose fields were destroyed
             foreach (Settlement settlement in affectedSettlements)
-                settlement.SetType();
+                settlement.UpdateType();
         }
 
         #endregion
@@ -516,7 +516,7 @@ namespace Populous
 
             foreach (Faction factions in Enum.GetValues(typeof(Faction)))
             {
-                if (factions == Faction.NONE) break;
+                if (factions == Faction.NONE) continue;
 
                 GameController.Instance.PlaceUnitMagnetAtPoint(factions, Terrain.Instance.TerrainCenter);
                 UnitManager.Instance.ChangeUnitBehavior_ServerRpc(factions, UnitBehavior.GO_TO_MAGNET);

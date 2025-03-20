@@ -64,8 +64,6 @@ namespace Populous
         [SerializeField] private GameObject m_UnitPrefab;
         [Tooltip("The maximum number of followers for each faction.")]
         [SerializeField] private int m_MaxFollowersInFaction = 1000;
-        [Tooltip("The maximum possible number of followers that can be in a single unit.")]
-        [SerializeField] private int m_MaxUnitStrength = 100;
         [Tooltip("The number of unit steps after which the unit loses one follower.")]
         [SerializeField] private int m_UnitDecayRate = 20;
         [Tooltip("The number of seconds between each time the units in a fight deal damage to each other.")]
@@ -100,10 +98,6 @@ namespace Populous
         /// Gets the maximum number of followers a faction can have.
         /// </summary>
         public int MaxFollowersInFaction { get => m_MaxFollowersInFaction; }
-        /// <summary>
-        /// Gets the maximum possible number of followers that can be in a single unit.
-        /// </summary>
-        public int MaxUnitStrength { get => m_MaxUnitStrength; }
         /// <summary>
         /// Gets the number of steps after which a unit loses one follower.
         /// </summary>
@@ -278,17 +272,7 @@ namespace Populous
             if (unit.Type == UnitType.KNIGHT)
                 RemoveKnight(unit.Faction, unit);
 
-            NetworkObject netObject = unitObject.GetComponent<NetworkObject>();
-
-            GameController.Instance.RemoveVisibleObject_ClientRpc(
-                netObject.NetworkObjectId,
-                GameUtils.GetClientParams(GameData.Instance.GetNetworkIdByFaction(unit.Faction))
-            );
-
-            if (unit.IsInspected)
-                QueryModeController.Instance.RemoveInspectedObject(unit);
-
-            netObject.Despawn();
+            unit.GetComponent<NetworkObject>().Despawn();
             Destroy(unitObject);
         }
 
@@ -419,7 +403,7 @@ namespace Populous
         /// </summary>
         /// <param name="faction">The <c>Faction</c> the followers should be removed from.</param>
         /// <param name="amount">The amount of followers that should be removed.</param>
-        public void RemovePopulation(Faction faction, int amount = 1)
+        public void RemoveFollowers(Faction faction, int amount = 1)
             => SetFollowers(faction, Mathf.Clamp(m_Followers[(int)faction] - amount, 0, m_MaxFollowersInFaction));
 
         /// <summary>
@@ -688,21 +672,17 @@ namespace Populous
             // one unit can attack a origin at a time
             if (settlement.IsAttacked) return;
 
+            Debug.Log("Attack settlement");
+
             settlement.IsAttacked = true;
             unit.ToggleMovement(pause: true);
 
-            // an enemy unit leaves the settlement
-            int strength = 0;
-            if (settlement.FollowersInSettlement >= settlement.ReleasedUnitStrength)
-                strength = settlement.ReleasedUnitStrength;
-            else if (settlement.FollowersInSettlement > 0)
-                strength = settlement.FollowersInSettlement;
-
+            settlement.RemoveFollowers(settlement.FollowersInSettlement - 1, updateFactionFollowers: false);
             Unit other = SpawnUnit(
-                location: unit.ClosestTerrainPoint, 
-                faction: settlement.Faction, 
-                type: UnitType.WALKER, 
-                strength: strength,
+                location: new TerrainPoint(settlement.OccupiedTile.X, settlement.OccupiedTile.Z),
+                faction: settlement.Faction,
+                type: UnitType.WALKER,
+                strength: settlement.FollowersInSettlement - 1,
                 origin: settlement
             ).GetComponent<Unit>();
 
@@ -729,7 +709,7 @@ namespace Populous
             if (winner.Type == UnitType.KNIGHT)
                 settlement.BurnDown();
             else
-                StructureManager.Instance.ChangeSettlementFaction(settlement, winner.Faction);
+                settlement.ChangeFaction(winner.Faction);
         }
 
         #endregion

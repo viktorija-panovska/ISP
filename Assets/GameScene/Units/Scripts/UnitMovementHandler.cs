@@ -164,7 +164,6 @@ namespace Populous
 
         private void FixedUpdate()
         {
-            Debug.Log("Fixed Update");
             if (m_CurrentMoveState == MoveState.STOP) return;
 
             Vector3 currentPosition = transform.position;
@@ -456,7 +455,6 @@ namespace Populous
         /// </summary>
         public void SetFreeRoam()
         {
-            Debug.Log("Start Roam");
             ClearPath();
             m_TargetTile = null;
             m_TargetUnit = null;
@@ -711,10 +709,9 @@ namespace Populous
         /// </summary>
         private void OnFreeTileReached()
         {
-            Debug.Log("Free TIle");
             SwitchMoveState(MoveState.STOP);
-            //StructureManager.Instance.CreateSettlement(m_TargetTile.Value, m_Unit.Faction);
-            //SetFreeRoam();
+            StructureManager.Instance.CreateSettlement(m_TargetTile.Value, m_Unit.Faction);
+            SetFreeRoam();
         }
 
         /// <summary>

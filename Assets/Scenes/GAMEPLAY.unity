@@ -1101,11 +1101,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_UnitPrefab: {fileID: 4803634603491590232, guid: fb550bad1c970ed4c9b4ceb3be5cb1b5, type: 3}
   m_MaxFollowersInFaction: 1000
-  m_MaxUnitStrength: 100
   m_UnitDecayRate: 20
   m_FightWaitDuration: 1
   m_LeaderDeathMannaLoss: 10
-  m_StartingUnits: 10
+  m_StartingUnits: 2
   m_StartingUnitStrength: 1
   m_MinimapIconScale: 30
   m_MinimapUnitColors:
@@ -9733,8 +9732,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_TerrainMaterial: {fileID: 2100000, guid: 9d6a44b0d4d72774483f5474a1efa3ce, type: 2}
-  m_ChunksPerSide: 7
-  m_TilesPerChunkSide: 8
+  m_ChunksPerSide: 2
+  m_TilesPerChunkSide: 3
   m_UnitsPerTileSide: 50
   m_StepHeight: 50
   m_MaxHeightSteps: 7

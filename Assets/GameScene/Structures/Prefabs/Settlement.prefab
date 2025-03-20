@@ -225,7 +225,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_SettlementCollision: {fileID: 7394272528562312019}
-  m_SettlementTrigger: {fileID: 4356391194417125182}
+  m_UnitDetector: {fileID: 4356391194417125182}
   m_Highlight: {fileID: 7324521799696845122}
   m_MinimapIcon: {fileID: 2475679208892404697}
   m_SettlementObjects:

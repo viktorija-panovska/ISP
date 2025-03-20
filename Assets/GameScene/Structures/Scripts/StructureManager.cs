@@ -170,16 +170,6 @@ namespace Populous
 
                 if (updateNearbySettlements)
                     UpdateNearbySettlements(structure.OccupiedTile);
-
-                GameController.Instance.RemoveVisibleObject_ClientRpc(
-                    GetComponent<NetworkObject>().NetworkObjectId,
-                    GameUtils.GetClientParams(GameData.Instance.GetNetworkIdByFaction(structure.Faction))
-                );
-
-                Settlement settlement = (Settlement)structure;
-
-                if (settlement.IsInspected)
-                    QueryModeController.Instance.RemoveInspectedObject(settlement);
             }
 
             structure.GetComponent<NetworkObject>().Despawn();
@@ -328,19 +318,15 @@ namespace Populous
         /// <param name="faction">The new <c>Faction</c> the settlement should belong to.</param>
         public void ChangeSettlementFaction(Settlement settlement, Faction faction)
         {
-            if (faction == settlement.Faction) return;
-
-            GameController.Instance.RemoveVisibleObject_ClientRpc(
-                GetComponent<NetworkObject>().NetworkObjectId,
-                GameUtils.GetClientParams(GameData.Instance.GetNetworkIdByFaction(settlement.Faction))
-            );
+            if (faction == settlement.Faction || faction == Faction.NONE) return;
 
             RemoveSettlementPosition(settlement.transform.position, settlement.Faction);
-            settlement.ChangeFaction(faction);
+            UpdateNearbySettlements(settlement.OccupiedTile);
 
             if (faction != Faction.NONE)
                 AddSettlementPosition(settlement.transform.position, faction);
         }
+
 
         /// <summary>
         /// Gets the settlement location at the given index in the list of settlement locations of the given faction.
@@ -392,7 +378,7 @@ namespace Populous
                     if (!structure || structure.GetType() != typeof(Settlement)) continue;
 
                     Settlement settlement = (Settlement)structure;
-                    settlement.SetType();
+                    settlement.UpdateType();
                 }
             }
         }

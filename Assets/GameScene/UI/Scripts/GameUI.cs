@@ -369,7 +369,7 @@ namespace Populous
         /// </summary>
         /// <param name="strength">The amount of strength that should be shown.</param>
         public void UpdateUnitStrength(int strength)
-            => m_UnitStrengthSlider.value = (float)strength / UnitManager.Instance.MaxUnitStrength;
+            => m_UnitStrengthSlider.value = (float)strength / UnitManager.Instance.MaxFollowersInFaction;
 
 
         /// <summary>
@@ -407,8 +407,8 @@ namespace Populous
         /// <param name="blueStrength">The strength of the blue unit in the fight.</param>
         public void UpdateFight(int redStrength, int blueStrength)
         {
-            m_RedUnitStrengthBar.value = (float)redStrength / UnitManager.Instance.MaxUnitStrength;
-            m_BlueUnitStrengthBar.value = (float)blueStrength / UnitManager.Instance.MaxUnitStrength;
+            m_RedUnitStrengthBar.value = (float)redStrength / UnitManager.Instance.MaxFollowersInFaction;
+            m_BlueUnitStrengthBar.value = (float)blueStrength / UnitManager.Instance.MaxFollowersInFaction;
         }
 
         #endregion

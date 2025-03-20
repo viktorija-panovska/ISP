@@ -12,7 +12,7 @@ namespace Populous
         {
             m_DestroyMethod = DestroyMethod.TERRAIN_CHANGE;
             GameUtils.ResizeGameObject(gameObject, Terrain.Instance.UnitsPerTileSide);
-            GetComponent<Collider>().enabled = false;
+            GetComponent<Collider>().enabled = IsHost;
         }
 
         private void OnTriggerEnter(Collider other)
@@ -20,13 +20,6 @@ namespace Populous
             if (!other.GetComponent<Unit>()) return;
 
             UnitManager.Instance.DespawnUnit(other.gameObject, hasDied: true);
-        }
-
-
-        public override void Setup(Faction faction, TerrainTile occupiedTile) 
-        {
-            base.Setup(faction, occupiedTile);
-            GetComponent<Collider>().enabled = true; 
         }
     }
 }

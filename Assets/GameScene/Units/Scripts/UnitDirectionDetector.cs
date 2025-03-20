@@ -39,8 +39,9 @@ namespace Populous
 
         private void OnTriggerEnter(Collider other)
         {
-            if ((m_Unit.Behavior == UnitBehavior.FIGHT && other.gameObject.layer == LayerData.FactionLayers[(int)m_EnemyFaction]) ||
-                (m_Unit.Behavior == UnitBehavior.GATHER && other.gameObject.layer == LayerData.FactionLayers[(int)m_Unit.Faction]))
+            if (((m_Unit.Behavior == UnitBehavior.FIGHT && other.gameObject.layer == LayerData.FactionLayers[(int)m_EnemyFaction]) ||
+                (m_Unit.Behavior == UnitBehavior.GATHER && other.gameObject.layer == LayerData.FactionLayers[(int)m_Unit.Faction])) &&
+                (!other.GetComponent<Settlement>() || other.GetComponent<Settlement>() != m_Unit.Origin))
                 m_NearbyObjects.Add(other.gameObject);
         }
 

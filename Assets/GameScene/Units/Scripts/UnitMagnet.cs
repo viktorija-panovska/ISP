@@ -23,7 +23,7 @@ namespace Populous
         public TerrainPoint GridLocation { get => m_GridLocation; }
 
 
-        private void Start() => GetComponent<Collider>().enabled = false;
+        private void Start() => GetComponent<Collider>().enabled = IsHost;
 
         /// <summary>
         /// Sets up the initial state of the unit magnet.
@@ -34,8 +34,6 @@ namespace Populous
             DivineInterventionsController.Instance.OnFlood += UpdateHeight;
 
             SetPosition_ClientRpc(m_GridLocation.ToScenePosition());
-
-            GetComponent<Collider>().enabled = true;
         }
 
 

@@ -118,7 +118,7 @@ MonoBehaviour:
   m_MinSize: {x: 300, y: 200}
   m_MaxSize: {x: 24288, y: 16192}
   vertical: 1
-  controlID: 63
+  controlID: 84
 --- !u!114 &6
 MonoBehaviour:
   m_ObjectHideFlags: 52
@@ -144,7 +144,7 @@ MonoBehaviour:
   m_MinSize: {x: 300, y: 200}
   m_MaxSize: {x: 24288, y: 16192}
   vertical: 0
-  controlID: 64
+  controlID: 85
 --- !u!114 &7
 MonoBehaviour:
   m_ObjectHideFlags: 52
@@ -195,7 +195,7 @@ MonoBehaviour:
   m_MinSize: {x: 100, y: 200}
   m_MaxSize: {x: 8096, y: 16192}
   vertical: 1
-  controlID: 91
+  controlID: 86
 --- !u!114 &9
 MonoBehaviour:
   m_ObjectHideFlags: 52
@@ -332,7 +332,7 @@ MonoBehaviour:
     scrollPos: {x: 0, y: 63.80002}
     m_SelectedIDs: 646c0000
     m_LastClickedID: 27748
-    m_ExpandedIDs: 00000000386c00003a6c00003c6c0000
+    m_ExpandedIDs: 00000000406c0000426c0000
     m_RenameOverlay:
       m_UserAcceptedRename: 0
       m_Name: 
@@ -360,7 +360,7 @@ MonoBehaviour:
     scrollPos: {x: 0, y: 0}
     m_SelectedIDs: 
     m_LastClickedID: 0
-    m_ExpandedIDs: 00000000386c00003a6c00003c6c0000
+    m_ExpandedIDs: 00000000406c0000426c0000
     m_RenameOverlay:
       m_UserAcceptedRename: 0
       m_Name: 
@@ -391,18 +391,18 @@ MonoBehaviour:
     m_ExpandedInstanceIDs: b66d0000
     m_RenameOverlay:
       m_UserAcceptedRename: 0
-      m_Name: BlueLeaderSign
-      m_OriginalName: BlueLeaderSign
+      m_Name: 
+      m_OriginalName: 
       m_EditFieldRect:
         serializedVersion: 2
         x: 0
         y: 0
         width: 0
         height: 0
-      m_UserData: 27752
+      m_UserData: 0
       m_IsWaitingForDelay: 0
       m_IsRenaming: 0
-      m_OriginalEventType: 0
+      m_OriginalEventType: 11
       m_IsRenamingFilename: 1
       m_ClientGUIView: {fileID: 10}
     m_CreateAssetUtility:
@@ -449,7 +449,7 @@ MonoBehaviour:
       scrollPos: {x: 0, y: 0}
       m_SelectedIDs: 
       m_LastClickedID: 0
-      m_ExpandedIDs: 8226fcffcc26fcffe828fcff0229fcff3829fcff0272fcff2473fcff6e73fcff8a75fcffa475fcffda75fcff8e77fcffd877fcfff677fcff0a78fcff4078fcff5cc0fcffa6c0fcffc4c0fcffd8c0fcff0ec1fcfff0c1fcff3ac2fcff56c4fcff70c4fcffa6c4fcffa80efdfff20efdff0e11fdff2811fdff5e11fdff8e5afdffd85afdfff65afdff0a5bfdff405bfdffb8a2fdffdaa3fdff24a4fdff40a6fdff5aa6fdff90a6fdffbeeffdff08f0fdff24f2fdff3ef2fdff74f2fdffac3bfefff63bfeff163efeff343efeff6e3efeffe486feff8a87feffd487fefff287feff0688feff3c88feffd08afeff468cfeff908cfeffb28cfeffca8cfeff048dfeff16cefeff0cd2feff56d2feff74d2feff88d2feffbed2feff30d5feff68d8feff9ad9feffe4d9feff00dcfeff1adcfeff50dcfeff0a63ffff5463ffff6c65ffff8665ffffbc65fffffca8ffff46a9ffff62abffff80abffffbaabffff06f0ffffdef0ffff28f1ffff0af3ffff22f3ffff78f3ffff10faffff18fbfffff4ffffff627e0100be7e0100
+      m_ExpandedIDs: 18fbffff
       m_RenameOverlay:
         m_UserAcceptedRename: 0
         m_Name: 
@@ -506,8 +506,8 @@ MonoBehaviour:
       floating: 0
       collapsed: 0
       displayed: 1
-      snapOffset: {x: -100, y: -25.600006}
-      snapOffsetDelta: {x: 0, y: 0}
+      snapOffset: {x: 0, y: 0}
+      snapOffsetDelta: {x: -100, y: -25.600006}
       snapCorner: 3
       id: Tool Settings
       index: 0
@@ -528,7 +528,7 @@ MonoBehaviour:
       floating: 0
       collapsed: 0
       displayed: 1
-      snapOffset: {x: 0, y: 24.8}
+      snapOffset: {x: 0, y: 0}
       snapOffsetDelta: {x: 0, y: 0}
       snapCorner: 0
       id: unity-scene-view-toolbar
@@ -550,7 +550,7 @@ MonoBehaviour:
       floating: 0
       collapsed: 0
       displayed: 1
-      snapOffset: {x: 0, y: 24.8}
+      snapOffset: {x: 0, y: 0}
       snapOffsetDelta: {x: 0, y: 0}
       snapCorner: 0
       id: unity-transform-toolbar
@@ -749,7 +749,7 @@ MonoBehaviour:
   m_Rotation:
     m_Target: {x: 0.1386724, y: 0.09786907, z: -0.0137721775, w: 0.9853961}
     speed: 2
-    m_Value: {x: 0.13867216, y: 0.097868904, z: -0.013772154, w: 0.9853944}
+    m_Value: {x: -0.1386724, y: -0.097869076, z: 0.013772178, w: -0.98539615}
   m_Size:
     m_Target: 612.28436
     speed: 2
