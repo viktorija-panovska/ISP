@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Unity.Netcode;
 using UnityEngine;
 
 using Random = System.Random;
@@ -11,7 +12,7 @@ namespace Populous
     /// The <c>UnitMovementHandler</c> class handles the movement of an individual unit.
     /// </summary>
     [RequireComponent(typeof(Unit), typeof(Rigidbody))]
-    public class UnitMovementHandler : MonoBehaviour
+    public class UnitMovementHandler : NetworkBehaviour
     {
         /// <summary>
         /// States of movement a unit can be in.
@@ -97,6 +98,8 @@ namespace Populous
         /// Total steps taken, used for the decay rate.
         /// </summary>
         private int m_Steps;
+
+        private bool m_CannotFindMagnet;
 
 
         #region Moving along a path
@@ -203,7 +206,37 @@ namespace Populous
             m_Unit = GetComponent<Unit>();
             m_Rigidbody = GetComponent<Rigidbody>();
 
+            // subscribe to events
+            if (m_Unit.Faction == Faction.RED)
+            {
+                UnitManager.Instance.OnRedLeaderChange += SetGoToMagnetBehavior;
+                GameController.Instance.OnRedMagnetMoved += SetGoToMagnetBehavior;
+            }
+            else if (m_Unit.Faction == Faction.BLUE)
+            {
+                UnitManager.Instance.OnBlueLeaderChange += SetGoToMagnetBehavior;
+                GameController.Instance.OnBlueMagnetMoved += SetGoToMagnetBehavior;
+            }
+
+            StructureManager.Instance.OnSettlementCreated += CheckTargetTile;
+
             SetFreeRoam();
+        }
+
+        public void Cleanup()
+        {
+            if (m_Unit.Faction == Faction.RED)
+            {
+                UnitManager.Instance.OnRedLeaderChange -= SetGoToMagnetBehavior;
+                GameController.Instance.OnRedMagnetMoved -= SetGoToMagnetBehavior;
+            }
+            else if (m_Unit.Faction == Faction.BLUE)
+            {
+                UnitManager.Instance.OnBlueLeaderChange -= SetGoToMagnetBehavior;
+                GameController.Instance.OnBlueMagnetMoved -= SetGoToMagnetBehavior;
+            }
+
+            StructureManager.Instance.OnSettlementCreated -= CheckTargetTile; 
         }
 
         /// <summary>
@@ -227,7 +260,8 @@ namespace Populous
             // already paused
             if (pause && m_CurrentMoveState == MoveState.STOP) return;
 
-            (m_CurrentMoveState, m_LastMoveState) = pause ? (m_CurrentMoveState, MoveState.STOP) : (m_LastMoveState, m_CurrentMoveState);
+            m_LastMoveState = m_CurrentMoveState;
+            m_CurrentMoveState = pause ? MoveState.STOP : m_LastMoveState;
         }
 
         /// <summary>
@@ -250,21 +284,19 @@ namespace Populous
             else if (m_CurrentMoveState == MoveState.GO_TO_SETTLEMENT && m_TargetSettlement)
                 SetFreeRoam();
 
-            // TODO: fix GoToMagnet movement
+            // if we have reached the unit magnet, roam around it
+            else if (m_CurrentMoveState == MoveState.GO_TO_MAGNET && m_IsUnitMagnetReached)
+                WanderAroundCurrentPoint();
 
-            //// if we have reached the unit magnet, roam around it
-            //else if (m_CurrentMoveState == MoveState.GO_TO_MAGNET && m_IsUnitMagnetReached)
-            //    WanderAroundUnitMagnet();
-
-            //// if we haven't reached the unit magnet, keep going towards it
-            //else if (m_CurrentMoveState == MoveState.GO_TO_MAGNET)
-            //    GoToUnitMagnet();
+            // if we haven't reached the unit magnet, keep going towards it
+            else if (m_CurrentMoveState == MoveState.GO_TO_MAGNET)
+                SetGoToMagnetBehavior();
 
             else
             {
                 SwitchMoveState(MoveState.FREE_MOVE);
 
-                if (m_CurrentRoamDirection == (0, 0))
+                if (m_CurrentRoamDirection == (0, 0) || m_Unit.Behavior == UnitBehavior.GO_TO_MAGNET)
                 {
                     FreeRoam();
                     return;
@@ -275,7 +307,7 @@ namespace Populous
                     return;
 
                 else if ((m_Unit.Behavior == UnitBehavior.GATHER || m_Unit.Behavior == UnitBehavior.FIGHT) && 
-                    (GoToOtherUnit() || GoToSettlement() || GoInDirection()))
+                    (GoToNearbyUnit() || GoToNearbySettlement() || GoInDirection()))
                     return;
 
                 // otherwise just roam
@@ -414,35 +446,6 @@ namespace Populous
                 return true;
 
             return false;
-        }
-
-        /// <summary>
-        /// Updates the height of the target point of the movement.
-        /// </summary>
-        /// <remarks>Called after terrain modification.</remarks>
-        public void UpdateTargetPointHeight()
-            => UpdateTargetPointHeight(new(0, 0), new(Terrain.Instance.TilesPerSide, Terrain.Instance.TilesPerSide));
-
-        /// <summary>
-        /// Updates the height of the target point of the movement.
-        /// </summary>
-        /// <remarks>Called after terrain modification.</remarks>
-        public void UpdateTargetPointHeight(TerrainPoint bottomLeft, TerrainPoint topRight)
-        {
-            Vector3 bottomLeftPosition = bottomLeft.ToScenePosition();
-            Vector3 topRightPosition = topRight.ToScenePosition();
-
-            if (!m_TargetPoint.HasValue ||
-                (transform.position.x < bottomLeftPosition.x || transform.position.x > topRightPosition.x ||
-                transform.position.z < bottomLeftPosition.z || transform.position.z > topRightPosition.z)) 
-                return;
-
-            Vector3 target = m_TargetPoint.Value;
-            m_TargetPoint = new(
-                target.x, 
-                !m_MoveToCenter ? EndLocation.GetHeight() : new TerrainTile(target.x, target.z).GetCenterHeight(), 
-                target.z
-            );
         }
 
         #endregion
@@ -593,6 +596,86 @@ namespace Populous
         #endregion
 
 
+        #region Follow
+
+        /// <summary>
+        /// Make this unit go after the given unit.
+        /// </summary>
+        /// <param name="unit">The <c>Unit</c> which we want to go after.</param>
+        private void FollowUnit(Unit unit)
+        {
+            SwitchMoveState(MoveState.FOLLOW);
+            m_TargetUnit = unit;
+        }
+
+        /// <summary>
+        /// Gets the next step this unit should take, going after the target unit.
+        /// </summary>
+        private void GetNextStepToFollowTarget()
+        {
+            TerrainPoint? step = AStarPathfinder.FindNextStep(m_Unit.ClosestTerrainPoint, m_TargetUnit.ClosestTerrainPoint);
+
+            if (!step.HasValue)
+            {
+                if (m_Unit.Behavior == UnitBehavior.GO_TO_MAGNET)
+                    m_CannotFindMagnet = true;
+
+                SetFreeRoam();
+                return;
+            }
+
+            if (m_Unit.Behavior == UnitBehavior.GO_TO_MAGNET)
+                m_CannotFindMagnet = false;
+
+            SetNewPath(new List<TerrainPoint>() { step.Value });
+        }
+
+        /// <summary>
+        /// Stops following the current target unit if it matches the given unit.
+        /// </summary>
+        /// <param name="targetUnit"></param>
+        public void LoseTargetUnit(Unit targetUnit)
+        {
+            if (m_TargetUnit != targetUnit) return;
+            SetFreeRoam();
+        }
+
+        #endregion
+
+
+        #region Go To Settlement
+
+        private bool GoToSettlement(Settlement settlement)
+        {
+            SwitchMoveState(MoveState.GO_TO_SETTLEMENT);
+
+            TerrainPoint current = m_Unit.ClosestTerrainPoint;
+            List<TerrainPoint> path = AStarPathfinder.FindPath(current, settlement.OccupiedTile.GetClosestCorner(current));
+            if (path == null || path.Count == 0)
+            {
+                if (m_Unit.Behavior == UnitBehavior.GO_TO_MAGNET)
+                    m_CannotFindMagnet = true;
+
+                return false;
+            }
+
+            if (m_Unit.Behavior == UnitBehavior.GO_TO_MAGNET)
+                m_CannotFindMagnet = false;
+
+            m_TargetSettlement = settlement;
+            SetNewPath(path);
+            return true;
+        }
+
+        public void LoseTargetSettlement(Settlement targetSettlement)
+        {
+            if (m_TargetUnit != targetSettlement) return;
+            SetFreeRoam();
+        }
+
+        #endregion
+
+
         #region Settle
 
         /// <summary>
@@ -710,30 +793,8 @@ namespace Populous
         private void OnFreeTileReached()
         {
             SwitchMoveState(MoveState.STOP);
-            StructureManager.Instance.CreateSettlement(m_TargetTile.Value, m_Unit.Faction);
-            SetFreeRoam();
-        }
-
-        /// <summary>
-        /// Check if the target tile was modified by a terrain modification and go back to roaming if it was.
-        /// </summary>
-        public void CheckTargetTile() 
-            => CheckTargetTile(new(0, 0), new(Terrain.Instance.TilesPerSide, Terrain.Instance.TilesPerSide));
-
-        /// <summary>
-        /// Check if the target tile was in the modified area and modified by a terrain modification, and go back to roaming if it was.
-        /// </summary>
-        /// <param name="bottomLeft">The bottom-left corner of a rectangular area containing all modified terrain points.</param>
-        /// <param name="topRight">The top-right corner of a rectangular area containing all modified terrain points.</param>
-        public void CheckTargetTile(TerrainPoint bottomLeft, TerrainPoint topRight)
-        {
-            if (!m_TargetTile.HasValue ||
-                m_TargetTile.Value.X < bottomLeft.X - 1 || m_TargetTile.Value.X > topRight.X ||
-                m_TargetTile.Value.Z < bottomLeft.Z - 1 || m_TargetTile.Value.Z > topRight.Z ||
-                m_TargetTile.Value.IsFree())
-                return;
-
-            SetFreeRoam();
+            //StructureManager.Instance.CreateSettlement(m_TargetTile.Value, m_Unit.Faction);
+            //SetFreeRoam();
         }
 
         #endregion
@@ -754,9 +815,7 @@ namespace Populous
         }
 
 
-        #region Follow Unit
-
-        private bool GoToOtherUnit()
+        private bool GoToNearbyUnit()
         {
             Unit unitInRange = m_Unit.GetUnitInChaseRange();
             if (!unitInRange) return false;
@@ -765,177 +824,147 @@ namespace Populous
             return true;
         }
 
-        /// <summary>
-        /// Make this unit go after the given unit.
-        /// </summary>
-        /// <param name="unit">The <c>Unit</c> which we want to go after.</param>
-        private void FollowUnit(Unit unit)
-        {
-            SwitchMoveState(MoveState.FOLLOW);
-            m_TargetUnit = unit;
-        }
 
-        /// <summary>
-        /// Gets the next step this unit should take, going after the target unit.
-        /// </summary>
-        private void GetNextStepToFollowTarget()
-        {
-            TerrainPoint? step = AStarPathfinder.FindNextStep(m_Unit.ClosestTerrainPoint, m_TargetUnit.ClosestTerrainPoint);
-
-            if (!step.HasValue)
-            {
-                SetFreeRoam();
-                return;
-            }
-
-            SetNewPath(new List<TerrainPoint>() { step.Value });
-        }
-
-        /// <summary>
-        /// Stops following the current target unit if it matches the given unit.
-        /// </summary>
-        /// <param name="targetUnit"></param>
-        public void LoseTargetUnit(Unit targetUnit)
-        {
-            if (m_TargetUnit != targetUnit) return;
-            SetFreeRoam();
-        }
-
-        #endregion
-
-
-        #region Go To Settlement
-
-        private bool GoToSettlement()
+        private bool GoToNearbySettlement()
         {
             Settlement settlementInRange = m_Unit.GetSettlementInChaseRange();
-            if (!settlementInRange)
-                return false;
+            if (!settlementInRange) return false;
 
-            SwitchMoveState(MoveState.GO_TO_SETTLEMENT);
-
-            TerrainPoint current = m_Unit.ClosestTerrainPoint;
-            List<TerrainPoint> path = AStarPathfinder.FindPath(current, settlementInRange.OccupiedTile.GetClosestCorner(current));
-            if (path == null || path.Count == 0)
-                return false;
-
-            m_TargetSettlement = settlementInRange;
-            SetNewPath(path);
-            return true;
-        }
-
-        public void LoseTargetSettlement(Settlement targetSettlement)
-        {
-            if (m_TargetUnit != targetSettlement) return;
-            SetFreeRoam();
+            return GoToSettlement(settlementInRange);
         }
 
         #endregion
 
-        #endregion
 
-
-
-
-        // unfinished
         #region Go To Unit Magnet
 
         /// <summary>
         /// Sets the unit to go to the unit magnet.
         /// </summary>
-        public void GoToUnitMagnet()
+        public void SetGoToMagnetBehavior()
         {
-            Debug.Log("Go To Unit Magnet");
+            if (m_Unit.Behavior != UnitBehavior.GO_TO_MAGNET) return;
 
             m_IsUnitMagnetReached = false;
             SwitchMoveState(MoveState.GO_TO_MAGNET);
 
-            if (GameController.Instance.HasLeader(m_Unit.Faction) && m_Unit.Type == UnitType.WALKER)
+            // if we have a leader, all walkers follow the leader
+            if (m_Unit.Type == UnitType.WALKER && GameController.Instance.HasLeader(m_Unit.Faction))
             {
-                Debug.Log("Follow leader");
-                FollowLeaderUnit();
+                GoToLeader();
                 return;
             }
 
+            // else, go right to the magnet
+            GoToMagnet();
+        }
+
+        private void GoToMagnet()
+        {
             TerrainPoint current = m_Unit.ClosestTerrainPoint;
-            TerrainPoint? target = null;
+            TerrainPoint magnet = GameController.Instance.GetUnitMagnetLocation(m_Unit.Faction);
 
-            // go right to magnet
-            if (m_Unit.Type == UnitType.LEADER || !GameController.Instance.HasLeader(m_Unit.Faction))
+            if (magnet == current)  // we're already at magnet
             {
-                TerrainPoint magnet = GameController.Instance.GetUnitMagnetLocation(m_Unit.Faction);
-                if (magnet == current)  // we're already at magnet
-                {
-                    m_IsUnitMagnetReached = true;
-                    return;
-                }
-
-                target = magnet;
+                m_IsUnitMagnetReached = true;
+                return;
             }
 
-            //// go to the leader settlement to become the leader
-            //else if (GameController.Instance.HasLeaderSettlement(m_Unit.Faction))
-            //    target = GameController.Instance.GetLeaderSettlement(m_Unit.Faction).OccupiedTile.GetClosestCorner(current);
-
-            List<TerrainPoint> path = AStarPathfinder.FindPath(current, target.Value);
+            List<TerrainPoint> path = AStarPathfinder.FindPath(current, magnet);
             if (path == null || path.Count == 0)
             {
-                // roam
+                m_CannotFindMagnet = true;
+                SetFreeRoam();
+                return;
             }
 
+            m_CannotFindMagnet = false;
             SetNewPath(path);
+        }
+
+        private void GoToLeader()
+        {
+            ILeader leader = GameController.Instance.GetLeader(m_Unit.Faction);
+
+            if (leader.GetType() == typeof(Unit))
+                FollowUnit((Unit)leader);
+
+            else if (leader.GetType() == typeof(Settlement))
+                GoToSettlement((Settlement)leader);
+
+            else
+                GoToMagnet();
         }
 
         /// <summary>
         /// Sets the unit to wander around its current location.
         /// </summary>
-        private void WanderAroundUnitMagnet()
+        private void WanderAroundCurrentPoint()
         {
-            Debug.Log("Reached");
-            SwitchMoveState(MoveState.STOP);
+            TerrainPoint point = m_Unit.ClosestTerrainPoint;
 
-            //TerrainPoint lastPoint = m_Unit.ClosestTerrainPoint;
+            List<TerrainPoint> reachableNeighbors = new();
+            foreach (TerrainPoint neighbor in point.GetAllNeighbors())
+                if (IsTileCrossable(point, neighbor))
+                    reachableNeighbors.Add(neighbor);
 
-            //// goes to the neightbor, and then back to the starting point
-            //SetNewPath(new List<TerrainPoint> { GetNeighboringPoint(lastPoint), lastPoint });
+            // goes to the neightbor, and then back to the starting point
+            SetNewPath(new List<TerrainPoint> { reachableNeighbors[new Random().Next(0, reachableNeighbors.Count)], point });
         }
 
-
-        /// <summary>
-        /// Gets a neighbor of the given point that can be reached by a unit starting from that point.
-        /// </summary>
-        /// <param name="point">The starting <c>TerrainPoint</c>.</param>
-        /// <returns>A <c>TerrainPoint</c> representing the neighboring point.</returns>
-        private TerrainPoint GetNeighboringPoint(TerrainPoint point)
-        {
-            Random random = new();
-            //List<TerrainPoint> neighbors = point.Neighbors;
-            TerrainPoint? neighbor = null;
-
-            //int neighborsCount = neighbors.Count;
-            //for (int i = 0; i < neighborsCount; ++i)
-            //{
-            //    TerrainPoint choice = neighbors[random.Next(neighbors.Count)];
-
-            //    neighbors.Remove(choice);
-            //    if (Terrain.Instance.IsTileCornerReachable(point, choice))
-            //    {
-            //        neighbor = choice;
-            //        break;
-            //    }
-            //}
-
-            return neighbor.Value;
-        }
-
-
-        /// <summary>
-        /// Make this unit go after the leader of its faction, if a leader exists.
-        /// </summary>
-        /// 
-        /// make it so it distinguishes between unit leader and settlement leader
-        public void FollowLeaderUnit() => FollowUnit(GameController.Instance.GetLeaderUnit(m_Unit.Faction));
 
         #endregion
+
+
+        #region React To Change
+
+        public void ReactToTerrainChange()
+            => ReactToTerrainChange(new(0, 0), new(Terrain.Instance.TilesPerSide, Terrain.Instance.TilesPerSide));
+
+        public void ReactToTerrainChange(TerrainPoint bottomLeft, TerrainPoint topRight)
+        {
+            UpdateTargetPointHeight(bottomLeft, topRight);
+            CheckTargetTile(bottomLeft, topRight);
+
+            if (m_Unit.Behavior == UnitBehavior.GO_TO_MAGNET && m_CannotFindMagnet)
+                SetGoToMagnetBehavior();
+        }
+
+        private void UpdateTargetPointHeight(TerrainPoint bottomLeft, TerrainPoint topRight)
+        {
+            Vector3 bottomLeftPosition = bottomLeft.ToScenePosition();
+            Vector3 topRightPosition = topRight.ToScenePosition();
+
+            if (!m_TargetPoint.HasValue && m_TargetPoint.Value.x < bottomLeftPosition.x || m_TargetPoint.Value.x > topRightPosition.x ||
+                 m_TargetPoint.Value.z < bottomLeftPosition.z || m_TargetPoint.Value.z > topRightPosition.z)
+                return;
+
+            Vector3 target = m_TargetPoint.Value;
+            m_TargetPoint = new(
+                target.x,
+                !m_MoveToCenter ? EndLocation.GetHeight() : new TerrainTile(target.x, target.z).GetCenterHeight(),
+                target.z
+            );
+        }
+
+        private void CheckTargetTile(TerrainPoint bottomLeft, TerrainPoint topRight)
+        {
+            if (!m_TargetTile.HasValue || m_TargetTile.Value.X < bottomLeft.X - 1 || m_TargetTile.Value.X > topRight.X ||
+                m_TargetTile.Value.Z < bottomLeft.Z - 1 || m_TargetTile.Value.Z > topRight.Z || m_TargetTile.Value.IsFree())
+                return;
+
+            SetFreeRoam();
+        }
+
+        private void CheckTargetTile(Settlement settlement)
+        {
+            if (!m_TargetTile.HasValue || m_TargetTile.Value.GetStructure() != settlement)
+                return;
+
+            SetFreeRoam();
+        }
+
+        #endregion
+
     }
 }

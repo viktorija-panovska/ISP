@@ -268,21 +268,16 @@ namespace Populous
         public void SetLeader(Faction faction, ILeader leader)
         {
             if (HasLeader(faction))
-                RemoveLeader(faction);
+            {
+                m_Leaders[(int)faction].SetLeader(false);
+                m_Leaders[(int)faction] = null;
+            }
+
+            if (leader == null) return;
 
             m_Leaders[(int)faction] = leader;
             leader.SetLeader(true);
             UnitManager.Instance.SwitchLeaderTarget(faction);
-        }
-
-        /// <summary>
-        /// Removes the leader of the given faction, if it exists.
-        /// </summary>
-        /// <param name="faction">The <c>Faction</c> whose leader should be removed.</param>
-        public void RemoveLeader(Faction faction)
-        {
-            m_Leaders[(int)faction].SetLeader(false);
-            m_Leaders[(int)faction] = null;
         }
 
         #endregion

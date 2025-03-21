@@ -316,9 +316,10 @@ namespace Populous
         /// <summary>
         /// Toggles the Query Mode from on to off and vice versa, and passes that state to the server.
         /// </summary>
-        public void ToggleQueryMode() 
+        public void SetQueryMode(bool isActive) 
         { 
-            m_IsQueryModeActive = !m_IsQueryModeActive;
+            m_IsQueryModeActive = isActive;
+            Debug.Log(m_IsQueryModeActive);
             GameUI.Instance.SetQueryIcon(m_IsQueryModeActive);
         }
 
@@ -396,7 +397,7 @@ namespace Populous
         public void OnQueryToggled(InputAction.CallbackContext context)
         {
             if (!context.performed) return;
-            ToggleQueryMode();
+            SetQueryMode(!m_IsQueryModeActive);
         }
 
 

@@ -127,6 +127,12 @@ namespace Populous
             Unit unit = other.GetComponent<Unit>();
             if (!unit) return;
 
+            if (unit.Faction == m_Faction && m_ContainsLeader)
+            {
+                GameController.Instance.SetLeader(unit.Faction, unit);
+                return;
+            }
+
             if (unit.Faction == m_Faction && this != unit.Origin && unit.Behavior != UnitBehavior.GO_TO_MAGNET)
                 TakeFollowersFromUnit(unit);
 
@@ -297,11 +303,11 @@ namespace Populous
 
             m_CurrentSettlementData = newSettlement;
 
-            Vector3 colliderSize = new(Terrain.Instance.UnitsPerTileSide, 1, Terrain.Instance.UnitsPerTileSide);
+            Vector3 colliderSize = new(Terrain.Instance.UnitsPerTileSide, Terrain.Instance.UnitsPerTileSide, Terrain.Instance.UnitsPerTileSide);
             if (m_CurrentSettlementData.Type == SettlementType.CITY)
             {
                 StructureManager.Instance.AddCityFields(this);
-                colliderSize = new(3 * Terrain.Instance.UnitsPerTileSide, 1, 3 * Terrain.Instance.UnitsPerTileSide);
+                colliderSize *= 3;
             }
 
             ToggleSettlement_ClientRpc(m_CurrentSettlementData.Type, true);
@@ -325,6 +331,7 @@ namespace Populous
         [ClientRpc]
         private void SetColliderSize_ClientRpc(Vector3 size, ClientRpcParams clientRpcParams = default) 
         {
+            Debug.Log("Set Collider Size: " + size);
             m_SettlementCollision.size = size;
             m_UnitDetector.size = size;
         }
@@ -552,6 +559,7 @@ namespace Populous
         public void OnPointerEnter(PointerEventData eventData)
         {
             if (!PlayerController.Instance.IsQueryModeActive) return;
+            Debug.Log("Hover");
             SetHighlight(true);
         }
 
@@ -575,6 +583,7 @@ namespace Populous
         {
             if (!PlayerController.Instance.IsQueryModeActive) return;
             QueryModeController.Instance.SetInspectedObject_ServerRpc(PlayerController.Instance.Faction, GetComponent<NetworkObject>());
+            PlayerController.Instance.SetQueryMode(false);
         }
 
         /// <summary>

@@ -28,11 +28,11 @@ namespace Populous
             if (!otherUnit) return;
 
             // make the stronger unit gain strength so both units don't try to do it
-            if (otherUnit.Faction == m_Unit.Faction && !m_Unit.HasMaxStrength() && !m_Unit.IsInFight && 
-                (m_Unit.Type != UnitType.WALKER || (otherUnit.Type == UnitType.WALKER && m_Unit.Strength >= otherUnit.Strength)))
+            if (otherUnit.Faction == m_Unit.Faction && !m_Unit.IsInFight && (m_Unit.Type != UnitType.WALKER || 
+               (otherUnit.Type == UnitType.WALKER && m_Unit.Strength >= otherUnit.Strength)))
             {
                 m_Unit.GainStrength(otherUnit.Strength);
-                UnitManager.Instance.DespawnUnit(otherUnit.gameObject, hasDied: false);
+                UnitManager.Instance.DespawnUnit(otherUnit, hasDied: false);
             }
 
             // make only the red faction able to start a fight so both units don't try to do it

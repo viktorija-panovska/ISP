@@ -57,6 +57,9 @@ namespace Populous
                 canvas.blocksRaycasts = false;
             });
 
+        public static void FadeInOut(UIImage image, float duration = 1f, float pause = 2f)
+            => image.DOFade(1, duration).OnComplete( () => image.DOFade(0, duration).SetDelay(pause));
+
         /// <summary>
         /// Converts the Steam Avatar of the given player into a <c>Texture2D</c>.
         /// </summary>

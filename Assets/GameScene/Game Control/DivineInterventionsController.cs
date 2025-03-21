@@ -411,7 +411,7 @@ namespace Populous
             if (GameController.Instance.HasLeaderUnit(faction))
             {
                 knight = GameController.Instance.GetLeaderUnit(faction);
-                GameController.Instance.RemoveLeader(faction);
+                GameController.Instance.SetLeader(faction, null);
                 UnitManager.Instance.SetKnight(faction, knight);
             }
 
@@ -419,7 +419,7 @@ namespace Populous
             if (GameController.Instance.HasLeaderSettlement(faction))
             {
                 Settlement settlement = GameController.Instance.GetLeaderSettlement(faction);
-                GameController.Instance.RemoveLeader(faction);
+                GameController.Instance.SetLeader(faction, null);
 
                 knight = UnitManager.Instance.SpawnUnit(
                     location: new(settlement.OccupiedTile.X, settlement.OccupiedTile.Z),

@@ -25,6 +25,8 @@ namespace Populous
         [SerializeField] private GameObject m_Highlight;
         [Tooltip("The GameObject of the icon for the unit on the minimap.")]
         [SerializeField] private GameObject m_MinimapIcon;
+        [Tooltip("")]
+        [SerializeField] private GameObject m_CannotFindMagnetIndicator;
 
         [Header("Detectors")]
         [SerializeField] private UnitCollisionDetector m_CollisionDetector;
@@ -108,10 +110,16 @@ namespace Populous
         /// </summary>
         public bool IsInspected { get => m_IsInspected.Value; set => m_IsInspected.Value = value; }
 
+        private bool m_CannotFindMagnet;
+
         #endregion
 
 
+        #region Event Functions
+
         private void Start() => GetComponent<UnitMovementHandler>().enabled = IsHost;
+
+        #endregion
 
 
         #region Setup
@@ -121,7 +129,7 @@ namespace Populous
         /// </summary>
         /// <param name="faction">The <c>Faction</c> the structure belongs to.</param>
         /// <param name="strength">The starting strength of the unit.</param>
-        /// <param name="canEnterSettlement">True if the unit can enter a settlement immediately after spawning, false if it has to wait a bit.</param>
+        /// <param name="origin"?The settlement that released this unit, null if it is not relevant.</param>
         public void Setup(Faction faction, int strength, Settlement origin)
         {
             m_Faction = faction;
@@ -145,24 +153,12 @@ namespace Populous
 
             // subscribe to events
             if (m_Faction == Faction.RED)
-            {
                 UnitManager.Instance.OnRedBehaviorChange += SetBehavior;
-                UnitManager.Instance.OnNewRedLeaderGained += FollowLeader;
-                GameController.Instance.OnRedMagnetMoved += UpdateGoToMagnetTarget;
-            }
             else if (m_Faction == Faction.BLUE)
-            {
                 UnitManager.Instance.OnBlueBehaviorChange += SetBehavior;
-                UnitManager.Instance.OnNewBlueLeaderGained += FollowLeader;
-                GameController.Instance.OnBlueMagnetMoved += UpdateGoToMagnetTarget;
-            }
 
             DivineInterventionsController.Instance.OnTerrainModified += UpdateHeight;
-            DivineInterventionsController.Instance.OnTerrainModified += m_MovementHandler.UpdateTargetPointHeight;
-            DivineInterventionsController.Instance.OnTerrainModified += m_MovementHandler.CheckTargetTile;
             DivineInterventionsController.Instance.OnFlood += UpdateHeight;
-            DivineInterventionsController.Instance.OnFlood += m_MovementHandler.UpdateTargetPointHeight;
-            DivineInterventionsController.Instance.OnFlood += m_MovementHandler.CheckTargetTile;
             UnitManager.Instance.OnRemoveReferencesToUnit += RemoveRefrencesToUnit;
             StructureManager.Instance.OnRemoveReferencesToSettlement += RemoveRefrencesToSettlement;
 
@@ -206,37 +202,18 @@ namespace Populous
         /// </summary>
         public void Cleanup()
         {
+            m_MovementHandler.Cleanup();
+
             // unsubscribe from events
             if (m_Faction == Faction.RED)
-            {
                 UnitManager.Instance.OnRedBehaviorChange -= SetBehavior;
-                UnitManager.Instance.OnNewRedLeaderGained -= FollowLeader;
-                GameController.Instance.OnRedMagnetMoved -= UpdateGoToMagnetTarget;
-            }
             else if (m_Faction == Faction.BLUE)
-            {
                 UnitManager.Instance.OnBlueBehaviorChange -= SetBehavior;
-                UnitManager.Instance.OnNewBlueLeaderGained -= FollowLeader;
-                GameController.Instance.OnBlueMagnetMoved -= UpdateGoToMagnetTarget;
-            }
 
             DivineInterventionsController.Instance.OnTerrainModified -= UpdateHeight;
-            DivineInterventionsController.Instance.OnTerrainModified -= m_MovementHandler.UpdateTargetPointHeight;
-            DivineInterventionsController.Instance.OnTerrainModified -= m_MovementHandler.CheckTargetTile;
             DivineInterventionsController.Instance.OnFlood -= UpdateHeight;
-            DivineInterventionsController.Instance.OnFlood -= m_MovementHandler.UpdateTargetPointHeight;
-            DivineInterventionsController.Instance.OnFlood -=  m_MovementHandler.CheckTargetTile;
             UnitManager.Instance.OnRemoveReferencesToUnit -= RemoveRefrencesToUnit;
             StructureManager.Instance.OnRemoveReferencesToSettlement -= RemoveRefrencesToSettlement;
-
-            GameController.Instance.RemoveVisibleObject_ClientRpc(
-                GetComponent<NetworkObject>().NetworkObjectId,
-                GameUtils.GetClientParams(GameData.Instance.GetNetworkIdByFaction(m_Faction))
-            );
-
-            if (IsInspected)
-                QueryModeController.Instance.RemoveInspectedObject(this);
-
         }
 
         /// <summary>
@@ -316,7 +293,7 @@ namespace Populous
             m_DirectionDetector.UpdateDetector();
 
             if (m_Behavior == UnitBehavior.GO_TO_MAGNET)
-                m_MovementHandler.GoToUnitMagnet();
+                m_MovementHandler.SetGoToMagnetBehavior();
             else
                 m_MovementHandler.SetFreeRoam();
         }
@@ -363,12 +340,6 @@ namespace Populous
         #region Strength
 
         /// <summary>
-        /// Checks whether the unit has maximum strength.
-        /// </summary>
-        /// <returns>True if the unit has maximum strength, false otherwise.</returns>
-        public bool HasMaxStrength() => m_Strength == UnitManager.Instance.MaxFollowersInFaction;
-
-        /// <summary>
         /// Adds the given amount of strength to the unit.
         /// </summary>
         /// <param name="amount">The amount of strength to be added.</param>
@@ -394,7 +365,7 @@ namespace Populous
                 QueryModeController.Instance.UpdateInspectedUnit(this, updateStrength: true);
 
             if (m_Strength == 0)
-                UnitManager.Instance.DespawnUnit(gameObject, hasDied: isDamaged);
+                UnitManager.Instance.DespawnUnit(this, hasDied: isDamaged);
         }
 
         #endregion
@@ -414,6 +385,11 @@ namespace Populous
         /// <param name="topRight">The top-right corner of a rectangular area containing all modified terrain points.</param>
         private void UpdateHeight(TerrainPoint bottomLeft, TerrainPoint topRight)
         {
+            m_MovementHandler.ReactToTerrainChange(bottomLeft, topRight);
+
+            bottomLeft = new(Mathf.Clamp(bottomLeft.X - 1, 0, bottomLeft.X), Mathf.Clamp(bottomLeft.Z - 1, 0, bottomLeft.Z));
+            topRight = new(Mathf.Clamp(topRight.X + 1, topRight.X, Terrain.Instance.TilesPerSide), Mathf.Clamp(topRight.Z + 1, topRight.Z, Terrain.Instance.TilesPerSide));
+
             Vector3 bottomLeftPosition = bottomLeft.ToScenePosition();
             Vector3 topRightPosition = topRight.ToScenePosition();
 
@@ -443,7 +419,7 @@ namespace Populous
             }
 
             if (CurrentTile.IsUnderwater())
-                UnitManager.Instance.DespawnUnit(gameObject, hasDied: true);
+                UnitManager.Instance.DespawnUnit(this, hasDied: true);
             else
                 SetHeight_ClientRpc(height);
         }
@@ -479,7 +455,7 @@ namespace Populous
         }
 
 
-        #region Special Movement
+        #region Direction
 
         /// <summary>
         /// Gets a direction that this unit should move in if it wants to run across units and settlements it has detected in its direction detector.
@@ -532,30 +508,7 @@ namespace Populous
         #endregion
 
 
-        // unfinished
         #region Unit Magnet
-
-
-        /// <summary>
-        /// Has the unit follow the faction leader, if the unit is not the leader and it is going to the unit magnet.
-        /// </summary>
-        public void FollowLeader()
-        {
-            if (m_Type == UnitType.LEADER || m_Behavior != UnitBehavior.GO_TO_MAGNET) return;
-            m_MovementHandler.FollowLeaderUnit();
-        }
-
-
-        /// <summary>
-        /// Sets a new target for the unit's movement, if the unit is going to the unit magnet.
-        /// </summary>
-        public void UpdateGoToMagnetTarget()
-        {
-            if (m_Behavior != UnitBehavior.GO_TO_MAGNET) return;
-
-            Debug.Log("Update");
-            m_MovementHandler.GoToUnitMagnet();
-        }
 
         /// <summary>
         /// Sets the "is unit magnet reached" flag to true.
@@ -564,6 +517,17 @@ namespace Populous
         {
             if (m_Behavior != UnitBehavior.GO_TO_MAGNET) return;
             m_MovementHandler.IsUnitMagnetReached = true;
+            Debug.Log("Magnet Reached");
+        }
+
+
+        [ClientRpc]
+        private void SetCannotFindMagnetIndicator_ClientRpc(bool isActive)
+        {
+            m_CannotFindMagnetIndicator.SetActive(isActive);
+
+            if (isActive)
+                GameUI.Instance.SetCannotFindMagnetMessage();
         }
 
         #endregion
@@ -630,6 +594,7 @@ namespace Populous
         {
             if (!PlayerController.Instance.IsQueryModeActive) return;
             QueryModeController.Instance.SetInspectedObject_ServerRpc(PlayerController.Instance.Faction, GetComponent<NetworkObject>());
+            PlayerController.Instance.SetQueryMode(false);
         }
 
         /// <summary>

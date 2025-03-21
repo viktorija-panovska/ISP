@@ -19,7 +19,7 @@ namespace Populous
         {
             if (!other.GetComponent<Unit>()) return;
 
-            UnitManager.Instance.DespawnUnit(other.gameObject, hasDied: true);
+            UnitManager.Instance.DespawnUnit(other.GetComponent<Unit>(), hasDied: true);
         }
     }
 }

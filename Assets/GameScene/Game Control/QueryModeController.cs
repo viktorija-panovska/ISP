@@ -202,7 +202,7 @@ namespace Populous
         public void UpdateInspectedUnit(Unit unit, bool updateType = false, bool updateStrength = false)
         {
             IEnumerable<int> playerIndices = Enumerable.Range(0, m_InspectedObjects.Length)
-                .Where(i => m_InspectedObjects[i].GameObject == unit.GameObject);
+                .Where(i => m_InspectedObjects[i] != null && m_InspectedObjects[i].GameObject == unit.GameObject);
 
             if (playerIndices.Count() == 0) return;
 

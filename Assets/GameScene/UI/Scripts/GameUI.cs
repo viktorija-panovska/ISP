@@ -1,5 +1,6 @@
 using System;
 using TMPro;
+using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
@@ -20,6 +21,7 @@ namespace Populous
         [SerializeField] private Slider[] m_PopulationBars;
         [Tooltip("The slider for the manna bar.")]
         [SerializeField] private Slider m_MannaBar;
+        [SerializeField] private Image m_CannotFindMagnetMessage;
 
 
         [Header("Player Action Icons")]
@@ -103,7 +105,7 @@ namespace Populous
         private async void Start()
         {
             foreach (var bar in m_PopulationBars)
-                bar.value = (float)UnitManager.Instance.StartingUnits / UnitManager.Instance.MaxFollowersInFaction;
+                bar.value = (float)UnitManager.Instance.StartingUnits / UnitManager.Instance.MaxFollowers;
 
             UpdateMannaBar(0, 0);
             SetActiveDivineInterventionIcon(DivineIntervention.MOLD_TERRAIN, DivineIntervention.MOLD_TERRAIN);
@@ -143,7 +145,7 @@ namespace Populous
         /// <param name="faction">The <c>Faction</c> whose population bar should be updated.</param>
         /// <param name="currentPopulation">The amount of population the given faction has.</param>
         public void UpdatePopulationBar(Faction faction, int currentPopulation)
-            => m_PopulationBars[(int)faction].value = (float)currentPopulation / UnitManager.Instance.MaxFollowersInFaction;
+            => m_PopulationBars[(int)faction].value = (float)currentPopulation / UnitManager.Instance.MaxFollowers;
 
         #endregion
 
@@ -283,19 +285,19 @@ namespace Populous
         /// </summary>
         public void HideInspectedObjectPanel()
         {
-            m_InspectedUnitPanel.SetActive(false);
             if (m_CurrentlyShownUnitImage >= 0)
             {
                 m_UnitImages[m_CurrentlyShownUnitImage].gameObject.SetActive(false);
                 m_CurrentlyShownUnitImage = -1;
             }
+            m_InspectedUnitPanel.SetActive(false);
 
-            m_InspectedSettlementPanel.SetActive(false);
             if (m_CurrentlyShownSettlementImage >= 0)
             {
                 m_SettlementImages[m_CurrentlyShownSettlementImage].gameObject.SetActive(false);
                 m_CurrentlyShownSettlementImage = -1;
             }
+            m_InspectedSettlementPanel.SetActive(false);
 
             m_InspectedFightPanel.SetActive(false);
         }
@@ -311,14 +313,14 @@ namespace Populous
             // if there's an active panel, hide it.
             HideInspectedObjectPanel();
 
+            m_InspectedUnitPanel.SetActive(true);
+
             // show the red unit image if the unit is from the red faction, or the blue unit image if it is from the blue faction
             m_CurrentlyShownUnitImage = (int)faction;
             m_UnitImages[m_CurrentlyShownUnitImage].gameObject.SetActive(true);
-
+            
             UpdateUnitType(type);
             UpdateUnitStrength(strength);
-
-            m_InspectedUnitPanel.SetActive(true);
         }
 
         /// <summary>
@@ -332,11 +334,11 @@ namespace Populous
         {
             HideInspectedObjectPanel();
 
+            m_InspectedSettlementPanel.SetActive(true);
+
             UpdateSettlementFaction(faction);
             UpdateSettlementType(type, settlementCapacity);
             UpdateSettlementFollowers(followers);
-
-            m_InspectedSettlementPanel.SetActive(true);
         }
 
         /// <summary>
@@ -348,9 +350,8 @@ namespace Populous
         {
             HideInspectedObjectPanel();
 
-            UpdateFight(redStrength, blueStrength);
-
             m_InspectedFightPanel.SetActive(true);
+            UpdateFight(redStrength, blueStrength);
         }
 
         #endregion
@@ -369,7 +370,7 @@ namespace Populous
         /// </summary>
         /// <param name="strength">The amount of strength that should be shown.</param>
         public void UpdateUnitStrength(int strength)
-            => m_UnitStrengthSlider.value = (float)strength / UnitManager.Instance.MaxFollowersInFaction;
+            => m_UnitStrengthSlider.value = (float)strength / UnitManager.Instance.MaxFollowers;
 
 
         /// <summary>
@@ -407,8 +408,8 @@ namespace Populous
         /// <param name="blueStrength">The strength of the blue unit in the fight.</param>
         public void UpdateFight(int redStrength, int blueStrength)
         {
-            m_RedUnitStrengthBar.value = (float)redStrength / UnitManager.Instance.MaxFollowersInFaction;
-            m_BlueUnitStrengthBar.value = (float)blueStrength / UnitManager.Instance.MaxFollowersInFaction;
+            m_RedUnitStrengthBar.value = (float)redStrength / UnitManager.Instance.MaxFollowers;
+            m_BlueUnitStrengthBar.value = (float)blueStrength / UnitManager.Instance.MaxFollowers;
         }
 
         #endregion
@@ -421,7 +422,7 @@ namespace Populous
         /// <summary>
         /// Activates the Query action if it is inactive, and vice versa.
         /// </summary>
-        public void OnQueryClicked() => PlayerController.Instance.ToggleQueryMode();
+        public void OnQueryClicked() => PlayerController.Instance.SetQueryMode(!PlayerController.Instance.IsQueryModeActive);
 
 
         #region Influence Behavior Buttons
@@ -529,5 +530,10 @@ namespace Populous
         #endregion
 
         #endregion
+
+
+
+        public void SetCannotFindMagnetMessage() => InterfaceUtils.FadeInOut(m_CannotFindMagnetMessage);
+    
     }
 }

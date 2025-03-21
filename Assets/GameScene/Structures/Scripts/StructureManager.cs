@@ -78,6 +78,8 @@ namespace Populous
 
         #region Actions
 
+        public Action<Settlement> OnSettlementCreated;
+
         /// <summary>
         /// Action to be called when a settlement is despawned to remove references to it from other objects.
         /// </summary>
@@ -139,7 +141,10 @@ namespace Populous
 
             // Settlement properties
             if (structure.GetType() == typeof(Settlement) && structure.Faction != Faction.NONE)
+            {
                 AddSettlementPosition(new Vector2(structure.transform.position.x, structure.transform.position.z), faction);
+                OnSettlementCreated?.Invoke((Settlement)structure);
+            }
 
             return structureObject;
         }

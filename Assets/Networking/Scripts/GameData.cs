@@ -265,7 +265,12 @@ namespace Populous
         /// <param name="factionIndex">The "faction index" corresponds to the value of the faction in the <c>Faction</c> enum:
         /// 0 for the Red faction and 1 for the Blue faction.</param>
         /// <returns>The network ID of the player.</returns>
-        public ulong GetNetworkIdByFaction(int factionIndex) => m_NetworkIdForFaction[factionIndex];
+        public ulong GetNetworkIdByFaction(int factionIndex)
+        {
+            return (ulong)factionIndex;
+
+           //return m_NetworkIdForFaction[factionIndex];
+        }
 
         #endregion
     }

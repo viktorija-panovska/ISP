@@ -63,7 +63,7 @@ namespace Populous
         [Tooltip("The GameObject that should be created when a unit is spawned.")]
         [SerializeField] private GameObject m_UnitPrefab;
         [Tooltip("The maximum number of followers for each faction.")]
-        [SerializeField] private int m_MaxFollowersInFaction = 1000;
+        [SerializeField] private int m_MaxFollowers = 100;
         [Tooltip("The number of unit steps after which the unit loses one follower.")]
         [SerializeField] private int m_UnitDecayRate = 20;
         [Tooltip("The number of seconds between each time the units in a fight deal damage to each other.")]
@@ -97,7 +97,7 @@ namespace Populous
         /// <summary>
         /// Gets the maximum number of followers a faction can have.
         /// </summary>
-        public int MaxFollowersInFaction { get => m_MaxFollowersInFaction; }
+        public int MaxFollowers { get => m_MaxFollowers; }
         /// <summary>
         /// Gets the number of steps after which a unit loses one follower.
         /// </summary>
@@ -170,11 +170,11 @@ namespace Populous
         /// <summary>
         /// Action to be called when a new unit is assigned as the leader of the red faction.
         /// </summary>
-        public Action OnNewRedLeaderGained;
+        public Action OnRedLeaderChange;
         /// <summary>
         /// Action to be called when a new unit is assigned as the leader of the blue faction.
         /// </summary>
-        public Action OnNewBlueLeaderGained;
+        public Action OnBlueLeaderChange;
         /// <summary>
         /// Action to be called when a unit is despawned to remove references to it from other objects.
         /// </summary>
@@ -249,17 +249,26 @@ namespace Populous
         /// </summary>
         /// <param name="unitObject">The <c>GameObject</c> of the unit to be destroyed.</param>
         /// <param name="hasDied">True if the unit is being despawned because it died, false if it is being despawned because it entered a settlement.</param>
-        public void DespawnUnit(GameObject unitObject, bool hasDied)
+        public void DespawnUnit(Unit unit, bool hasDied)
         {
             if (!IsHost) return;
 
-            Unit unit = unitObject.GetComponent<Unit>();
             unit.Cleanup();
             OnRemoveReferencesToUnit?.Invoke(unit);
 
+            GameController.Instance.RemoveVisibleObject_ClientRpc(
+                GetComponent<NetworkObject>().NetworkObjectId,
+                GameUtils.GetClientParams(GameData.Instance.GetNetworkIdByFaction(unit.Faction))
+            );
+
+            Debug.Log(unit.IsInspected);
+
+            if (unit.IsInspected)
+                QueryModeController.Instance.RemoveInspectedObject(unit);
+
             if (unit.Type == UnitType.LEADER)
             {
-                GameController.Instance.RemoveLeader(unit.Faction);
+                GameController.Instance.SetLeader(unit.Faction, null);
 
                 if (hasDied)
                 {
@@ -273,7 +282,7 @@ namespace Populous
                 RemoveKnight(unit.Faction, unit);
 
             unit.GetComponent<NetworkObject>().Despawn();
-            Destroy(unitObject);
+            Destroy(unit.gameObject);
         }
 
         #endregion
@@ -289,11 +298,11 @@ namespace Populous
             ResetGridSteps(Faction.RED);
             ResetGridSteps(Faction.BLUE);
 
-            if (m_StartingUnits * m_StartingUnitStrength > m_MaxFollowersInFaction)
+            if (m_StartingUnits * m_StartingUnitStrength > m_MaxFollowers)
                 m_StartingUnitStrength = 1;
 
-            if (m_StartingUnits > m_MaxFollowersInFaction)
-                m_StartingUnits = m_MaxFollowersInFaction;
+            if (m_StartingUnits > m_MaxFollowers)
+                m_StartingUnits = m_MaxFollowers;
 
             Random random = new(!GameData.Instance ? 0 : GameData.Instance.GameSeed);
 
@@ -384,7 +393,7 @@ namespace Populous
         /// </summary>
         /// <param name="faction">The <c>Faction</c> whose population should be checked.</param>
         /// <returns>True if the faction is full, false otherwise.</returns>
-        public bool IsFactionFull(Faction faction) => m_Followers[(int)faction] == m_MaxFollowersInFaction;
+        public bool IsFactionFull(Faction faction) => m_Followers[(int)faction] == m_MaxFollowers;
 
         /// <summary>
         /// Adds the given amount of followers to the given faction.
@@ -393,7 +402,7 @@ namespace Populous
         /// <param name="amount">The amount of followers that should be added.</param>
         public void AddFollowers(Faction faction, int amount = 1)
         {
-            amount = Mathf.Clamp(m_Followers[(int)faction] + amount, 0, m_MaxFollowersInFaction);
+            amount = Mathf.Clamp(m_Followers[(int)faction] + amount, 0, m_MaxFollowers);
             SetFollowers(faction, amount);
             DivineInterventionsController.Instance.AddManna(faction, amount);
         }
@@ -404,7 +413,7 @@ namespace Populous
         /// <param name="faction">The <c>Faction</c> the followers should be removed from.</param>
         /// <param name="amount">The amount of followers that should be removed.</param>
         public void RemoveFollowers(Faction faction, int amount = 1)
-            => SetFollowers(faction, Mathf.Clamp(m_Followers[(int)faction] - amount, 0, m_MaxFollowersInFaction));
+            => SetFollowers(faction, Mathf.Clamp(m_Followers[(int)faction] - amount, 0, m_MaxFollowers));
 
         /// <summary>
         /// Sets the number of followers of the given faction to the given amount.
@@ -499,10 +508,10 @@ namespace Populous
             if (m_ActiveBehavior[(int)faction] != UnitBehavior.GO_TO_MAGNET) return;
 
             if (faction == Faction.RED)
-                OnNewRedLeaderGained?.Invoke();
+                OnRedLeaderChange?.Invoke();
 
             if (faction == Faction.BLUE)
-                OnNewBlueLeaderGained?.Invoke();
+                OnBlueLeaderChange?.Invoke();
         }
 
         #endregion
@@ -603,6 +612,8 @@ namespace Populous
         /// <returns>An <c>IEnumerator</c> which waits for a number of seconds before simulating another attack.</returns>
         private IEnumerator Fight(Unit red, Unit blue, Settlement settlementDefense = null)
         {
+            Debug.Log("Start fight");
+
             int fightId = red.FightId;
 
             while (true)
@@ -623,6 +634,7 @@ namespace Populous
                     QueryModeController.Instance.UpdateInspectedFight(red, blue);
             }
 
+            Debug.Log("End Fight");
             Unit winner = null, loser = null;
             if (!red) winner = blue;
             else if (!blue) winner = red;
@@ -675,24 +687,26 @@ namespace Populous
             Debug.Log("Attack settlement");
 
             settlement.IsAttacked = true;
-            unit.ToggleMovement(pause: true);
+            unit.StartFight(-1);
 
-            settlement.RemoveFollowers(settlement.FollowersInSettlement - 1, updateFactionFollowers: false);
-            Unit other = SpawnUnit(
+            GameObject unitObject = SpawnUnit(
                 location: new TerrainPoint(settlement.OccupiedTile.X, settlement.OccupiedTile.Z),
                 faction: settlement.Faction,
                 type: UnitType.WALKER,
                 strength: settlement.FollowersInSettlement - 1,
                 origin: settlement
-            ).GetComponent<Unit>();
+            );
 
-            if (!other)
+            if (!unitObject)
             {
                 ResolveSettlementAttack(unit, settlement);
                 return;
             }
 
-            StartFight(unit.Faction == Faction.RED ? unit : other, unit.Faction == Faction.BLUE ? unit : other, settlement);
+            settlement.RemoveFollowers(settlement.FollowersInSettlement - 1, updateFactionFollowers: false);
+
+            Unit otherUnit = unitObject.GetComponent<Unit>();
+            StartFight(unit.Faction == Faction.RED ? unit : otherUnit, unit.Faction == Faction.BLUE ? unit : otherUnit, settlement);
         }
 
         /// <summary>

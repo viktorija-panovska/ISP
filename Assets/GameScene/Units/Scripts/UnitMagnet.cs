@@ -23,21 +23,9 @@ namespace Populous
         public TerrainPoint GridLocation { get => m_GridLocation; }
 
 
-        private void Start() => GetComponent<Collider>().enabled = IsHost;
-
-        /// <summary>
-        /// Sets up the initial state of the unit magnet.
-        /// </summary>
-        public void Setup()
-        {
-            m_GridLocation = Terrain.Instance.TerrainCenter;
-            DivineInterventionsController.Instance.OnFlood += UpdateHeight;
-
-            SetPosition_ClientRpc(m_GridLocation.ToScenePosition());
-        }
-
-
         #region Event Functions
+
+        private void Start() => GetComponent<Collider>().enabled = IsHost;
 
         private void OnTriggerEnter(Collider other)
         {
@@ -60,6 +48,18 @@ namespace Populous
         }
 
         #endregion
+
+
+        /// <summary>
+        /// Sets up the initial state of the unit magnet.
+        /// </summary>
+        public void Setup()
+        {
+            m_GridLocation = new(0, 0)/* Terrain.Instance.TerrainCenter*/;
+            DivineInterventionsController.Instance.OnFlood += UpdateHeight;
+
+            SetPosition_ClientRpc(m_GridLocation.ToScenePosition());
+        }
 
 
         #region Move Unit Magnet
