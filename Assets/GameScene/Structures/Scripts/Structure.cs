@@ -59,7 +59,6 @@ namespace Populous
         {
             m_Faction = faction;
             m_OccupiedTile = occupiedTile;
-            DivineInterventionsController.Instance.OnFlood += ReactToTerrainChange;
 
             if (m_DestroyMethod == DestroyMethod.TERRAIN_CHANGE)
             {
@@ -67,6 +66,8 @@ namespace Populous
                 foreach (TerrainPoint corner in m_OccupiedTile.GetCorners())
                     m_OccupiedTileCornerHeights.Add(corner, corner.GetHeight());
             }
+
+            DivineInterventionsController.Instance.OnFlood += ReactToTerrainChange;
         }
 
         /// <summary>
@@ -85,7 +86,7 @@ namespace Populous
             // either the structure is underwater or the heights of the corners have been changed
             if (ShouldDestroyStructure())
             {
-                StructureManager.Instance.DespawnStructure(gameObject);
+                StructureManager.Instance.DespawnStructure(this);
                 return;
             }
 

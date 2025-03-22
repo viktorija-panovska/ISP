@@ -1,3 +1,4 @@
+using Steamworks.ServerList;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -78,6 +79,9 @@ namespace Populous
 
         #region Actions
 
+        /// <summary>
+        /// Action to be called when a settlement is created.
+        /// </summary>
         public Action<Settlement> OnSettlementCreated;
 
         /// <summary>
@@ -119,7 +123,7 @@ namespace Populous
         /// <param name="tile">The <c>TerrainTile</c> the created structure should occupy.</param>
         /// <param name="faction">The <c>Faction</c> the created structure should belong to.</param>
         /// <returns>The <c>GameObject</c> of the created structure.</returns>
-        private GameObject SpawnStructure(GameObject structurePrefab, TerrainTile tile, Faction faction = Faction.NONE)
+        private Structure SpawnStructure(GameObject structurePrefab, TerrainTile tile, Faction faction = Faction.NONE)
         {
             if (!IsHost) return null;
 
@@ -139,46 +143,22 @@ namespace Populous
             structure.Setup(faction, tile);
             SetOccupiedTile(tile, structure);
 
-            // Settlement properties
-            if (structure.GetType() == typeof(Settlement) && structure.Faction != Faction.NONE)
-            {
-                AddSettlementPosition(new Vector2(structure.transform.position.x, structure.transform.position.z), faction);
-                OnSettlementCreated?.Invoke((Settlement)structure);
-            }
-
-            return structureObject;
+            return structure;
         }
 
         /// <summary>
         /// Despawns the given structure from the network and destroys is.
         /// </summary>
         /// <param name="structureObject">The <c>GameObject</c> of the structrue to be destroyed.</param>
-        public void DespawnStructure(GameObject structureObject, bool updateNearbySettlements = false)
+        public void DespawnStructure(Structure structure)
         {
-            if (!IsHost) return;
-
-            Structure structure = structureObject.GetComponent<Structure>();
-
-            if (!structure.OccupiedTile.IsOccupied())
-                return;
+            if (!IsHost || !structure.OccupiedTile.IsOccupied()) return;
 
             SetOccupiedTile(structure.OccupiedTile, null);
-
             structure.Cleanup();
 
-            if (structure.GetType() == typeof(Settlement) && structure.Faction != Faction.NONE)
-            {
-                RemoveSettlementPosition(
-                    new Vector2(structure.transform.position.x, structure.transform.position.z),
-                    structure.Faction
-                );
-
-                if (updateNearbySettlements)
-                    UpdateNearbySettlements(structure.OccupiedTile);
-            }
-
             structure.GetComponent<NetworkObject>().Despawn();
-            Destroy(structureObject);
+            Destroy(structure.gameObject);
         }
 
         #endregion
@@ -303,16 +283,60 @@ namespace Populous
         /// </summary>
         /// <param name="tile">The tile that the settlement should occupy.</param>
         /// <param name="faction">The faction the settlement should belong to.</param>
-        public void CreateSettlement(TerrainTile tile, Faction faction) => SpawnStructure(m_SettlementPrefab, tile, faction);
+        public void CreateSettlement(TerrainTile tile, Faction faction)
+        {
+            Settlement settlement = (Settlement)SpawnStructure(m_SettlementPrefab, tile, faction);
+            AddSettlementPosition(new Vector2(settlement.transform.position.x, settlement.transform.position.z), faction);
+            OnSettlementCreated?.Invoke(settlement);
+        }
 
         /// <summary>
-        /// Transforms the given settlement into a ruin.
+        /// Destroys the given settlement.
         /// </summary>
-        /// <param name="settlement">The <c>Settlement</c> that should be transformed.</param>
-        public void CreateRuin(Settlement settlement)
+        /// <param name="settlement">The <c>Settlement</c> that should be destroyed.</param>
+        /// <param name="updateNearbySettlements">True if the nearby settlements should be updated, false otherwise.</param>
+        public void DestroySettlement(Settlement settlement, bool updateNearbySettlements = false)
         {
+            OnRemoveReferencesToSettlement?.Invoke(settlement);
+            settlement.OnSettlementDestroyed?.Invoke(settlement);
+
+            RemoveSettlementPosition(
+                new Vector2(settlement.transform.position.x, settlement.transform.position.z),
+                settlement.Faction
+            );
+
+            GameController.Instance.RemoveVisibleObject_ClientRpc(
+                GetComponent<NetworkObject>().NetworkObjectId,
+                GameUtils.GetClientParams(GameData.Instance.GetNetworkIdByFaction(settlement.Faction))
+            );
+
+            if (updateNearbySettlements)
+                UpdateNearbySettlements(settlement.OccupiedTile);
+
+            if (settlement.IsInspected)
+                QueryModeController.Instance.RemoveInspectedObject(settlement);
+
+            DespawnStructure(settlement);
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="settlement"></param>
+        public void BurnSettlementDown(Settlement settlement)
+        {
+            settlement.OnSettlementFactionChanged?.Invoke(Faction.NONE);  // burns down the fields
+
+            // burning the settlement kills everyone inside
+            UnitManager.Instance.RemoveFollowers(settlement.Faction, settlement.FollowersInSettlement);
+
+            // if the settlement contained the leader, then kill the leader
+            if (settlement.ContainsLeader)
+                GameController.Instance.SetLeader(settlement.Faction, null);
+
             TerrainTile tile = settlement.OccupiedTile;
-            DespawnStructure(settlement.gameObject, updateNearbySettlements: true);
+            DestroySettlement(settlement, updateNearbySettlements: true);
+
             SpawnStructure(m_RuinPrefab, tile);
         }
 
@@ -326,12 +350,26 @@ namespace Populous
             if (faction == settlement.Faction || faction == Faction.NONE) return;
 
             RemoveSettlementPosition(settlement.transform.position, settlement.Faction);
-            UpdateNearbySettlements(settlement.OccupiedTile);
+            UnitManager.Instance.RemoveFollowers(settlement.Faction, settlement.FollowersInSettlement);
 
-            if (faction != Faction.NONE)
-                AddSettlementPosition(settlement.transform.position, faction);
+            settlement.SetFaction(faction);
+            settlement.OnSettlementFactionChanged?.Invoke(faction);  // changes the faction of the fields
+
+            UpdateNearbySettlements(settlement.OccupiedTile);
+            AddSettlementPosition(settlement.transform.position, faction);
+            UnitManager.Instance.AddFollowers(settlement.Faction, settlement.FollowersInSettlement);
+
+            GameController.Instance.RemoveVisibleObject_ClientRpc(
+                GetComponent<NetworkObject>().NetworkObjectId,
+                GameUtils.GetClientParams(GameData.Instance.GetNetworkIdByFaction(settlement.Faction))
+            );
+
+            if (settlement.IsInspected)
+                QueryModeController.Instance.UpdateInspectedSettlement(settlement, updateFaction: true);
         }
 
+
+        #region Settlement Position
 
         /// <summary>
         /// Gets the settlement location at the given index in the list of settlement locations of the given faction.
@@ -339,7 +377,7 @@ namespace Populous
         /// <param name="faction">The <c>Faction</c> the settlement that should be returned belongs to.</param>
         /// <param name="index">The index in the settlement location list of the settlement.</param>
         /// <returns>The position at the given index in the settlement position list, null if the index is out of bounds.</returns>
-        public Vector3? GetSettlementLocation(Faction faction, int index) 
+        public Vector3? GetSettlementPosition(Faction faction, int index) 
             => index >= m_SettlementLocations[(int)faction].Count ? null : m_SettlementLocations[(int)faction][index];
 
         /// <summary>
@@ -390,17 +428,10 @@ namespace Populous
 
         #endregion
 
+        #endregion
+
 
         #region Fields
-
-        /// <summary>
-        /// Creates a field belonging to the given faction on the given tile.
-        /// </summary>
-        /// <param name="tile">The <c>TerrainTile</c> the field should occupy.</param>
-        /// <param name="faction">The <c>Faction</c> the field should belong to.</param>
-        /// <returns>The <c>Field</c> that was created.</returns>
-        private void SpawnField(TerrainTile tile, Faction faction, Settlement spawningSettlement)
-            => SpawnStructure(m_FieldPrefab, tile, faction).GetComponent<Field>().AddSettlementServed(spawningSettlement);
 
         /// <summary>
         /// Creates fields in the flat spaces in a 5x5 square around the settlement.
@@ -409,6 +440,7 @@ namespace Populous
         public int CreateSettlementFields(Settlement settlement)
         {
             int fields = 0;
+            int totalSpaces = 0;
 
             for (int z = -2; z <= 2; ++z)
             {
@@ -419,42 +451,21 @@ namespace Populous
                     if ((x, z) == (0, 0) || (x != 0 && z != 0 && Mathf.Abs(x) != Mathf.Abs(z)))
                         continue;
 
-                    TerrainTile tile = new(settlement.OccupiedTile.X + x, settlement.OccupiedTile.Z + z);
+                    totalSpaces++;
+                    fields += TryAddField(new(settlement.OccupiedTile.X + x, settlement.OccupiedTile.Z + z), settlement);
+                }
+            }
 
-                    if (!tile.IsInBounds() || !tile.IsFlat()) continue;
-
-                    Structure structure = tile.GetStructure();
-
-                    if (structure)
+            // all the regular spaces are filled = city
+            if (fields == totalSpaces)
+            {
+                for (int z = -2; z <= 2; ++z)
+                {
+                    for (int x = -2; x <= 2; ++x)
                     {
-                        Type structureType = structure.GetType();
-
-                        if (structureType == typeof(Swamp) || structureType == typeof(Settlement))
-                            continue;
-
-                        else if (structureType == typeof(Rock))
-                        {
-                            fields--;
-                            continue;
-                        }
-
-                        else if (structureType == typeof(Field))
-                        {
-                            if (structure.Faction == settlement.Faction)
-                            {
-                                ((Field)structure).AddSettlementServed(settlement);
-                                fields++;
-                            }
-
-                            continue;
-                        }
-
-                        else if (structureType == typeof(Tree))
-                            DespawnStructure(structure.gameObject);
+                        if (x == 0 || z == 0 || Mathf.Abs(x) == Mathf.Abs(z)) continue;
+                        TryAddField(new(settlement.OccupiedTile.X + x, settlement.OccupiedTile.Z + z), settlement);
                     }
-
-                    SpawnField(tile, settlement.Faction, settlement);
-                    fields++;
                 }
             }
 
@@ -462,43 +473,47 @@ namespace Populous
         }
 
         /// <summary>
-        /// Adds extra fields to fill in the 5x5 square around a city.
+        /// Attempts to spawn a field belonging to the given settlement on the given tile.
         /// </summary>
-        public void AddCityFields(Settlement city)
+        /// <param name="tile">The <c>TerrainTile</c> the field should occupy.</param>
+        /// <param name="settlement">The <c>Settlement</c> the field should belong to.</param>
+        /// <returns>The number of fields this action added to the settlement 
+        /// i.e. 1 if a field was created, 0 if no field was created, or -1 if the tile was occupied by a rock.</returns>
+        private int TryAddField(TerrainTile tile, Settlement settlement)
         {
-            //fill in the blank spaces between the parallels and diagonals with fields
-            for (int z = -2; z <= 2; ++z)
+            if (!tile.IsInBounds() || !tile.IsFlat())
+                return 0;
+
+            Structure structure = tile.GetStructure();
+
+            if (structure)
             {
-                for (int x = -2; x <= 2; ++x)
+                Type structureType = structure.GetType();
+
+                if (structureType == typeof(Swamp) || structureType == typeof(Settlement))
+                    return 0;
+
+                else if (structureType == typeof(Rock))
+                    return -1;
+
+                else if (structureType == typeof(Tree))
+                    DespawnStructure(structure);
+
+                else if (structureType == typeof(Field))
                 {
-                    if (x == 0 || z == 0 || Mathf.Abs(x) == Mathf.Abs(z)) continue;
-
-                    TerrainTile neighborTile = new(city.OccupiedTile.X + x, city.OccupiedTile.Z + z);
-
-                    if (!neighborTile.IsInBounds() || !neighborTile.IsFlat()) continue;
-
-                    Structure structure = neighborTile.GetStructure();
-
-                    if (structure)
+                    // if this tile is occupied by a field from our faction, that field counts
+                    if (structure.Faction == settlement.Faction)
                     {
-                        Type structureType = structure.GetType();
-
-                        if (structureType == typeof(Field) && structure.Faction == city.Faction)
-                        {
-                            ((Field)structure).AddSettlementServed(city);
-                            continue;
-                        }
-
-                        else if (structureType == typeof(Tree))
-                            DespawnStructure(structure.gameObject);
-
-                        else
-                            continue;
+                        ((Field)structure).AddSettlementServed(settlement);
+                        return 1;
                     }
 
-                    SpawnField(neighborTile, city.Faction, city);
+                    return 0;
                 }
             }
+
+            SpawnStructure(m_FieldPrefab, tile, settlement.Faction).GetComponent<Field>().AddSettlementServed(settlement);
+            return 1;
         }
 
         /// <summary>
@@ -514,8 +529,7 @@ namespace Populous
                     if (x == 0 || z == 0 || Mathf.Abs(x) == Mathf.Abs(z))
                         continue;
 
-                    TerrainTile neighborTile = new(city.OccupiedTile.X + x, city.OccupiedTile.Z + z);
-                    Structure structure = neighborTile.GetStructure();
+                    Structure structure = new TerrainTile(city.OccupiedTile.X + x, city.OccupiedTile.Z + z).GetStructure();
 
                     if (!structure || structure.GetType() != typeof(Field) || structure.Faction != city.Faction)
                         continue;
@@ -534,8 +548,9 @@ namespace Populous
         /// Creates a swamp on the given tile.
         /// </summary>
         /// <param name="tile">The <c>TerrainTile</c> the swamp should occupy.</param>
-        public void SpawnSwamp(TerrainTile tile) => SpawnStructure(m_SwampPrefab, tile).GetComponent<Swamp>();
+        public void SpawnSwamp(TerrainTile tile) => SpawnStructure(m_SwampPrefab, tile);
 
         #endregion
+
     }
 }

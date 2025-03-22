@@ -259,9 +259,7 @@ namespace Populous
         {
             // already paused
             if (pause && m_CurrentMoveState == MoveState.STOP) return;
-
-            m_LastMoveState = m_CurrentMoveState;
-            m_CurrentMoveState = pause ? MoveState.STOP : m_LastMoveState;
+            (m_LastMoveState, m_CurrentMoveState) = (m_CurrentMoveState, pause ? MoveState.STOP : m_LastMoveState);
         }
 
         /// <summary>
@@ -793,8 +791,8 @@ namespace Populous
         private void OnFreeTileReached()
         {
             SwitchMoveState(MoveState.STOP);
-            //StructureManager.Instance.CreateSettlement(m_TargetTile.Value, m_Unit.Faction);
-            //SetFreeRoam();
+            StructureManager.Instance.CreateSettlement(m_TargetTile.Value, m_Unit.Faction);
+            SetFreeRoam();
         }
 
         #endregion
@@ -935,7 +933,7 @@ namespace Populous
             Vector3 bottomLeftPosition = bottomLeft.ToScenePosition();
             Vector3 topRightPosition = topRight.ToScenePosition();
 
-            if (!m_TargetPoint.HasValue && m_TargetPoint.Value.x < bottomLeftPosition.x || m_TargetPoint.Value.x > topRightPosition.x ||
+            if (!m_TargetPoint.HasValue || m_TargetPoint.Value.x < bottomLeftPosition.x || m_TargetPoint.Value.x > topRightPosition.x ||
                  m_TargetPoint.Value.z < bottomLeftPosition.z || m_TargetPoint.Value.z > topRightPosition.z)
                 return;
 

@@ -373,9 +373,10 @@ namespace Populous
 
                     if (structure && structure.GetType() == typeof(Field))
                     {
+                        Field field = (Field)structure;
                         // gets settlements whose fields were destroyed
-                        affectedSettlements.UnionWith(((Field)structure).SettlementsServed);
-                        StructureManager.Instance.DespawnStructure(structure.gameObject);
+                        affectedSettlements.UnionWith(field.SettlementsServed);
+                        StructureManager.Instance.DespawnStructure(field);
                     }
                     else if (structure)
                         continue;
@@ -429,7 +430,7 @@ namespace Populous
                     origin: settlement
                 ).GetComponent<Unit>();
 
-                settlement.Destroy(updateNearbySettlements: true);
+                StructureManager.Instance.DestroySettlement(settlement, updateNearbySettlements: true);
             }
 
             GameController.Instance.PlaceUnitMagnetAtPoint(faction, knight.ClosestTerrainPoint);

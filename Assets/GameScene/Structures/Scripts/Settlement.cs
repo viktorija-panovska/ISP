@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Drawing;
 using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -22,6 +23,9 @@ namespace Populous
         [SerializeField] private GameObject m_Highlight;
         [Tooltip("The GameObject of the icon for the unit on the minimap.")]
         [SerializeField] private GameObject m_MinimapIcon;
+
+        [Tooltip("The precentage of the max followers in the settlement that are released when a unit is released.")]
+        [SerializeField] private float m_PercentFollowersReleased;
 
         [Header("Settlements")]
         [Tooltip("The GameObjects of each type of settlement, in order as they are defined in the SettlementType enum.")]
@@ -74,10 +78,13 @@ namespace Populous
         /// </summary>
         public bool IsSettlementFull { get => m_FollowersInSettlement == m_CurrentSettlementData.Capacity; }
 
+        private TerrainPoint m_UnitSpawnPoint;
+
         /// <summary>
         /// True if the settlement contains the faction leader, false otherwise.
         /// </summary>
         private bool m_ContainsLeader;
+        public bool ContainsLeader { get => m_ContainsLeader; }
 
         private bool m_IsAttacked;
         /// <summary>
@@ -148,43 +155,15 @@ namespace Populous
         /// <inheritdoc/>
         public override void Setup(Faction faction, TerrainTile occupiedTile)
         {
-            base.Setup(faction, occupiedTile);
+            base.Setup(Faction.NONE, occupiedTile);
             DivineInterventionsController.Instance.OnArmageddon += ReactToArmageddon;
 
-            SetObjectInfo_ClientRpc($"{m_Faction} Settlement", LayerData.FactionLayers[(int)m_Faction]);
+            m_UnitSpawnPoint = new TerrainPoint(m_OccupiedTile.X, m_OccupiedTile.Z);
+
+            SetFaction(faction);
 
             UpdateType();
-            SetupMinimapIcon();
             StartCoroutine(FillSettlement());
-        }
-
-        /// <summary>
-        /// Sets up some <c>GameObject</c> properties for the given settlement.
-        /// </summary>
-        /// <param name="settlementNetworkId">The <c>NetworkObjectId</c> of the settlement.</param>
-        /// <param name="name">The name for the <c>GameObject</c> of the settlement.</param>
-        /// <param name="layer">An <c>int</c> representing the layer the settlement should be on.</param>
-        [ClientRpc]
-        private void SetObjectInfo_ClientRpc(string name, int layer)
-        {
-            gameObject.name = name;
-            gameObject.layer = layer;
-        }
-
-        /// <summary>
-        /// Sets up the icon that represents the settlement on the minimap.
-        /// </summary>
-        private void SetupMinimapIcon()
-        {
-            if (m_Faction == Faction.NONE)
-            {
-                m_MinimapIcon.SetActive(false);
-                return;
-            }
-
-            float scale = Terrain.Instance.UnitsPerSide / StructureManager.Instance.MinimapIconScale;
-            m_MinimapIcon.transform.localScale = new(scale, m_MinimapIcon.transform.localScale.y, scale);
-            m_MinimapIcon.GetComponent<MeshRenderer>().material.color = StructureManager.Instance.MinimapSettlementColors[(int)m_Faction];
         }
 
         /// <summary>
@@ -235,7 +214,10 @@ namespace Populous
         {
             if (ShouldDestroyStructure())
             {
-                Destroy(updateNearbySettlements: false);
+                if (!m_OccupiedTile.IsUnderwater())
+                    ReleaseUnit(m_UnitSpawnPoint, m_FollowersInSettlement);
+
+                StructureManager.Instance.DestroySettlement(this, updateNearbySettlements: false);
                 return;
             }
 
@@ -245,8 +227,6 @@ namespace Populous
                 SetHeight_ClientRpc((int)m_OccupiedTile.GetCenterHeight());
                 return;
             }
-
-            if (m_IsDestroyed) return;
 
             // if the settlement wasn't destroyed but it was in the range of the
             // terrain modification check if it has gained or lost any fields
@@ -259,16 +239,7 @@ namespace Populous
             base.Cleanup();
 
             OnSettlementDestroyed = null;
-            StructureManager.Instance.OnRemoveReferencesToSettlement?.Invoke(this);
             DivineInterventionsController.Instance.OnArmageddon -= ReactToArmageddon;
-
-            if (IsInspected)
-                QueryModeController.Instance.RemoveInspectedObject(this);
-
-            GameController.Instance.RemoveVisibleObject_ClientRpc(
-                GetComponent<NetworkObject>().NetworkObjectId,
-                GameUtils.GetClientParams(GameData.Instance.GetNetworkIdByFaction(m_Faction))
-            );
         }
 
         #endregion
@@ -286,54 +257,42 @@ namespace Populous
             int fields = StructureManager.Instance.CreateSettlementFields(this);
 
             // formula for getting the index of the settlement from the number of fields
-            int settlementIndex = Mathf.Clamp(Mathf.CeilToInt((fields + 1) / 2f), 0, m_SettlementData.Length);
+            SettlementData newSettlement = m_SettlementData[Mathf.Clamp(Mathf.CeilToInt((fields + 1) / 2f), 0, m_SettlementData.Length)];
 
-            SettlementData newSettlement = m_SettlementData[settlementIndex];
-
-            if (m_CurrentSettlementData && m_CurrentSettlementData.Type == newSettlement.Type)
-                return;
+            if (m_CurrentSettlementData && m_CurrentSettlementData.Type == newSettlement.Type) return;
 
             // remove stuff from old settlement
             if (m_CurrentSettlementData)
             {
-                ToggleSettlement_ClientRpc(m_CurrentSettlementData.Type, false);
+                ToggleSettlementObject_ClientRpc(m_CurrentSettlementData.Type, false);
                 if (m_CurrentSettlementData.Type == SettlementType.CITY)
                     StructureManager.Instance.RemoveCityFields(this);
             }
 
             m_CurrentSettlementData = newSettlement;
 
+            ToggleSettlementObject_ClientRpc(m_CurrentSettlementData.Type, true);
+
             Vector3 colliderSize = new(Terrain.Instance.UnitsPerTileSide, Terrain.Instance.UnitsPerTileSide, Terrain.Instance.UnitsPerTileSide);
-            if (m_CurrentSettlementData.Type == SettlementType.CITY)
-            {
-                StructureManager.Instance.AddCityFields(this);
-                colliderSize *= 3;
-            }
-
-            ToggleSettlement_ClientRpc(m_CurrentSettlementData.Type, true);
-
-            if (m_FollowersInSettlement > m_CurrentSettlementData.Capacity)
-                SetFollowers(m_FollowersInSettlement);
+            if (m_CurrentSettlementData.Type == SettlementType.CITY) colliderSize *= 3;
 
             // change the size of the collider
             if (m_SettlementCollision.size != colliderSize)
+            {
                 SetColliderSize_ClientRpc(colliderSize);
+                m_UnitDetector.size = colliderSize;
+            }
 
             if (IsInspected)
                 QueryModeController.Instance.UpdateInspectedSettlement(this, updateType: true);
-        }
 
-        /// <summary>
-        /// Sets the size of the collider of the settlement.
-        /// </summary>
-        /// <param name="size">A <c>Vector3</c> of the new size of the collider.</param>
-        /// <param name="clientRpcParams">RPC data for the client RPC.</param>
-        [ClientRpc]
-        private void SetColliderSize_ClientRpc(Vector3 size, ClientRpcParams clientRpcParams = default) 
-        {
-            Debug.Log("Set Collider Size: " + size);
-            m_SettlementCollision.size = size;
-            m_UnitDetector.size = size;
+            if (m_FollowersInSettlement >= m_CurrentSettlementData.Capacity)
+            {
+                ReleaseUnit(
+                    new TerrainPoint(m_OccupiedTile.X, m_OccupiedTile.Z),
+                    (m_FollowersInSettlement - m_CurrentSettlementData.Capacity) + (int)(m_CurrentSettlementData.Capacity * m_PercentFollowersReleased)
+                );
+            }
         }
 
         /// <summary>
@@ -342,12 +301,15 @@ namespace Populous
         /// <param name="type">The type of the settlement that should be activated.</param>
         /// <param name="isOn">True if the sign should be activated, false otherwise.</param>
         [ClientRpc]
-        private void ToggleSettlement_ClientRpc(SettlementType type, bool isOn)
-        {
-            GameObject settlement = GameUtils.GetChildWithTag(gameObject, TagData.SettlementTags[(int)type]);
-            if (!settlement) return;
-            settlement.SetActive(isOn);
-        }
+        private void ToggleSettlementObject_ClientRpc(SettlementType type, bool isOn) => m_SettlementObjects[(int)type].SetActive(isOn);
+
+        /// <summary>
+        /// Sets the size of the collider of the settlement.
+        /// </summary>
+        /// <param name="size">A <c>Vector3</c> of the new size of the collider.</param>
+        /// <param name="clientRpcParams">RPC data for the client RPC.</param>
+        [ClientRpc]
+        private void SetColliderSize_ClientRpc(Vector3 size) => m_SettlementCollision.size = size;
 
         #endregion
 
@@ -358,64 +320,23 @@ namespace Populous
         /// Changes the faction the settlement belongs to to the given faction.
         /// </summary>
         /// <param name="newFaction">The new <c>Faction</c> the settlement should belong to.</param>
-        public void ChangeFaction(Faction newFaction)
+        public void SetFaction(Faction newFaction)
         {
             if (newFaction == m_Faction) return;
 
-            ToggleFlag_ClientRpc(m_Faction, false);
+            //ToggleFlag_ClientRpc(m_Faction, false);
 
             m_Faction = newFaction;
-            OnSettlementFactionChanged?.Invoke(m_Faction);  // changes the faction of the fields
-
-            RemoveFollowers(m_FollowersInSettlement, updateFactionFollowers: true);
-            UnitManager.Instance.AddFollowers(m_Faction == Faction.RED ? Faction.BLUE : Faction.RED, m_FollowersInSettlement);
-
+            
             SetObjectInfo_ClientRpc($"{m_Faction} Settlement", LayerData.FactionLayers[(int)m_Faction]);
             SetupMinimapIcon();
-            ToggleFlag_ClientRpc(m_Faction, true);
-
-            if (IsInspected)
-                QueryModeController.Instance.UpdateInspectedSettlement(this, updateFaction: true);
-
-            GameController.Instance.RemoveVisibleObject_ClientRpc(
-                GetComponent<NetworkObject>().NetworkObjectId,
-                GameUtils.GetClientParams(GameData.Instance.GetNetworkIdByFaction(m_Faction))
-            );
-        }
-
-        /// <summary>
-        /// Destroys the settlement as a result of an attack by a Knight.
-        /// </summary>
-        public void BurnDown()
-        {
-            if (m_IsDestroyed) return;
-
-            m_IsDestroyed = true;
-            OnSettlementFactionChanged?.Invoke(Faction.NONE);  // burns down the fields
-
-            RemoveFollowers(m_FollowersInSettlement, updateFactionFollowers: true);
-            StructureManager.Instance.CreateRuin(this);
-        }
-
-        /// <summary>
-        /// Destroys this settlement.
-        /// </summary>
-        /// <param name="updateNearbySettlements">True if the nearby settlements should be updates, false if not.</param>
-        public void Destroy(bool updateNearbySettlements)
-        {
-            if (m_IsDestroyed) return;
-
-            m_IsDestroyed = true;
-            OnSettlementDestroyed?.Invoke(this);    // also destroys fields
-
-            RemoveFollowers(m_FollowersInSettlement, updateFactionFollowers: m_OccupiedTile.IsUnderwater());
-            StructureManager.Instance.DespawnStructure(gameObject, updateNearbySettlements);
+            //ToggleFlag_ClientRpc(m_Faction, true);
         }
 
         /// <summary>
         /// Called when the Armageddon Divine Intervention is activated.
         /// </summary>
-        private void ReactToArmageddon() => Destroy(updateNearbySettlements: false);
+        private void ReactToArmageddon() => StructureManager.Instance.DestroySettlement(this, updateNearbySettlements: false);
 
         /// <summary>
         /// Activates or deactivates the flag with the faction's color.
@@ -423,12 +344,45 @@ namespace Populous
         /// <param name="faction">The <c>Faction</c> whose flag should be activated.</param>
         /// <param name="isOn">True if the flag should be activated, false otherwise.</param>
         [ClientRpc]
-        private void ToggleFlag_ClientRpc(Faction faction, bool isOn)
+        private void ToggleFlag_ClientRpc(Faction faction, bool isOn) => m_Flags[(int)faction].SetActive(isOn);
+
+        /// <summary>
+        /// Sets up some <c>GameObject</c> properties for the given settlement.
+        /// </summary>
+        /// <param name="settlementNetworkId">The <c>NetworkObjectId</c> of the settlement.</param>
+        /// <param name="name">The name for the <c>GameObject</c> of the settlement.</param>
+        /// <param name="layer">An <c>int</c> representing the layer the settlement should be on.</param>
+        [ClientRpc]
+        private void SetObjectInfo_ClientRpc(string name, int layer)
         {
-            GameObject flag = GameUtils.GetChildWithTag(gameObject, TagData.FactionTags[(int)faction]);
-            if (!flag) return;
-            flag.SetActive(isOn);
+            gameObject.name = name;
+            gameObject.layer = layer;
         }
+
+        /// <summary>
+        /// Sets up the icon that represents the settlement on the minimap.
+        /// </summary>
+        private void SetupMinimapIcon()
+        {
+            if (m_Faction == Faction.NONE)
+            {
+                m_MinimapIcon.SetActive(false);
+                return;
+            }
+
+            float scale = Terrain.Instance.UnitsPerSide / StructureManager.Instance.MinimapIconScale;
+            m_MinimapIcon.transform.localScale = new(scale, m_MinimapIcon.transform.localScale.y, scale);
+            m_MinimapIcon.GetComponent<MeshRenderer>().material.color = StructureManager.Instance.MinimapSettlementColors[(int)m_Faction];
+        }
+
+        public Unit StartFight(TerrainPoint unitSpawn)
+        {
+            m_IsAttacked = true;
+            return ReleaseUnit(unitSpawn, m_FollowersInSettlement - 1);
+        }
+
+        public void EndFight() => m_IsAttacked = false;
+
 
         #endregion
 
@@ -441,6 +395,11 @@ namespace Populous
         /// <param name="amount">The amount of followers to be added.</param>
         private void AddFollowers(int amount)
         {
+            if (UnitManager.Instance.IsFactionFull(m_Faction)) return;
+
+            if (UnitManager.Instance.GetFactionSize(m_Faction) + amount > UnitManager.Instance.MaxFollowers)
+                amount = UnitManager.Instance.MaxFollowers - UnitManager.Instance.GetFactionSize(m_Faction);
+
             SetFollowers(m_FollowersInSettlement + amount);
             UnitManager.Instance.AddFollowers(m_Faction, amount);
         }
@@ -465,24 +424,30 @@ namespace Populous
         /// <param name="followers">The amount of followers in the settlement.</param>
         private void SetFollowers(int followers)
         {
-            if (followers == 0)
-                StructureManager.Instance.DespawnStructure(gameObject);
-
-            // release a unit
-            if (followers > m_CurrentSettlementData.Capacity)
-                UnitManager.Instance.SpawnUnit(
-                    location: new TerrainPoint(m_OccupiedTile.X, m_OccupiedTile.Z),
-                    faction: m_Faction,
-                    type: m_ContainsLeader ? UnitType.LEADER : UnitType.WALKER,
-                    strength: followers - 1,
-                    origin: this
-                );
-
             m_FollowersInSettlement = followers <= m_CurrentSettlementData.Capacity ? followers : 1;
 
             if (IsInspected)
                 QueryModeController.Instance.UpdateInspectedSettlement(this, updateFollowers: true);
         }
+
+
+
+        public Unit ReleaseUnit(TerrainPoint location, int strength)
+        {
+            Unit unit = UnitManager.Instance.SpawnUnit(
+                location: location,
+                faction: m_Faction,
+                type: m_ContainsLeader ? UnitType.LEADER : UnitType.WALKER,
+                strength: strength,
+                origin: this
+            ).GetComponent<Unit>();
+
+            RemoveFollowers(strength, updateFactionFollowers: false);
+
+            return unit;
+        }
+
+
 
         /// <summary>
         /// Takes a number of followers from a unit and transfers them to the settlement.
@@ -559,7 +524,6 @@ namespace Populous
         public void OnPointerEnter(PointerEventData eventData)
         {
             if (!PlayerController.Instance.IsQueryModeActive) return;
-            Debug.Log("Hover");
             SetHighlight(true);
         }
 

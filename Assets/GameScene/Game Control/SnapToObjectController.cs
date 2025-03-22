@@ -143,7 +143,7 @@ namespace Populous
         {
             int factionIndex = (int)faction;
 
-            Vector3? position = StructureManager.Instance.GetSettlementLocation(faction, m_SettlementIndex[factionIndex]);
+            Vector3? position = StructureManager.Instance.GetSettlementPosition(faction, m_SettlementIndex[factionIndex]);
             if (!position.HasValue)
             {
                 NotifyCannotSnap_ClientRpc(SnapTo.SETTLEMENT);

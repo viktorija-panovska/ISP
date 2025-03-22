@@ -133,7 +133,7 @@ namespace Populous
         public void Setup(Faction faction, int strength, Settlement origin)
         {
             m_Faction = faction;
-            m_Strength = strength;
+            m_Strength = faction == Faction.RED ? 10 : 5/*strength*/;
             m_Origin = origin;
 
             SetObjectInfo_ClientRpc(
@@ -233,6 +233,7 @@ namespace Populous
         /// <param name="settlement">The <c>Settlement</c> that should be removed.</param>
         public void RemoveRefrencesToSettlement(Settlement settlement)
         {
+            Debug.Log("Remove Settlement");
             m_MovementHandler.LoseTargetSettlement(settlement);
             m_DirectionDetector.RemoveObject(settlement.gameObject);
             m_ChaseDetector.RemoveTarget(settlement.gameObject);
@@ -553,6 +554,7 @@ namespace Populous
         /// </summary>
         public void EndFight()
         {
+            Debug.Log("End Fight: " + m_Faction);
             m_IsInFight = false;
             m_FightId = -1;
             m_MovementHandler.Pause(false);

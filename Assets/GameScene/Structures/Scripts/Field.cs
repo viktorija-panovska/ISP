@@ -19,6 +19,8 @@ namespace Populous
         public HashSet<Settlement> SettlementsServed { get => m_SettlementsServed; }
 
 
+        #region Event Functions
+
         private void Start()
         {
             m_DestroyMethod = DestroyMethod.TERRAIN_CHANGE;
@@ -26,6 +28,8 @@ namespace Populous
             foreach (Renderer child in GetComponentsInChildren<Renderer>())
                 GameUtils.ResizeGameObject(child.gameObject, Terrain.Instance.UnitsPerTileSide);
         }
+
+        #endregion
 
 
         #region Settlement Override
@@ -41,17 +45,7 @@ namespace Populous
         public override void Cleanup()
         {
             base.Cleanup();
-
-            foreach (Settlement settlement in m_SettlementsServed)
-            {
-                if (settlement.OnSettlementDestroyed != null)
-                    settlement.OnSettlementDestroyed -= RemoveSettlementServed;
-
-                if (settlement.OnSettlementFactionChanged != null)
-                    settlement.OnSettlementFactionChanged -= SwitchFaction;
-            }
-
-            m_SettlementsServed = new();
+            RemoveAllSettlementsServed();
         }
 
         #endregion
@@ -71,8 +65,9 @@ namespace Populous
             m_Faction = faction;
             ToggleField_ClientRpc(m_Faction, true);
 
+            // a burned field, so it doesn't serve any settlement
             if (m_Faction == Faction.NONE)
-                Cleanup();
+                RemoveAllSettlementsServed();
         }
 
         /// <summary>
@@ -81,12 +76,7 @@ namespace Populous
         /// <param name="faction">The <c>Faction</c> whose field should be activated.</param>
         /// <param name="isOn">True if the field should be activated, false otherwise.</param>
         [ClientRpc]
-        private void ToggleField_ClientRpc(Faction faction, bool isOn)
-        {
-            GameObject field = GameUtils.GetChildWithTag(gameObject, TagData.FactionTags[(int)faction]);
-            if (!field) return;
-            field.SetActive(isOn);
-        }
+        private void ToggleField_ClientRpc(Faction faction, bool isOn) => m_Fields[(int)faction].SetActive(isOn);
 
         #endregion
 
@@ -115,8 +105,23 @@ namespace Populous
             settlement.OnSettlementDestroyed -= RemoveSettlementServed;
             settlement.OnSettlementFactionChanged -= SwitchFaction;
 
-            if (m_SettlementsServed.Count == 0)
-                StructureManager.Instance.DespawnStructure(gameObject);
+            // if all the settlements that this field serves have been destroyed, also destroy this field
+            if (m_SettlementsServed.Count == 0 || m_Faction != Faction.NONE)
+                StructureManager.Instance.DespawnStructure(this);
+        }
+
+        /// <summary>
+        /// Disconnects all the settlements served by this field from the field.
+        /// </summary>
+        private void RemoveAllSettlementsServed()
+        {
+            foreach (Settlement settlement in m_SettlementsServed)
+            {
+                settlement.OnSettlementDestroyed -= RemoveSettlementServed;
+                settlement.OnSettlementFactionChanged -= SwitchFaction;
+            }
+
+            m_SettlementsServed = new();
         }
 
         #endregion

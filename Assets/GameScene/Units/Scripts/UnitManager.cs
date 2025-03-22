@@ -261,8 +261,6 @@ namespace Populous
                 GameUtils.GetClientParams(GameData.Instance.GetNetworkIdByFaction(unit.Faction))
             );
 
-            Debug.Log(unit.IsInspected);
-
             if (unit.IsInspected)
                 QueryModeController.Instance.RemoveInspectedObject(unit);
 
@@ -388,12 +386,14 @@ namespace Populous
 
         #region Followers
 
+        public int GetFactionSize(Faction faction) => m_Followers[(int)faction];
+
         /// <summary>
         /// Checks whether the given faction has reached the maximum number of followers.
         /// </summary>
         /// <param name="faction">The <c>Faction</c> whose population should be checked.</param>
         /// <returns>True if the faction is full, false otherwise.</returns>
-        public bool IsFactionFull(Faction faction) => m_Followers[(int)faction] == m_MaxFollowers;
+        public bool IsFactionFull(Faction faction) => GetFactionSize(faction) == m_MaxFollowers;
 
         /// <summary>
         /// Adds the given amount of followers to the given faction.
@@ -612,8 +612,6 @@ namespace Populous
         /// <returns>An <c>IEnumerator</c> which waits for a number of seconds before simulating another attack.</returns>
         private IEnumerator Fight(Unit red, Unit blue, Settlement settlementDefense = null)
         {
-            Debug.Log("Start fight");
-
             int fightId = red.FightId;
 
             while (true)
@@ -634,7 +632,6 @@ namespace Populous
                     QueryModeController.Instance.UpdateInspectedFight(red, blue);
             }
 
-            Debug.Log("End Fight");
             Unit winner = null, loser = null;
             if (!red) winner = blue;
             else if (!blue) winner = red;
@@ -684,28 +681,15 @@ namespace Populous
             // one unit can attack a origin at a time
             if (settlement.IsAttacked) return;
 
-            Debug.Log("Attack settlement");
-
-            settlement.IsAttacked = true;
-            unit.StartFight(-1);
-
-            GameObject unitObject = SpawnUnit(
-                location: new TerrainPoint(settlement.OccupiedTile.X, settlement.OccupiedTile.Z),
-                faction: settlement.Faction,
-                type: UnitType.WALKER,
-                strength: settlement.FollowersInSettlement - 1,
-                origin: settlement
-            );
-
-            if (!unitObject)
+            if (settlement.FollowersInSettlement <= 1)
             {
                 ResolveSettlementAttack(unit, settlement);
                 return;
             }
 
-            settlement.RemoveFollowers(settlement.FollowersInSettlement - 1, updateFactionFollowers: false);
+            unit.StartFight(-1);
+            Unit otherUnit = settlement.StartFight(unit.ClosestTerrainPoint);
 
-            Unit otherUnit = unitObject.GetComponent<Unit>();
             StartFight(unit.Faction == Faction.RED ? unit : otherUnit, unit.Faction == Faction.BLUE ? unit : otherUnit, settlement);
         }
 
@@ -716,14 +700,14 @@ namespace Populous
         /// <param name="settlement">The <c>Settlement</c> that was being attacked.</param>
         private void ResolveSettlementAttack(Unit winner, Settlement settlement)
         {
-            settlement.IsAttacked = false;
+            settlement.EndFight();
 
             if (winner.Faction == settlement.Faction) return;
 
             if (winner.Type == UnitType.KNIGHT)
-                settlement.BurnDown();
+                StructureManager.Instance.BurnSettlementDown(settlement);
             else
-                settlement.ChangeFaction(winner.Faction);
+                StructureManager.Instance.ChangeSettlementFaction(settlement, winner.Faction);
         }
 
         #endregion

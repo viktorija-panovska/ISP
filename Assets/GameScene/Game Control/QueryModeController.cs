@@ -247,7 +247,7 @@ namespace Populous
         public void UpdateInspectedSettlement(Settlement settlement, bool updateFaction = false, bool updateType = false, bool updateFollowers = false)
         {
             IEnumerable<int> playerIndices = Enumerable.Range(0, m_InspectedObjects.Length)
-                .Where(i => m_InspectedObjects[i].GameObject == settlement.GameObject);
+                .Where(i => m_InspectedObjects[i] != null && m_InspectedObjects[i].GameObject == settlement.GameObject);
 
             if (playerIndices.Count() == 0) return;
 
