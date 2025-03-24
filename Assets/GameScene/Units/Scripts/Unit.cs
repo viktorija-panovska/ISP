@@ -305,11 +305,7 @@ namespace Populous
         /// <param name="isOn">True if the sign should be activated, false otherwise.</param>
         [ClientRpc]
         private void ToggleLeaderSign_ClientRpc(Faction faction, bool isOn)
-        {
-            GameObject sign = GameUtils.GetChildWithTag(gameObject, TagData.LeaderTags[(int)faction]);
-            if (!sign) return;
-            sign.SetActive(isOn);
-        }
+            => m_LeaderSigns[(int)faction].SetActive(isOn);
 
         /// <summary>
         /// Activates or deactivates the sword a knight should be holding.
@@ -317,11 +313,7 @@ namespace Populous
         /// <param name="isOn">True if the sword should be activated, false otherwise.</param>
         [ClientRpc]
         private void ToggleKnightSword_ClientRpc(bool isOn)
-        {
-            GameObject sword = GameUtils.GetChildWithTag(gameObject, TagData.SWORD_TAG);
-            if (!sword) return;
-            sword.SetActive(isOn);
-        }
+            => m_KnightSword.SetActive(isOn);
 
         /// <summary>
         /// Waits for a number seconds before enabling the unit to enter settlements.

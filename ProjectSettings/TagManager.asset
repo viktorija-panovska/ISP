@@ -3,23 +3,7 @@
 --- !u!78 &1
 TagManager:
   serializedVersion: 2
-  tags:
-  - Sword
-  - RedTeam
-  - BlueTeam
-  - NoneTeam
-  - RedLeader
-  - BlueLeader
-  - Tent
-  - MudHut
-  - StrawHut
-  - RockHut
-  - WoodHouse
-  - StoneHouse
-  - NiceHouse
-  - RoundTower
-  - SquareTower
-  - City
+  tags: []
   layers:
   - Default
   - TransparentFX

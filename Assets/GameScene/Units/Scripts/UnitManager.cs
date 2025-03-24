@@ -300,7 +300,7 @@ namespace Populous
             (List<TerrainPoint> redSpawnPoints, List<TerrainPoint> blueSpawnPoints) = FindSpawnPoints();
 
             // go over both factions
-            for (int faction = 0; faction <= 0; ++faction)
+            for (int faction = 0; faction <= 1; ++faction)
             {
                 List<TerrainPoint> spawnPoints = faction == 0 ? redSpawnPoints : blueSpawnPoints;
                 List<int> spawnIndices = Enumerable.Range(0, spawnPoints.Count).ToList();

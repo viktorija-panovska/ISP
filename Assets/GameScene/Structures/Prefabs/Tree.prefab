@@ -11,6 +11,8 @@ GameObject:
   - component: {fileID: 6683531810576895493}
   - component: {fileID: 668264597443835840}
   - component: {fileID: 4812332853089367033}
+  - component: {fileID: 3471735104115896725}
+  - component: {fileID: 5413669980806287218}
   m_Layer: 8
   m_Name: Tree
   m_TagString: Untagged
@@ -46,8 +48,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  GlobalObjectIdHash: 951099334
+  GlobalObjectIdHash: 192949328
+  InScenePlacedSourceGlobalObjectIdHash: 0
   AlwaysReplicateAsRoot: 0
+  SynchronizeTransform: 1
+  ActiveSceneSynchronization: 0
+  SceneMigrationSynchronization: 1
+  SpawnWithObservers: 1
   DontDestroyWithOwner: 0
   AutoObjectParentSync: 1
 --- !u!114 &4812332853089367033
@@ -62,6 +69,35 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1e54a79372e3b8c418b23775ffa892ba, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!65 &3471735104115896725
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4129105199172733369}
+  m_Material: {fileID: 0}
+  m_IsTrigger: 1
+  m_Enabled: 1
+  serializedVersion: 2
+  m_Size: {x: 0.026349831, y: 0.02451193, z: 0.020081302}
+  m_Center: {x: 0.00044837268, y: -0.0021730207, z: 0.0015577243}
+--- !u!54 &5413669980806287218
+Rigidbody:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4129105199172733369}
+  serializedVersion: 2
+  m_Mass: 0.0000001
+  m_Drag: 0
+  m_AngularDrag: 0.05
+  m_UseGravity: 0
+  m_IsKinematic: 0
+  m_Interpolate: 0
+  m_Constraints: 126
+  m_CollisionDetection: 0
 --- !u!1001 &1640549520070239219
 PrefabInstance:
   m_ObjectHideFlags: 0

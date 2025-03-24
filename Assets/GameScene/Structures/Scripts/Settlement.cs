@@ -92,11 +92,6 @@ namespace Populous
         /// </summary>
         public bool IsAttacked { get => m_IsAttacked; set => m_IsAttacked = value; }
 
-        /// <summary>
-        /// True if the settlement has been destroyed, false otherwise.
-        /// </summary>
-        private bool m_IsDestroyed = false;
-
         private readonly NetworkVariable<bool> m_IsInspected = new();
         /// <summary>
         /// True if the settlement is being inspected by any player, false otherwise.
@@ -217,10 +212,7 @@ namespace Populous
             if (ShouldDestroyStructure())
             {
                 if (!m_OccupiedTile.IsUnderwater())
-                {
-                    Debug.Log("Spawn At: " + m_UnitSpawnPoint.ToScenePosition());
                     ReleaseUnit(m_UnitSpawnPoint, m_FollowersInSettlement);
-                }
 
                 StructureManager.Instance.DestroySettlement(this, updateNearbySettlements: false);
                 return;
@@ -329,13 +321,14 @@ namespace Populous
         {
             if (newFaction == m_Faction) return;
 
-            //ToggleFlag_ClientRpc(m_Faction, false);
+            if (m_Faction != Faction.NONE)
+                ToggleFlag_ClientRpc(m_Faction, false);
 
             m_Faction = newFaction;
             
             SetObjectInfo_ClientRpc($"{m_Faction} Settlement", LayerData.FactionLayers[(int)m_Faction]);
             SetupMinimapIcon();
-            //ToggleFlag_ClientRpc(m_Faction, true);
+            ToggleFlag_ClientRpc(m_Faction, true);
         }
 
         /// <summary>
@@ -349,7 +342,8 @@ namespace Populous
         /// <param name="faction">The <c>Faction</c> whose flag should be activated.</param>
         /// <param name="isOn">True if the flag should be activated, false otherwise.</param>
         [ClientRpc]
-        private void ToggleFlag_ClientRpc(Faction faction, bool isOn) => m_Flags[(int)faction].SetActive(isOn);
+        private void ToggleFlag_ClientRpc(Faction faction, bool isOn)
+            => m_Flags[(int)faction].SetActive(isOn);
 
         /// <summary>
         /// Sets up some <c>GameObject</c> properties for the given settlement.
@@ -435,8 +429,6 @@ namespace Populous
                 QueryModeController.Instance.UpdateInspectedSettlement(this, updateFollowers: true);
         }
 
-
-
         public Unit ReleaseUnit(TerrainPoint location, int strength)
         {
             Unit unit = UnitManager.Instance.SpawnUnit(
@@ -451,8 +443,6 @@ namespace Populous
 
             return unit;
         }
-
-
 
         /// <summary>
         /// Takes a number of followers from a unit and transfers them to the settlement.
@@ -483,7 +473,7 @@ namespace Populous
             {
                 yield return new WaitForSeconds(m_CurrentSettlementData.FillRate);
 
-                if (m_FollowersInSettlement == 0 || m_IsDestroyed)
+                if (m_FollowersInSettlement == 0)
                     break;
 
                 if (UnitManager.Instance.IsFactionFull(m_Faction) || IsAttacked)
@@ -510,11 +500,7 @@ namespace Populous
         /// <param name="isOn">True if the sign should be activated, false otherwise.</param>
         [ClientRpc]
         private void ToggleLeaderSign_ClientRpc(Faction faction, bool isOn)
-        {
-            GameObject sign = GameUtils.GetChildWithTag(gameObject, TagData.LeaderTags[(int)faction]);
-            if (!sign) return;
-            sign.SetActive(isOn);
-        }
+            => m_LeaderSymbols[(int)faction].SetActive(isOn);
 
         #endregion
 

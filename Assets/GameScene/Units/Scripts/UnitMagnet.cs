@@ -55,7 +55,7 @@ namespace Populous
         /// </summary>
         public void Setup()
         {
-            m_GridLocation = new(0, 0)/* Terrain.Instance.TerrainCenter*/;
+            m_GridLocation = Terrain.Instance.TerrainCenter;
             DivineInterventionsController.Instance.OnFlood += UpdateHeight;
 
             SetPosition_ClientRpc(m_GridLocation.ToScenePosition());

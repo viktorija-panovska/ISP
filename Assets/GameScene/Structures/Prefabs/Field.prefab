@@ -14,7 +14,7 @@ GameObject:
   - component: {fileID: 2604065103154998271}
   m_Layer: 0
   m_Name: RedField
-  m_TagString: RedTeam
+  m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -184,7 +184,7 @@ GameObject:
   - component: {fileID: 7129400003878257683}
   m_Layer: 0
   m_Name: BlueField
-  m_TagString: BlueTeam
+  m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -281,7 +281,7 @@ GameObject:
   - component: {fileID: 9159402916693360308}
   m_Layer: 0
   m_Name: RuinedField
-  m_TagString: NoneTeam
+  m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0

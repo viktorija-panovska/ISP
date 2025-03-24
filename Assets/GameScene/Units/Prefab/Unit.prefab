@@ -521,6 +521,7 @@ MonoBehaviour:
   m_KnightSword: {fileID: 8455134085631431226}
   m_Highlight: {fileID: 2837463902984971954}
   m_MinimapIcon: {fileID: 3085773139609779454}
+  m_CannotFindMagnetIndicator: {fileID: 0}
   m_CollisionDetector: {fileID: 8487823297983500840}
   m_ChaseDetector: {fileID: 6128104503836289826}
   m_DirectionDetector: {fileID: 4125043769463975922}
@@ -536,7 +537,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: baf8c093d6bf33146994e12b2d55d358, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_CannotFindMagnetIndicator: {fileID: 708668559296739404}
   m_MoveSpeed: 40
   m_PositionLeeway: 0.5
   m_ViewTileDistance: 10
@@ -737,7 +737,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: 97263b85d61904141bc15cffb3d2a68e, type: 3}
       propertyPath: m_TagString
-      value: RedLeader
+      value: Untagged
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 97263b85d61904141bc15cffb3d2a68e, type: 3}
@@ -824,7 +824,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: 826c7ba2f51bae74eadbef491ce624e1, type: 3}
       propertyPath: m_TagString
-      value: BlueLeader
+      value: Untagged
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 826c7ba2f51bae74eadbef491ce624e1, type: 3}
@@ -915,7 +915,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: 512ceb4253226694fa6002ad923ffb17, type: 3}
       propertyPath: m_TagString
-      value: Sword
+      value: Untagged
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 512ceb4253226694fa6002ad923ffb17, type: 3}

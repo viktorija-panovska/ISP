@@ -413,7 +413,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: e5a5815ed40570448b02b1e2cb490fee, type: 3}
       propertyPath: m_TagString
-      value: City
+      value: Untagged
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: e5a5815ed40570448b02b1e2cb490fee, type: 3}
@@ -500,7 +500,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: fd0e6c4ff9f9f7d4690a901a1ea3ac76, type: 3}
       propertyPath: m_TagString
-      value: Tent
+      value: Untagged
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: fd0e6c4ff9f9f7d4690a901a1ea3ac76, type: 3}
@@ -575,7 +575,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: 5661c2aa4b3a9914dbc57bcbf4b56a76, type: 3}
       propertyPath: m_TagString
-      value: NiceHouse
+      value: Untagged
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 5661c2aa4b3a9914dbc57bcbf4b56a76, type: 3}
@@ -654,7 +654,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: ad5ff3282fd59304298dfc68664c941c, type: 3}
       propertyPath: m_TagString
-      value: RedTeam
+      value: Untagged
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: ad5ff3282fd59304298dfc68664c941c, type: 3}
@@ -741,7 +741,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: 7976b87c1a01cef4fa6b8ea15264a5c5, type: 3}
       propertyPath: m_TagString
-      value: SquareTower
+      value: Untagged
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 7976b87c1a01cef4fa6b8ea15264a5c5, type: 3}
@@ -828,7 +828,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: 18836b835baf76e49b0ad1accd1bb48d, type: 3}
       propertyPath: m_TagString
-      value: StrawHut
+      value: Untagged
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 18836b835baf76e49b0ad1accd1bb48d, type: 3}
@@ -915,7 +915,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: a17a2a0dfb64cef4ca642be95af99b59, type: 3}
       propertyPath: m_TagString
-      value: RoundTower
+      value: Untagged
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: a17a2a0dfb64cef4ca642be95af99b59, type: 3}
@@ -990,7 +990,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: 369369b005b2507418ab56f5fc8f9b1f, type: 3}
       propertyPath: m_TagString
-      value: WoodHouse
+      value: Untagged
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 369369b005b2507418ab56f5fc8f9b1f, type: 3}
@@ -1069,7 +1069,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: 97263b85d61904141bc15cffb3d2a68e, type: 3}
       propertyPath: m_TagString
-      value: RedLeader
+      value: Untagged
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 97263b85d61904141bc15cffb3d2a68e, type: 3}
@@ -1144,7 +1144,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: 8771d48b7fa019946b9c758832de7d82, type: 3}
       propertyPath: m_TagString
-      value: StoneHouse
+      value: Untagged
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 8771d48b7fa019946b9c758832de7d82, type: 3}
@@ -1231,7 +1231,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: b07ef565f5f4735429470e70775f9055, type: 3}
       propertyPath: m_TagString
-      value: RockHut
+      value: Untagged
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: b07ef565f5f4735429470e70775f9055, type: 3}
@@ -1310,7 +1310,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: 826c7ba2f51bae74eadbef491ce624e1, type: 3}
       propertyPath: m_TagString
-      value: BlueLeader
+      value: Untagged
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 826c7ba2f51bae74eadbef491ce624e1, type: 3}
@@ -1393,7 +1393,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: ad5ff3282fd59304298dfc68664c941c, type: 3}
       propertyPath: m_TagString
-      value: BlueTeam
+      value: Untagged
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: ad5ff3282fd59304298dfc68664c941c, type: 3}
@@ -1480,7 +1480,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: f7eb27184a07a53498ce5bd453b4e3e3, type: 3}
       propertyPath: m_TagString
-      value: MudHut
+      value: Untagged
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: f7eb27184a07a53498ce5bd453b4e3e3, type: 3}
