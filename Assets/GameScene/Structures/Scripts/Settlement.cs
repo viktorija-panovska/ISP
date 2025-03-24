@@ -134,6 +134,12 @@ namespace Populous
             Unit unit = other.GetComponent<Unit>();
             if (!unit) return;
 
+            if (unit.Faction != m_Faction && !IsAttacked && unit.Behavior != UnitBehavior.GO_TO_MAGNET)
+                UnitManager.Instance.AttackSettlement(unit, this);
+
+            if (unit.Type == UnitType.KNIGHT)
+                return;
+
             if (unit.Faction == m_Faction && m_ContainsLeader)
             {
                 GameController.Instance.SetLeader(unit.Faction, unit);
@@ -142,9 +148,6 @@ namespace Populous
 
             if (unit.Faction == m_Faction && this != unit.Origin && unit.Behavior != UnitBehavior.GO_TO_MAGNET)
                 TakeFollowersFromUnit(unit);
-
-            if (unit.Faction != m_Faction && !IsAttacked && unit.Behavior != UnitBehavior.GO_TO_MAGNET)
-                UnitManager.Instance.AttackSettlement(unit, this);
         }
 
         #endregion
@@ -159,7 +162,6 @@ namespace Populous
             DivineInterventionsController.Instance.OnArmageddon += ReactToArmageddon;
 
             m_UnitSpawnPoint = new TerrainPoint(m_OccupiedTile.X, m_OccupiedTile.Z);
-
             SetFaction(faction);
 
             UpdateType();
@@ -215,7 +217,10 @@ namespace Populous
             if (ShouldDestroyStructure())
             {
                 if (!m_OccupiedTile.IsUnderwater())
+                {
+                    Debug.Log("Spawn At: " + m_UnitSpawnPoint.ToScenePosition());
                     ReleaseUnit(m_UnitSpawnPoint, m_FollowersInSettlement);
+                }
 
                 StructureManager.Instance.DestroySettlement(this, updateNearbySettlements: false);
                 return;

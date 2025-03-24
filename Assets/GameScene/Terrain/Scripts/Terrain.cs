@@ -201,6 +201,14 @@ namespace Populous
         /// <param name="height">If it has a value, the height of the point should be set to that value.</param>
         public void ChangePointHeight(TerrainPoint point, bool lower, int? height = null)
         {
+            if (height.HasValue && (height.Value < m_WaterLevel || height.Value > MaxHeight))
+                return;
+
+            int currentHeight = point.GetHeight();
+
+            if (!height.HasValue && ((lower && currentHeight <= m_WaterLevel) || (!lower && currentHeight == MaxHeight)))
+                return;
+
             foreach ((int, int) chunkIndex in point.GetAllChunkIndices())
             {
                 if (!m_ModifiedChunks.Contains(chunkIndex))
@@ -333,20 +341,26 @@ namespace Populous
 
             // updating the points around the affected area in case they break the height property
             distance = radius;
-            int changedHeightsInIter = 1;
-            while (changedHeightsInIter > 0)
+            bool changedHeightsInIter = true;
+            while (changedHeightsInIter)
             {
-                changedHeightsInIter = 0;
+                changedHeightsInIter = false;
                 distance++;
+
+                Debug.Log(distance);
 
                 foreach (TerrainPoint point in center.GetAllPointsAtDistance(distance))
                 {
+                    Debug.Log("- Point: " + point.ToScenePosition());
+
                     foreach (TerrainPoint neighbor in point.GetAllNeighbors())
                     {
+                        Debug.Log("-- Neighbor: " + neighbor.ToScenePosition());
                         if (Mathf.Abs(neighbor.GetHeight() - point.GetHeight()) > m_StepHeight)
                         {
+                            Debug.Log("=== UPDATE");
                             ChangePointHeight(point, false, maxHeightOnEdge + (radius - distance) * m_StepHeight);
-                            changedHeightsInIter++;
+                            changedHeightsInIter = true;
                             break;
                         }
                     }

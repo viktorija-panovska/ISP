@@ -1,3 +1,4 @@
+using Microsoft.Win32.SafeHandles;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -421,25 +422,23 @@ namespace Populous
             int dx = end.X - start.X;
             int dz = end.Z - start.Z;
 
-            // we are moving along the edge of the tile and not into the water, so its fine
             if (Mathf.Abs(dx) != Mathf.Abs(dz)) return true;
 
+            // get the coordinates of the tile
             (int x, int z) = (start.X, start.Z);
-
-            if (dx > 0 && dz < 0)
-                z -= 1;
-            else if (dx < 0 && dz > 0)
-                x -= 1;
+            if (dx > 0 && dz < 0) z -= 1;
+            else if (dx < 0 && dz > 0) x -= 1;
             else if (dx < 0 && dz < 0)
             {
                 x -= 1;
                 z -= 1;
             }
+            if (x < 0 || z < 0) return false;
 
-            if (x < 0 || z < 0)
-                return false;
+            TerrainTile tile = new(x, z);
+            if (tile.IsUnderwater()) return false;
 
-            Structure structure = new TerrainTile(x, z).GetStructure();
+            Structure structure = tile.GetStructure();
             if (!structure || structure.GetType() == typeof(Field) || structure.GetType() == typeof(Swamp))
                 return true;
 

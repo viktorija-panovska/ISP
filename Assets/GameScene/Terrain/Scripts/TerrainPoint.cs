@@ -132,9 +132,8 @@ namespace Populous
                     if ((x, z) == (0, 0)) continue;
 
                     TerrainPoint point = new(m_X + x, m_Z + z);
-                    if (!point.IsInBounds()) continue;
-
-                    yield return point;
+                    if (point.IsInBounds())
+                        yield return point;
                 }
             }
         }

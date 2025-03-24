@@ -233,7 +233,6 @@ namespace Populous
         /// <param name="settlement">The <c>Settlement</c> that should be removed.</param>
         public void RemoveRefrencesToSettlement(Settlement settlement)
         {
-            Debug.Log("Remove Settlement");
             m_MovementHandler.LoseTargetSettlement(settlement);
             m_DirectionDetector.RemoveObject(settlement.gameObject);
             m_ChaseDetector.RemoveTarget(settlement.gameObject);
@@ -518,7 +517,6 @@ namespace Populous
         {
             if (m_Behavior != UnitBehavior.GO_TO_MAGNET) return;
             m_MovementHandler.IsUnitMagnetReached = true;
-            Debug.Log("Magnet Reached");
         }
 
 
@@ -554,7 +552,6 @@ namespace Populous
         /// </summary>
         public void EndFight()
         {
-            Debug.Log("End Fight: " + m_Faction);
             m_IsInFight = false;
             m_FightId = -1;
             m_MovementHandler.Pause(false);

@@ -217,14 +217,7 @@ namespace Populous
             if (m_UnitPrefab.GetComponent<Renderer>())
                 m_UnitPrefab.GetComponent<Renderer>().enabled = false;
 
-            GameObject unitObject = Instantiate(
-                m_UnitPrefab,
-                new Vector3(
-                    location.X * Terrain.Instance.UnitsPerTileSide,
-                    location.GetHeight(),
-                    location.Z * Terrain.Instance.UnitsPerTileSide),
-                Quaternion.identity
-            );
+            GameObject unitObject = Instantiate(m_UnitPrefab, location.ToScenePosition(), Quaternion.identity);
 
             // spawn on network
             NetworkObject networkUnit = unitObject.GetComponent<NetworkObject>();
@@ -307,7 +300,7 @@ namespace Populous
             (List<TerrainPoint> redSpawnPoints, List<TerrainPoint> blueSpawnPoints) = FindSpawnPoints();
 
             // go over both factions
-            for (int faction = 0; faction <= 1; ++faction)
+            for (int faction = 0; faction <= 0; ++faction)
             {
                 List<TerrainPoint> spawnPoints = faction == 0 ? redSpawnPoints : blueSpawnPoints;
                 List<int> spawnIndices = Enumerable.Range(0, spawnPoints.Count).ToList();

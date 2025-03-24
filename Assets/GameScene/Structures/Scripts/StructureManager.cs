@@ -1,4 +1,3 @@
-using Steamworks.ServerList;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -481,7 +480,7 @@ namespace Populous
         /// i.e. 1 if a field was created, 0 if no field was created, or -1 if the tile was occupied by a rock.</returns>
         private int TryAddField(TerrainTile tile, Settlement settlement)
         {
-            if (!tile.IsInBounds() || !tile.IsFlat())
+            if (!tile.IsInBounds() || !tile.IsFree())
                 return 0;
 
             Structure structure = tile.GetStructure();
