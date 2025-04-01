@@ -1,11 +1,11 @@
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace Populous
 {
     /// <summary>
     /// The <c>Minimap</c> class manages the texture of the minimap.
     /// </summary>
-    [RequireComponent(typeof(MeshRenderer))]
     public class Minimap : MonoBehaviour
     {
         [SerializeField] private Color m_LandColor;
@@ -45,10 +45,7 @@ namespace Populous
             m_MinimapTexture.wrapMode = TextureWrapMode.Clamp;
             SetTexture();
 
-            MeshRenderer meshRenderer = GetComponent<MeshRenderer>();
-            meshRenderer.sharedMaterial.mainTexture = m_MinimapTexture;
-            meshRenderer.transform.position = new Vector3(Terrain.Instance.UnitsPerSide / 2, 0, Terrain.Instance.UnitsPerSide / 2);
-            GameUtils.ResizeGameObject(meshRenderer.gameObject, Terrain.Instance.UnitsPerSide);
+            GetComponent<RawImage>().texture = m_MinimapTexture;
         }
 
         /// <summary>

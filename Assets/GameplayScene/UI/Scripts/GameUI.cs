@@ -111,7 +111,7 @@ namespace Populous
             SetActiveDivineInterventionIcon(DivineIntervention.MOLD_TERRAIN, DivineIntervention.MOLD_TERRAIN);
             SetActiveBehaviorIcon(UnitBehavior.SETTLE, UnitBehavior.SETTLE);
 
-            // TODO: uncomment
+            //// TODO: uncomment
             //PlayerInfo? redPlayerInfo = GameData.Instance.GetPlayerInfoByFaction(Faction.RED);
             //PlayerInfo? bluePlayerInfo = GameData.Instance.GetPlayerInfoByFaction(Faction.BLUE);
 
