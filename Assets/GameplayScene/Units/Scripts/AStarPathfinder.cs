@@ -91,7 +91,7 @@ namespace Populous
         /// <returns>A list of <c>TerrainPoint</c>s making up the path.</returns>
         public static List<TerrainPoint> FindPath(TerrainPoint start, TerrainPoint end)
         {
-            if (!DivineInterventionsController.Instance.IsArmageddon && end.IsUnderwater()) return null;
+            if (!DivineInterventionController.Instance.IsArmageddon && end.IsUnderwater()) return null;
 
             Dictionary<Vector2, PathNode> nodes = new();        // all nodes
             List<Vector2> openList = new();                     // nodes on the frontier - nodes that need to be explored

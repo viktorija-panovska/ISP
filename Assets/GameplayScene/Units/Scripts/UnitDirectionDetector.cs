@@ -113,7 +113,10 @@ namespace Populous
             Vector3 sum = Vector3.zero;
 
             foreach (GameObject gameObject in m_NearbyObjects)
-                sum += gameObject.transform.position - transform.position;
+            {
+                Vector3 direction = gameObject.transform.position - transform.position;
+                sum += direction * (1 / direction.magnitude);
+            }                
 
             return (sum / m_NearbyObjects.Count).normalized;
         }

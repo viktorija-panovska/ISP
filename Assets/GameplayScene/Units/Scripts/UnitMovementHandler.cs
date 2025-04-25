@@ -1,4 +1,4 @@
-using Microsoft.Win32.SafeHandles;
+using Cinemachine.Utility;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -219,7 +219,7 @@ namespace Populous
                 GameController.Instance.OnBlueMagnetMoved += SetGoToMagnetBehavior;
             }
 
-            StructureManager.Instance.OnSettlementCreated += CheckTargetTile;
+            StructureManager.Instance.OnStructureCreated += CheckTargetFreeTile;
 
             SetFreeRoam();
         }
@@ -237,7 +237,7 @@ namespace Populous
                 GameController.Instance.OnBlueMagnetMoved -= SetGoToMagnetBehavior;
             }
 
-            StructureManager.Instance.OnSettlementCreated -= CheckTargetTile; 
+            StructureManager.Instance.OnStructureCreated -= CheckTargetFreeTile; 
         }
 
         /// <summary>
@@ -305,6 +305,7 @@ namespace Populous
                 if (m_Unit.Behavior == UnitBehavior.SETTLE && GoToFreeTile())
                     return;
 
+                // if the behavior is gather or fight and there is a direction we can go in to find another unit/settlement, then go
                 else if ((m_Unit.Behavior == UnitBehavior.GATHER || m_Unit.Behavior == UnitBehavior.FIGHT) && 
                     (GoToNearbyUnit() || GoToNearbySettlement() || GoInDirection()))
                     return;
@@ -349,18 +350,32 @@ namespace Populous
             StartLocation = m_Unit.ClosestTerrainPoint;
             Vector3 m_StartPosition = StartLocation.ToScenePosition();
 
+            TerrainPoint current = m_Unit.ClosestTerrainPoint;
+
+            // check if we have stepped on a point that is surrounded by a free tile
+            if (m_CurrentMoveState == MoveState.GO_TO_FREE_TILE)
+            {
+                TerrainTile? targetTile = null;
+                FindSurroundingFreeTile(current, ref targetTile);
+                if (targetTile.HasValue)
+                {
+                    SwitchMoveState(MoveState.GO_TO_FREE_TILE);
+                    m_TargetTile = targetTile.Value;
+                    ClearPath();
+                    return;
+                }
+            }
+
             TerrainPoint next = m_Path[m_PathIndex];
 
             // when Armageddon is active, the units can build their own land to cross water
-            if (next.IsUnderwater())
-            {
-                if (!DivineInterventionsController.Instance.IsArmageddon)
-                {
-                    SwitchMoveState(MoveState.STOP);
-                    return;
-                }
-
+            if (DivineInterventionController.Instance.IsArmageddon && next.IsUnderwater())
                 Terrain.Instance.ModifyTerrain(next, lower: false);
+
+            if (!DivineInterventionController.Instance.IsArmageddon && (next.IsUnderwater() || !IsTileCrossable(current, next)))
+            {
+                ClearPath();
+                return;
             }
 
             // pick next target
@@ -376,7 +391,7 @@ namespace Populous
             }
 
             // rotate unit to face the next target
-            m_Unit.Rotate_ClientRpc/*_ClientRpc*/((target - Vector3.up * target.y) - (m_StartPosition - Vector3.up * m_StartPosition.y));
+            m_Unit.Rotate_ClientRpc((target - Vector3.up * target.y) - (m_StartPosition - Vector3.up * m_StartPosition.y));
 
             // if we are moving diagonally across the tile, the next step will be to the center of the tile
             if (!m_MoveToCenter && m_StartPosition.x != target.x && m_StartPosition.z != target.z)
@@ -417,7 +432,7 @@ namespace Populous
         /// <returns>True if the tile can be crossed, false otherwise.</returns>
         public static bool IsTileCrossable(TerrainPoint start, TerrainPoint end)
         {
-            if (!DivineInterventionsController.Instance.IsArmageddon && end.IsUnderwater()) return false;
+            if (!DivineInterventionController.Instance.IsArmageddon && end.IsUnderwater()) return false;
 
             int dx = end.X - start.X;
             int dz = end.Z - start.Z;
@@ -593,7 +608,7 @@ namespace Populous
         #endregion
 
 
-        #region Follow
+        #region Follow Unit
 
         /// <summary>
         /// Make this unit go after the given unit.
@@ -685,7 +700,7 @@ namespace Populous
             TerrainTile? target = null;
             List<TerrainPoint> pathToTile = null;
 
-            FindFreeTile_Surrounding();
+            FindSurroundingFreeTile(current, ref target);
 
             if (!target.HasValue && m_CurrentRoamDirection != (0, 0) && (m_CurrentRoamDirection.x == 0 || m_CurrentRoamDirection.z == 0))
                 FindFreeTile_Parallel();
@@ -702,17 +717,6 @@ namespace Populous
             }
 
             return false;
-
-            /// <summary>
-            /// Searches the tiles immediately around the current point.
-            /// </summary>
-            void FindFreeTile_Surrounding()
-            {
-                for (int z = 0; z >= -1; --z)
-                    for (int x = 0; x >= -1; --x)
-                        if (TryGoToTile(new(current.X + x, current.Z + z)))
-                            return;
-            }
 
             /// <summary>
             /// Searches the tiles in front of the unit based on the direction it is facing, if that direction is up, down, left, or right.
@@ -781,6 +785,20 @@ namespace Populous
                 target = tile;
                 pathToTile = path;
                 return true;
+            }
+        }
+
+        private void FindSurroundingFreeTile(TerrainPoint current, ref TerrainTile? target)
+        {
+            for (int z = 0; z >= -1; --z)
+            {
+                for (int x = 0; x >= -1; --x)
+                {
+                    TerrainTile tile = new(current.X + x, current.Z + z);
+                    if (!tile.IsFree()) continue;
+
+                    target = tile;
+                }
             }
         }
 
@@ -871,11 +889,17 @@ namespace Populous
             if (path == null || path.Count == 0)
             {
                 m_CannotFindMagnet = true;
+                m_Unit.SetCannotFindUnitMagnetSymbol_ClientRpc(true);
                 SetFreeRoam();
                 return;
             }
 
-            m_CannotFindMagnet = false;
+            if (m_CannotFindMagnet == true)
+            {
+                m_CannotFindMagnet = false;
+                m_Unit.SetCannotFindUnitMagnetSymbol_ClientRpc(false);
+            }
+
             SetNewPath(path);
         }
 
@@ -921,7 +945,7 @@ namespace Populous
         public void ReactToTerrainChange(TerrainPoint bottomLeft, TerrainPoint topRight)
         {
             UpdateTargetPointHeight(bottomLeft, topRight);
-            CheckTargetTile(bottomLeft, topRight);
+            CheckTargetFreeTile(bottomLeft, topRight);
 
             if (m_Unit.Behavior == UnitBehavior.GO_TO_MAGNET && m_CannotFindMagnet)
                 SetGoToMagnetBehavior();
@@ -937,6 +961,14 @@ namespace Populous
                 return;
 
             Vector3 target = m_TargetPoint.Value;
+
+            TerrainPoint targetPoint = new(target);
+            if (targetPoint.IsUnderwater())
+            {
+                ClearPath();
+                return;
+            }
+
             m_TargetPoint = new(
                 target.x,
                 !m_MoveToCenter ? EndLocation.GetHeight() : new TerrainTile(target.x, target.z).GetCenterHeight(),
@@ -944,8 +976,9 @@ namespace Populous
             );
         }
 
-        private void CheckTargetTile(TerrainPoint bottomLeft, TerrainPoint topRight)
+        private void CheckTargetFreeTile(TerrainPoint bottomLeft, TerrainPoint topRight)
         {
+            // check if the tile is still free (if it was in the modified area)
             if (!m_TargetTile.HasValue || m_TargetTile.Value.X < bottomLeft.X - 1 || m_TargetTile.Value.X > topRight.X ||
                 m_TargetTile.Value.Z < bottomLeft.Z - 1 || m_TargetTile.Value.Z > topRight.Z || m_TargetTile.Value.IsFree())
                 return;
@@ -953,11 +986,10 @@ namespace Populous
             SetFreeRoam();
         }
 
-        private void CheckTargetTile(Settlement settlement)
+        private void CheckTargetFreeTile(Structure structure)
         {
-            if (!m_TargetTile.HasValue || m_TargetTile.Value.GetStructure() != settlement)
-                return;
-
+            // check if the created structure is on the target tile
+            if (!m_TargetTile.HasValue || structure.OccupiedTile != m_TargetTile.Value) return;
             SetFreeRoam();
         }
 

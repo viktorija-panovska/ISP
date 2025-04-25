@@ -43,7 +43,7 @@ namespace Populous
 
         public override void OnDestroy()
         {
-            DivineInterventionsController.Instance.OnFlood -= UpdateHeight;
+            DivineInterventionController.Instance.OnFlood -= UpdateHeight;
             base.OnDestroy();
         }
 
@@ -56,7 +56,7 @@ namespace Populous
         public void Setup()
         {
             m_GridLocation = Terrain.Instance.TerrainCenter;
-            DivineInterventionsController.Instance.OnFlood += UpdateHeight;
+            DivineInterventionController.Instance.OnFlood += UpdateHeight;
 
             SetPosition_ClientRpc(m_GridLocation.ToScenePosition());
         }

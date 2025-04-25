@@ -94,7 +94,7 @@ namespace Populous
                 return false;
 
             foreach (TerrainPoint neighbor in GetAllNeighbors())
-                if (neighbor.GetHeight() > 0)
+                if (neighbor.GetHeight() > Terrain.Instance.WaterLevel)
                     return false;
 
             return true;

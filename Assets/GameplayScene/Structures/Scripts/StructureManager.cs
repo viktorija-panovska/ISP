@@ -79,9 +79,9 @@ namespace Populous
         #region Actions
 
         /// <summary>
-        /// Action to be called when a settlement is created.
+        /// Action to be called when a structure is created.
         /// </summary>
-        public Action<Settlement> OnSettlementCreated;
+        public Action<Structure> OnStructureCreated;
 
         /// <summary>
         /// Action to be called when a settlement is despawned to remove references to it from other objects.
@@ -101,12 +101,8 @@ namespace Populous
                 return;
             }
 
-            m_Instance = this;   
-        }
+            m_Instance = this;
 
-        private void Start()
-        {
-            if (!IsHost) return;
             m_StructureOnTile = new Structure[Terrain.Instance.TilesPerSide, Terrain.Instance.TilesPerSide];
         }
 
@@ -141,6 +137,8 @@ namespace Populous
             Structure structure = structureObject.GetComponent<Structure>();
             structure.Setup(faction, tile);
             SetOccupiedTile(tile, structure);
+
+            OnStructureCreated?.Invoke(structure);
 
             return structure;
         }
@@ -286,7 +284,6 @@ namespace Populous
         {
             Settlement settlement = (Settlement)SpawnStructure(m_SettlementPrefab, tile, faction);
             AddSettlementPosition(new Vector2(settlement.transform.position.x, settlement.transform.position.z), faction);
-            OnSettlementCreated?.Invoke(settlement);
         }
 
         /// <summary>
@@ -353,6 +350,7 @@ namespace Populous
 
             settlement.SetFaction(faction);
             settlement.OnSettlementFactionChanged?.Invoke(faction);  // changes the faction of the fields
+            OnRemoveReferencesToSettlement?.Invoke(settlement);
 
             UpdateNearbySettlements(settlement.OccupiedTile);
             AddSettlementPosition(settlement.transform.position, faction);

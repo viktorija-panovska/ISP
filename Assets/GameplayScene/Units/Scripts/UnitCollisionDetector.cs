@@ -23,20 +23,25 @@ namespace Populous
 
         private void OnTriggerEnter(Collider other)
         {
+            if (m_Unit.IsInFight) return;
+
             Unit otherUnit = other.GetComponent<Unit>();
 
-            if (!otherUnit) return;
+            if (!otherUnit || otherUnit.IsInFight) return;
 
             // make the stronger unit gain strength so both units don't try to do it
-            if (otherUnit.Faction == m_Unit.Faction && !m_Unit.IsInFight && (m_Unit.Type != UnitType.WALKER || 
-               (otherUnit.Type == UnitType.WALKER && m_Unit.Strength >= otherUnit.Strength)))
+            if (otherUnit.Faction == m_Unit.Faction && (
+                (m_Unit.Type == UnitType.KNIGHT && otherUnit.Type == UnitType.KNIGHT && m_Unit.Strength >= otherUnit.Strength) ||
+                (m_Unit.Type != UnitType.WALKER && otherUnit.Type == UnitType.WALKER) ||
+                (m_Unit.Type == UnitType.WALKER && otherUnit.Type == UnitType.WALKER && m_Unit.Strength >= otherUnit.Strength)
+               ))
             {
                 m_Unit.GainStrength(otherUnit.Strength);
                 UnitManager.Instance.DespawnUnit(otherUnit, hasDied: false);
             }
 
             // make only the red faction able to start a fight so both units don't try to do it
-            if (otherUnit.Faction == m_EnemyFaction && m_Unit.Faction == Faction.RED && !m_Unit.IsInFight && !otherUnit.IsInFight)
+            if (otherUnit.Faction == m_EnemyFaction && m_Unit.Faction == Faction.RED)
                 UnitManager.Instance.StartFight(m_Unit, otherUnit);
         }
 

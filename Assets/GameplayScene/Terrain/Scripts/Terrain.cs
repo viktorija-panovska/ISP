@@ -160,7 +160,11 @@ namespace Populous
         /// <summary>
         /// Sets up the variables in the Terrain shader of the terrain material.
         /// </summary>
-        private void SetupTerrainShader() => m_TerrainMaterial.SetInteger("waterLevel", m_WaterLevel);
+        private void SetupTerrainShader()
+        {
+            m_TerrainMaterial.SetInteger("stepHeight", m_StepHeight);
+            m_TerrainMaterial.SetInteger("waterLevel", m_WaterLevel);
+        }
 
         #endregion
 
@@ -256,44 +260,63 @@ namespace Populous
 
             // updating the points around the affected area in case they break the height property
             int distance = radius;
-            int changedHeightsInIter = 1;
-            while (changedHeightsInIter > 0)
+            bool changedHeightsInIter = true;
+            int height = 0;
+            while (changedHeightsInIter)
             {
-                changedHeightsInIter = 0;
+                changedHeightsInIter = false;
                 distance++;
+
+                Debug.LogError(distance);
 
                 foreach (TerrainPoint point in center.GetAllPointsAtDistance(distance))
                 {
+                    Debug.LogWarning(point + " " + point.GetHeight());
                     foreach (TerrainPoint neighbor in point.GetAllNeighbors())
                     {
-                        // the point breaks the property, so it needs an update
-                        if (Mathf.Abs(neighbor.GetHeight() - point.GetHeight()) > m_StepHeight)
-                        {
-                            // finding a point in the previous circle to get the height from
-                            int x = point.X, z = point.Z;
+                        Debug.Log(neighbor + " " + neighbor.GetHeight());
+                        int difference = neighbor.GetHeight() - point.GetHeight();
+                        if (Mathf.Abs(difference) <= m_StepHeight)
+                            continue;
 
-                            if (point.X == center.X - distance)
-                                x++;
+                        ChangePointHeight(point, false, height);
+                        changedHeightsInIter = true;
+                        break;
 
-                            if (point.X == center.X + distance)
-                                x--;
 
-                            if (point.Z == center.Z - distance)
-                                z++;
+                        //// neighbor is higher than current
+                        //if (difference > 0)
+                        //    ChangePointHeight(point, false, height + m_StepHeight);
+                        //// the point breaks the property, so it needs an update
+                        //if (Mathf.Abs(neighbor.GetHeight() - point.GetHeight()) > m_StepHeight)
+                        //{
+                        //    // finding a point in the previous circle to get the height from
+                        //    int x = point.X, z = point.Z;
 
-                            if (point.Z == center.Z + distance)
-                                z--;
+                        //    if (point.X == center.X - distance)
+                        //        x++;
 
-                            if ((x, z) == (point.X, point.Z))
-                                continue;
+                        //    if (point.X == center.X + distance)
+                        //        x--;
 
-                            ChangePointHeight(point, false, newHeights[new(x, z)] + m_StepHeight);
-                            changedHeightsInIter++;
-                            break;
-                        }
+                        //    if (point.Z == center.Z - distance)
+                        //        z++;
+
+                        //    if (point.Z == center.Z + distance)
+                        //        z--;
+
+                        //    if ((x, z) == (point.X, point.Z))
+                        //        continue;
+
+
+                        //    changedHeightsInIter = true;
+                        //    break;
+                        //}
                     }
                     newHeights.Add(point, point.GetHeight());
                 }
+
+                height = Mathf.Clamp(height + m_StepHeight, m_WaterLevel, MaxHeight);
             }
 
             foreach ((int, int) chunkIndex in m_ModifiedChunks)
@@ -332,12 +355,12 @@ namespace Populous
 
             maxHeightOnEdge += m_StepHeight;
 
-            ChangePointHeight(center, false, maxHeightOnEdge + radius * m_StepHeight);
+            ChangePointHeight(center, false, Mathf.Clamp(maxHeightOnEdge + radius * m_StepHeight, m_WaterLevel, MaxHeight));
 
             int distance;
             for (distance = 1; distance <= radius; ++distance)
                 foreach (TerrainPoint point in center.GetAllPointsAtDistance(distance))
-                    ChangePointHeight(point, false, maxHeightOnEdge + (radius - distance) * m_StepHeight);
+                    ChangePointHeight(point, false, Mathf.Clamp(maxHeightOnEdge + (radius - distance) * m_StepHeight, m_WaterLevel, MaxHeight));
 
             // updating the points around the affected area in case they break the height property
             distance = radius;
@@ -347,19 +370,17 @@ namespace Populous
                 changedHeightsInIter = false;
                 distance++;
 
-                Debug.Log(distance);
+                Debug.LogWarning(distance);
 
                 foreach (TerrainPoint point in center.GetAllPointsAtDistance(distance))
                 {
-                    Debug.Log("- Point: " + point.ToScenePosition());
-
                     foreach (TerrainPoint neighbor in point.GetAllNeighbors())
                     {
-                        Debug.Log("-- Neighbor: " + neighbor.ToScenePosition());
                         if (Mathf.Abs(neighbor.GetHeight() - point.GetHeight()) > m_StepHeight)
                         {
-                            Debug.Log("=== UPDATE");
-                            ChangePointHeight(point, false, maxHeightOnEdge + (radius - distance) * m_StepHeight);
+                            Debug.Log($"Point: {point} {point.GetHeight()}. Neighbor: {neighbor} {neighbor.GetHeight()}");
+
+                            ChangePointHeight(point, false, Mathf.Clamp(maxHeightOnEdge + (radius - distance) * m_StepHeight, m_WaterLevel, MaxHeight));
                             changedHeightsInIter = true;
                             break;
                         }

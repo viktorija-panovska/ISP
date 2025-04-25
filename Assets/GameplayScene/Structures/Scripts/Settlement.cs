@@ -126,10 +126,12 @@ namespace Populous
 
         private void OnTriggerEnter(Collider other)
         {
+            if (IsAttacked) return;
+
             Unit unit = other.GetComponent<Unit>();
             if (!unit) return;
 
-            if (unit.Faction != m_Faction && !IsAttacked && unit.Behavior != UnitBehavior.GO_TO_MAGNET)
+            if (unit.Faction != m_Faction && unit.Behavior != UnitBehavior.GO_TO_MAGNET)
                 UnitManager.Instance.AttackSettlement(unit, this);
 
             if (unit.Type == UnitType.KNIGHT)
@@ -154,7 +156,7 @@ namespace Populous
         public override void Setup(Faction faction, TerrainTile occupiedTile)
         {
             base.Setup(Faction.NONE, occupiedTile);
-            DivineInterventionsController.Instance.OnArmageddon += ReactToArmageddon;
+            DivineInterventionController.Instance.OnArmageddon += ReactToArmageddon;
 
             m_UnitSpawnPoint = new TerrainPoint(m_OccupiedTile.X, m_OccupiedTile.Z);
             SetFaction(faction);
@@ -218,13 +220,6 @@ namespace Populous
                 return;
             }
 
-            // settlement is burned down
-            if (m_DestroyMethod == DestroyMethod.DROWN)
-            {
-                SetHeight_ClientRpc((int)m_OccupiedTile.GetCenterHeight());
-                return;
-            }
-
             // if the settlement wasn't destroyed but it was in the range of the
             // terrain modification check if it has gained or lost any fields
             UpdateType();
@@ -236,7 +231,7 @@ namespace Populous
             base.Cleanup();
 
             OnSettlementDestroyed = null;
-            DivineInterventionsController.Instance.OnArmageddon -= ReactToArmageddon;
+            DivineInterventionController.Instance.OnArmageddon -= ReactToArmageddon;
         }
 
         #endregion
@@ -280,9 +275,6 @@ namespace Populous
                 m_UnitDetector.size = colliderSize;
             }
 
-            if (IsInspected)
-                QueryModeController.Instance.UpdateInspectedSettlement(this, updateType: true);
-
             if (m_FollowersInSettlement >= m_CurrentSettlementData.Capacity)
             {
                 ReleaseUnit(
@@ -290,6 +282,9 @@ namespace Populous
                     (m_FollowersInSettlement - m_CurrentSettlementData.Capacity) + (int)(m_CurrentSettlementData.Capacity * m_PercentFollowersReleased)
                 );
             }
+
+            if (IsInspected)
+                QueryModeController.Instance.UpdateInspectedSettlement(this, updateType: true);
         }
 
         /// <summary>
@@ -480,6 +475,9 @@ namespace Populous
                     continue;
 
                 AddFollowers(1);
+
+                if (m_FollowersInSettlement >= Capacity)
+                    ReleaseUnit(m_UnitSpawnPoint, (int)(m_CurrentSettlementData.Capacity * m_PercentFollowersReleased));
             }
         }
 

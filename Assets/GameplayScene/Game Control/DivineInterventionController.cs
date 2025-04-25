@@ -52,7 +52,7 @@ namespace Populous
     /// <summary>
     /// The <c>DivineInterventionController</c> manages the execution of the Divine Interventions.
     /// </summary>
-    public class DivineInterventionsController : NetworkBehaviour
+    public class DivineInterventionController : NetworkBehaviour
     {
         #region Inspector Fields
 
@@ -79,11 +79,11 @@ namespace Populous
 
         #region Class Fields
 
-        private static DivineInterventionsController m_Instance;
+        private static DivineInterventionController m_Instance;
         /// <summary>
         /// Gets a singleton instance of the class.
         /// </summary>
-        public static DivineInterventionsController Instance { get => m_Instance; }
+        public static DivineInterventionController Instance { get => m_Instance; }
 
         /// <summary>
         /// Gets the maximum amount of manna a faction can have.
@@ -497,7 +497,7 @@ namespace Populous
             Terrain.Instance.RaiseWaterLevel();
             Water.Instance.Raise();
             BorderWalls.Instance.UpdateAllWalls();
-            Minimap.Instance.SetTexture();
+            MinimapTextureGenerator.Instance.SetTexture();
         }
 
         #endregion
@@ -538,7 +538,7 @@ namespace Populous
         public void RespondToTerrainChange((TerrainPoint bottomLeft, TerrainPoint topRight) modifiedAreaCorners)
         {
             BorderWalls.Instance.UpdateWallsInArea(modifiedAreaCorners.bottomLeft, modifiedAreaCorners.topRight);
-            Minimap.Instance.UpdateTextureInArea(modifiedAreaCorners.bottomLeft, modifiedAreaCorners.topRight);
+            MinimapTextureGenerator.Instance.UpdateTextureInArea(modifiedAreaCorners.bottomLeft, modifiedAreaCorners.topRight);
 
             if (!IsHost) return;
 

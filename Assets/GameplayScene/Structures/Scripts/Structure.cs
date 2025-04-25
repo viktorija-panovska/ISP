@@ -67,13 +67,13 @@ namespace Populous
                     m_OccupiedTileCornerHeights.Add(corner, corner.GetHeight());
             }
 
-            DivineInterventionsController.Instance.OnFlood += ReactToTerrainChange;
+            DivineInterventionController.Instance.OnFlood += ReactToTerrainChange;
         }
 
         /// <summary>
         /// Cleans up references to other objects before the destruction of the structure.
         /// </summary>
-        public virtual void Cleanup() => DivineInterventionsController.Instance.OnFlood -= ReactToTerrainChange;
+        public virtual void Cleanup() => DivineInterventionController.Instance.OnFlood -= ReactToTerrainChange;
 
 
         #region Terrain Change
@@ -103,8 +103,8 @@ namespace Populous
         /// <returns>True if the structure should be destroyed, false otherwise.</returns>
         protected bool ShouldDestroyStructure()
         {
-            if (m_DestroyMethod == DestroyMethod.DROWN)
-                return m_OccupiedTile.IsUnderwater();
+            if (m_OccupiedTile.IsUnderwater())
+                return true;
 
             if (m_DestroyMethod == DestroyMethod.TERRAIN_CHANGE)
             {

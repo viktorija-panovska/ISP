@@ -6,16 +6,17 @@ namespace Populous
     /// <summary>
     /// The <c>Minimap</c> class manages the texture of the minimap.
     /// </summary>
-    public class Minimap : MonoBehaviour
+    public class MinimapTextureGenerator : MonoBehaviour
     {
-        [SerializeField] private Color m_LandColor;
+        [SerializeField] private RawImage m_Target;
+        [SerializeField] private Color[] m_LandColors;
         [SerializeField] private Color m_WaterColor;
 
-        private static Minimap m_Instance;
+        private static MinimapTextureGenerator m_Instance;
         /// <summary>
         /// Gets a singleton instance of the class.
         /// </summary>
-        public static Minimap Instance { get => m_Instance; }
+        public static MinimapTextureGenerator Instance { get => m_Instance; }
 
         /// <summary>
         /// The texture of the minimap, created in code.
@@ -45,7 +46,7 @@ namespace Populous
             m_MinimapTexture.wrapMode = TextureWrapMode.Clamp;
             SetTexture();
 
-            GetComponent<RawImage>().texture = m_MinimapTexture;
+            m_Target.texture = m_MinimapTexture;
         }
 
         /// <summary>
@@ -55,10 +56,21 @@ namespace Populous
         {
             Color32[] colors = new Color32[m_MinimapTexture.width * m_MinimapTexture.height];
 
+            Debug.LogWarning(Terrain.Instance.StepHeight);
+
             for (int z = 0; z <= Terrain.Instance.TilesPerSide; ++z)
+            {
                 for (int x = 0; x <= Terrain.Instance.TilesPerSide; ++x)
-                    colors[z * m_MinimapTexture.width + x] =
-                        new TerrainPoint(x, z).GetHeight() > Terrain.Instance.WaterLevel ? m_LandColor : m_WaterColor;
+                {
+                    int height = new TerrainPoint(x, z).GetHeight();
+                    colors[z * m_MinimapTexture.width + x] = height > Terrain.Instance.WaterLevel
+                        ? m_LandColors[height / Terrain.Instance.StepHeight]
+                        : m_WaterColor
+                    ;
+                }
+
+            }
+
 
             m_MinimapTexture.SetPixels32(colors);
             m_MinimapTexture.Apply();
@@ -74,9 +86,16 @@ namespace Populous
             Color32[] colors = m_MinimapTexture.GetPixels32();
 
             for (int z = bottomLeft.Z; z <= topRight.Z; ++z)
+            {
                 for (int x = bottomLeft.X; x <= topRight.X; ++x)
-                    colors[z * m_MinimapTexture.width + x] =
-                        new TerrainPoint(x, z).GetHeight() > Terrain.Instance.WaterLevel ? m_LandColor : m_WaterColor;
+                {
+                    int height = new TerrainPoint(x, z).GetHeight();
+                    colors[z * m_MinimapTexture.width + x] = height > Terrain.Instance.WaterLevel
+                        ? m_LandColors[height / Terrain.Instance.StepHeight]
+                        : m_WaterColor
+                    ;
+                }
+            }
 
             m_MinimapTexture.SetPixels32(colors);
             m_MinimapTexture.Apply();

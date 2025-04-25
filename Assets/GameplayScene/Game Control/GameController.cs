@@ -29,17 +29,10 @@ namespace Populous
     /// </summary>
     public class GameController : NetworkBehaviour
     {
-        #region Inspector Fields
-
         [Tooltip("The color representing each faction. Index 0 is the Red faction, index 1 is the Blue faction, and index 2 in None faction.")]
         [SerializeField] private Color[] m_FactionColors;
         [Tooltip("The GameObjects of the unit magnets of each faction. Index 0 is the Red unit magnet and index 1 is the Blue unit magnet.")]
         [SerializeField] private GameObject[] m_UnitMagnetObjects;
-
-        #endregion
-
-
-        #region Class Fields
 
         private static GameController m_Instance;
         /// <summary>
@@ -54,21 +47,17 @@ namespace Populous
         public Color[] FactionColors { get => m_FactionColors; }
 
         /// <summary>
-        /// An array of references to the unit magnets of both factions.
-        /// </summary>
-        /// <remarks>The unit magnet at each index is the unit magnet of the faction with that value in the <c>Faction</c> enum.</remarks>
-        private readonly UnitMagnet[] m_UnitMagnets = new UnitMagnet[2];
-
-        /// <summary>
         /// Each cell represents one of the factions, and the object in the cell is that faction's leader.
         /// </summary>
         /// <remarks>The object at each index is the leader of the faction with that value in the <c>Faction</c> enum.</remarks>
         private readonly ILeader[] m_Leaders = new ILeader[2];
 
-        #endregion
+        /// <summary>
+        /// An array of references to the unit magnets of both factions.
+        /// </summary>
+        /// <remarks>The unit magnet at each index is the unit magnet of the faction with that value in the <c>Faction</c> enum.</remarks>
+        private readonly UnitMagnet[] m_UnitMagnets = new UnitMagnet[2];
 
-
-        #region Actions
 
         /// <summary>
         /// Action to be called when the unit magnet of the red faction is moved.
@@ -78,8 +67,6 @@ namespace Populous
         /// Action to be called when the unit magnet of the blue faction is moved.
         /// </summary>
         public Action OnBlueMagnetMoved;
-
-        #endregion
 
 
         #region Event Functions
@@ -101,7 +88,7 @@ namespace Populous
             Terrain.Instance.Create();
             Water.Instance.Create();
             Frame.Instance.Create();
-            Minimap.Instance.Create();
+            MinimapTextureGenerator.Instance.Create();
             BorderWalls.Instance.Create();
             MinimapCamera.Instance.Setup();
 
@@ -110,13 +97,7 @@ namespace Populous
 
             StructureManager.Instance.PlaceTreesAndRocks();
             UnitManager.Instance.SpawnStartingUnits();
-
-            foreach (GameObject unitMagnetObject in m_UnitMagnetObjects)
-            {
-                UnitMagnet unitMagnet = unitMagnetObject.GetComponent<UnitMagnet>();
-                m_UnitMagnets[(int)unitMagnet.Faction] = unitMagnet;
-                unitMagnet.Setup();
-            }
+            SetupUnitMagnets();
         }
 
         #endregion
@@ -169,53 +150,6 @@ namespace Populous
         [ClientRpc]
         public void SetCameraLookPosition_ClientRpc(Vector3 position, ClientRpcParams clientRpcParams = default)
             => PlayerCamera.Instance.SetCameraLookPosition(position);
-
-        #endregion
-
-
-        #region Unit Magnets
-
-        /// <summary>
-        /// Gets the position of the unit magnet of the given faction.
-        /// </summary>
-        /// <param name="faction">The <c>Faction</c> the unit magnet belongs to.</param>
-        /// <returns>A <c>Vector3</c> of the position of the unit magnet in the scene.</returns>
-        public TerrainPoint GetUnitMagnetLocation(Faction faction) => m_UnitMagnets[(int)faction].GridLocation;
-
-        /// <summary>
-        /// Sets the unit magnet of the given faction to the position of the given terrain point.
-        /// </summary>
-        /// <param name="faction">The <c>Faction</c> the unit magnet belongs to.</param>
-        /// <param name="point">The <c>TerrainPoint</c> that the unit magnet should be placed at.</param>
-        public void PlaceUnitMagnetAtPoint(Faction faction, TerrainPoint point)
-        {
-            UnitMagnet magnet = m_UnitMagnets[(int)faction];
-
-            if (magnet.GridLocation == point) return;
-            magnet.MoveToPoint(point);
-
-            if (UnitManager.Instance.GetActiveBehavior(faction) != UnitBehavior.GO_TO_MAGNET) return;
-
-            if (faction == Faction.RED)
-                OnRedMagnetMoved?.Invoke();
-            else if (faction == Faction.BLUE)
-                OnBlueMagnetMoved?.Invoke();
-        }
-
-        /// <summary>
-        /// Updates the heights of the unit magnets, if they are in the given area.
-        /// </summary>
-        /// <param name="bottomLeft">The bottom-left corner of a rectangular area containing all modified terrain points.</param>
-        /// <param name="topRight">The top-right corner of a rectangular area containing all modified terrain points.</param>
-        public void UpdateMagnetsInArea(TerrainPoint bottomLeft, TerrainPoint topRight)
-        {
-            foreach (UnitMagnet magnet in m_UnitMagnets)
-            {
-                if (magnet.GridLocation.X >= bottomLeft.X && magnet.GridLocation.X <= topRight.X &&
-                    magnet.GridLocation.Z >= bottomLeft.Z && magnet.GridLocation.Z <= topRight.Z)
-                    magnet.UpdateHeight();
-            }
-        }
 
         #endregion
 
@@ -278,6 +212,64 @@ namespace Populous
             m_Leaders[(int)faction] = leader;
             leader.SetLeader(true);
             UnitManager.Instance.SwitchLeaderTarget(faction);
+        }
+
+        #endregion
+
+        #region Unit Magnets
+
+        // Sets the positions of both unit magnets to the center of the terrain.
+        public void SetupUnitMagnets()
+        {
+            foreach (GameObject unitMagnetObject in m_UnitMagnetObjects)
+            {
+                UnitMagnet unitMagnet = unitMagnetObject.GetComponent<UnitMagnet>();
+                m_UnitMagnets[(int)unitMagnet.Faction] = unitMagnet;
+                unitMagnet.Setup();
+            }
+        }
+
+        /// <summary>
+        /// Gets the position of the unit magnet of the given faction.
+        /// </summary>
+        /// <param name="faction">The <c>Faction</c> the unit magnet belongs to.</param>
+        /// <returns>A <c>Vector3</c> of the position of the unit magnet in the scene.</returns>
+        public TerrainPoint GetUnitMagnetLocation(Faction faction) => m_UnitMagnets[(int)faction].GridLocation;
+
+        /// <summary>
+        /// Sets the unit magnet of the given faction to the position of the given terrain point.
+        /// </summary>
+        /// <param name="faction">The <c>Faction</c> the unit magnet belongs to.</param>
+        /// <param name="point">The <c>TerrainPoint</c> that the unit magnet should be placed at.</param>
+        public void PlaceUnitMagnetAtPoint(Faction faction, TerrainPoint point)
+        {
+            Debug.Log(m_UnitMagnets[(int)faction]);
+            UnitMagnet magnet = m_UnitMagnets[(int)faction];
+
+            if (magnet.GridLocation == point) return;
+            magnet.MoveToPoint(point);
+
+            if (UnitManager.Instance.GetActiveBehavior(faction) != UnitBehavior.GO_TO_MAGNET) return;
+
+            if (faction == Faction.RED)
+                OnRedMagnetMoved?.Invoke();
+            else if (faction == Faction.BLUE)
+                OnBlueMagnetMoved?.Invoke();
+        }
+
+        /// <summary>
+        /// Updates the heights of the unit magnets, if they are in the given area.
+        /// </summary>
+        /// <param name="bottomLeft">The bottom-left corner of a rectangular area containing all modified terrain points.</param>
+        /// <param name="topRight">The top-right corner of a rectangular area containing all modified terrain points.</param>
+        public void UpdateMagnetsInArea(TerrainPoint bottomLeft, TerrainPoint topRight)
+        {
+            foreach (UnitMagnet magnet in m_UnitMagnets)
+            {
+                if (magnet.GridLocation.X >= bottomLeft.X && magnet.GridLocation.X <= topRight.X &&
+                    magnet.GridLocation.Z >= bottomLeft.Z && magnet.GridLocation.Z <= topRight.Z)
+                    magnet.UpdateHeight();
+            }
         }
 
         #endregion

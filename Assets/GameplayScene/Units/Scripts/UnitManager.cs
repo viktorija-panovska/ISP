@@ -263,8 +263,8 @@ namespace Populous
 
                 if (hasDied)
                 {
-                    DivineInterventionsController.Instance.RemoveManna(unit.Faction, m_LeaderDeathMannaLoss);
-                    DivineInterventionsController.Instance.AddManna(unit.Faction == Faction.RED ? Faction.BLUE : Faction.RED, m_LeaderDeathMannaLoss);
+                    DivineInterventionController.Instance.RemoveManna(unit.Faction, m_LeaderDeathMannaLoss);
+                    DivineInterventionController.Instance.AddManna(unit.Faction == Faction.RED ? Faction.BLUE : Faction.RED, m_LeaderDeathMannaLoss);
                     GameController.Instance.PlaceUnitMagnetAtPoint(unit.Faction, unit.ClosestTerrainPoint);
                 }
             }
@@ -397,7 +397,7 @@ namespace Populous
         {
             amount = Mathf.Clamp(m_Followers[(int)faction] + amount, 0, m_MaxFollowers);
             SetFollowers(faction, amount);
-            DivineInterventionsController.Instance.AddManna(faction, amount);
+            DivineInterventionController.Instance.AddManna(faction, amount);
         }
 
         /// <summary>
@@ -704,6 +704,5 @@ namespace Populous
         }
 
         #endregion
-
     }
 }

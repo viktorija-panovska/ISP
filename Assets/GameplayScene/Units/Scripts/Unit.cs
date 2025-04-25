@@ -26,7 +26,9 @@ namespace Populous
         [Tooltip("The GameObject of the icon for the unit on the minimap.")]
         [SerializeField] private GameObject m_MinimapIcon;
         [Tooltip("")]
-        [SerializeField] private GameObject m_CannotFindMagnetIndicator;
+        [SerializeField] private GameObject m_CannotFindMagnetSymbol;
+        [Tooltip("")]
+        [SerializeField] private GameObject m_FightSymbol;
 
         [Header("Detectors")]
         [SerializeField] private UnitCollisionDetector m_CollisionDetector;
@@ -110,8 +112,6 @@ namespace Populous
         /// </summary>
         public bool IsInspected { get => m_IsInspected.Value; set => m_IsInspected.Value = value; }
 
-        private bool m_CannotFindMagnet;
-
         #endregion
 
 
@@ -157,8 +157,8 @@ namespace Populous
             else if (m_Faction == Faction.BLUE)
                 UnitManager.Instance.OnBlueBehaviorChange += SetBehavior;
 
-            DivineInterventionsController.Instance.OnTerrainModified += UpdateHeight;
-            DivineInterventionsController.Instance.OnFlood += UpdateHeight;
+            DivineInterventionController.Instance.OnTerrainModified += UpdateHeight;
+            DivineInterventionController.Instance.OnFlood += UpdateHeight;
             UnitManager.Instance.OnRemoveReferencesToUnit += RemoveRefrencesToUnit;
             StructureManager.Instance.OnRemoveReferencesToSettlement += RemoveRefrencesToSettlement;
 
@@ -210,8 +210,8 @@ namespace Populous
             else if (m_Faction == Faction.BLUE)
                 UnitManager.Instance.OnBlueBehaviorChange -= SetBehavior;
 
-            DivineInterventionsController.Instance.OnTerrainModified -= UpdateHeight;
-            DivineInterventionsController.Instance.OnFlood -= UpdateHeight;
+            DivineInterventionController.Instance.OnTerrainModified -= UpdateHeight;
+            DivineInterventionController.Instance.OnFlood -= UpdateHeight;
             UnitManager.Instance.OnRemoveReferencesToUnit -= RemoveRefrencesToUnit;
             StructureManager.Instance.OnRemoveReferencesToSettlement -= RemoveRefrencesToSettlement;
         }
@@ -515,7 +515,7 @@ namespace Populous
         [ClientRpc]
         private void SetCannotFindMagnetIndicator_ClientRpc(bool isActive)
         {
-            m_CannotFindMagnetIndicator.SetActive(isActive);
+            m_CannotFindMagnetSymbol.SetActive(isActive);
 
             if (isActive)
                 GameUI.Instance.SetCannotFindMagnetMessage();
@@ -537,6 +537,7 @@ namespace Populous
             m_MovementHandler.Pause(true);
             m_IsInFight = true;
             m_FightId = fightId;
+            SetFightSymbol_ClientRpc(true);
         }
 
         /// <summary>
@@ -547,7 +548,11 @@ namespace Populous
             m_IsInFight = false;
             m_FightId = -1;
             m_MovementHandler.Pause(false);
+            SetFightSymbol_ClientRpc(false);
         }
+
+        [ClientRpc]
+        public void SetFightSymbol_ClientRpc(bool active) => m_FightSymbol.SetActive(active);
 
         #endregion
 
@@ -595,5 +600,10 @@ namespace Populous
         public void SetHighlight(bool shouldActivate) => m_Highlight.SetActive(shouldActivate);
 
         #endregion
+
+
+        [ClientRpc]
+        public void SetCannotFindUnitMagnetSymbol_ClientRpc(bool active)
+            => m_CannotFindMagnetSymbol.SetActive(active);
     }
 }

@@ -92,7 +92,11 @@ namespace Populous
             // stop inspecting the last inspected object
             if (lastInspectedObject != null)
             {
-                lastInspectedObject.SetHighlight(false);
+                DisableHighlight_ClientRpc(
+                    lastInspectedObject.GameObject.GetComponent<NetworkObject>(),
+                    GameUtils.GetClientParams(GameData.Instance.GetNetworkIdByFaction(faction))
+                );
+
                 m_InspectedObjects[(int)faction] = null;
                 lastInspectedObject.IsInspected = false;
                 HideInspectedObjectPanel_ClientRpc(GameUtils.GetClientParams(serverRpcParams.Receive.SenderClientId));
@@ -142,6 +146,15 @@ namespace Populous
             inspectedObject.IsInspected = false;
 
             HideInspectedObjectPanel_ClientRpc(GameUtils.GetClientParams(GameData.Instance.GetNetworkIdByFaction(index)));
+        }
+
+        [ClientRpc]
+        private void DisableHighlight_ClientRpc(NetworkObjectReference inspectedObject, ClientRpcParams clientRpcParams)
+        {
+            if (!inspectedObject.TryGet(out NetworkObject networkObject) || networkObject.GetComponent<IInspectableObject>() == null)
+                return;
+
+            networkObject.GetComponent<IInspectableObject>().SetHighlight(false);
         }
 
 

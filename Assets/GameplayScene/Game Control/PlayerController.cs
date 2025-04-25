@@ -163,7 +163,7 @@ namespace Populous
                 divineIntervention != DivineIntervention.KNIGHT && divineIntervention != DivineIntervention.FLOOD)) 
                 return;
 
-            DivineInterventionsController.Instance.TryActivateDivineIntervention_ServerRpc(Faction, divineIntervention);
+            DivineInterventionController.Instance.TryActivateDivineIntervention_ServerRpc(Faction, divineIntervention);
         }
 
         /// <summary>
@@ -207,9 +207,9 @@ namespace Populous
         /// </summary>
         private void SetupMarkers()
         {
-            GameUtils.ResizeGameObject(m_Markers[(int)DivineIntervention.EARTHQUAKE], 2 * DivineInterventionsController.Instance.EarthquakeRadius * Terrain.Instance.UnitsPerTileSide);
-            GameUtils.ResizeGameObject(m_Markers[(int)DivineIntervention.SWAMP], 2 * DivineInterventionsController.Instance.SwampRadius * Terrain.Instance.UnitsPerTileSide);
-            GameUtils.ResizeGameObject(m_Markers[(int)DivineIntervention.VOLCANO], 2 * DivineInterventionsController.Instance.VolcanoRadius * Terrain.Instance.UnitsPerTileSide);
+            GameUtils.ResizeGameObject(m_Markers[(int)DivineIntervention.EARTHQUAKE], 2 * DivineInterventionController.Instance.EarthquakeRadius * Terrain.Instance.UnitsPerTileSide);
+            GameUtils.ResizeGameObject(m_Markers[(int)DivineIntervention.SWAMP], 2 * DivineInterventionController.Instance.SwampRadius * Terrain.Instance.UnitsPerTileSide);
+            GameUtils.ResizeGameObject(m_Markers[(int)DivineIntervention.VOLCANO], 2 * DivineInterventionController.Instance.VolcanoRadius * Terrain.Instance.UnitsPerTileSide);
         }
 
         /// <summary>
@@ -351,24 +351,24 @@ namespace Populous
             {
                 case DivineIntervention.MOLD_TERRAIN:
                     if (m_NearestPoint.Value.IsAtMaxHeight()/* || CameraDetectionZone.Instance.VisibleObjectsAmount <= 0*/) return;
-                    DivineInterventionsController.Instance.MoldTerrain_ServerRpc(m_NearestPoint.Value, lower: false);
+                    DivineInterventionController.Instance.MoldTerrain_ServerRpc(m_NearestPoint.Value, lower: false);
                     break;
 
                 case DivineIntervention.PLACE_MAGNET:
                     if (m_NearestPoint.Value.IsUnderwater()) return;
-                    DivineInterventionsController.Instance.PlaceUnitMagnet_ServerRpc(Faction, m_NearestPoint.Value);
+                    DivineInterventionController.Instance.PlaceUnitMagnet_ServerRpc(Faction, m_NearestPoint.Value);
                     break;
 
                 case DivineIntervention.EARTHQUAKE:
-                    DivineInterventionsController.Instance.CreateEarthquake_ServerRpc(Faction, m_NearestPoint.Value);
+                    DivineInterventionController.Instance.CreateEarthquake_ServerRpc(Faction, m_NearestPoint.Value);
                     break;
 
                 case DivineIntervention.SWAMP:
-                    DivineInterventionsController.Instance.CreateSwamp_ServerRpc(Faction, m_NearestPoint.Value);
+                    DivineInterventionController.Instance.CreateSwamp_ServerRpc(Faction, m_NearestPoint.Value);
                     break;
 
                 case DivineIntervention.VOLCANO:
-                    DivineInterventionsController.Instance.CreateVolcano_ServerRpc(Faction, m_NearestPoint.Value);
+                    DivineInterventionController.Instance.CreateVolcano_ServerRpc(Faction, m_NearestPoint.Value);
                     break;
             }
 
@@ -387,7 +387,7 @@ namespace Populous
                 m_NearestPoint.Value.GetHeight() <= Terrain.Instance.WaterLevel)
                 return;
 
-            DivineInterventionsController.Instance.MoldTerrain_ServerRpc(m_NearestPoint.Value, lower: true);
+            DivineInterventionController.Instance.MoldTerrain_ServerRpc(m_NearestPoint.Value, lower: true);
         }
 
         /// <summary>

@@ -1,6 +1,5 @@
 using System;
 using TMPro;
-using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
@@ -195,7 +194,7 @@ namespace Populous
         /// <param name="activeDivineIntervention">The number of Divine Interventions that are available to the player, in order.</param>
         public void UpdateMannaBar(int currentManna, int activeDivineIntervention) 
         {
-            m_MannaBar.value = (float)currentManna / DivineInterventionsController.Instance.MaxManna;
+            m_MannaBar.value = (float)currentManna / DivineInterventionController.Instance.MaxManna;
 
             for (int i = 0; i < m_DivineInterventionIcons.Length; ++i)
                 m_DivineInterventionIcons[i].interactable = i <= activeDivineIntervention;
