@@ -8,9 +8,12 @@ namespace Populous
     /// </summary>
     public class MinimapTextureGenerator : MonoBehaviour
     {
+        [Tooltip("The image that the minimap should be projected on.")]
         [SerializeField] private RawImage m_Target;
-        [SerializeField] private Color[] m_LandColors;
+        [Tooltip("The color of the water on the minimap.")]
         [SerializeField] private Color m_WaterColor;
+        [Tooltip("The colors of the terrain, one for each height step from lowest to highest.")]
+        [SerializeField] private Color[] m_LandColors;
 
         private static MinimapTextureGenerator m_Instance;
         /// <summary>
@@ -68,9 +71,7 @@ namespace Populous
                         : m_WaterColor
                     ;
                 }
-
             }
-
 
             m_MinimapTexture.SetPixels32(colors);
             m_MinimapTexture.Apply();

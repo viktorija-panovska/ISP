@@ -211,10 +211,10 @@ namespace Populous
         {
             bool activated = true;
 
-            if (m_Manna[(int)faction] < m_ActivationPercent[(int)divineIntervention] * m_MaxManna ||
-                (divineIntervention == DivineIntervention.KNIGHT && !GameController.Instance.HasLeader(faction)) ||
-                (divineIntervention == DivineIntervention.FLOOD && Terrain.Instance.HasReachedMaxWaterLevel()))
-                activated = false;
+            //if (m_Manna[(int)faction] < m_ActivationPercent[(int)divineIntervention] * m_MaxManna ||
+            //    (divineIntervention == DivineIntervention.KNIGHT && !GameController.Instance.HasLeader(faction)) ||
+            //    (divineIntervention == DivineIntervention.FLOOD && Terrain.Instance.HasReachedMaxWaterLevel()))
+            //    activated = false;
 
             if (activated)
             {
@@ -518,6 +518,8 @@ namespace Populous
             foreach (Faction factions in Enum.GetValues(typeof(Faction)))
             {
                 if (factions == Faction.NONE) continue;
+
+                Debug.Log(factions);
 
                 GameController.Instance.PlaceUnitMagnetAtPoint(factions, Terrain.Instance.TerrainCenter);
                 UnitManager.Instance.ChangeUnitBehavior_ServerRpc(factions, UnitBehavior.GO_TO_MAGNET);

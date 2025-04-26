@@ -319,7 +319,6 @@ namespace Populous
         public void SetQueryMode(bool isActive) 
         { 
             m_IsQueryModeActive = isActive;
-            Debug.Log(m_IsQueryModeActive);
             GameUI.Instance.SetQueryIcon(m_IsQueryModeActive);
         }
 

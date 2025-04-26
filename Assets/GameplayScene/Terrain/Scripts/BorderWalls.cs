@@ -9,7 +9,6 @@ namespace Populous
     /// </summary>
     public class BorderWalls : MonoBehaviour
     {
-        [Tooltip("A black-colored material for the border walls.")]
         [SerializeField] private Material m_WallMaterial;
 
 

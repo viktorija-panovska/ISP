@@ -96,8 +96,11 @@ namespace Populous
             if (!IsHost) return;
 
             StructureManager.Instance.PlaceTreesAndRocks();
-            UnitManager.Instance.SpawnStartingUnits();
             SetupUnitMagnets();
+
+            //UnitManager.Instance.SpawnStartingUnits();
+
+
         }
 
         #endregion
@@ -243,7 +246,6 @@ namespace Populous
         /// <param name="point">The <c>TerrainPoint</c> that the unit magnet should be placed at.</param>
         public void PlaceUnitMagnetAtPoint(Faction faction, TerrainPoint point)
         {
-            Debug.Log(m_UnitMagnets[(int)faction]);
             UnitMagnet magnet = m_UnitMagnets[(int)faction];
 
             if (magnet.GridLocation == point) return;

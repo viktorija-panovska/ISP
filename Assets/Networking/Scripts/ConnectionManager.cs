@@ -151,6 +151,7 @@ namespace Populous
             {
                 Debug.LogError("Failed to start host.");
                 m_EnteredGameData = ("", 0);
+                MainMenu.Instance.ShowHostErrorMessage();
                 return;
             }
 
@@ -168,6 +169,7 @@ namespace Populous
             {
                 Debug.LogError("Failed to create lobby.");
                 Disconnect();
+                MainMenu.Instance.ShowHostErrorMessage();
                 return;
             }
 
@@ -218,6 +220,7 @@ namespace Populous
             if (joinLobby != RoomEnter.Success)
             {
                 Debug.LogError("Failed to enter lobby.");
+                MainMenu.Instance.ShowJoinErrorMessage();
                 return;
             }
 
@@ -253,7 +256,8 @@ namespace Populous
             {
                 Debug.LogError("Failed to start client.");
                 Disconnect();
-                SceneLoader.Instance.FadeIn();
+                SceneLoader.Instance.FadeIn(0.1f);
+                MainMenu.Instance.ShowJoinErrorMessage();
                 return;
             }
         }

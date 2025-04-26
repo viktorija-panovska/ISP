@@ -361,6 +361,9 @@ namespace Populous
                 GameUtils.GetClientParams(GameData.Instance.GetNetworkIdByFaction(settlement.Faction))
             );
 
+            if (settlement.ContainsLeader)
+                GameController.Instance.SetLeader(settlement.Faction, null);
+
             if (settlement.IsInspected)
                 QueryModeController.Instance.UpdateInspectedSettlement(settlement, updateFaction: true);
         }

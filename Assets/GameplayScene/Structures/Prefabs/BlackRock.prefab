@@ -49,7 +49,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  GlobalObjectIdHash: 3374881969
+  GlobalObjectIdHash: 3170767279
   InScenePlacedSourceGlobalObjectIdHash: 2661451341
   AlwaysReplicateAsRoot: 0
   SynchronizeTransform: 1
@@ -120,7 +120,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f137e9ffdc289b143b4e71e6e67665ea, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_Type: 0
+  m_Type: 1
 --- !u!65 &7147694232842305375
 BoxCollider:
   m_ObjectHideFlags: 0

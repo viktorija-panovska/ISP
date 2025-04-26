@@ -211,6 +211,11 @@ namespace Populous
             }
         }
 
+        /// <summary>
+        /// Get the number of times a unit from the given faction has stepped on this point.
+        /// </summary>
+        /// <param name="faction">The <c>Faction</c> whose steps should be counted.</param>
+        /// <returns>The number of times a unit has stepped on this point.</returns>
         public readonly int GetStepsByFaction(Faction faction) => UnitManager.Instance.GetStepsAtPoint(faction, this);
 
         #endregion

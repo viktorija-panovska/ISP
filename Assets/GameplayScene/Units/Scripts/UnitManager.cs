@@ -421,8 +421,13 @@ namespace Populous
 
             UpdateFollowersUI_ClientRpc(faction, amount);
 
+            Debug.Log("Decrease");
+
             if (m_Followers[(int)faction] == 0)
-                GameController.Instance.EndGame_ClientRpc(winner: faction == Faction.RED ? Faction.BLUE : Faction.RED); ;
+            {
+                Debug.Log(faction + " DED");
+                GameController.Instance.EndGame_ClientRpc(winner: faction == Faction.RED ? Faction.BLUE : Faction.RED);
+            }
         }
 
         /// <summary>
@@ -618,8 +623,7 @@ namespace Populous
                 red.LoseStrength(1);
                 blue.LoseStrength(1);
 
-                if (red.Strength == 0 || blue.Strength == 0)
-                    break;
+                if (!red || !blue) break;
 
                 if (red.IsInspected || blue.IsInspected)
                     QueryModeController.Instance.UpdateInspectedFight(red, blue);

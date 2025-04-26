@@ -1,3 +1,4 @@
+using DG.Tweening;
 using Steamworks.Data;
 using System.Collections.Generic;
 using TMPro;
@@ -31,6 +32,7 @@ namespace Populous
         [SerializeField] private TMP_InputField m_LobbyNameInputField;
         [Tooltip("The input field that the player should (optionally) enter the game seed in.")]
         [SerializeField] private TMP_InputField m_GameSeedInputField;
+        [SerializeField] private CanvasGroup m_HostErrorMessage;
 
         [Header("Join Lobby")]
         [Tooltip("The prefab from which the lobby entries in the lobby list should be spawned.")]
@@ -39,6 +41,8 @@ namespace Populous
         [SerializeField] private Transform m_LobbyListContent;
         [Tooltip("The button the player should press to join the lobby.")]
         [SerializeField] private Button m_JoinLobbyButton;
+
+        [SerializeField] private CanvasGroup m_JoinErrorMessage;
 
         #endregion
 
@@ -166,6 +170,9 @@ namespace Populous
             m_GameSeedInputField.text = "";
         }
 
+        public void ShowHostErrorMessage()
+            => m_HostErrorMessage.DOFade(1, 0.2f).OnComplete(() => m_HostErrorMessage.DOFade(0, 0.2f).SetDelay(2));
+
         #endregion
 
 
@@ -234,6 +241,9 @@ namespace Populous
         /// Calls the <see cref="ConnectionManager"/> to attempt to join the selected lobby.
         /// </summary>
         public void JoinLobby() => m_ConnectionManager.JoinGame(m_SelectedLobbyEntry.Lobby);
+
+        public void ShowJoinErrorMessage()
+            => m_JoinErrorMessage.DOFade(1, 0.2f).OnComplete(() => m_JoinErrorMessage.DOFade(0, 0.2f).SetDelay(2));
 
         #endregion
 
