@@ -59,8 +59,6 @@ namespace Populous
         {
             Color32[] colors = new Color32[m_MinimapTexture.width * m_MinimapTexture.height];
 
-            Debug.LogWarning(Terrain.Instance.StepHeight);
-
             for (int z = 0; z <= Terrain.Instance.TilesPerSide; ++z)
             {
                 for (int x = 0; x <= Terrain.Instance.TilesPerSide; ++x)

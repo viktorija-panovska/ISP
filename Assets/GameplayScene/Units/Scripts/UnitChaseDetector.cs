@@ -35,6 +35,8 @@ namespace Populous
         private GameObject m_ChaseTarget;
 
 
+        #region Event Function
+
         private void Awake() => GetComponent<Collider>().enabled = false;
 
         private void OnTriggerEnter(Collider other)
@@ -52,12 +54,13 @@ namespace Populous
             RemoveTarget(other.gameObject);
         }
 
+        #endregion
+
 
         /// <summary>
         /// Sets the properties of the chase detector.
         /// </summary>
         /// <param name="unit">The <c>Unit</c> the detector belongs to.</param>
-        /// <param name="tilesPerSide">The size of one side of the collider, in terrain tiles.</param>
         public void Setup(Unit unit)
         {
             m_Unit = unit;

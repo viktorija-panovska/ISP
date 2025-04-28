@@ -129,6 +129,13 @@ namespace Populous
         /// Sets the position of the follow target, and thus sets the point where the camera is looking.
         /// </summary>
         /// <param name="position">The new position of the follow target.</param>
-        public void SetCameraLookPosition(Vector3 position) => m_FollowTarget.transform.position = position;
+        public void SetCameraLookPosition(Vector3 position) 
+            => m_FollowTarget.transform.position = new(position.x, Terrain.Instance.WaterLevel, position.z);
+
+        /// <summary>
+        /// Increases the heigth of the follow target to the water level.
+        /// </summary>
+        public void RaiseCameraToWaterLevel()
+            => m_FollowTarget.transform.position = new(m_FollowTarget.transform.position.x, Terrain.Instance.WaterLevel, m_FollowTarget.transform.position.z);
     }
 }

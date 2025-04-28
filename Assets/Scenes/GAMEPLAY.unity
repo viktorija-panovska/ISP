@@ -2455,7 +2455,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_TerrainMaterial: {fileID: 2100000, guid: 9d6a44b0d4d72774483f5474a1efa3ce, type: 2}
-  m_ChunksPerSide: 8
+  m_ChunksPerSide: 1
   m_TilesPerChunkSide: 7
   m_UnitsPerTileSide: 50
   m_StepHeight: 50
@@ -3970,7 +3970,6 @@ MonoBehaviour:
   - {fileID: 1060788746}
   - {fileID: 1458971912}
   m_MannaBar: {fileID: 2077440769}
-  m_CannotFindMagnetMessage: {fileID: 0}
   m_QueryIcon: {fileID: 1281554765}
   m_BehaviorIcons:
   - {fileID: 2116935339}

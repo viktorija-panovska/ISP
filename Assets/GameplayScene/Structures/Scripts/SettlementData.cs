@@ -68,19 +68,5 @@ namespace Populous
         /// </summary>
         /// <remarks>More advanced settlements have a greater capacity.</remarks>
         public int Capacity { get => m_Capacity; }
-
-        [SerializeField] private int m_FillRate;
-        /// <summary>
-        /// The number of seconds after which the settlement gains a new follower.
-        /// </summary>
-        /// <remarks>More advanced settlements have a faster fill rate.</remarks>
-        public int FillRate { get => m_FillRate; }
-
-        [SerializeField] private int m_UnitStrength;
-        /// <summary>
-        /// The strength of a unit produced by this settlement.
-        /// </summary>
-        /// <remarks>More advanced settlements produce stronger units.</remarks>
-        public int ReleasedUnitStrength { get => m_UnitStrength; }
     }
 }

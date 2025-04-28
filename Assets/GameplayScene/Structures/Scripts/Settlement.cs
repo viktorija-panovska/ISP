@@ -1,6 +1,5 @@
 using System;
 using System.Collections;
-using System.Drawing;
 using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -26,6 +25,8 @@ namespace Populous
 
         [Tooltip("The precentage of the max followers in the settlement that are released when a unit is released.")]
         [SerializeField] private float m_PercentFollowersReleased;
+        [Tooltip("After how many seconds a new follower is added to a settlement.")]
+        [SerializeField] private float m_FillRate;
 
         [Header("Settlements")]
         [Tooltip("The GameObjects of each type of settlement, in order as they are defined in the SettlementType enum.")]
@@ -62,10 +63,6 @@ namespace Populous
         /// Gets the maximum amount of followers that can be in the settlement.
         /// </summary>
         public int Capacity { get => m_CurrentSettlementData.Capacity; }
-        /// <summary>
-        /// The strength of a unit released from this settlement.
-        /// </summary>
-        public int ReleasedUnitStrength { get => m_CurrentSettlementData.ReleasedUnitStrength; }
 
         private int m_FollowersInSettlement;
         /// <summary>
@@ -78,12 +75,10 @@ namespace Populous
         /// </summary>
         public bool IsSettlementFull { get => m_FollowersInSettlement == m_CurrentSettlementData.Capacity; }
 
-        private TerrainPoint m_UnitSpawnPoint;
-
+        private bool m_ContainsLeader;
         /// <summary>
         /// True if the settlement contains the faction leader, false otherwise.
         /// </summary>
-        private bool m_ContainsLeader;
         public bool ContainsLeader { get => m_ContainsLeader; }
 
         private bool m_IsAttacked;
@@ -97,6 +92,11 @@ namespace Populous
         /// True if the settlement is being inspected by any player, false otherwise.
         /// </summary>
         public bool IsInspected { get => m_IsInspected.Value; set => m_IsInspected.Value = value; }
+
+        /// <summary>
+        /// The point on the settlement's tile where a new unit will be spawned.
+        /// </summary>
+        private TerrainPoint m_UnitSpawnPoint;
 
         #endregion
 
@@ -143,7 +143,8 @@ namespace Populous
                 return;
             }
 
-            if (unit.Faction == m_Faction && this != unit.Origin && unit.Behavior != UnitBehavior.GO_TO_MAGNET)
+            if (unit.Faction == m_Faction && this != unit.Origin && 
+               unit.Behavior != UnitBehavior.GO_TO_MAGNET && unit.Behavior != UnitBehavior.FIGHT)
                 TakeFollowersFromUnit(unit);
         }
 
@@ -162,7 +163,7 @@ namespace Populous
             SetFaction(faction);
 
             UpdateType();
-            StartCoroutine(FillSettlement());
+            //StartCoroutine(FillSettlement());
         }
 
         /// <summary>
@@ -320,7 +321,7 @@ namespace Populous
                 ToggleFlag_ClientRpc(m_Faction, false);
 
             m_Faction = newFaction;
-            
+
             SetObjectInfo_ClientRpc($"{m_Faction} Settlement", LayerData.FactionLayers[(int)m_Faction]);
             SetupMinimapIcon();
             ToggleFlag_ClientRpc(m_Faction, true);
@@ -369,14 +370,21 @@ namespace Populous
             m_MinimapIcon.GetComponent<MeshRenderer>().material.color = StructureManager.Instance.MinimapSettlementColors[(int)m_Faction];
         }
 
+        /// <summary>
+        /// Makes the settlement respond to an attack.
+        /// </summary>
+        /// <param name="unitSpawn">The <c>TerrainPoint</c> where the defending unit should be spawned.</param>
+        /// <returns>A <c>Unit</c> if one is released, null otherwise.</returns>
         public Unit StartFight(TerrainPoint unitSpawn)
         {
             m_IsAttacked = true;
             return ReleaseUnit(unitSpawn, m_FollowersInSettlement - 1);
         }
 
+        /// <summary>
+        /// Ends the attack on the settlement.
+        /// </summary>
         public void EndFight() => m_IsAttacked = false;
-
 
         #endregion
 
@@ -387,7 +395,7 @@ namespace Populous
         /// Adds the given amount of followers to the settlement.
         /// </summary>
         /// <param name="amount">The amount of followers to be added.</param>
-        private void AddFollowers(int amount)
+        private void AddFollowers(int amount, bool updateFactionFollowers)
         {
             if (UnitManager.Instance.IsFactionFull(m_Faction)) return;
 
@@ -395,7 +403,9 @@ namespace Populous
                 amount = UnitManager.Instance.MaxFollowers - UnitManager.Instance.GetFactionSize(m_Faction);
 
             SetFollowers(m_FollowersInSettlement + amount);
-            UnitManager.Instance.AddFollowers(m_Faction, amount);
+
+            if (updateFactionFollowers)
+                UnitManager.Instance.AddFollowers(m_Faction, amount);
         }
 
         /// <summary>
@@ -424,8 +434,16 @@ namespace Populous
                 QueryModeController.Instance.UpdateInspectedSettlement(this, updateFollowers: true);
         }
 
+        /// <summary>
+        /// Releases a unit from the settlement at the given location containing the given strength.
+        /// </summary>
+        /// <param name="location">The <c>TerrainPoint</c> where the new unit should be spawned.</param>
+        /// <param name="strength">The strength of the new unit.</param>
+        /// <returns>The <c>Unit</c> if it is created, null otherwise.</returns>
         public Unit ReleaseUnit(TerrainPoint location, int strength)
         {
+            RemoveFollowers(strength, updateFactionFollowers: false);
+
             Unit unit = UnitManager.Instance.SpawnUnit(
                 location: location,
                 faction: m_Faction,
@@ -433,8 +451,6 @@ namespace Populous
                 strength: strength,
                 origin: this
             ).GetComponent<Unit>();
-
-            RemoveFollowers(strength, updateFactionFollowers: false);
 
             return unit;
         }
@@ -455,7 +471,7 @@ namespace Populous
             if (type == UnitType.LEADER)
                 GameController.Instance.SetLeader(m_Faction, this);
 
-            AddFollowers(followers);
+            AddFollowers(followers, updateFactionFollowers: false);
         }
 
         /// <summary>
@@ -466,7 +482,7 @@ namespace Populous
         {
             while (true)
             {
-                yield return new WaitForSeconds(m_CurrentSettlementData.FillRate);
+                yield return new WaitForSeconds(m_FillRate);
 
                 if (m_FollowersInSettlement == 0)
                     break;
@@ -474,7 +490,7 @@ namespace Populous
                 if (UnitManager.Instance.IsFactionFull(m_Faction) || IsAttacked)
                     continue;
 
-                AddFollowers(1);
+                AddFollowers(1, updateFactionFollowers: true);
 
                 if (m_FollowersInSettlement >= Capacity)
                     ReleaseUnit(m_UnitSpawnPoint, (int)(m_CurrentSettlementData.Capacity * m_PercentFollowersReleased));

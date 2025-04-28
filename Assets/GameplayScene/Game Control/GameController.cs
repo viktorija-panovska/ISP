@@ -98,9 +98,9 @@ namespace Populous
             StructureManager.Instance.PlaceTreesAndRocks();
             SetupUnitMagnets();
 
-            //UnitManager.Instance.SpawnStartingUnits();
+            UnitManager.Instance.SpawnStartingUnits();
 
-
+            // set camera to leader positions
         }
 
         #endregion

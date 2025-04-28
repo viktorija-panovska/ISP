@@ -35,6 +35,8 @@ namespace Populous
         private HashSet<GameObject> m_NearbyObjects = new();
 
 
+        #region Event Functions
+
         private void Awake() => GetComponent<Collider>().enabled = false;
 
         private void OnTriggerEnter(Collider other)
@@ -53,12 +55,13 @@ namespace Populous
             m_NearbyObjects.Remove(other.gameObject);
         }
 
+        #endregion
+
 
         /// <summary>
         /// Sets the properties of the direction detector.
         /// </summary>
         /// <param name="unit">The <c>Unit</c> the detector belongs to.</param>
-        /// <param name="tilesPerSide">The size of one side of the collider, in terrain tiles.</param>
         public void Setup(Unit unit)
         {
             m_Unit = unit;

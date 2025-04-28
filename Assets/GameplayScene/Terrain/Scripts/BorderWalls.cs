@@ -219,7 +219,7 @@ namespace Populous
             // vertices that need to be modified
             List<int> vertices = new();
 
-            if (point >= 0 && point < Terrain.Instance.TilesPerSide)
+            if (point >= 0 && point <= Terrain.Instance.TilesPerSide)
                 vertices.Add(point * MeshProperties.VERTICES_PER_TILE_STANDARD + 3);
 
             if (point - 1 >= 0)

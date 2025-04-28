@@ -20,8 +20,6 @@ namespace Populous
         [SerializeField] private Slider[] m_PopulationBars;
         [Tooltip("The slider for the manna bar.")]
         [SerializeField] private Slider m_MannaBar;
-        [SerializeField] private Image m_CannotFindMagnetMessage;
-
 
         [Header("Player Action Icons")]
         [SerializeField] private Image m_QueryIcon;
@@ -528,11 +526,6 @@ namespace Populous
 
         #endregion
 
-        #endregion
-
-
-
-        public void SetCannotFindMagnetMessage() => InterfaceUtils.FadeInOut(m_CannotFindMagnetMessage);
-    
+        #endregion   
     }
 }

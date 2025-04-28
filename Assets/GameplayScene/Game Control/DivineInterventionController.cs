@@ -498,6 +498,8 @@ namespace Populous
             Water.Instance.Raise();
             BorderWalls.Instance.UpdateAllWalls();
             MinimapTextureGenerator.Instance.SetTexture();
+
+            PlayerCamera.Instance.RaiseCameraToWaterLevel();
         }
 
         #endregion

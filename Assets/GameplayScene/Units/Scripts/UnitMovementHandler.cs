@@ -1,4 +1,3 @@
-using Cinemachine.Utility;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -50,11 +49,15 @@ namespace Populous
         #region Inspector Fields
 
         [SerializeField] private float m_MoveSpeed = 40f;
+        [Tooltip("How far away from a point can the unit be for it to register as having reached that point.")]
         [SerializeField] private float m_PositionLeeway = 0.5f;
 
         [Header("Roaming")]
+        [Tooltip("How many tiles in front of itself in the direction the unit is going can it see.")]
         [SerializeField] private int m_ViewTileDistance = 5;
+        [Tooltip("How many tiles to either side of itself in the direction the unit is going can it see.")]
         [SerializeField] private int m_ViewTileWidth = 3;
+        [Tooltip("Used to make sure that the unit varies its roaming.")]
         [SerializeField] private int m_MaxStepsInRoamDirection = 10;
 
         #endregion
@@ -100,6 +103,9 @@ namespace Populous
         /// </summary>
         private int m_Steps;
 
+        /// <summary>
+        /// True if the unit has the behavior "Go To Unit Magnet" but can't reach the unit magnet.
+        /// </summary>
         private bool m_CannotFindMagnet;
 
 
@@ -224,6 +230,9 @@ namespace Populous
             SetFreeRoam();
         }
 
+        /// <summary>
+        /// Unsubscribes from all the events when the movement handler is being destroyed.
+        /// </summary>
         public void Cleanup()
         {
             if (m_Unit.Faction == Faction.RED)
@@ -451,7 +460,7 @@ namespace Populous
             if (x < 0 || z < 0) return false;
 
             TerrainTile tile = new(x, z);
-            if (tile.IsUnderwater()) return false;
+            if (!tile.IsInBounds() || tile.IsUnderwater()) return false;
 
             Structure structure = tile.GetStructure();
             if (!structure || structure.GetType() == typeof(Field) || structure.GetType() == typeof(Swamp))
@@ -657,6 +666,11 @@ namespace Populous
 
         #region Go To Settlement
 
+        /// <summary>
+        /// If a path to the given settlement can be found, sets the unit to follow that path.
+        /// </summary>
+        /// <param name="settlement">The <c>Settlement</c> the unit should reach.</param>
+        /// <returns>True if a path is found, false otherwise.</returns>
         private bool GoToSettlement(Settlement settlement)
         {
             SwitchMoveState(MoveState.GO_TO_SETTLEMENT);
@@ -679,6 +693,10 @@ namespace Populous
             return true;
         }
 
+        /// <summary>
+        /// Removes the given settlement as a target for the unit, if it is a target.
+        /// </summary>
+        /// <param name="targetSettlement">The <c>Settlement</c> that should be removed.</param>
         public void LoseTargetSettlement(Settlement targetSettlement)
         {
             if (m_TargetUnit != targetSettlement) return;
@@ -788,6 +806,11 @@ namespace Populous
             }
         }
 
+        /// <summary>
+        /// Get the tile the point the unit is standing on belongs to that is free, if such a tile exists.
+        /// </summary>
+        /// <param name="current">The <c>TerrainPoint</c> the unit is currently at.</param>
+        /// <param name="target">An output parameter for the free <c>TerrainTile</c>, null if none is found.</param>
         private void FindSurroundingFreeTile(TerrainPoint current, ref TerrainTile? target)
         {
             for (int z = 0; z >= -1; --z)
@@ -817,6 +840,10 @@ namespace Populous
 
         #region Gather / Fight
 
+        /// <summary>
+        /// Tries to find a roaming direction for the unit based on where it can find other units and settlements.
+        /// </summary>
+        /// <returns>True if such a direction is found, false otherwise.</returns>
         private bool GoInDirection()
         {
             Vector3 direction = m_Unit.GetDetectedDirection();
@@ -829,7 +856,10 @@ namespace Populous
             return true;
         }
 
-
+        /// <summary>
+        /// Tries to make the unit follow a nearby unit, if such a unit is found.
+        /// </summary>
+        /// <returns>True if a unit is nearby, false otherwise.</returns>
         private bool GoToNearbyUnit()
         {
             Unit unitInRange = m_Unit.GetUnitInChaseRange();
@@ -839,7 +869,10 @@ namespace Populous
             return true;
         }
 
-
+        /// <summary>
+        /// Tries to make the unit go to a nearby settlement, if such a settlement is found.
+        /// </summary>
+        /// <returns>True if a settlement is nearby, false otherwise.</returns>
         private bool GoToNearbySettlement()
         {
             Settlement settlementInRange = m_Unit.GetSettlementInChaseRange();
@@ -874,6 +907,9 @@ namespace Populous
             GoToMagnet();
         }
 
+        /// <summary>
+        /// Tries to find a path to the unit magnet.
+        /// </summary>
         private void GoToMagnet()
         {
             TerrainPoint current = m_Unit.ClosestTerrainPoint;
@@ -903,6 +939,9 @@ namespace Populous
             SetNewPath(path);
         }
 
+        /// <summary>
+        /// Sets the unit to go to the leader, if the leader exists.
+        /// </summary>
         private void GoToLeader()
         {
             ILeader leader = GameController.Instance.GetLeader(m_Unit.Faction);
@@ -933,12 +972,14 @@ namespace Populous
             SetNewPath(new List<TerrainPoint> { reachableNeighbors[new Random().Next(0, reachableNeighbors.Count)], point });
         }
 
-
         #endregion
 
 
         #region React To Change
 
+        /// <summary>
+        /// 
+        /// </summary>
         public void ReactToTerrainChange()
             => ReactToTerrainChange(new(0, 0), new(Terrain.Instance.TilesPerSide, Terrain.Instance.TilesPerSide));
 

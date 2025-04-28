@@ -133,7 +133,7 @@ namespace Populous
         public void Setup(Faction faction, int strength, Settlement origin)
         {
             m_Faction = faction;
-            m_Strength = faction == Faction.RED ? 10 : 5/*strength*/;
+            m_Strength = faction == Faction.RED ? strength : 1;
             m_Origin = origin;
 
             SetObjectInfo_ClientRpc(
@@ -169,7 +169,6 @@ namespace Populous
         /// <summary>
         /// Sets up some <c>GameObject</c> properties for the given unit.
         /// </summary>
-        /// <param name="unitNetworkId">The <c>NetworkObjectId</c> of the unit.</param>
         /// <param name="name">The name for the <c>GameObject</c> of the unit.</param>
         /// <param name="color">The color the body of the unit should be set to.</param>
         /// <param name="layer">An integer representing the layer the unit should be on.</param>
@@ -280,6 +279,23 @@ namespace Populous
         public void SetLeader(bool isLeader) => SetType(isLeader ? UnitType.LEADER : UnitType.WALKER);
 
         /// <summary>
+        /// Activates or deactivates the sign the leader should be holding.
+        /// </summary>
+        /// <param name="faction">The <c>Faction</c> whose leader sign should be activated.</param>
+        /// <param name="isOn">True if the sign should be activated, false otherwise.</param>
+        [ClientRpc]
+        private void ToggleLeaderSign_ClientRpc(Faction faction, bool isOn)
+            => m_LeaderSigns[(int)faction].SetActive(isOn);
+
+        /// <summary>
+        /// Activates or deactivates the sword a knight should be holding.
+        /// </summary>
+        /// <param name="isOn">True if the sword should be activated, false otherwise.</param>
+        [ClientRpc]
+        private void ToggleKnightSword_ClientRpc(bool isOn)
+            => m_KnightSword.SetActive(isOn);
+
+        /// <summary>
         /// Sets the current behavior of the unit to the given behavior.
         /// </summary>
         /// <param name="unitBehavior">The <c>UnitBehavior</c> that should be set.</param>
@@ -297,23 +313,6 @@ namespace Populous
             else
                 m_MovementHandler.SetFreeRoam();
         }
-
-        /// <summary>
-        /// Activates or deactivates the sign the leader should be holding.
-        /// </summary>
-        /// <param name="faction">The <c>Faction</c> whose leader sign should be activated.</param>
-        /// <param name="isOn">True if the sign should be activated, false otherwise.</param>
-        [ClientRpc]
-        private void ToggleLeaderSign_ClientRpc(Faction faction, bool isOn)
-            => m_LeaderSigns[(int)faction].SetActive(isOn);
-
-        /// <summary>
-        /// Activates or deactivates the sword a knight should be holding.
-        /// </summary>
-        /// <param name="isOn">True if the sword should be activated, false otherwise.</param>
-        [ClientRpc]
-        private void ToggleKnightSword_ClientRpc(bool isOn)
-            => m_KnightSword.SetActive(isOn);
 
         /// <summary>
         /// Waits for a number seconds before enabling the unit to enter settlements.
@@ -352,6 +351,9 @@ namespace Populous
         public void LoseStrength(int amount, bool isDamaged = true) 
         { 
             m_Strength -= amount;
+
+            if (isDamaged)
+                UnitManager.Instance.RemoveFollowers(m_Faction, amount);
 
             if (IsInspected && !IsInFight)
                 QueryModeController.Instance.UpdateInspectedUnit(this, updateStrength: true);
@@ -411,7 +413,7 @@ namespace Populous
             }
 
             if (CurrentTile.IsUnderwater())
-                UnitManager.Instance.DespawnUnit(this, hasDied: true);
+                LoseStrength(m_Strength, isDamaged: true);
             else
                 SetHeight_ClientRpc(height);
         }
@@ -511,15 +513,13 @@ namespace Populous
             m_MovementHandler.IsUnitMagnetReached = true;
         }
 
-
+        /// <summary>
+        /// Activates or deactivates the symbol showing the user that the unit cannot reach the unit magnet.
+        /// </summary>
+        /// <param name="active">True if the symbol should be activated, false otherwise.</param>
         [ClientRpc]
-        private void SetCannotFindMagnetIndicator_ClientRpc(bool isActive)
-        {
-            m_CannotFindMagnetSymbol.SetActive(isActive);
-
-            if (isActive)
-                GameUI.Instance.SetCannotFindMagnetMessage();
-        }
+        public void SetCannotFindUnitMagnetSymbol_ClientRpc(bool active)
+            => m_CannotFindMagnetSymbol.SetActive(active);
 
         #endregion
 
@@ -551,6 +551,10 @@ namespace Populous
             SetFightSymbol_ClientRpc(false);
         }
 
+        /// <summary>
+        /// Activates or deactivates the symbol showing the user that the unit is in a fight.
+        /// </summary>
+        /// <param name="active">True if the symbol should be activated, false otherwise.</param>
         [ClientRpc]
         public void SetFightSymbol_ClientRpc(bool active) => m_FightSymbol.SetActive(active);
 
@@ -600,10 +604,5 @@ namespace Populous
         public void SetHighlight(bool shouldActivate) => m_Highlight.SetActive(shouldActivate);
 
         #endregion
-
-
-        [ClientRpc]
-        public void SetCannotFindUnitMagnetSymbol_ClientRpc(bool active)
-            => m_CannotFindMagnetSymbol.SetActive(active);
     }
 }

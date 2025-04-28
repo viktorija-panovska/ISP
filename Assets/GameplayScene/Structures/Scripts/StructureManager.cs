@@ -316,9 +316,9 @@ namespace Populous
         }
 
         /// <summary>
-        /// 
+        /// Destroys the given settlement and places a Ruin in its place.
         /// </summary>
-        /// <param name="settlement"></param>
+        /// <param name="settlement">The <c>Settlement</c> that shuld be burned down.</param>
         public void BurnSettlementDown(Settlement settlement)
         {
             settlement.OnSettlementFactionChanged?.Invoke(Faction.NONE);  // burns down the fields
@@ -328,7 +328,10 @@ namespace Populous
 
             // if the settlement contained the leader, then kill the leader
             if (settlement.ContainsLeader)
+            {
                 GameController.Instance.SetLeader(settlement.Faction, null);
+                GameController.Instance.PlaceUnitMagnetAtPoint(settlement.Faction, new(settlement.transform.position));
+            }
 
             TerrainTile tile = settlement.OccupiedTile;
             DestroySettlement(settlement, updateNearbySettlements: true);
@@ -348,6 +351,18 @@ namespace Populous
             RemoveSettlementPosition(settlement.transform.position, settlement.Faction);
             UnitManager.Instance.RemoveFollowers(settlement.Faction, settlement.FollowersInSettlement);
 
+            // if the settlement contained the leader, then kill the leader
+            if (settlement.ContainsLeader)
+            {
+                GameController.Instance.SetLeader(settlement.Faction, null);
+                GameController.Instance.PlaceUnitMagnetAtPoint(settlement.Faction, new(settlement.transform.position));
+            }
+
+            GameController.Instance.RemoveVisibleObject_ClientRpc(
+                GetComponent<NetworkObject>().NetworkObjectId,
+                GameUtils.GetClientParams(GameData.Instance.GetNetworkIdByFaction(settlement.Faction))
+            );
+
             settlement.SetFaction(faction);
             settlement.OnSettlementFactionChanged?.Invoke(faction);  // changes the faction of the fields
             OnRemoveReferencesToSettlement?.Invoke(settlement);
@@ -356,18 +371,34 @@ namespace Populous
             AddSettlementPosition(settlement.transform.position, faction);
             UnitManager.Instance.AddFollowers(settlement.Faction, settlement.FollowersInSettlement);
 
-            GameController.Instance.RemoveVisibleObject_ClientRpc(
-                GetComponent<NetworkObject>().NetworkObjectId,
-                GameUtils.GetClientParams(GameData.Instance.GetNetworkIdByFaction(settlement.Faction))
-            );
-
-            if (settlement.ContainsLeader)
-                GameController.Instance.SetLeader(settlement.Faction, null);
-
             if (settlement.IsInspected)
                 QueryModeController.Instance.UpdateInspectedSettlement(settlement, updateFaction: true);
         }
 
+        /// <summary>
+        /// Updates the types of the settlements that are close enough to the settlement at the given tile that they could be sharing fields with it.
+        /// </summary>
+        /// <param name="settlementTile">The <c>TerrainTile</c> of the central settlement.</param>
+        public void UpdateNearbySettlements(TerrainTile settlementTile)
+        {
+            for (int z = -4; z <= 4; ++z)
+            {
+                for (int x = -4; x <= 4; ++x)
+                {
+                    if ((x, z) == (0, 0)) continue;
+
+                    TerrainTile tile = new(settlementTile.X + x, settlementTile.Z + z);
+
+                    if (!tile.IsInBounds()) continue;
+
+                    Structure structure = GetStructureOnTile(tile);
+                    if (!structure || structure.GetType() != typeof(Settlement)) continue;
+
+                    Settlement settlement = (Settlement)structure;
+                    settlement.UpdateType();
+                }
+            }
+        }
 
         #region Settlement Position
 
@@ -400,31 +431,6 @@ namespace Populous
         /// <param name="faction">The <c>Faction</c> whose settlement position should be removed.</param>
         /// <param name="position">The position of the settlement.</param>
         public void RemoveSettlementPosition(Vector2 position, Faction faction) => m_SettlementLocations[(int)faction].Remove(position);
-
-        /// <summary>
-        /// Updates the types of the settlements that are close enough to the settlement at the given tile that they could be sharing fields with it.
-        /// </summary>
-        /// <param name="settlementTile">The <c>TerrainTile</c> of the central settlement.</param>
-        public void UpdateNearbySettlements(TerrainTile settlementTile)
-        {
-            for (int z = -4; z <= 4; ++z)
-            {
-                for (int x = -4; x <= 4; ++x)
-                {
-                    if ((x, z) == (0, 0)) continue;
-
-                    TerrainTile tile = new(settlementTile.X + x, settlementTile.Z + z);
-
-                    if (!tile.IsInBounds()) continue;
-
-                    Structure structure = GetStructureOnTile(tile);
-                    if (!structure || structure.GetType() != typeof(Settlement)) continue;
-
-                    Settlement settlement = (Settlement)structure;
-                    settlement.UpdateType();
-                }
-            }
-        }
 
         #endregion
 
@@ -469,7 +475,7 @@ namespace Populous
                 }
             }
 
-            return fields;
+            return fields < 0 ? 0 : fields;
         }
 
         /// <summary>
@@ -481,10 +487,13 @@ namespace Populous
         /// i.e. 1 if a field was created, 0 if no field was created, or -1 if the tile was occupied by a rock.</returns>
         private int TryAddField(TerrainTile tile, Settlement settlement)
         {
-            if (!tile.IsInBounds() || !tile.IsFree())
-                return 0;
+            if (!tile.IsInBounds()) return 0;
 
             Structure structure = tile.GetStructure();
+
+            if (structure && structure.GetType() == typeof(Rock)) return -1;
+
+            if (!tile.IsFlat()) return 0;
 
             if (structure)
             {
@@ -492,12 +501,6 @@ namespace Populous
 
                 if (structureType == typeof(Swamp) || structureType == typeof(Settlement))
                     return 0;
-
-                else if (structureType == typeof(Rock))
-                    return -1;
-
-                else if (structureType == typeof(Tree))
-                    DespawnStructure(structure);
 
                 else if (structureType == typeof(Field))
                 {
@@ -510,6 +513,9 @@ namespace Populous
 
                     return 0;
                 }
+
+                else if (structureType == typeof(Tree))
+                    DespawnStructure(structure);
             }
 
             SpawnStructure(m_FieldPrefab, tile, settlement.Faction).GetComponent<Field>().AddSettlementServed(settlement);
@@ -551,6 +557,5 @@ namespace Populous
         public void SpawnSwamp(TerrainTile tile) => SpawnStructure(m_SwampPrefab, tile);
 
         #endregion
-
     }
 }

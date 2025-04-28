@@ -75,7 +75,8 @@ namespace Populous
             {
                 int cornerHeight = corner.GetHeight();
 
-                if (height >= 0 && cornerHeight != height)
+                // if any corner is at the water level, the tile is either not flat or underwater
+                if (cornerHeight == Terrain.Instance.WaterLevel || height >= 0 && cornerHeight != height)
                     return false;
 
                 height = cornerHeight;

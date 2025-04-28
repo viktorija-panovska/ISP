@@ -240,7 +240,7 @@ namespace Populous
         /// <summary>
         /// Despawns the given unit from the network and destroys is.
         /// </summary>
-        /// <param name="unitObject">The <c>GameObject</c> of the unit to be destroyed.</param>
+        /// <param name="unit">The <c>Unit</c> to be destroyed.</param>
         /// <param name="hasDied">True if the unit is being despawned because it died, false if it is being despawned because it entered a settlement.</param>
         public void DespawnUnit(Unit unit, bool hasDied)
         {
@@ -344,6 +344,9 @@ namespace Populous
                     spawned++;
                 }
             }
+
+            AddFollowers(Faction.RED, m_StartingUnits * m_StartingUnitStrength * 5);
+            AddFollowers(Faction.BLUE, m_StartingUnits * m_StartingUnitStrength * 5);
         }
 
         /// <summary>
@@ -421,13 +424,8 @@ namespace Populous
 
             UpdateFollowersUI_ClientRpc(faction, amount);
 
-            Debug.Log("Decrease");
-
             if (m_Followers[(int)faction] == 0)
-            {
-                Debug.Log(faction + " DED");
                 GameController.Instance.EndGame_ClientRpc(winner: faction == Faction.RED ? Faction.BLUE : Faction.RED);
-            }
         }
 
         /// <summary>
@@ -623,7 +621,7 @@ namespace Populous
                 red.LoseStrength(1);
                 blue.LoseStrength(1);
 
-                if (!red || !blue) break;
+                if (!red || !blue || red.Strength == 0 || blue.Strength == 0) break;
 
                 if (red.IsInspected || blue.IsInspected)
                     QueryModeController.Instance.UpdateInspectedFight(red, blue);

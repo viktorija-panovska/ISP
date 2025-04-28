@@ -229,6 +229,7 @@ MonoBehaviour:
   m_Highlight: {fileID: 7324521799696845122}
   m_MinimapIcon: {fileID: 2475679208892404697}
   m_PercentFollowersReleased: 0.5
+  m_FillRate: 0
   m_SettlementObjects:
   - {fileID: 2145721895016335166}
   - {fileID: 9175907684013792421}
@@ -644,6 +645,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: -7511558181221131132, guid: ad5ff3282fd59304298dfc68664c941c, type: 3}
+      propertyPath: m_Materials.Array.data[1]
+      value: 
+      objectReference: {fileID: 2100000, guid: c605ae3f92851454f834f5bfb8f0a131, type: 2}
     - target: {fileID: 919132149155446097, guid: ad5ff3282fd59304298dfc68664c941c, type: 3}
       propertyPath: m_Name
       value: red_flag
@@ -1382,7 +1387,7 @@ PrefabInstance:
     - target: {fileID: -7511558181221131132, guid: ad5ff3282fd59304298dfc68664c941c, type: 3}
       propertyPath: m_Materials.Array.data[1]
       value: 
-      objectReference: {fileID: 2100000, guid: 1226068b76f476f45ac8fd001953da44, type: 2}
+      objectReference: {fileID: 2100000, guid: 6aadf61b568f7274ba664402daf9664c, type: 2}
     - target: {fileID: 919132149155446097, guid: ad5ff3282fd59304298dfc68664c941c, type: 3}
       propertyPath: m_Name
       value: blue_flag

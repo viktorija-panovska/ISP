@@ -11,6 +11,8 @@ namespace Populous
     public class UnitMagnet : NetworkBehaviour
     {
         [SerializeField] private Faction m_Faction;
+        [Tooltip("The offset on the X axis, used to make sure the two unit magnets don't overlap when they are on the same point. " +
+            "Make sure the offsets of the two unit magnets aren't the same.")]
         [SerializeField] private float m_Offset;
 
         /// <summary>
