@@ -140,8 +140,6 @@ namespace Populous
         {
             int index = GetPlayerInspectingObject(inspectedObject);
 
-            Debug.Log(index);
-
             // nobody is inspecting the object
             if (index < 0) return;
 
@@ -151,6 +149,11 @@ namespace Populous
             HideInspectedObjectPanel_ClientRpc(GameUtils.GetClientParams(GameData.Instance.GetNetworkIdByFaction(index)));
         }
 
+        /// <summary>
+        /// Turns off the highlight indicating that the object is being inspected.
+        /// </summary>
+        /// <param name="inspectedObject">A reference to the <c>IInspectedObject</c> that is inspected.</param>
+        /// <param name="clientRpcParams">RPC parameters for the client RPC.</param>
         [ClientRpc]
         private void DisableHighlight_ClientRpc(NetworkObjectReference inspectedObject, ClientRpcParams clientRpcParams)
         {
@@ -253,6 +256,8 @@ namespace Populous
             => GameUI.Instance.UpdateUnitStrength(strength);
 
 
+        #region Settlement
+
         /// <summary>
         /// Handles the update of the given settlement data on the UI of the player focusing on the settlement.
         /// </summary>
@@ -310,6 +315,10 @@ namespace Populous
         private void UpdateInspectedSettlementFollowers_ClientRpc(int followers, ClientRpcParams clientParams = default)
             => GameUI.Instance.UpdateSettlementFollowers(followers);
 
+        #endregion
+
+
+        #region Fight
 
         /// <summary>
         /// Handles the update of the strengths of the given units, which are involved in a fight.
@@ -336,6 +345,8 @@ namespace Populous
         [ClientRpc]
         private void UpdateInspectedFight_ClientRpc(int redStrength, int blueStrength, ClientRpcParams clientParams = default)
             => GameUI.Instance.UpdateFight(redStrength, blueStrength);
+
+        #endregion
 
         #endregion
     }

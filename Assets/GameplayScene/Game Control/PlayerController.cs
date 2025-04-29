@@ -64,7 +64,7 @@ namespace Populous
         /// <summary>
         /// True if the player can activate Divine Interventions, false otherwise.
         /// </summary>
-        private bool CanUseActions { get => CanInteract && !m_IsQueryModeActive && m_ActiveDivineIntervention != DivineIntervention.ARMAGEDDON; }
+        private bool CanUseActions { get => CanInteract && !m_IsQueryModeActive; }
 
         /// <summary>
         /// The <c>TerrainPoint</c> closest to the player's cursor. Null if the player's cursor is outside the bounds of the terrain

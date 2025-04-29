@@ -315,7 +315,7 @@ namespace Populous
             // show the red unit image if the unit is from the red faction, or the blue unit image if it is from the blue faction
             m_CurrentlyShownUnitImage = (int)faction;
             m_UnitImages[m_CurrentlyShownUnitImage].gameObject.SetActive(true);
-            
+
             UpdateUnitType(type);
             UpdateUnitStrength(strength);
         }
@@ -376,6 +376,9 @@ namespace Populous
         /// <param name="faction">The <c>Faction</c> the settlement belongs to.</param>
         public void UpdateSettlementFaction(Faction faction)
         {
+            if (m_CurrentlyShownSettlementImage > -1)
+                m_SettlementImages[m_CurrentlyShownSettlementImage].gameObject.SetActive(false);
+
             m_CurrentlyShownSettlementImage = (int)faction;
             m_SettlementImages[m_CurrentlyShownSettlementImage].gameObject.SetActive(true);
         }
@@ -397,6 +400,7 @@ namespace Populous
         /// <param name="followers">The number of followers currently in the settlement.</param>
         public void UpdateSettlementFollowers(int followers)
             => m_SettlementFollowersSlider.value = (float)followers / m_InspectedSettlementCapacity;
+
 
         /// <summary>
         /// Displays the given strengths for the red and blue unit participating in the fight on the Inspected Fight panel.
