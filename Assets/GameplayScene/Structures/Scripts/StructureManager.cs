@@ -309,6 +309,8 @@ namespace Populous
             if (updateNearbySettlements)
                 UpdateNearbySettlements(settlement.OccupiedTile);
 
+            Debug.Log(settlement.IsInspected);
+
             if (settlement.IsInspected)
                 QueryModeController.Instance.RemoveInspectedObject(settlement);
 

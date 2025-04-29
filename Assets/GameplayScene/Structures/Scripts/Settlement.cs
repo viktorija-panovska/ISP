@@ -330,7 +330,11 @@ namespace Populous
         /// <summary>
         /// Called when the Armageddon Divine Intervention is activated.
         /// </summary>
-        private void ReactToArmageddon() => StructureManager.Instance.DestroySettlement(this, updateNearbySettlements: false);
+        private void ReactToArmageddon()
+        {
+            ReleaseUnit(m_UnitSpawnPoint, m_FollowersInSettlement);
+            StructureManager.Instance.DestroySettlement(this, updateNearbySettlements: false);
+        }
 
         /// <summary>
         /// Activates or deactivates the flag with the faction's color.

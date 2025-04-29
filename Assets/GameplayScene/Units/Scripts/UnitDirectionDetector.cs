@@ -105,6 +105,11 @@ namespace Populous
             );
 
         /// <summary>
+        /// Sets the size of the detector;s collider to the initial size.
+        /// </summary>
+        public void ResetDetectorSize() => SetDetectorSize(m_TilesPerSide);
+
+        /// <summary>
         /// Computes the average vector from the positions of all the units and settlements of the desired type in the vicinity.
         /// </summary>
         /// <returns>A <c>Vector3</c> representing the average direction.</returns>

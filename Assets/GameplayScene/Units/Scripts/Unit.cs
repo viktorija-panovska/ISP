@@ -254,7 +254,12 @@ namespace Populous
                 ToggleLeaderSign_ClientRpc(m_Faction, false);
 
             if (m_Type == UnitType.KNIGHT)
+            {
                 ToggleKnightSword_ClientRpc(false);
+                SetBehavior(UnitManager.Instance.GetActiveBehavior(m_Faction));
+                m_DirectionDetector.ResetDetectorSize();
+                DivineInterventionController.Instance.OnArmageddon -= ReactToArmageddon;
+            }
 
             m_Type = unitType;
 
@@ -266,6 +271,7 @@ namespace Populous
                 ToggleKnightSword_ClientRpc(true);
                 SetBehavior(UnitBehavior.FIGHT);
                 m_DirectionDetector.SetDetectorSize(Terrain.Instance.TilesPerSide);
+                DivineInterventionController.Instance.OnArmageddon += ReactToArmageddon;
             }
 
             if (IsInspected)
@@ -323,6 +329,15 @@ namespace Populous
         {
             yield return new WaitForSeconds(m_SecondsUntilEnteringEnabled);
             m_Origin = null;
+        }
+
+        /// <summary>
+        /// Called when the Armageddon Divine Intervention is activated.
+        /// </summary>
+        private void ReactToArmageddon()
+        {
+            if (m_Type != UnitType.KNIGHT) return;
+            SetType(UnitType.WALKER);
         }
 
         #endregion

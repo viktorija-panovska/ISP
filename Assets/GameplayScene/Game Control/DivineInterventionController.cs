@@ -520,8 +520,6 @@ namespace Populous
             {
                 if (factions == Faction.NONE) continue;
 
-                Debug.Log(factions);
-
                 GameController.Instance.PlaceUnitMagnetAtPoint(factions, Terrain.Instance.TerrainCenter);
                 UnitManager.Instance.ChangeUnitBehavior_ServerRpc(factions, UnitBehavior.GO_TO_MAGNET);
             }

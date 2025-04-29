@@ -345,8 +345,8 @@ namespace Populous
                 }
             }
 
-            AddFollowers(Faction.RED, m_StartingUnits * m_StartingUnitStrength * 5);
-            AddFollowers(Faction.BLUE, m_StartingUnits * m_StartingUnitStrength * 5);
+            AddFollowers(Faction.RED, m_StartingUnits * m_StartingUnitStrength);
+            AddFollowers(Faction.BLUE, m_StartingUnits * m_StartingUnitStrength);
         }
 
         /// <summary>

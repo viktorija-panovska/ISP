@@ -139,6 +139,9 @@ namespace Populous
         public void RemoveInspectedObject(IInspectableObject inspectedObject)
         {
             int index = GetPlayerInspectingObject(inspectedObject);
+
+            Debug.Log(index);
+
             // nobody is inspecting the object
             if (index < 0) return;
 
