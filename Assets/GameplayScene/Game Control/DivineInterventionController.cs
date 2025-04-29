@@ -378,8 +378,7 @@ namespace Populous
                         affectedSettlements.UnionWith(field.SettlementsServed);
                         StructureManager.Instance.DespawnStructure(field);
                     }
-                    else if (structure)
-                        continue;
+                    else if (structure) continue;
 
                     StructureManager.Instance.SpawnSwamp(flatTile);
                 }

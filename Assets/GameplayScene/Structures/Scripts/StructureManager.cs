@@ -149,7 +149,7 @@ namespace Populous
         /// <param name="structureObject">The <c>GameObject</c> of the structrue to be destroyed.</param>
         public void DespawnStructure(Structure structure)
         {
-            if (!IsHost || !structure.OccupiedTile.IsOccupied()) return;
+            if (!IsHost || structure == null || !structure.OccupiedTile.IsOccupied()) return;
 
             SetOccupiedTile(structure.OccupiedTile, null);
             structure.Cleanup();

@@ -44,8 +44,8 @@ namespace Populous
         /// <inheritdoc />
         public override void Cleanup()
         {
-            base.Cleanup();
             RemoveAllSettlementsServed();
+            base.Cleanup();
         }
 
         #endregion
@@ -88,7 +88,9 @@ namespace Populous
         /// </summary>
         /// <param name="settlement">The <c>Settlement</c> that should be added.</param>
         public void AddSettlementServed(Settlement settlement) 
-        { 
+        {
+            if (m_SettlementsServed.Contains(settlement)) return;
+
             m_SettlementsServed.Add(settlement);
             settlement.OnSettlementDestroyed += RemoveSettlementServed;
             settlement.OnSettlementFactionChanged += SwitchFaction;

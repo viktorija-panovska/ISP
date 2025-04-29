@@ -244,7 +244,7 @@ namespace Populous
         /// <param name="hasDied">True if the unit is being despawned because it died, false if it is being despawned because it entered a settlement.</param>
         public void DespawnUnit(Unit unit, bool hasDied)
         {
-            if (!IsHost) return;
+            if (!IsHost || unit == null) return;
 
             unit.Cleanup();
             OnRemoveReferencesToUnit?.Invoke(unit);
@@ -300,7 +300,7 @@ namespace Populous
             (List<TerrainPoint> redSpawnPoints, List<TerrainPoint> blueSpawnPoints) = FindSpawnPoints();
 
             // go over both factions
-            for (int faction = 0; faction <= 1; ++faction)
+            for (int faction = 0; faction <= 0; ++faction)
             {
                 List<TerrainPoint> spawnPoints = faction == 0 ? redSpawnPoints : blueSpawnPoints;
                 List<int> spawnIndices = Enumerable.Range(0, spawnPoints.Count).ToList();
