@@ -282,6 +282,8 @@ namespace Populous
         /// <param name="faction">The faction the settlement should belong to.</param>
         public void CreateSettlement(TerrainTile tile, Faction faction)
         {
+            if (!tile.IsFree()) return;
+
             Settlement settlement = (Settlement)SpawnStructure(m_SettlementPrefab, tile, faction);
             AddSettlementPosition(new Vector2(settlement.transform.position.x, settlement.transform.position.z), faction);
         }

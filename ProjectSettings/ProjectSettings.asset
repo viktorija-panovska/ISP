@@ -13,7 +13,7 @@ PlayerSettings:
   useOnDemandResources: 0
   accelerometerFrequency: 60
   companyName: Viktorija Panovska
-  productName: PopulousPlus
+  productName: Populous+
   defaultCursor: {fileID: 2800000, guid: f3834c364ef9063458d00114286bd532, type: 3}
   cursorHotspot: {x: 20, y: 10}
   m_SplashScreenBackgroundColor: {r: 0.13725491, g: 0.12156863, b: 0.1254902, a: 1}
@@ -137,6 +137,7 @@ PlayerSettings:
   bundleVersion: 0.1
   preloadedAssets:
   - {fileID: 0}
+  - {fileID: 0}
   metroInputSource: 0
   wsaTransparentSwapchain: 0
   m_HolographicPauseOnTrackingLoss: 1
@@ -156,7 +157,7 @@ PlayerSettings:
   androidSupportedAspectRatio: 1
   androidMaxAspectRatio: 2.1
   applicationIdentifier:
-    Standalone: com.Viktorija-Panovska.PopulousPlus
+    Standalone: com.Viktorija-Panovska.Populous-
   buildNumber:
     Standalone: 0
     iPhone: 0

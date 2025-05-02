@@ -1600,7 +1600,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 192484786}
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 12.557617, y: -0.73163605, z: 19.283615}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -1928,9 +1928,9 @@ MonoBehaviour:
   m_FollowTarget: {fileID: 1655842788}
   m_MovementSpeed: 500
   m_RotationSpeed: 20
-  m_ZoomSpeed: 200
+  m_ZoomSpeed: 250
   m_MaxZoomIn: 150
-  m_MaxZoomOut: 500
+  m_MaxZoomOut: 300
 --- !u!4 &242901164
 Transform:
   m_ObjectHideFlags: 0
@@ -2123,7 +2123,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 261047746}
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 12.557617, y: -0.73163605, z: 19.283615}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -2367,8 +2367,8 @@ MonoBehaviour:
   m_UnitDecayRate: 20
   m_FightWaitDuration: 1
   m_LeaderDeathMannaLoss: 10
-  m_StartingUnits: 1
-  m_StartingUnitStrength: 2
+  m_StartingUnits: 1000
+  m_StartingUnitStrength: 1
   m_MinimapIconScale: 30
   m_MinimapUnitColors:
   - {r: 1, g: 0, b: 0, a: 1}
@@ -2455,7 +2455,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_TerrainMaterial: {fileID: 2100000, guid: 9d6a44b0d4d72774483f5474a1efa3ce, type: 2}
-  m_ChunksPerSide: 1
+  m_ChunksPerSide: 8
   m_TilesPerChunkSide: 7
   m_UnitsPerTileSide: 50
   m_StepHeight: 50
@@ -9670,8 +9670,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f2982db3ffe31404bb1b10d916cef0a8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_HighlightMarkerColor: {r: 0.0076868534, g: 1, b: 0, a: 0.5882353}
-  m_GrayedOutMarkerColor: {r: 0, g: 0, b: 0, a: 0.5882353}
+  m_HighlightMarkerColor: {r: 0.0076868534, g: 1, b: 0, a: 0.3882353}
+  m_GrayedOutMarkerColor: {r: 0, g: 0, b: 0, a: 0.3882353}
   m_Markers:
   - {fileID: 660774250}
   - {fileID: 1606421941}
@@ -11840,7 +11840,7 @@ Transform:
   m_GameObject: {fileID: 1606421941}
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 10, y: 10, z: 10}
+  m_LocalScale: {x: 30, y: 30, z: 30}
   m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 114202466}

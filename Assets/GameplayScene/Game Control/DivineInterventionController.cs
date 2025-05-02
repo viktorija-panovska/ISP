@@ -427,7 +427,7 @@ namespace Populous
                     type: UnitType.KNIGHT,
                     strength: settlement.FollowersInSettlement,
                     origin: settlement
-                ).GetComponent<Unit>();
+                );
 
                 StructureManager.Instance.DestroySettlement(settlement, updateNearbySettlements: true);
             }
@@ -515,6 +515,7 @@ namespace Populous
             RemoveManna(faction, m_MannaCost[(int)DivineIntervention.ARMAGEDDON]);
 
             m_IsArmageddon = true;
+            SetupArmageddon_ClientRpc();
 
             foreach (Faction factions in Enum.GetValues(typeof(Faction)))
             {
@@ -527,6 +528,12 @@ namespace Populous
             // destroy all settlements
             OnArmageddon?.Invoke();
         }
+
+        /// <summary>
+        /// Sets the state of Armageddon to active on the client.
+        /// </summary>
+        [ClientRpc]
+        private void SetupArmageddon_ClientRpc() => PlayerController.Instance.ActivateArmageddon();
 
         #endregion
 

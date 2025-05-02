@@ -50,6 +50,10 @@ namespace Populous
         /// True if the game is paused, false otherwise.
         /// </summary>
         private bool m_IsPaused;
+        /// <summary>
+        /// True if the Armageddon Divine Intervention has been activated, false otherwise.
+        /// </summary>
+        private bool m_IsArmageddonActive = false;
 
         private bool m_IsQueryModeActive;
         /// <summary>
@@ -58,13 +62,9 @@ namespace Populous
         public bool IsQueryModeActive { get => m_IsQueryModeActive; }
         
         /// <summary>
-        /// True if the player's input should be processed, false otherwise.
+        /// True if the player can activate Divine Interventions and Influence Behavior actions, false otherwise.
         /// </summary>
-        private bool CanInteract { get => m_PlayerInfo.HasValue && !m_IsPaused; }
-        /// <summary>
-        /// True if the player can activate Divine Interventions, false otherwise.
-        /// </summary>
-        private bool CanUseActions { get => CanInteract && !m_IsQueryModeActive; }
+        private bool CanUseActions { get => m_PlayerInfo.HasValue && !m_IsPaused && !m_IsQueryModeActive && !m_IsArmageddonActive; }
 
         /// <summary>
         /// The <c>TerrainPoint</c> closest to the player's cursor. Null if the player's cursor is outside the bounds of the terrain
@@ -199,6 +199,10 @@ namespace Populous
             m_ActiveDivineIntervention = divineIntervention;
         }
 
+        /// <summary>
+        /// Sets the IsArmageddon flag to active.
+        /// </summary>
+        public void ActivateArmageddon() => m_IsArmageddonActive = true;
 
         #region Markers
 
@@ -207,6 +211,9 @@ namespace Populous
         /// </summary>
         private void SetupMarkers()
         {
+            foreach (GameObject marker in m_Markers)
+                marker.GetComponent<MeshRenderer>().material.color = m_GrayedOutMarkerColor;
+
             GameUtils.ResizeGameObject(m_Markers[(int)DivineIntervention.EARTHQUAKE], 2 * DivineInterventionController.Instance.EarthquakeRadius * Terrain.Instance.UnitsPerTileSide);
             GameUtils.ResizeGameObject(m_Markers[(int)DivineIntervention.SWAMP], 2 * DivineInterventionController.Instance.SwampRadius * Terrain.Instance.UnitsPerTileSide);
             GameUtils.ResizeGameObject(m_Markers[(int)DivineIntervention.VOLCANO], 2 * DivineInterventionController.Instance.VolcanoRadius * Terrain.Instance.UnitsPerTileSide);
@@ -250,10 +257,16 @@ namespace Populous
                 newDivineIntervention == DivineIntervention.FLOOD || newDivineIntervention == DivineIntervention.ARMAGEDDON)
                 return;
 
-            m_Markers[m_ActiveMarkerIndex].SetActive(false);
+            SetCurrentMarker(isActive: false);
             m_ActiveMarkerIndex = (int)newDivineIntervention;
-            m_Markers[m_ActiveMarkerIndex].SetActive(true);
+            SetCurrentMarker(isActive: true);
         }
+
+        /// <summary>
+        /// Activates or deactivates the current marker.
+        /// </summary>
+        /// <param name="isActive">True if the marker should be activated, false otherwise.</param>
+        private void SetCurrentMarker(bool isActive) => m_Markers[m_ActiveMarkerIndex].SetActive(isActive);
 
         #endregion
 
@@ -317,9 +330,12 @@ namespace Populous
         /// Toggles the Query Mode from on to off and vice versa, and passes that state to the server.
         /// </summary>
         public void SetQueryMode(bool isActive) 
-        { 
+        {
+            if (m_IsArmageddonActive) return;
+
             m_IsQueryModeActive = isActive;
             GameUI.Instance.SetQueryIcon(m_IsQueryModeActive);
+            SetCurrentMarker(isActive: !m_IsQueryModeActive);
         }
 
         #endregion
@@ -349,7 +365,7 @@ namespace Populous
             switch (m_ActiveDivineIntervention)
             {
                 case DivineIntervention.MOLD_TERRAIN:
-                    if (m_NearestPoint.Value.IsAtMaxHeight()/* || CameraDetectionZone.Instance.VisibleObjectsAmount <= 0*/) return;
+                    if (m_NearestPoint.Value.IsAtMaxHeight() || CameraDetectionZone.Instance.VisibleObjectsAmount <= 0) return;
                     DivineInterventionController.Instance.MoldTerrain_ServerRpc(m_NearestPoint.Value, lower: false);
                     break;
 
@@ -380,10 +396,10 @@ namespace Populous
         /// </summary>
         /// <param name="context">Details about the input action which triggered this event.</param>
         public void OnRightClick(InputAction.CallbackContext context)
-        {            
-            if (!context.performed || GameUI.Instance.IsPointerOnUI || !CanUseActions || m_ActiveDivineIntervention != DivineIntervention.MOLD_TERRAIN ||
-                !m_NearestPoint.HasValue || CameraDetectionZone.Instance.VisibleObjectsAmount <= 0 || 
-                m_NearestPoint.Value.GetHeight() <= Terrain.Instance.WaterLevel)
+        {
+            if (!context.performed || GameUI.Instance.IsPointerOnUI || !CanUseActions || 
+                m_ActiveDivineIntervention != DivineIntervention.MOLD_TERRAIN || !m_NearestPoint.HasValue || 
+                CameraDetectionZone.Instance.VisibleObjectsAmount <= 0 || m_NearestPoint.Value.GetHeight() <= Terrain.Instance.WaterLevel)
                 return;
 
             DivineInterventionController.Instance.MoldTerrain_ServerRpc(m_NearestPoint.Value, lower: true);

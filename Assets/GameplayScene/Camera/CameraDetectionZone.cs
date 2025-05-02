@@ -22,7 +22,7 @@ namespace Populous
         /// <summary>
         /// The instance IDs of the objects of the player's faction that are in the camera's field of view.
         /// </summary>
-        private readonly HashSet<ulong> m_VisibleFactionObjectIds = new() { 1 };
+        private readonly HashSet<ulong> m_VisibleFactionObjectIds = new();
         /// <summary>
         /// The number of objects of the player's faction that are in the camera's field of view.
         /// </summary>

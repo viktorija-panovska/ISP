@@ -446,6 +446,8 @@ namespace Populous
         /// <returns>The <c>Unit</c> if it is created, null otherwise.</returns>
         public Unit ReleaseUnit(TerrainPoint location, int strength)
         {
+            if (m_FollowersInSettlement == 0) return null;
+
             RemoveFollowers(strength, updateFactionFollowers: false);
 
             Unit unit = UnitManager.Instance.SpawnUnit(
@@ -454,7 +456,7 @@ namespace Populous
                 type: m_ContainsLeader ? UnitType.LEADER : UnitType.WALKER,
                 strength: strength,
                 origin: this
-            ).GetComponent<Unit>();
+            );
 
             return unit;
         }

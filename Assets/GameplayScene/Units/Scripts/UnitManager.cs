@@ -210,7 +210,7 @@ namespace Populous
         /// <param name="strength">The initial number of followers in the unit, 1 by default.</param>
         /// <param name="origin">The settlement the unit was created by, null for the starting units.</param>
         /// <returns>The <c>GameObject</c> of the newly spawned unit.</returns>
-        public GameObject SpawnUnit(TerrainPoint location, Faction faction, UnitType type = UnitType.WALKER, int strength = 1, Settlement origin = null)
+        public Unit SpawnUnit(TerrainPoint location, Faction faction, UnitType type = UnitType.WALKER, int strength = 1, Settlement origin = null)
         {
             if (!IsHost || strength == 0) return null;
 
@@ -234,7 +234,7 @@ namespace Populous
             if (type == UnitType.KNIGHT)
                 SetKnight(faction, unit);
 
-            return unitObject;
+            return unit;
         }
 
         /// <summary>

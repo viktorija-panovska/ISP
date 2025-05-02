@@ -831,7 +831,10 @@ namespace Populous
         private void OnFreeTileReached()
         {
             SwitchMoveState(MoveState.STOP);
-            StructureManager.Instance.CreateSettlement(m_TargetTile.Value, m_Unit.Faction);
+            
+            if (m_TargetTile.HasValue && m_TargetTile.Value.IsFree())
+                StructureManager.Instance.CreateSettlement(m_TargetTile.Value, m_Unit.Faction);
+
             SetFreeRoam();
         }
 

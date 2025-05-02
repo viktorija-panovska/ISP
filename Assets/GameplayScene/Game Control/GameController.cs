@@ -100,7 +100,13 @@ namespace Populous
 
             UnitManager.Instance.SpawnStartingUnits();
 
-            // set camera to leader positions
+            for (int i = 0; i < m_Leaders.Length; ++i)
+            {
+                SetCameraLookPosition_ClientRpc(
+                    m_Leaders[i].GameObject.transform.position,
+                    GameUtils.GetClientParams(GameData.Instance.GetNetworkIdByFaction(i))
+                );
+            }
         }
 
         #endregion
@@ -143,7 +149,6 @@ namespace Populous
         [ClientRpc]
         public void RemoveVisibleObject_ClientRpc(ulong objectId, ClientRpcParams clientParams = default)
             => CameraDetectionZone.Instance.RemoveVisibleObject(objectId);
-
 
         /// <summary>
         /// Sets the position of the follow target, and thus sets the point where the camera is looking.
@@ -218,6 +223,7 @@ namespace Populous
         }
 
         #endregion
+
 
         #region Unit Magnets
 
