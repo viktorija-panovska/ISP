@@ -515,7 +515,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f5c568a1629dc274488413d543dc4afb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_SecondsUntilEnteringEnabled: 0.5
+  m_SecondsUntilEnteringEnabled: 1
   m_LeaderSigns:
   - {fileID: 3319941856513379266}
   - {fileID: 6475190841780479472}

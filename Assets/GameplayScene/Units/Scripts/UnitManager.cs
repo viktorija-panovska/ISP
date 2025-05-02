@@ -63,19 +63,19 @@ namespace Populous
         [Tooltip("The GameObject that should be created when a unit is spawned.")]
         [SerializeField] private GameObject m_UnitPrefab;
         [Tooltip("The maximum number of followers for each faction.")]
-        [SerializeField] private int m_MaxFollowers = 100;
-        [Tooltip("The number of unit steps after which the unit loses one follower.")]
-        [SerializeField] private int m_UnitDecayRate = 20;
+        [SerializeField] private int m_MaxUnits = 50;
+        [Tooltip("The number of unit steps after which the unit loses one strength.")]
+        [SerializeField] private int m_UnitDecayRate = 15;
         [Tooltip("The number of seconds between each time the units in a fight deal damage to each other.")]
-        [SerializeField] private float m_FightWaitDuration = 5f;
+        [SerializeField] private float m_FightWaitDuration = 0.5f;
         [Tooltip("The amount of manna lost when a leader dies.")]
         [SerializeField] private int m_LeaderDeathMannaLoss = 10;
 
         [Header("Starting Units")]
         [Tooltip("The number of units each faction has at the start of the match.")]
-        [SerializeField] private int m_StartingUnits = 15;
+        [SerializeField] private int m_StartingUnits = 5;
         [Tooltip("The amount of followers in each of the starting units.")]
-        [SerializeField] private int m_StartingUnitStrength = 1;
+        [SerializeField] private int m_StartingUnitStrength = 2;
 
         [Header("UI")]
         [Tooltip("The scale of the unit icons on the minimap.")]
@@ -95,9 +95,9 @@ namespace Populous
         public static UnitManager Instance { get => m_Instance; }
 
         /// <summary>
-        /// Gets the maximum number of followers a faction can have.
+        /// Gets the maximum number of units a faction can have.
         /// </summary>
-        public int MaxFollowers { get => m_MaxFollowers; }
+        public int MaxUnits { get => m_MaxUnits; }
         /// <summary>
         /// Gets the number of steps after which a unit loses one follower.
         /// </summary>
@@ -108,10 +108,10 @@ namespace Populous
         public int StartingUnits { get => m_StartingUnits; }
 
         /// <summary>
-        /// An array storing the number of followers in each faction.
+        /// An array storing the number of units in each faction.
         /// </summary>
         /// <remarks>The index of the list in the array corresponds to the value of the faction in the <c>Faction</c> enum.</remarks>
-        private readonly int[] m_Followers = new int[2];
+        private readonly int[] m_Units = new int[2];
 
         /// <summary>
         /// An array storing the active unit behavior for each faction.
@@ -212,7 +212,7 @@ namespace Populous
         /// <returns>The <c>GameObject</c> of the newly spawned unit.</returns>
         public Unit SpawnUnit(TerrainPoint location, Faction faction, UnitType type = UnitType.WALKER, int strength = 1, Settlement origin = null)
         {
-            if (!IsHost || strength == 0) return null;
+            if (!IsHost || IsFactionFull(faction) || strength == 0) return null;
 
             if (m_UnitPrefab.GetComponent<Renderer>())
                 m_UnitPrefab.GetComponent<Renderer>().enabled = false;
@@ -233,6 +233,8 @@ namespace Populous
 
             if (type == UnitType.KNIGHT)
                 SetKnight(faction, unit);
+
+            AddUnit(faction);
 
             return unit;
         }
@@ -272,6 +274,9 @@ namespace Populous
             if (unit.Type == UnitType.KNIGHT)
                 RemoveKnight(unit.Faction, unit);
 
+            if (hasDied)
+                RemoveUnit(unit.Faction);
+
             unit.GetComponent<NetworkObject>().Despawn();
             Destroy(unit.gameObject);
         }
@@ -289,11 +294,8 @@ namespace Populous
             ResetGridSteps(Faction.RED);
             ResetGridSteps(Faction.BLUE);
 
-            if (m_StartingUnits * m_StartingUnitStrength > m_MaxFollowers)
-                m_StartingUnitStrength = 1;
-
-            if (m_StartingUnits > m_MaxFollowers)
-                m_StartingUnits = m_MaxFollowers;
+            if (m_StartingUnits > m_MaxUnits)
+                m_StartingUnits = m_MaxUnits;
 
             Random random = new(!GameData.Instance ? 0 : GameData.Instance.GameSeed);
 
@@ -344,9 +346,6 @@ namespace Populous
                     spawned++;
                 }
             }
-
-            AddFollowers(Faction.RED, m_StartingUnits * m_StartingUnitStrength);
-            AddFollowers(Faction.BLUE, m_StartingUnits * m_StartingUnitStrength);
         }
 
         /// <summary>
@@ -380,61 +379,64 @@ namespace Populous
         #endregion
 
 
-        #region Followers
-
-        public int GetFactionSize(Faction faction) => m_Followers[(int)faction];
+        #region Faction Size
 
         /// <summary>
-        /// Checks whether the given faction has reached the maximum number of followers.
+        /// Get the number of units in the given faction.
         /// </summary>
-        /// <param name="faction">The <c>Faction</c> whose population should be checked.</param>
+        /// <param name="faction">The <c>Faction</c> whose units should be returned.</param>
+        /// <returns></returns>
+        public int GetFactionSize(Faction faction) => m_Units[(int)faction];
+
+        /// <summary>
+        /// Checks whether the given faction has reached the maximum number of units.
+        /// </summary>
+        /// <param name="faction">The <c>Faction</c> whose units should be checked.</param>
         /// <returns>True if the faction is full, false otherwise.</returns>
-        public bool IsFactionFull(Faction faction) => GetFactionSize(faction) == m_MaxFollowers;
+        public bool IsFactionFull(Faction faction) => GetFactionSize(faction) == m_MaxUnits;
 
         /// <summary>
-        /// Adds the given amount of followers to the given faction.
+        /// Adds a unit to the unit count of the given faction.
         /// </summary>
-        /// <param name="faction">The <c>Faction</c> the followers should be added to.</param>
-        /// <param name="amount">The amount of followers that should be added.</param>
-        public void AddFollowers(Faction faction, int amount = 1)
+        /// <param name="faction">The <c>Faction</c> the unit should be added to.</param>
+        public void AddUnit(Faction faction)
         {
-            amount = Mathf.Clamp(m_Followers[(int)faction] + amount, 0, m_MaxFollowers);
-            SetFollowers(faction, amount);
-            DivineInterventionController.Instance.AddManna(faction, amount);
+            SetUnitNumber(faction, m_Units[(int)faction] + 1);
+            DivineInterventionController.Instance.AddManna(faction);
         }
 
         /// <summary>
-        /// Removes the given amount of followers from the given faction.
+        /// Removes a unit from the given faction.
         /// </summary>
-        /// <param name="faction">The <c>Faction</c> the followers should be removed from.</param>
-        /// <param name="amount">The amount of followers that should be removed.</param>
-        public void RemoveFollowers(Faction faction, int amount = 1)
-            => SetFollowers(faction, Mathf.Clamp(m_Followers[(int)faction] - amount, 0, m_MaxFollowers));
+        /// <param name="faction">The <c>Faction</c> the unit should be removed from.</param>
+        public void RemoveUnit(Faction faction) => SetUnitNumber(faction, m_Units[(int)faction] - 1);
 
         /// <summary>
-        /// Sets the number of followers of the given faction to the given amount.
+        /// Sets the number of units of the given faction to the given amount.
         /// </summary>
-        /// <param name="faction">The <c>Faction</c> whose number of followers should be set.</param>
-        /// <param name="amount">The amount of followers the given faction should have.</param>
-        private void SetFollowers(Faction faction, int amount)
+        /// <param name="faction">The <c>Faction</c> whose number of units should be set.</param>
+        /// <param name="amount">The amount of units the given faction should have.</param>
+        private void SetUnitNumber(Faction faction, int amount)
         {
-            if (amount == m_Followers[(int)faction]) return;
+            int factionIndex = (int)faction;
 
-            m_Followers[(int)faction] = amount;
+            if (amount == m_Units[factionIndex]) return;
 
-            UpdateFollowersUI_ClientRpc(faction, amount);
+            m_Units[factionIndex] = amount;
 
-            if (m_Followers[(int)faction] == 0)
+            UpdateUnitsUI_ClientRpc(faction, amount);
+
+            if (m_Units[factionIndex] == 0)
                 GameController.Instance.EndGame_ClientRpc(winner: faction == Faction.RED ? Faction.BLUE : Faction.RED);
         }
 
         /// <summary>
-        /// Updates the display of the follower numbers shown on the UI of both players.
+        /// Updates the display of the unit numbers shown on the UI of both players.
         /// </summary>
-        /// <param name="faction">The <c>Faction</c> whose followers should be updated.</param>
-        /// <param name="currentFollowers">The current amount of followers of the faction.</param>
+        /// <param name="faction">The <c>Faction</c> whose unit number should be updated.</param>
+        /// <param name="currentFollowers">The current amount of units of the faction.</param>
         [ClientRpc]
-        public void UpdateFollowersUI_ClientRpc(Faction faction, int currentFollowers)
+        public void UpdateUnitsUI_ClientRpc(Faction faction, int currentFollowers)
             => GameUI.Instance.UpdatePopulationBar(faction, currentFollowers);
 
         #endregion

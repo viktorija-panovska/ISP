@@ -13,6 +13,5 @@ MonoBehaviour:
   m_Name: City
   m_EditorClassIdentifier: 
   m_Type: 9
-  m_Capacity: 20
-  m_FillRate: 2
+  m_Capacity: 120
   m_UnitStrength: 10

@@ -13,6 +13,5 @@ MonoBehaviour:
   m_Name: RockHut
   m_EditorClassIdentifier: 
   m_Type: 3
-  m_Capacity: 8
-  m_FillRate: 8
+  m_Capacity: 48
   m_UnitStrength: 4

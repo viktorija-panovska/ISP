@@ -325,9 +325,6 @@ namespace Populous
         {
             settlement.OnSettlementFactionChanged?.Invoke(Faction.NONE);  // burns down the fields
 
-            // burning the settlement kills everyone inside
-            UnitManager.Instance.RemoveFollowers(settlement.Faction, settlement.FollowersInSettlement);
-
             // if the settlement contained the leader, then kill the leader
             if (settlement.ContainsLeader)
             {
@@ -351,7 +348,6 @@ namespace Populous
             if (faction == settlement.Faction || faction == Faction.NONE) return;
 
             RemoveSettlementPosition(settlement.transform.position, settlement.Faction);
-            UnitManager.Instance.RemoveFollowers(settlement.Faction, settlement.FollowersInSettlement);
 
             // if the settlement contained the leader, then kill the leader
             if (settlement.ContainsLeader)
@@ -371,7 +367,6 @@ namespace Populous
 
             UpdateNearbySettlements(settlement.OccupiedTile);
             AddSettlementPosition(settlement.transform.position, faction);
-            UnitManager.Instance.AddFollowers(settlement.Faction, settlement.FollowersInSettlement);
 
             if (settlement.IsInspected)
                 QueryModeController.Instance.UpdateInspectedSettlement(settlement, updateFaction: true);

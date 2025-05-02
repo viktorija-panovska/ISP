@@ -64,9 +64,14 @@ namespace Populous
 
         [SerializeField] private int m_Capacity;
         /// <summary>
-        /// The number of followers the settlement can hold.
+        /// After how many seconds a new follower is added to a settlement.
         /// </summary>
-        /// <remarks>More advanced settlements have a greater capacity.</remarks>
         public int Capacity { get => m_Capacity; }
+
+        [SerializeField] private int m_UnitStrength;
+        /// <summary>
+        /// The strength of the units released from this settlement.
+        /// </summary>
+        public int UnitStrength { get => m_UnitStrength; }
     }
 }

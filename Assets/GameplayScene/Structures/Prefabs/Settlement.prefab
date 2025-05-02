@@ -228,8 +228,7 @@ MonoBehaviour:
   m_UnitDetector: {fileID: 4356391194417125182}
   m_Highlight: {fileID: 7324521799696845122}
   m_MinimapIcon: {fileID: 2475679208892404697}
-  m_PercentFollowersReleased: 0.5
-  m_FillRate: 0
+  m_FillRate: 2
   m_SettlementObjects:
   - {fileID: 2145721895016335166}
   - {fileID: 9175907684013792421}

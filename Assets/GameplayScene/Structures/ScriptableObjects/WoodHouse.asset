@@ -13,6 +13,5 @@ MonoBehaviour:
   m_Name: WoodHouse
   m_EditorClassIdentifier: 
   m_Type: 4
-  m_Capacity: 10
-  m_FillRate: 7
+  m_Capacity: 60
   m_UnitStrength: 5

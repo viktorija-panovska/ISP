@@ -267,9 +267,9 @@ namespace Populous
         /// <returns>The network ID of the player.</returns>
         public ulong GetNetworkIdByFaction(int factionIndex)
         {
-           //return (ulong)factionIndex;
+            return (ulong)factionIndex;
 
-           return m_NetworkIdForFaction[factionIndex];
+            //return m_NetworkIdForFaction[factionIndex];
         }
 
         #endregion

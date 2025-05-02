@@ -367,9 +367,6 @@ namespace Populous
         { 
             m_Strength -= amount;
 
-            if (isDamaged)
-                UnitManager.Instance.RemoveFollowers(m_Faction, amount);
-
             if (IsInspected && !IsInFight)
                 QueryModeController.Instance.UpdateInspectedUnit(this, updateStrength: true);
 

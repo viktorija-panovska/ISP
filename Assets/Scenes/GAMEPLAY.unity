@@ -185,7 +185,7 @@ Camera:
   far clip plane: 5000
   field of view: 60
   orthographic: 1
-  orthographic size: 500
+  orthographic size: 300
   m_Depth: 0
   m_CullingMask:
     serializedVersion: 2
@@ -2363,12 +2363,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_UnitPrefab: {fileID: 4803634603491590232, guid: fb550bad1c970ed4c9b4ceb3be5cb1b5, type: 3}
-  m_MaxFollowers: 1000
-  m_UnitDecayRate: 20
-  m_FightWaitDuration: 1
+  m_MaxUnits: 50
+  m_UnitDecayRate: 15
+  m_FightWaitDuration: 0.5
   m_LeaderDeathMannaLoss: 10
-  m_StartingUnits: 1000
-  m_StartingUnitStrength: 1
+  m_StartingUnits: 5
+  m_StartingUnitStrength: 2
   m_MinimapIconScale: 30
   m_MinimapUnitColors:
   - {r: 1, g: 0, b: 0, a: 1}
@@ -2456,7 +2456,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_TerrainMaterial: {fileID: 2100000, guid: 9d6a44b0d4d72774483f5474a1efa3ce, type: 2}
   m_ChunksPerSide: 8
-  m_TilesPerChunkSide: 7
+  m_TilesPerChunkSide: 8
   m_UnitsPerTileSide: 50
   m_StepHeight: 50
   m_MaxHeightSteps: 7
@@ -12164,7 +12164,7 @@ MonoBehaviour:
   m_Follow: {fileID: 1655842788}
   m_Lens:
     FieldOfView: 60
-    OrthographicSize: 500
+    OrthographicSize: 300
     NearClipPlane: -5000
     FarClipPlane: 5000
     Dutch: 0

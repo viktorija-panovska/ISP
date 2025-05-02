@@ -102,21 +102,21 @@ namespace Populous
         private async void Start()
         {
             foreach (var bar in m_PopulationBars)
-                bar.value = (float)UnitManager.Instance.StartingUnits / UnitManager.Instance.MaxFollowers;
+                bar.value = (float)UnitManager.Instance.StartingUnits / UnitManager.Instance.MaxUnits;
 
             UpdateMannaBar(0, 0);
             SetActiveDivineInterventionIcon(DivineIntervention.MOLD_TERRAIN, DivineIntervention.MOLD_TERRAIN);
             SetActiveBehaviorIcon(UnitBehavior.SETTLE, UnitBehavior.SETTLE);
 
-            // TODO: uncomment
-            PlayerInfo? redPlayerInfo = GameData.Instance.GetPlayerInfoByFaction(Faction.RED);
-            PlayerInfo? bluePlayerInfo = GameData.Instance.GetPlayerInfoByFaction(Faction.BLUE);
+            //// TODO: uncomment
+            //PlayerInfo? redPlayerInfo = GameData.Instance.GetPlayerInfoByFaction(Faction.RED);
+            //PlayerInfo? bluePlayerInfo = GameData.Instance.GetPlayerInfoByFaction(Faction.BLUE);
 
-            if (redPlayerInfo.HasValue)
-                m_PlayerAvatars[0].texture = await InterfaceUtils.GetSteamAvatar(redPlayerInfo.Value.SteamId);
+            //if (redPlayerInfo.HasValue)
+            //    m_PlayerAvatars[0].texture = await InterfaceUtils.GetSteamAvatar(redPlayerInfo.Value.SteamId);
 
-            if (bluePlayerInfo.HasValue)
-                m_PlayerAvatars[1].texture = await InterfaceUtils.GetSteamAvatar(bluePlayerInfo.Value.SteamId);
+            //if (bluePlayerInfo.HasValue)
+            //    m_PlayerAvatars[1].texture = await InterfaceUtils.GetSteamAvatar(bluePlayerInfo.Value.SteamId);
         }
 
         #endregion
@@ -142,7 +142,7 @@ namespace Populous
         /// <param name="faction">The <c>Faction</c> whose population bar should be updated.</param>
         /// <param name="currentPopulation">The amount of population the given faction has.</param>
         public void UpdatePopulationBar(Faction faction, int currentPopulation)
-            => m_PopulationBars[(int)faction].value = (float)currentPopulation / UnitManager.Instance.MaxFollowers;
+            => m_PopulationBars[(int)faction].value = (float)currentPopulation / UnitManager.Instance.MaxUnits;
 
         #endregion
 
@@ -367,7 +367,7 @@ namespace Populous
         /// </summary>
         /// <param name="strength">The amount of strength that should be shown.</param>
         public void UpdateUnitStrength(int strength)
-            => m_UnitStrengthSlider.value = (float)strength / UnitManager.Instance.MaxFollowers;
+            => m_UnitStrengthSlider.value = (float)strength / 100;
 
 
         /// <summary>
@@ -409,8 +409,13 @@ namespace Populous
         /// <param name="blueStrength">The strength of the blue unit in the fight.</param>
         public void UpdateFight(int redStrength, int blueStrength)
         {
-            m_RedUnitStrengthBar.value = (float)redStrength / UnitManager.Instance.MaxFollowers;
-            m_BlueUnitStrengthBar.value = (float)blueStrength / UnitManager.Instance.MaxFollowers;
+            int max = Mathf.Max(redStrength, blueStrength);
+
+            m_RedUnitStrengthBar.maxValue = max;
+            m_BlueUnitStrengthBar.maxValue = max;
+
+            m_RedUnitStrengthBar.value = (float)redStrength / max;
+            m_BlueUnitStrengthBar.value = (float)blueStrength / max;
         }
 
         #endregion

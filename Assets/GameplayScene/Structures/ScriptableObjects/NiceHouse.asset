@@ -13,6 +13,5 @@ MonoBehaviour:
   m_Name: NiceHouse
   m_EditorClassIdentifier: 
   m_Type: 6
-  m_Capacity: 14
-  m_FillRate: 5
+  m_Capacity: 84
   m_UnitStrength: 7
