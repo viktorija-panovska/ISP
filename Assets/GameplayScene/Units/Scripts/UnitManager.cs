@@ -402,7 +402,7 @@ namespace Populous
         public void AddUnit(Faction faction)
         {
             SetUnitNumber(faction, m_Units[(int)faction] + 1);
-            DivineInterventionController.Instance.AddManna(faction);
+            DivineInterventionController.Instance.AddManna(faction, 1);
         }
 
         /// <summary>
