@@ -149,7 +149,7 @@ namespace Populous
         /// <summary>
         /// Updates the heights of the points on all four walls.
         /// </summary>
-        public void UpdateAllWalls() => UpdateWallsInArea(new(0, 0), new(Terrain.Instance.TilesPerSide, Terrain.Instance.TilesPerSide))
+        public void UpdateAllWalls() => UpdateWallsInArea(new(0, 0), new(Terrain.Instance.TilesPerSide, Terrain.Instance.TilesPerSide));
 
         /// <summary>
         /// Updates the heights of the points that fall within the area bordered by the given points.
