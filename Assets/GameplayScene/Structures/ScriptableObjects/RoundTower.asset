@@ -13,5 +13,5 @@ MonoBehaviour:
   m_Name: RoundTower
   m_EditorClassIdentifier: 
   m_Type: 7
-  m_Capacity: 96
+  m_Capacity: 18
   m_UnitStrength: 8

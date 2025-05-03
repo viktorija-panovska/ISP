@@ -88,8 +88,7 @@ namespace Populous
         /// </summary>
         /// <param name="position">The position in the scene the unit magnet should be placed at.</param>
         [ClientRpc]
-        private void SetPosition_ClientRpc(Vector3 position) 
-            => transform.position = position + m_Offset * Vector3.left;
+        private void SetPosition_ClientRpc(Vector3 position) => transform.position = position + m_Offset * Vector3.left;
 
         #endregion
     }

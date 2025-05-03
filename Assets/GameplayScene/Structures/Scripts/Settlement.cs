@@ -335,8 +335,7 @@ namespace Populous
         /// <param name="faction">The <c>Faction</c> whose flag should be activated.</param>
         /// <param name="isOn">True if the flag should be activated, false otherwise.</param>
         [ClientRpc]
-        private void ToggleFlag_ClientRpc(Faction faction, bool isOn)
-            => m_Flags[(int)faction].SetActive(isOn);
+        private void ToggleFlag_ClientRpc(Faction faction, bool isOn) => m_Flags[(int)faction].SetActive(isOn);
 
         /// <summary>
         /// Sets up some <c>GameObject</c> properties for the given settlement.

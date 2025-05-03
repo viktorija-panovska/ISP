@@ -11,7 +11,7 @@ namespace Populous
     public class UnitDirectionDetector : MonoBehaviour
     {
         [Tooltip("The number of tiles per side the collider should cover.")]
-        [SerializeField] private int m_TilesPerSide = 30;
+        [SerializeField] private int m_TilesPerSide = 15;
 
         /// <summary>
         /// The <c>Unit</c> the detector belongs to.

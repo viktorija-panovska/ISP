@@ -13,5 +13,5 @@ MonoBehaviour:
   m_Name: StrawHut
   m_EditorClassIdentifier: 
   m_Type: 2
-  m_Capacity: 36
+  m_Capacity: 8
   m_UnitStrength: 3

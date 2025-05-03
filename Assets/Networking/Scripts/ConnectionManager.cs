@@ -4,6 +4,7 @@ using Steamworks.Data;
 using System.Threading.Tasks;
 using Unity.Netcode;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 
 namespace Populous
@@ -132,7 +133,11 @@ namespace Populous
             base.OnDestroy();
         }
 
-        private void OnApplicationQuit() => Disconnect();
+        private void OnApplicationQuit()
+        {
+            if (SceneManager.GetActiveScene().name == Scene.MAIN_MENU.ToString()) return;
+            Disconnect();
+        }
 
         #endregion
 
@@ -146,6 +151,8 @@ namespace Populous
 
             NetworkManager.Singleton.OnClientConnectedCallback += OnClientConnected;
             NetworkManager.Singleton.OnClientDisconnectCallback += OnClientDisconnect;
+
+            Debug.Log(NetworkManager.Singleton.IsHost);
 
             if (!NetworkManager.Singleton.StartHost())
             {
@@ -309,10 +316,12 @@ namespace Populous
         /// <inheritdoc />
         public void Disconnect()
         {
+            Debug.Log("Disconnect");
             m_CurrentLobby?.Leave();
 
             if (NetworkManager.Singleton == null) return;
 
+            Debug.Log("Clear Network Manager");
             NetworkManager.Singleton.OnClientConnectedCallback -= OnClientConnected;
             NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnect;
 
@@ -321,8 +330,11 @@ namespace Populous
 
             NetworkManager.Singleton.Shutdown(true);
             GameNetworkManager.Instance.Destroy();
+            Destroy(GameData.Instance.gameObject);
 
             SceneLoader.Instance.SwitchToScene_Local(Scene.MAIN_MENU);
+            Destroy(SceneLoader.Instance.gameObject);
+            Destroy(gameObject);
         }
 
         /// <summary>
@@ -351,6 +363,8 @@ namespace Populous
             // The host is being informed that the client has disconnected.
             if (IsHost && networkId != NetworkManager.Singleton.LocalClientId)
             {
+                Debug.Log("Client has disconnected");
+
                 GameData.Instance.RemoveClientInfo();
 
                 if (SceneLoader.Instance.GetHostScene() == Scene.GAMEPLAY)
@@ -359,6 +373,7 @@ namespace Populous
                 return;
             }
 
+            Debug.Log("Disconnect client");
             // The client is being informed that it has been disconnected by the host.
             Disconnect();
         }

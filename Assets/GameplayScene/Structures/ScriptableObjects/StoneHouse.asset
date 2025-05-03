@@ -13,5 +13,5 @@ MonoBehaviour:
   m_Name: StoneHouse
   m_EditorClassIdentifier: 
   m_Type: 5
-  m_Capacity: 72
+  m_Capacity: 14
   m_UnitStrength: 6

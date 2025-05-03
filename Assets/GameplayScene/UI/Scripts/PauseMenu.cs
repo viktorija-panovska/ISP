@@ -26,6 +26,11 @@ namespace Populous
         /// </summary>
         public static PauseMenu Instance { get => m_Instance; }
 
+        /// <summary>
+        /// A reference to the connection manager used to establish the connection between host and client.
+        /// </summary>
+        private IConnectionManager m_ConnectionManager;
+
 
         #region Event Functions
 
@@ -40,7 +45,11 @@ namespace Populous
             m_Instance = this;
         }
 
-        private void Start() => m_GameSeedField.text = GameData.Instance ? GameData.Instance.GameSeed.ToString() : "";
+        private void Start()
+        {
+            m_ConnectionManager = ConnectionManager.Instance;
+            m_GameSeedField.text = GameData.Instance ? GameData.Instance.GameSeed.ToString() : "";
+        }
 
         #endregion
 
@@ -59,6 +68,6 @@ namespace Populous
         /// <summary>
         /// Calls the <see cref="ConnectionManager"/> to disconnect the player from the game.
         /// </summary>
-        public void LeaveGame() => ConnectionManager.Instance.Disconnect();
+        public void LeaveGame() => m_ConnectionManager.Disconnect();
     }
 }

@@ -395,7 +395,7 @@ namespace Populous
             if (m_PathIndex > 0) m_Steps++;
             if (m_Steps == UnitManager.Instance.UnitDecayRate)
             {
-                //m_Unit.LoseStrength(1);
+                m_Unit.LoseStrength(1);
                 m_Steps = 0;
             }
 

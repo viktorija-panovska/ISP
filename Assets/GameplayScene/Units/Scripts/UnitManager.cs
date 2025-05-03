@@ -65,9 +65,11 @@ namespace Populous
         [Tooltip("The maximum number of followers for each faction.")]
         [SerializeField] private int m_MaxUnits = 50;
         [Tooltip("The number of unit steps after which the unit loses one strength.")]
-        [SerializeField] private int m_UnitDecayRate = 15;
+        [SerializeField] private int m_UnitDecayRate = 20;
         [Tooltip("The number of seconds between each time the units in a fight deal damage to each other.")]
         [SerializeField] private float m_FightWaitDuration = 0.5f;
+        [Tooltip("The amount of manna gained when a new unit is spawned.")]
+        [SerializeField] private float m_UnitMannaGain = 1f;
         [Tooltip("The amount of manna lost when a leader dies.")]
         [SerializeField] private int m_LeaderDeathMannaLoss = 10;
 
@@ -402,7 +404,7 @@ namespace Populous
         public void AddUnit(Faction faction)
         {
             SetUnitNumber(faction, m_Units[(int)faction] + 1);
-            DivineInterventionController.Instance.AddManna(faction, 1);
+            DivineInterventionController.Instance.AddManna(faction, m_UnitMannaGain);
         }
 
         /// <summary>

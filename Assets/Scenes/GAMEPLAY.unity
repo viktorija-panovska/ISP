@@ -2323,7 +2323,7 @@ MonoBehaviour:
   m_UnitDecayRate: 15
   m_FightWaitDuration: 0.5
   m_LeaderDeathMannaLoss: 10
-  m_StartingUnits: 64
+  m_StartingUnits: 5
   m_StartingUnitStrength: 2
   m_MinimapIconScale: 30
   m_MinimapUnitColors:
@@ -3835,17 +3835,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 787503fdec2555447b7a8d877780c9d5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_MaxManna: 100
-  m_ActivationPercent:
-  - 0
-  - 0
-  - 0
-  - 0
-  - 0
-  - 0
-  - 0
-  - 0
-  m_MannaCost: 0000000000000000000000000000000000000000000000000000000000000000
+  m_MaxManna: 64
+  m_ActivationThreshold: 0000000008000000100000001800000020000000280000003000000038000000
+  m_MannaCost: 0000000001000000080000001000000018000000200000002800000038000000
   m_EarthquakeRadius: 8
   m_SwampRadius: 8
   m_VolcanoRadius: 8
