@@ -104,19 +104,17 @@ namespace Populous
             foreach (var bar in m_PopulationBars)
                 bar.value = (float)UnitManager.Instance.StartingUnits / UnitManager.Instance.MaxUnits;
 
-            UpdateMannaBar(0, 0);
             SetActiveDivineInterventionIcon(DivineIntervention.MOLD_TERRAIN, DivineIntervention.MOLD_TERRAIN);
             SetActiveBehaviorIcon(UnitBehavior.SETTLE, UnitBehavior.SETTLE);
 
-            //// TODO: uncomment
-            //PlayerInfo? redPlayerInfo = GameData.Instance.GetPlayerInfoByFaction(Faction.RED);
-            //PlayerInfo? bluePlayerInfo = GameData.Instance.GetPlayerInfoByFaction(Faction.BLUE);
+            PlayerInfo? redPlayerInfo = GameData.Instance.GetPlayerInfoByFaction(Faction.RED);
+            PlayerInfo? bluePlayerInfo = GameData.Instance.GetPlayerInfoByFaction(Faction.BLUE);
 
-            //if (redPlayerInfo.HasValue)
-            //    m_PlayerAvatars[0].texture = await InterfaceUtils.GetSteamAvatar(redPlayerInfo.Value.SteamId);
+            if (redPlayerInfo.HasValue)
+                m_PlayerAvatars[0].texture = await InterfaceUtils.GetSteamAvatar(redPlayerInfo.Value.SteamId);
 
-            //if (bluePlayerInfo.HasValue)
-            //    m_PlayerAvatars[1].texture = await InterfaceUtils.GetSteamAvatar(bluePlayerInfo.Value.SteamId);
+            if (bluePlayerInfo.HasValue)
+                m_PlayerAvatars[1].texture = await InterfaceUtils.GetSteamAvatar(bluePlayerInfo.Value.SteamId);
         }
 
         #endregion
@@ -163,7 +161,7 @@ namespace Populous
         #endregion
 
 
-        #region Snap To Icons
+        #region "Snap To" Icons
 
         /// <summary>
         /// Flashes the icon green, making it look as if it has been clicked.
@@ -190,9 +188,9 @@ namespace Populous
         /// </summary>
         /// <param name="currentManna">The current amount of manna.</param>
         /// <param name="activeDivineIntervention">The number of Divine Interventions that are available to the player, in order.</param>
-        public void UpdateMannaBar(int currentManna, int activeDivineIntervention) 
+        public void UpdateMannaBar(float currentManna, int activeDivineIntervention) 
         {
-            m_MannaBar.value = (float)currentManna / DivineInterventionController.Instance.MaxManna;
+            m_MannaBar.value = currentManna / DivineInterventionController.Instance.MaxManna;
 
             for (int i = 0; i < m_DivineInterventionIcons.Length; ++i)
                 m_DivineInterventionIcons[i].interactable = i <= activeDivineIntervention;

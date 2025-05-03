@@ -200,7 +200,9 @@ namespace Populous
         /// </summary>
         public void RemoveClientInfo()
         {
+            // just the host is there
             if (m_PlayersInfo.Count <= CLIENT_PLAYER_INDEX) return;
+
             m_NetworkIdForFaction[CLIENT_PLAYER_INDEX] = ulong.MaxValue;
             m_PlayersInfo.RemoveAt(CLIENT_PLAYER_INDEX);
         }
@@ -239,6 +241,20 @@ namespace Populous
             => m_PlayersInfo.Count <= CLIENT_PLAYER_INDEX ? null : m_PlayersInfo[CLIENT_PLAYER_INDEX];
 
         /// <summary>
+        /// Gets the player info of the player with the given network ID.
+        /// </summary>
+        /// <param name="networkId">The network ID of the player.</param>
+        /// <returns>The <c>PlayerInfo</c> of the player, null if it doesn't exist.</returns>
+        public PlayerInfo? GetPlayerInfoByNetworkId(ulong networkId)
+        {
+            for (int i = 0; i < m_PlayersInfo.Count; ++i)
+                if (m_PlayersInfo[i].NetworkId == networkId)
+                    return m_PlayersInfo[i];
+
+            return null;
+        }
+
+        /// <summary>
         /// Gets the player info of the player controlling the given faction.
         /// </summary>
         /// <param name="faction">The <c>Faction</c> of the player.</param>
@@ -265,12 +281,7 @@ namespace Populous
         /// <param name="factionIndex">The "faction index" corresponds to the value of the faction in the <c>Faction</c> enum:
         /// 0 for the Red faction and 1 for the Blue faction.</param>
         /// <returns>The network ID of the player.</returns>
-        public ulong GetNetworkIdByFaction(int factionIndex)
-        {
-            return (ulong)factionIndex;
-
-            //return m_NetworkIdForFaction[factionIndex];
-        }
+        public ulong GetNetworkIdByFaction(int factionIndex) => m_NetworkIdForFaction[factionIndex];
 
         #endregion
     }

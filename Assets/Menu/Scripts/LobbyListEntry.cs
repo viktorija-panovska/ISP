@@ -65,24 +65,6 @@ namespace Populous
             m_DeselectedColor = m_Background.color;
         }
 
-        // TODO: Delete before final
-        /// <summary>
-        /// Setup this lobby entry with the given lobby name and password, but no associated lobby.
-        /// </summary>
-        /// <remarks>THIS IS FOR TEST PURPOSES ONLY.</remarks>
-        /// <param name="lobbyName">The name of the lobby.</param>
-        /// <param name="hasPassword">True if the lobby has a password, false otherwise.</param>
-        public void SetupEmptyLobby(string lobbyName)
-        {
-            m_Lobby = new();
-            m_LobbyName = lobbyName;
-
-            m_LobbyNameField.text = m_LobbyName;
-            m_OwnerNameField.text = "";
-
-            m_DeselectedColor = m_Background.color;
-        }
-
 
         #region Entry Selection
 

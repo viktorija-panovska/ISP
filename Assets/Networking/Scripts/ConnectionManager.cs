@@ -50,7 +50,7 @@ namespace Populous
 
 
     /// <summary>
-    /// The <c>ConnectionManager</c> class handles the connection and disconnection of the players over the network.
+    /// The <c>ConnectionManager</c> class handles the connection and disconnection of the players over Steam.
     /// </summary>
     public class ConnectionManager : NetworkBehaviour, IConnectionManager
     {

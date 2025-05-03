@@ -16,9 +16,6 @@ namespace Populous
     {
         #region Inspector Fields
 
-        [Tooltip("Set to true if testing the game on a local network")]
-        [SerializeField] private bool m_IsTestingLocal;
-
         [Header("Screens")]
         [Tooltip("The GameObject representing the main screen, where the player selects whether to host or join a game.")]
         [SerializeField] private GameObject m_MainScreen;
@@ -89,7 +86,7 @@ namespace Populous
             m_CurrentScreen = m_MainScreen;
             m_LobbyEntryList = new();
 
-            m_ConnectionManager = m_IsTestingLocal ? LocalConnectionManager.Instance : ConnectionManager.Instance;
+            m_ConnectionManager = ConnectionManager.Instance;
         }
 
         #endregion
@@ -170,6 +167,9 @@ namespace Populous
             m_GameSeedInputField.text = "";
         }
 
+        /// <summary>
+        /// Displays an error message to the screen telling the player that the host has failed.
+        /// </summary>
         public void ShowHostErrorMessage()
             => m_HostErrorMessage.DOFade(1, 0.2f).OnComplete(() => m_HostErrorMessage.DOFade(0, 0.2f).SetDelay(2));
 
@@ -193,20 +193,6 @@ namespace Populous
 
             m_SelectedLobbyEntry = null;
             m_LobbyEntryList = new();
-
-            // TODO: Delete before final
-            // local connection doesn't have a server to get lobbies from
-            // so just create a dummy lobby to fill the list
-            if (m_ConnectionManager.GetType() == typeof(LocalConnectionManager))
-            {
-                LobbyListEntry lobbyEntry = Instantiate(m_LobbyEntryPrefab).GetComponent<LobbyListEntry>();
-                lobbyEntry.SetupEmptyLobby("TEST LOBBY");
-                lobbyEntry.transform.SetParent(m_LobbyListContent);
-                lobbyEntry.transform.localScale = Vector3.one;
-
-                m_LobbyEntryList.Add(lobbyEntry);
-                return;
-            }
 
             Lobby[] lobbies = await m_ConnectionManager.GetActiveLobbies();
 
@@ -242,6 +228,9 @@ namespace Populous
         /// </summary>
         public void JoinLobby() => m_ConnectionManager.JoinGame(m_SelectedLobbyEntry.Lobby);
 
+        /// <summary>
+        /// Displays an error message to the screen telling the player that joining the lobby has failed.
+        /// </summary>
         public void ShowJoinErrorMessage()
             => m_JoinErrorMessage.DOFade(1, 0.2f).OnComplete(() => m_JoinErrorMessage.DOFade(0, 0.2f).SetDelay(2));
 

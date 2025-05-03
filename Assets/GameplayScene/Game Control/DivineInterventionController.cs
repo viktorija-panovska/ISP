@@ -58,21 +58,21 @@ namespace Populous
 
         [Header("Manna")]
         [Tooltip("The maximum amount of manna a player can have.")]
-        [SerializeField] private int m_MaxManna = 100;
-        [Tooltip("The percentage of manna that is required to be full in order to have access to a Divine Intervention." +
+        [SerializeField] private int m_MaxManna = 64;
+        [Tooltip("The amount of manna that is required to be full in order to have access to a Divine Intervention." +
             "The value for a Divine Intervention is at the index equal to the value of the Divine Intervention in the DivineIntervention enum.")]
-        [SerializeField] private float[] m_ActivationPercent = new float[Enum.GetNames(typeof(DivineIntervention)).Length];
+        [SerializeField] private int[] m_ActivationThreshold = new int[Enum.GetNames(typeof(DivineIntervention)).Length];
         [Tooltip("The amount of manna spent for using a Divine Intervention." +
             "The value for a Divine Intervention is at the index equal to the value of the Divine Intervention in the DivineIntervention enum.")]
         [SerializeField] private int[] m_MannaCost = new int[Enum.GetNames(typeof(DivineIntervention)).Length];
 
         [Header("Divine Interventions")]
         [Tooltip("Half the number of tiles on one side of the square area of effect of the Earthquake.")]
-        [SerializeField] private int m_EarthquakeRadius = 3;
+        [SerializeField] private int m_EarthquakeRadius = 8;
         [Tooltip("Half the number of tiles on one side of the square area of effect of the Swamp.")]
-        [SerializeField] private int m_SwampRadius = 3;
+        [SerializeField] private int m_SwampRadius = 8;
         [Tooltip("Half the number of tiles on one side of the square area of effect of the Volcano.")]
-        [SerializeField] private int m_VolcanoRadius = 3;
+        [SerializeField] private int m_VolcanoRadius = 8;
 
         #endregion
 
@@ -93,7 +93,7 @@ namespace Populous
         /// An array of the amount of manna each faction has.
         /// </summary>
         /// <remarks>The manna at each index is the manna of the faction with that value in the <c>Faction</c> enum.</remarks>
-        private readonly int[] m_Manna = new int[2];
+        private readonly float[] m_Manna = new float[2];
 
 
         private bool m_IsArmageddon;
@@ -149,6 +149,15 @@ namespace Populous
             m_Instance = this;
         }
 
+        private void Start()
+        {
+            if (!IsHost) return;
+
+            // set manna to include divine interventions up to an including knight
+            SetManna(Faction.RED, m_ActivationThreshold[(int)DivineIntervention.KNIGHT] - 1);
+            SetManna(Faction.BLUE, m_ActivationThreshold[(int)DivineIntervention.KNIGHT] - 1);
+        }
+
 
         #region Manna
 
@@ -157,30 +166,30 @@ namespace Populous
         /// </summary>
         /// <param name="faction">The <c>Faction</c> manna should be added to.</param>
         /// <param name="amount">The amount of manna to be added.</param>
-        public void AddManna(Faction faction, int amount = 1) => SetManna(faction, Mathf.Clamp(m_Manna[(int)faction] + amount, 0, m_MaxManna));
+        public void AddManna(Faction faction, float amount) => SetManna(faction, Mathf.Clamp(m_Manna[(int)faction] + amount, 0, m_MaxManna));
 
         /// <summary>
         /// Removes manna from the given faction.
         /// </summary>
         /// <param name="faction">The <c>Faction</c> manna should be removed from.</param>
         /// <param name="amount">The amount of manna to be removed.</param>
-        public void RemoveManna(Faction faction, int amount = 1) => SetManna(faction, Mathf.Clamp(m_Manna[(int)faction] - amount, 0, m_MaxManna));
+        public void RemoveManna(Faction faction, float amount) => SetManna(faction, Mathf.Clamp(m_Manna[(int)faction] - amount, 0, m_MaxManna));
 
         /// <summary>
         /// Sets the manna of the given faction to the given amount.
         /// </summary>
         /// <param name="faction">The <c>Faction</c> whose manna should be set.</param>
         /// <param name="amount">The amount of manna the given faction should have.</param>
-        private void SetManna(Faction faction, int amount)
+        private void SetManna(Faction faction, float amount)
         {
             if (amount == m_Manna[(int)faction]) return;
 
             m_Manna[(int)faction] = amount;
 
             int activeInterventions = -1;
-            foreach (float threshold in m_ActivationPercent)
+            foreach (float threshold in m_ActivationThreshold)
             {
-                if (amount < threshold * m_MaxManna) break;
+                if (amount < threshold) break;
                 activeInterventions++;
             }
 
@@ -198,7 +207,7 @@ namespace Populous
         /// <param name="activeInterventions">The number of active Divine Interventions the player has.</param>
         /// <param name="clientParams">RPC parameters for the client RPC.</param>
         [ClientRpc]
-        private void UpdateMannaUI_ClientRpc(int manna, int activeInterventions, ClientRpcParams clientParams = default)
+        private void UpdateMannaUI_ClientRpc(float manna, int activeInterventions, ClientRpcParams clientParams = default)
             => GameUI.Instance.UpdateMannaBar(manna, activeInterventions);
 
         /// <summary>
@@ -211,10 +220,10 @@ namespace Populous
         {
             bool activated = true;
 
-            //if (m_Manna[(int)faction] < m_ActivationPercent[(int)divineIntervention] * m_MaxManna ||
-            //    (divineIntervention == DivineIntervention.KNIGHT && !GameController.Instance.HasLeader(faction)) ||
-            //    (divineIntervention == DivineIntervention.FLOOD && Terrain.Instance.HasReachedMaxWaterLevel()))
-            //    activated = false;
+            if (m_Manna[(int)faction] < m_ActivationThreshold[(int)divineIntervention] ||
+                (divineIntervention == DivineIntervention.KNIGHT && !GameController.Instance.HasLeader(faction)) ||
+                (divineIntervention == DivineIntervention.FLOOD && Terrain.Instance.HasReachedMaxWaterLevel()))
+                activated = false;
 
             if (activated)
             {

@@ -212,6 +212,8 @@ namespace Populous
 
         #region Update Inspected UI
 
+        #region Unit
+
         /// <summary>
         /// Handles the update of the given unit data on the UI of the player focusing on the unit.
         /// </summary>
@@ -254,6 +256,8 @@ namespace Populous
         [ClientRpc]
         private void UpdateInspectedUnitStrength_ClientRpc(int strength, ClientRpcParams clientParams = default)
             => GameUI.Instance.UpdateUnitStrength(strength);
+
+        #endregion
 
 
         #region Settlement

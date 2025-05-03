@@ -472,7 +472,7 @@ namespace Populous
                 }
             }
 
-            return fields < 0 ? 0 : fields;
+            return fields;
         }
 
         /// <summary>

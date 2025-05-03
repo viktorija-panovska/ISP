@@ -15,9 +15,6 @@ namespace Populous
     {
         #region Inspector Fields
 
-        [Tooltip("Set to true if testing the game on a local network")]
-        [SerializeField] private bool m_IsTestingLocal;
-
         [Header("Lobby Info")]
         [Tooltip("The text field that should contain the lobby name.")]
         [SerializeField] private TMP_Text m_LobbyNameField;
@@ -60,7 +57,7 @@ namespace Populous
 
         #region Event Functions
 
-        public void Start() => m_ConnectionManager = m_IsTestingLocal ? LocalConnectionManager.Instance : ConnectionManager.Instance;
+        public void Start() => m_ConnectionManager = ConnectionManager.Instance;
 
         /// <summary>
         /// Called when this <c>NetworkObject</c> is spawned on the network, sets up the lobby.

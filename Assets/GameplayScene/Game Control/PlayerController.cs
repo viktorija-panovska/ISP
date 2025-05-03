@@ -41,10 +41,6 @@ namespace Populous
         /// Gets the faction this player controls, or NONE if the player hasn't been set.
         /// </summary>
         public Faction Faction { get => m_PlayerInfo.HasValue ? m_PlayerInfo.Value.Faction : Faction.NONE; }
-        /// <summary>
-        /// Gets the network ID of this player, or ulong.MaxValue if the player hasn't been set.
-        /// </summary>
-        public ulong NetworkId { get => m_PlayerInfo.HasValue ? m_PlayerInfo.Value.NetworkId : ulong.MaxValue; }
 
         /// <summary>
         /// True if the game is paused, false otherwise.
@@ -101,13 +97,7 @@ namespace Populous
 
         private void Start() 
         {
-            // TODO: set from Game Data
-
-            if (NetworkManager.Singleton && NetworkManager.Singleton.LocalClientId == 0)
-                m_PlayerInfo = new(0, 0, Faction.RED);
-            else
-                m_PlayerInfo = new(0, 0, Faction.BLUE);
-
+            m_PlayerInfo = GameData.Instance.GetPlayerInfoByNetworkId(NetworkManager.Singleton.LocalClientId);
             SetupMarkers();
         }
 

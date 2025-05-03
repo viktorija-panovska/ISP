@@ -149,17 +149,7 @@ namespace Populous
         /// <summary>
         /// Updates the heights of the points on all four walls.
         /// </summary>
-        public void UpdateAllWalls()
-        {
-            WallSide[] sides = (WallSide[])Enum.GetValues(typeof(WallSide));
-
-            foreach (WallSide side in sides)
-                for (int i = 0; i < Terrain.Instance.TilesPerSide; ++i)
-                    ChangePointHeight(side, i, GetHeightForWallPoint(side, i));
-
-            for (int i = 0; i < m_WallData.Length; ++i)
-                m_WallData[i].SetMesh(m_Walls[i], m_WallMaterial);
-        }
+        public void UpdateAllWalls() => UpdateWallsInArea(new(0, 0), new(Terrain.Instance.TilesPerSide, Terrain.Instance.TilesPerSide))
 
         /// <summary>
         /// Updates the heights of the points that fall within the area bordered by the given points.

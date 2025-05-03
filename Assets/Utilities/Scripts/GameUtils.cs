@@ -40,7 +40,11 @@ namespace Populous
         public static int GetNextArrayIndex(int start, int increment, int arrayLength)
             => (start + increment + arrayLength) % arrayLength;
 
-
+        /// <summary>
+        /// Creates a <c>ClientRpcParams</c> instance that will make a Client RPC execute only on the client with the given client ID.
+        /// </summary>
+        /// <param name="clientId">The client ID.</param>
+        /// <returns>The created <c>ClientRpcParam</c> instance.</returns>
         public static ClientRpcParams GetClientParams(ulong clientId)
             => new()
             {
@@ -49,14 +53,5 @@ namespace Populous
                     TargetClientIds = new ulong[] { clientId }
                 }
             };
-
-        public static GameObject GetChildWithTag(GameObject parent, string tag)
-        {
-            foreach (Transform child in parent.GetComponentInChildren<Transform>(includeInactive: true))
-                if (child.gameObject.CompareTag(tag))
-                    return child.gameObject;
-
-            return null;
-        }
     }
 }
