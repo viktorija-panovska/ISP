@@ -29,9 +29,13 @@ namespace Populous
     public class PerlinNoiseGenerator : MonoBehaviour, INoiseGenerator
     {
         [Tooltip("Higher values create more varied noise, and vice versa.")]
-        [SerializeField] private float m_Scale = 2f;
+        [SerializeField] private float m_Scale = 100f;
         [Tooltip("Higher values create more complex noise, and vice versa.")]
         [SerializeField] private int m_Octaves = 2;
+        [Tooltip("The factor by which the frequency of the noise increases each octave.")]
+        [SerializeField] private float m_FrequencyIncreaseFactor = 20f;
+        [Tooltip("The factor by which the amplitude of the noise decreases each octave.")]
+        [SerializeField] private float m_AmplitudeDecreaseFactor = 20f;
         [Tooltip("Lower factors create landmasses with more land and less water, and vice versa.")]
         [SerializeField] private float m_FalloffScaleFactor = 0.5f;
 
@@ -94,8 +98,8 @@ namespace Populous
                 elevation += Mathf.PerlinNoise(x * frequency * m_Scale + m_Offsets[i].x, z * frequency * m_Scale + m_Offsets[i].y) * amplitude;
                 amplitudeSum += amplitude;
 
-                frequency *= 2;
-                amplitude /= 2;
+                frequency *= 20;
+                amplitude /= 20;
             }
 
             return Mathf.Clamp01((elevation / amplitudeSum) - GetFalloffAtPosition(position));
