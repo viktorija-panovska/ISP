@@ -164,11 +164,11 @@ namespace Populous
         /// <summary>
         /// Action to be called when the behavior of the units in the red faction is changed.
         /// </summary>
-        public Action<UnitBehavior> OnRedBehaviorChange;
+        public Action<UnitBehavior, bool> OnRedBehaviorChange;
         /// <summary>
         /// Action to be called when the behavior of the units in the blue faction is changed.
         /// </summary>
-        public Action<UnitBehavior> OnBlueBehaviorChange;
+        public Action<UnitBehavior, bool> OnBlueBehaviorChange;
         /// <summary>
         /// Action to be called when a new unit is assigned as the leader of the red faction.
         /// </summary>
@@ -276,8 +276,7 @@ namespace Populous
             if (unit.Type == UnitType.KNIGHT)
                 RemoveKnight(unit.Faction, unit);
 
-            if (hasDied)
-                RemoveUnit(unit.Faction);
+            RemoveUnit(unit.Faction);
 
             unit.GetComponent<NetworkObject>().Despawn();
             Destroy(unit.gameObject);
@@ -428,7 +427,7 @@ namespace Populous
 
             UpdateUnitsUI_ClientRpc(faction, amount);
 
-            if (m_Units[factionIndex] == 0)
+            if (m_Units[factionIndex] == 0 && StructureManager.Instance.GetSettlementNumber(faction) == 0)
                 GameController.Instance.EndGame_ClientRpc(winner: faction == Faction.RED ? Faction.BLUE : Faction.RED);
         }
 
@@ -487,9 +486,9 @@ namespace Populous
             ResetGridSteps(faction);
 
             if (faction == Faction.RED)
-                OnRedBehaviorChange?.Invoke(behavior);
+                OnRedBehaviorChange?.Invoke(behavior, false);
             else if (faction == Faction.BLUE)
-                OnBlueBehaviorChange?.Invoke(behavior);
+                OnBlueBehaviorChange?.Invoke(behavior, false);
         }
 
         /// <summary>

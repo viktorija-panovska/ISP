@@ -40,6 +40,8 @@ namespace Populous
         /// </summary>
         public static GameController Instance { get => m_Instance; }
 
+        private ConnectionManager m_ConnectionManager;
+
         /// <summary>
         /// An array of the colors of each faction. 
         /// </summary>
@@ -107,6 +109,8 @@ namespace Populous
                     GameUtils.GetClientParams(GameData.Instance.GetNetworkIdByFaction(i))
                 );
             }
+
+            m_ConnectionManager = ConnectionManager.Instance;
         }
 
         #endregion
@@ -134,6 +138,21 @@ namespace Populous
         /// <param name="winner">The <c>Faction</c> that won the game.</param>
         [ClientRpc]
         public void EndGame_ClientRpc(Faction winner) => PlayerController.Instance.EndGame(winner);
+
+        /// <summary>
+        /// Processes quitting the game from the pause screen.
+        /// </summary>
+        /// <param name="serverRpcParams">RPC parameters for Server RPC.</param>
+        [ServerRpc]
+        public void QuitGameFromPause_ServerRpc(ServerRpcParams serverRpcParams = default)
+        {
+            SetPause_ClientRpc(isPaused: false);
+
+            if (serverRpcParams.Receive.SenderClientId == NetworkManager.Singleton.LocalClientId)
+                m_ConnectionManager.Disconnect();
+            else
+                m_ConnectionManager.KickClient();
+        }
 
         #endregion
 

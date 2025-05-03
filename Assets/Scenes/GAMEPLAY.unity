@@ -2637,9 +2637,9 @@ MonoBehaviour:
   m_RuinPrefab: {fileID: 7254452989103648332, guid: 61c26d8f40d04db468ee25d60b13f080, type: 3}
   m_FieldPrefab: {fileID: 3158639387827070285, guid: ba884a45874a4d746b90f0d5881b0241, type: 3}
   m_SwampPrefab: {fileID: 2078980801612766481, guid: 1b6608c92976575459e954002fd6d823, type: 3}
-  m_TreePercentage: 0.1
-  m_BlackRockPercentage: 0.05
-  m_WhiteRockPercentage: 0.01
+  m_TreePercentage: 0.2
+  m_BlackRockPercentage: 0.2
+  m_WhiteRockPercentage: 0.1
   m_VolcanoRockPercentage: 0.4
   m_MinimapIconScale: 30
   m_MinimapSettlementColors:

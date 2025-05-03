@@ -256,7 +256,7 @@ namespace Populous
             if (m_Type == UnitType.KNIGHT)
             {
                 ToggleKnightSword_ClientRpc(false);
-                SetBehavior(UnitManager.Instance.GetActiveBehavior(m_Faction));
+                SetBehavior(UnitManager.Instance.GetActiveBehavior(m_Faction), updateKnight: true);
                 m_DirectionDetector.ResetDetectorSize();
                 DivineInterventionController.Instance.OnArmageddon -= ReactToArmageddon;
             }
@@ -269,7 +269,7 @@ namespace Populous
             if (m_Type == UnitType.KNIGHT)
             {
                 ToggleKnightSword_ClientRpc(true);
-                SetBehavior(UnitBehavior.FIGHT);
+                SetBehavior(UnitBehavior.FIGHT, updateKnight: true);
                 m_DirectionDetector.SetDetectorSize(Terrain.Instance.TilesPerSide);
                 DivineInterventionController.Instance.OnArmageddon += ReactToArmageddon;
             }
@@ -305,9 +305,11 @@ namespace Populous
         /// Sets the current behavior of the unit to the given behavior.
         /// </summary>
         /// <param name="unitBehavior">The <c>UnitBehavior</c> that should be set.</param>
-        public void SetBehavior(UnitBehavior unitBehavior)
+        /// <param name="updateKnight">True if the behavior of the Knight units should be updated as well, false otherwise.</param>
+        public void SetBehavior(UnitBehavior unitBehavior, bool updateKnight = false)
         {
-            if (m_Behavior == unitBehavior) return;
+            if (m_Behavior == unitBehavior || (m_Type == UnitType.KNIGHT && !updateKnight)) 
+                return;
 
             m_Behavior = unitBehavior;
 

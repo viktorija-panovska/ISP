@@ -276,6 +276,13 @@ namespace Populous
         #region Settlements
 
         /// <summary>
+        /// Gets the number of settlements the given faction has.
+        /// </summary>
+        /// <param name="faction">The <c>Faction</c> whose settlements should be counted.</param>
+        /// <returns>The number of settlements.</returns>
+        public int GetSettlementNumber(Faction faction) => m_SettlementLocations[(int)faction].Count;
+
+        /// <summary>
         /// Creates a settlement of the given faction on the given tile.
         /// </summary>
         /// <param name="tile">The tile that the settlement should occupy.</param>
@@ -427,7 +434,13 @@ namespace Populous
         /// </summary>
         /// <param name="faction">The <c>Faction</c> whose settlement position should be removed.</param>
         /// <param name="position">The position of the settlement.</param>
-        public void RemoveSettlementPosition(Vector2 position, Faction faction) => m_SettlementLocations[(int)faction].Remove(position);
+        public void RemoveSettlementPosition(Vector2 position, Faction faction)
+        {
+            m_SettlementLocations[(int)faction].Remove(position);
+
+            if (GetSettlementNumber(faction) == 0 && UnitManager.Instance.GetFactionSize(faction) == 0)
+                GameController.Instance.EndGame_ClientRpc(winner: faction == Faction.RED ? Faction.BLUE : Faction.RED);
+        }
 
         #endregion
 
