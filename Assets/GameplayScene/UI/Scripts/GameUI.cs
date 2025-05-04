@@ -102,7 +102,12 @@ namespace Populous
         private async void Start()
         {
             foreach (var bar in m_PopulationBars)
-                bar.value = (float)UnitManager.Instance.StartingUnits / UnitManager.Instance.MaxUnits;
+            {
+                bar.maxValue = UnitManager.Instance.MaxUnits;
+                bar.value = UnitManager.Instance.StartingUnits;
+            }
+
+            m_MannaBar.maxValue = DivineInterventionController.Instance.MaxManna;
 
             SetActiveDivineInterventionIcon(DivineIntervention.MOLD_TERRAIN, DivineIntervention.MOLD_TERRAIN);
             SetActiveBehaviorIcon(UnitBehavior.SETTLE, UnitBehavior.SETTLE);
@@ -140,7 +145,7 @@ namespace Populous
         /// <param name="faction">The <c>Faction</c> whose population bar should be updated.</param>
         /// <param name="currentPopulation">The amount of population the given faction has.</param>
         public void UpdatePopulationBar(Faction faction, int currentPopulation)
-            => m_PopulationBars[(int)faction].value = (float)currentPopulation / UnitManager.Instance.MaxUnits;
+            => m_PopulationBars[(int)faction].value = currentPopulation;
 
         #endregion
 
@@ -190,7 +195,7 @@ namespace Populous
         /// <param name="activeDivineIntervention">The number of Divine Interventions that are available to the player, in order.</param>
         public void UpdateMannaBar(float currentManna, int activeDivineIntervention) 
         {
-            m_MannaBar.value = currentManna / DivineInterventionController.Instance.MaxManna;
+            m_MannaBar.value = currentManna;
 
             for (int i = 0; i < m_DivineInterventionIcons.Length; ++i)
                 m_DivineInterventionIcons[i].interactable = i <= activeDivineIntervention;
