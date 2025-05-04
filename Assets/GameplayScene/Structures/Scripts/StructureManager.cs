@@ -61,7 +61,7 @@ namespace Populous
         /// An array with a list for each faction containing the locations of their settlements.
         /// </summary>
         /// <remarks>The index of the list in the array corresponds to the value of the faction in the <c>Faction</c> enum.</remarks>
-        private readonly List<Vector2>[] m_SettlementLocations = new List<Vector2>[] { new(), new() };
+        private readonly List<Vector3>[] m_SettlementLocations = new List<Vector3>[] { new(), new() };
 
         /// <summary>
         /// The scale for the settlement icons on the minimap.
