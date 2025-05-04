@@ -276,22 +276,18 @@ namespace Populous
                             // finding a point in the previous circle to get the height from
                             int x = point.X, z = point.Z;
 
-                            if (point.X == center.X - distance)
-                                x++;
+                            // to the left of the center
+                            if (point.X <= center.X) x++;
+                            // to the right of the center
+                            if (point.X >= center.X) x--;
+                            // below the center
+                            if (point.Z <= center.Z) z++;
+                            // above the center
+                            if (point.Z >= center.Z) z--;
 
-                            if (point.X == center.X + distance)
-                                x--;
+                            if ((x, z) == (point.X, point.Z)) continue;
 
-                            if (point.Z == center.Z - distance)
-                                z++;
-
-                            if (point.Z == center.Z + distance)
-                                z--;
-
-                            if ((x, z) == (point.X, point.Z))
-                                continue;
-
-                            ChangePointHeight(point, false, newHeights[new(x, z)] + m_StepHeight);
+                            ChangePointHeight(point, false, Mathf.Clamp(newHeights[new(x, z)] + m_StepHeight, m_WaterLevel, MaxHeight));
                             changedHeightsInIter = true;
                             break;
                         }
