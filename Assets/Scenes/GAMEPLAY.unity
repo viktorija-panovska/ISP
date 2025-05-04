@@ -2319,10 +2319,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_UnitPrefab: {fileID: 4803634603491590232, guid: fb550bad1c970ed4c9b4ceb3be5cb1b5, type: 3}
-  m_MaxUnits: 64
-  m_UnitDecayRate: 15
+  m_MaxUnits: 50
+  m_UnitDecayRate: 20
   m_FightWaitDuration: 0.5
-  m_UnitMannaGain: 1
+  m_UnitMannaGain: 0.2
   m_LeaderDeathMannaLoss: 10
   m_StartingUnits: 5
   m_StartingUnitStrength: 2

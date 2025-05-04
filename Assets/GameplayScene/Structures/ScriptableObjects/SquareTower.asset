@@ -13,5 +13,5 @@ MonoBehaviour:
   m_Name: SquareTower
   m_EditorClassIdentifier: 
   m_Type: 8
-  m_Capacity: 20
+  m_Capacity: 108
   m_UnitStrength: 9

@@ -139,6 +139,27 @@ namespace Populous
         [ClientRpc]
         public void EndGame_ClientRpc(Faction winner) => PlayerController.Instance.EndGame(winner);
 
+        /// <summary>
+        /// Processes the quitting of the game through the pause menu.
+        /// </summary>
+        /// <param name="serverRpcParams">RPC parameters for server RPC.</param>
+        [ServerRpc]
+        public void QuitThroughPause_ServerRpc(ServerRpcParams serverRpcParams = default)
+            => QuitThroughPause_ClientRpc(serverRpcParams.Receive.SenderClientId);
+
+        /// <summary>
+        /// Processes the quitting of the game through the pause menu on the client.
+        /// </summary>
+        /// <param name="quitClientId">The network ID of the client that quit the game.</param>
+        [ClientRpc]
+        private void QuitThroughPause_ClientRpc(ulong quitClientId)
+        {
+            PlayerController.Instance.SetPause(false);
+
+            if (quitClientId == NetworkManager.Singleton.LocalClientId)
+                ConnectionManager.Instance.Disconnect();
+        }
+
         #endregion
 
 

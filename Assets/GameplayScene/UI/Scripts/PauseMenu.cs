@@ -68,6 +68,6 @@ namespace Populous
         /// <summary>
         /// Calls the <see cref="ConnectionManager"/> to disconnect the player from the game.
         /// </summary>
-        public void LeaveGame() => m_ConnectionManager.Disconnect();
+        public void LeaveGame() => GameController.Instance.QuitThroughPause_ServerRpc();
     }
 }
