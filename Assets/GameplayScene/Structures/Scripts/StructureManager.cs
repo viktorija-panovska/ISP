@@ -292,7 +292,7 @@ namespace Populous
             if (!tile.IsFree()) return;
 
             Settlement settlement = (Settlement)SpawnStructure(m_SettlementPrefab, tile, faction);
-            AddSettlementPosition(new Vector2(settlement.transform.position.x, settlement.transform.position.z), faction);
+            AddSettlementPosition(settlement.transform.position, faction);
         }
 
         /// <summary>
@@ -305,10 +305,7 @@ namespace Populous
             OnRemoveReferencesToSettlement?.Invoke(settlement);
             settlement.OnSettlementDestroyed?.Invoke(settlement);
 
-            RemoveSettlementPosition(
-                new Vector2(settlement.transform.position.x, settlement.transform.position.z),
-                settlement.Faction
-            );
+            RemoveSettlementPosition(settlement.transform.position, settlement.Faction);
 
             GameController.Instance.RemoveVisibleObject_ClientRpc(
                 GetComponent<NetworkObject>().NetworkObjectId,
@@ -427,14 +424,14 @@ namespace Populous
         /// </summary>
         /// <param name="faction">The <c>Faction</c> whose settlement position should be removed.</param>
         /// <param name="position">The position of the settlement.</param>
-        public void AddSettlementPosition(Vector2 position, Faction faction) => m_SettlementLocations[(int)faction].Add(position);
+        public void AddSettlementPosition(Vector3 position, Faction faction) => m_SettlementLocations[(int)faction].Add(position);
 
         /// <summary>
         /// Removes the position of a settlement of the given faction from the settlement locations list.
         /// </summary>
         /// <param name="faction">The <c>Faction</c> whose settlement position should be removed.</param>
         /// <param name="position">The position of the settlement.</param>
-        public void RemoveSettlementPosition(Vector2 position, Faction faction)
+        public void RemoveSettlementPosition(Vector3 position, Faction faction)
         {
             m_SettlementLocations[(int)faction].Remove(position);
 
