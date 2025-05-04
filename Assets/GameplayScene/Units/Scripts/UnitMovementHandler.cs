@@ -393,7 +393,7 @@ namespace Populous
             UnitManager.Instance.AddStepAtPoint(m_Unit.Faction, StartLocation);
             // check if the unit has lost followers
             if (m_PathIndex > 0) m_Steps++;
-            if (m_Steps == UnitManager.Instance.UnitDecayRate)
+            if (!DivineInterventionController.Instance.IsArmageddon && m_Steps == UnitManager.Instance.UnitDecayRate)
             {
                 m_Unit.LoseStrength(1);
                 m_Steps = 0;

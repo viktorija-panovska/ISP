@@ -236,8 +236,7 @@ namespace Populous
             if (type == UnitType.KNIGHT)
                 SetKnight(faction, unit);
 
-            if (!origin)
-                AddUnit(faction);
+            AddUnit(faction, gainManna: origin != null);
 
             return unit;
         }
@@ -266,7 +265,7 @@ namespace Populous
             {
                 GameController.Instance.SetLeader(unit.Faction, null);
 
-                if (hasDied)
+                if (hasDied && !DivineInterventionController.Instance.IsArmageddon)
                 {
                     DivineInterventionController.Instance.RemoveManna(unit.Faction, m_LeaderDeathMannaLoss);
                     DivineInterventionController.Instance.AddManna(unit.Faction == Faction.RED ? Faction.BLUE : Faction.RED, m_LeaderDeathMannaLoss);
@@ -401,10 +400,12 @@ namespace Populous
         /// Adds a unit to the unit count of the given faction.
         /// </summary>
         /// <param name="faction">The <c>Faction</c> the unit should be added to.</param>
-        public void AddUnit(Faction faction)
+        public void AddUnit(Faction faction, bool gainManna)
         {
             SetUnitNumber(faction, m_Units[(int)faction] + 1);
-            DivineInterventionController.Instance.AddManna(faction, m_UnitMannaGain);
+
+            if (gainManna)
+                DivineInterventionController.Instance.AddManna(faction, m_UnitMannaGain);
         }
 
         /// <summary>

@@ -47,13 +47,7 @@ namespace Populous
                 m_NearbyObjects.Add(other.gameObject);
         }
 
-        private void OnTriggerExit(Collider other)
-        {
-            if (m_NearbyObjects.Count == 0 || m_Unit.Behavior != UnitBehavior.FIGHT || m_Unit.Behavior != UnitBehavior.GATHER || !m_NearbyObjects.Contains(other.gameObject)) 
-                return;
-
-            m_NearbyObjects.Remove(other.gameObject);
-        }
+        private void OnTriggerExit(Collider other) => RemoveObject(other.gameObject);
 
         #endregion
 
@@ -120,13 +114,23 @@ namespace Populous
 
             Vector3 sum = Vector3.zero;
 
+            // sometimes it can happen that an object is despawned but not removed. it will be caught here
+            List<GameObject> unremovedObjects = new();
+
             foreach (GameObject gameObject in m_NearbyObjects)
             {
-                if (gameObject == null) continue;
+                if (gameObject == null)
+                {
+                    unremovedObjects.Add(gameObject);
+                    continue;
+                }
 
                 Vector3 direction = gameObject.transform.position - transform.position;
                 sum += direction * (1 / direction.magnitude);
-            }                
+            }
+
+            foreach (GameObject unremoved in unremovedObjects)
+                m_NearbyObjects.Remove(unremoved);
 
             return (sum / m_NearbyObjects.Count).normalized;
         }

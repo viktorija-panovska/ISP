@@ -215,10 +215,12 @@ namespace Populous
                 m_Leaders[(int)faction] = null;
             }
 
-            if (leader == null) return;
+            if (leader != null)
+            {
+                m_Leaders[(int)faction] = leader;
+                leader.SetLeader(true);
+            }
 
-            m_Leaders[(int)faction] = leader;
-            leader.SetLeader(true);
             UnitManager.Instance.SwitchLeaderTarget(faction);
         }
 
