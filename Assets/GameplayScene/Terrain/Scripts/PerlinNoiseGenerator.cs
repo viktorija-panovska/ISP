@@ -98,8 +98,8 @@ namespace Populous
                 elevation += Mathf.PerlinNoise(x * frequency * m_Scale + m_Offsets[i].x, z * frequency * m_Scale + m_Offsets[i].y) * amplitude;
                 amplitudeSum += amplitude;
 
-                frequency *= 20;
-                amplitude /= 20;
+                frequency *= m_FrequencyIncreaseFactor;
+                amplitude /= m_AmplitudeDecreaseFactor;
             }
 
             return Mathf.Clamp01((elevation / amplitudeSum) - GetFalloffAtPosition(position));

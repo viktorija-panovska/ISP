@@ -122,7 +122,7 @@ namespace Populous
         public void SetPause(bool pause)
         {
             m_IsPaused = pause;
-            //Time.timeScale = m_IsPaused ? 0 : 1;
+            Time.timeScale = m_IsPaused ? 0 : 1;
             PauseMenu.Instance.TogglePauseMenu(show: m_IsPaused);
         }
 

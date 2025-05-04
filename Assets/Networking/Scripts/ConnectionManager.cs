@@ -152,8 +152,6 @@ namespace Populous
             NetworkManager.Singleton.OnClientConnectedCallback += OnClientConnected;
             NetworkManager.Singleton.OnClientDisconnectCallback += OnClientDisconnect;
 
-            Debug.Log(NetworkManager.Singleton.IsHost);
-
             if (!NetworkManager.Singleton.StartHost())
             {
                 Debug.LogError("Failed to start host.");
@@ -316,12 +314,12 @@ namespace Populous
         /// <inheritdoc />
         public void Disconnect()
         {
-            Debug.Log("Disconnect");
+            if (Time.timeScale == 0) Time.timeScale = 1;
+
             m_CurrentLobby?.Leave();
 
             if (NetworkManager.Singleton == null) return;
 
-            Debug.Log("Clear Network Manager");
             NetworkManager.Singleton.OnClientConnectedCallback -= OnClientConnected;
             NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnect;
 
@@ -360,10 +358,11 @@ namespace Populous
         /// on the host and the network ID of the host on the client that is being forcefully disconnected.</param>
         private void OnClientDisconnect(ulong networkId)
         {
+            if (Time.timeScale == 0) Time.timeScale = 1;
+
             // The host is being informed that the client has disconnected.
             if (IsHost && networkId != NetworkManager.Singleton.LocalClientId)
             {
-                Debug.Log("Client has disconnected");
 
                 GameData.Instance.RemoveClientInfo();
 
@@ -373,7 +372,6 @@ namespace Populous
                 return;
             }
 
-            Debug.Log("Disconnect client");
             // The client is being informed that it has been disconnected by the host.
             Disconnect();
         }

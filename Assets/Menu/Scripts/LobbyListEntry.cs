@@ -85,10 +85,8 @@ namespace Populous
         /// </summary>
         private void Select()
         {
-            Debug.Log("Select");
             m_IsSelected = true;
             InterfaceUtils.SwitchColor(m_Background, m_SelectedColor);
-            Debug.Log(m_Background.color);
             MainMenu.Instance.SetSelectedEntry(this);
         }
 
