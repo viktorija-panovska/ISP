@@ -122,6 +122,8 @@ namespace Populous
 
             foreach (GameObject gameObject in m_NearbyObjects)
             {
+                if (gameObject == null) continue;
+
                 Vector3 direction = gameObject.transform.position - transform.position;
                 sum += direction * (1 / direction.magnitude);
             }                

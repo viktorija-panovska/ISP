@@ -179,7 +179,8 @@ namespace Populous
                     scaleY: true
                 );
 
-            GameUtils.ResizeGameObject(m_Highlight, Terrain.Instance.UnitsPerTileSide * 1.5f);
+            GameUtils.ResizeGameObject(m_Highlight, Terrain.Instance.UnitsPerTileSide * 20);
+            m_Highlight.transform.localPosition = new(0, Terrain.Instance.UnitsPerTileSide + 10, 0);
 
             foreach (GameObject flag in m_Flags)
             {

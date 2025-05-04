@@ -236,7 +236,8 @@ namespace Populous
             if (type == UnitType.KNIGHT)
                 SetKnight(faction, unit);
 
-            AddUnit(faction);
+            if (!origin)
+                AddUnit(faction);
 
             return unit;
         }
