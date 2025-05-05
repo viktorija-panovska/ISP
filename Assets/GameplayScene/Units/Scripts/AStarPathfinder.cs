@@ -93,6 +93,8 @@ namespace Populous
         {
             if (!DivineInterventionController.Instance.IsArmageddon && end.IsUnderwater()) return null;
 
+            if (start == end) return new() { end };
+
             Dictionary<Vector2, PathNode> nodes = new();        // all nodes
             List<Vector2> openList = new();                     // nodes on the frontier - nodes that need to be explored
             HashSet<Vector2> closedList = new();                // nodes that have already been explored
@@ -145,6 +147,8 @@ namespace Populous
         /// <returns>A <c>TerrainPoint</c> which this unit should go to next, null if no such point is found.</returns>
         public static TerrainPoint? FindNextStep(TerrainPoint start, TerrainPoint end)
         {
+            if (start == end) return end;
+
             TerrainPoint? next = null;
             float minCost = GetDistanceCost(start, end);
 

@@ -154,8 +154,8 @@ namespace Populous
             if (!IsHost) return;
 
             // set manna to include divine interventions up to an including knight
-            SetManna(Faction.RED, m_ActivationThreshold[(int)DivineIntervention.VOLCANO] - 1);
-            SetManna(Faction.BLUE, m_ActivationThreshold[(int)DivineIntervention.VOLCANO] - 1);
+            SetManna(Faction.RED, m_ActivationThreshold[(int)DivineIntervention.KNIGHT]);
+            SetManna(Faction.BLUE, m_ActivationThreshold[(int)DivineIntervention.KNIGHT]);
         }
 
 

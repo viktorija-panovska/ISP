@@ -219,7 +219,7 @@ namespace Populous
             if (ShouldDestroyStructure())
             {
                 if (!m_OccupiedTile.IsUnderwater())
-                    ReleaseUnit(m_UnitSpawnPoint);
+                    ReleaseUnit(m_UnitSpawnPoint, newUnit: false);
 
                 StructureManager.Instance.DestroySettlement(this, updateNearbySettlements: false);
                 return;
@@ -283,7 +283,7 @@ namespace Populous
             }
 
             if (m_FollowersInSettlement >= m_CurrentSettlementData.Capacity)
-                ReleaseUnit(new(m_OccupiedTile.X, m_OccupiedTile.Z));
+                ReleaseUnit(new(m_OccupiedTile.X, m_OccupiedTile.Z), newUnit: true);
 
             if (IsInspected)
                 QueryModeController.Instance.UpdateInspectedSettlement(this, updateType: true);
@@ -333,7 +333,7 @@ namespace Populous
         /// </summary>
         private void ReactToArmageddon()
         {
-            ReleaseUnit(m_UnitSpawnPoint);
+            ReleaseUnit(m_UnitSpawnPoint, newUnit: false);
             StructureManager.Instance.DestroySettlement(this, updateNearbySettlements: false);
         }
 
@@ -382,7 +382,7 @@ namespace Populous
         public Unit StartFight(TerrainPoint unitSpawn)
         {
             m_IsAttacked = true;
-            return ReleaseUnit(unitSpawn);
+            return ReleaseUnit(unitSpawn, newUnit: false);
         }
 
         /// <summary>
@@ -424,9 +424,9 @@ namespace Populous
         /// Releases a unit from the settlement at the given location containing the given strength.
         /// </summary>
         /// <param name="location">The <c>TerrainPoint</c> where the new unit should be spawned.</param>
-        /// <param name="strength">The strength of the new unit.</param>
+        /// <param name="newUnit">True if the unit is spawned by the settlement, false if it is released because the settlement was destroyed.</param>
         /// <returns>The <c>Unit</c> if it is created, null otherwise.</returns>
-        public Unit ReleaseUnit(TerrainPoint location)
+        public Unit ReleaseUnit(TerrainPoint location, bool newUnit)
         {
             if (m_FollowersInSettlement == 0) 
                 return null;
@@ -436,7 +436,7 @@ namespace Populous
                 faction: m_Faction,
                 type: m_ContainsLeader ? UnitType.LEADER : UnitType.WALKER,
                 strength: m_CurrentSettlementData.UnitStrength,
-                origin: this
+                origin: newUnit ? this : null
             );
 
             return unit;
@@ -478,7 +478,7 @@ namespace Populous
                 AddFollowers(1);
 
                 if (m_FollowersInSettlement >= Capacity)
-                    ReleaseUnit(m_UnitSpawnPoint);
+                    ReleaseUnit(m_UnitSpawnPoint, newUnit: true);
             }
         }
 
