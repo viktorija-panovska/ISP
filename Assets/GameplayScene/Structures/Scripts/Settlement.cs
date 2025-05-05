@@ -254,23 +254,23 @@ namespace Populous
             if (!IsHost) return;
 
             int fields = StructureManager.Instance.CreateSettlementFields(this);
-            int index = Mathf.Clamp(Mathf.CeilToInt((fields + 1) / 2f), 0, m_SettlementData.Length);
+
             // formula for getting the index of the settlement from the number of fields
-            SettlementData newSettlement = m_SettlementData[index];
+            SettlementData newSettlement = m_SettlementData[Mathf.Clamp(Mathf.CeilToInt((fields + 1) / 2f), 0, m_SettlementData.Length)];
 
             if (m_CurrentSettlementData && m_CurrentSettlementData.Type == newSettlement.Type) return;
 
             // remove stuff from old settlement
             if (m_CurrentSettlementData)
             {
-                ToggleSettlementObject_ClientRpc(index, false);
+                ToggleSettlementObject_ClientRpc(m_CurrentSettlementData.Type, false);
                 if (m_CurrentSettlementData.Type == SettlementType.CITY)
                     StructureManager.Instance.RemoveCityFields(this);
             }
 
             m_CurrentSettlementData = newSettlement;
 
-            ToggleSettlementObject_ClientRpc(index, true);
+            ToggleSettlementObject_ClientRpc(m_CurrentSettlementData.Type, true);
 
             Vector3 colliderSize = new(Terrain.Instance.UnitsPerTileSide, Terrain.Instance.UnitsPerTileSide, Terrain.Instance.UnitsPerTileSide);
             if (m_CurrentSettlementData.Type == SettlementType.CITY) colliderSize *= 3;
@@ -295,17 +295,7 @@ namespace Populous
         /// <param name="type">The type of the settlement that should be activated.</param>
         /// <param name="isOn">True if the sign should be activated, false otherwise.</param>
         [ClientRpc]
-        private void ToggleSettlementObject_ClientRpc(int typeIndex, bool isOn)
-        {
-            m_SettlementTypeIndex = typeIndex;
-            m_SettlementObjects[m_SettlementTypeIndex].SetActive(isOn);
-        }
-
-        /// <summary>
-        /// Activates or deactivates the currently active settlement object.
-        /// </summary>
-        /// <param name="isOn">True if the settlement should be activated, false otherwise.</param>
-        public void ToggleActiveSettlementObject(bool isOn) => m_SettlementObjects[m_SettlementTypeIndex].SetActive(isOn);
+        private void ToggleSettlementObject_ClientRpc(SettlementType type, bool isOn) => m_SettlementObjects[(int)type].SetActive(isOn);
 
         /// <summary>
         /// Sets the size of the collider of the settlement.

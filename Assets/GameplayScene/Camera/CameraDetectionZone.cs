@@ -46,15 +46,8 @@ namespace Populous
 
         private void OnTriggerEnter(Collider other)
         {
-            if (other.gameObject.layer == LayerData.MinimapLayer) return;
-
-            if (other.GetComponent<Renderer>()) 
-                other.GetComponent<Renderer>().enabled = true;
-            else
-            {
-                Settlement settlement = other.GetComponent<Settlement>();
-                if (settlement) settlement.ToggleActiveSettlementObject(isOn: true);
-            }
+            if (!other.GetComponent<Renderer>() || other.gameObject.layer == LayerData.MinimapLayer) return;
+            other.GetComponent<Renderer>().enabled = true;
 
             if (!other.GetComponent<NetworkObject>()) return;
 
@@ -71,15 +64,8 @@ namespace Populous
 
         private void OnTriggerExit(Collider other)
         {
-            if (other.gameObject.layer == LayerData.MinimapLayer) return;
-
-            if (other.GetComponent<Renderer>())
-                other.GetComponent<Renderer>().enabled = false;
-            else
-            {
-                Settlement settlement = other.GetComponent<Settlement>();
-                if (settlement) settlement.ToggleActiveSettlementObject(isOn: false);
-            }
+            if (!other.GetComponent<Renderer>() || other.gameObject.layer == LayerData.MinimapLayer) return;
+            other.GetComponent<Renderer>().enabled = true;
 
             if (!other.GetComponent<NetworkObject>()) return;
 
