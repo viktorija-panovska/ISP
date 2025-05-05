@@ -312,8 +312,6 @@ namespace Populous
                     SnapToObjectController.Instance.SnapToKnights_ServerRpc(Faction);
                     break;
             }
-
-            GameUI.Instance.SimulateClickOnSnapIcon(cameraSnap);
         }
 
         /// <summary>

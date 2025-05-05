@@ -17,15 +17,14 @@ namespace Populous
         /// Animates an image to flash red.
         /// </summary>
         /// <param name="image">Image to be animated</param>
-        public static void FlashWrong(UIImage image)
-            => image.DOColor(new Color(255, 0, 0, 145), 0.5f).SetLoops(2, LoopType.Yoyo);
+        public static void FlashWrong(UIImage image) => image.DOColor(new Color(255, 0, 0, 145), 0.5f).OnComplete(() => image.DOColor(Color.white, 0.15f));
 
         /// <summary>
         /// Animates an image to flash green.
         /// </summary>
         /// <param name="image">Image to be animated.</param>
         public static void ClickIcon(UIImage image)
-            => image.DOColor(new Color(0, 255, 0, 145), 0.15f).SetLoops(1).OnComplete(() => image.DOColor(Color.white, 0.15f));
+            => image.DOColor(new Color(0, 255, 0, 145), 0.15f).OnComplete(() => image.DOColor(Color.white, 0.15f));
 
         /// <summary>
         /// Toggles the color of an image to indicate that it is activated.

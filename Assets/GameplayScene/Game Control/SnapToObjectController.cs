@@ -1,5 +1,6 @@
 using Unity.Netcode;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace Populous
 {
@@ -91,7 +92,8 @@ namespace Populous
                 return;
             }
 
-            GameController.Instance.SetCameraLookPosition_ClientRpc(
+            SnapToLocation_ClientRpc(
+                SnapTo.INSPECTED_OBJECT,
                 inspected.GameObject.transform.position,
                 GameUtils.GetClientParams(serverRpcParams.Receive.SenderClientId)
             );
@@ -105,7 +107,8 @@ namespace Populous
         [ServerRpc(RequireOwnership = false)]
         public void SnapToUnitMagnet_ServerRpc(Faction faction, ServerRpcParams serverRpcParams = default)
         {
-            GameController.Instance.SetCameraLookPosition_ClientRpc(
+            SnapToLocation_ClientRpc(
+                SnapTo.UNIT_MAGNET,
                 GameController.Instance.GetUnitMagnetLocation(faction).ToScenePosition(),
                 GameUtils.GetClientParams(serverRpcParams.Receive.SenderClientId)
             );
@@ -127,7 +130,8 @@ namespace Populous
                 return;
             }
 
-            GameController.Instance.SetCameraLookPosition_ClientRpc(
+            SnapToLocation_ClientRpc(
+                SnapTo.LEADER,
                 leader.GameObject.transform.position,
                 GameUtils.GetClientParams(serverRpcParams.Receive.SenderClientId)
             );
@@ -150,7 +154,8 @@ namespace Populous
                 return;
             }
 
-            GameController.Instance.SetCameraLookPosition_ClientRpc(
+            SnapToLocation_ClientRpc(
+                SnapTo.SETTLEMENT,
                 new(position.Value.x, Terrain.Instance.WaterLevel, position.Value.z),
                 GameUtils.GetClientParams(serverRpcParams.Receive.SenderClientId)
             );
@@ -175,7 +180,8 @@ namespace Populous
                 return;
             }
 
-            GameController.Instance.SetCameraLookPosition_ClientRpc(
+            SnapToLocation_ClientRpc(
+                SnapTo.FIGHT,
                 new(position.Value.x, Terrain.Instance.WaterLevel, position.Value.z),
                 GameUtils.GetClientParams(serverRpcParams.Receive.SenderClientId)
             );
@@ -202,7 +208,8 @@ namespace Populous
 
             Vector3 position = knight.transform.position;
 
-            GameController.Instance.SetCameraLookPosition_ClientRpc(
+            SnapToLocation_ClientRpc(
+                SnapTo.KNIGHT,
                 new(position.x, Terrain.Instance.WaterLevel, position.z),
                 GameUtils.GetClientParams(serverRpcParams.Receive.SenderClientId)
             );
@@ -212,6 +219,19 @@ namespace Populous
 
         #endregion
 
+
+        /// <summary>
+        /// Moves the camera to the given location as a part of the given "Snap To" action.
+        /// </summary>
+        /// <param name="snapAction">The "SnapTo" action that is being performed.</param>
+        /// <param name="location">The location the same should be pointed at.</param>
+        /// <param name="clientRpc">RPC parameters for the client RPC.</param>
+        [ClientRpc]
+        private void SnapToLocation_ClientRpc(SnapTo snapAction, Vector3 location, ClientRpcParams clientRpc = default)
+        {
+            GameUI.Instance.SimulateClickOnSnapIcon(snapAction);
+            PlayerCamera.Instance.SetCameraLookPosition(location);
+        }
 
         /// <summary>
         /// Triggers the client's UI to show that snapping the camera to the given object was impossible.
