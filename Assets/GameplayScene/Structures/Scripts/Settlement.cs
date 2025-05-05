@@ -233,6 +233,8 @@ namespace Populous
         /// <inheritdoc />
         public override void Cleanup()
         {
+            GetComponent<Collider>().enabled = false;
+
             base.Cleanup();
 
             OnSettlementDestroyed = null;

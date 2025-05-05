@@ -235,6 +235,7 @@ namespace Populous
         /// </summary>
         public void Cleanup()
         {
+            Pause(true);
             if (m_Unit.Faction == Faction.RED)
             {
                 UnitManager.Instance.OnRedLeaderChange -= SetGoToMagnetBehavior;
@@ -395,7 +396,7 @@ namespace Populous
             if (m_PathIndex > 0) m_Steps++;
             if (!DivineInterventionController.Instance.IsArmageddon && m_Steps == UnitManager.Instance.UnitDecayRate)
             {
-                m_Unit.LoseStrength(1);
+                m_Unit.LoseStrength(1, isDamaged: true);
                 m_Steps = 0;
             }
 

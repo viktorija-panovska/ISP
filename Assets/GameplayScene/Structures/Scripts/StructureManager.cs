@@ -151,8 +151,8 @@ namespace Populous
         {
             if (!IsHost || structure == null || !structure.OccupiedTile.IsOccupied()) return;
 
-            SetOccupiedTile(structure.OccupiedTile, null);
             structure.Cleanup();
+            SetOccupiedTile(structure.OccupiedTile, null);
 
             structure.GetComponent<NetworkObject>().Despawn();
             Destroy(structure.gameObject);
@@ -302,6 +302,8 @@ namespace Populous
         /// <param name="updateNearbySettlements">True if the nearby settlements should be updated, false otherwise.</param>
         public void DestroySettlement(Settlement settlement, bool updateNearbySettlements = false)
         {
+            if (settlement == null) return;
+
             OnRemoveReferencesToSettlement?.Invoke(settlement);
             settlement.OnSettlementDestroyed?.Invoke(settlement);
 

@@ -15,6 +15,13 @@ namespace Populous
             GetComponent<Collider>().enabled = IsHost;
         }
 
+        /// <inheritdoc />
+        public override void Cleanup()
+        {
+            GetComponent<Collider>().enabled = false;
+            base.Cleanup();
+        }
+
         private void OnTriggerEnter(Collider other)
         {
             if (!other.GetComponent<Unit>()) return;

@@ -201,6 +201,7 @@ namespace Populous
         /// </summary>
         public void Cleanup()
         {
+            GetComponent<Collider>().enabled = false;
             m_MovementHandler.Cleanup();
 
             // unsubscribe from events
@@ -365,7 +366,7 @@ namespace Populous
         /// <param name="amount">The amount of strength to be removed.</param>
         /// <param name="isDamaged">True if the strength has been lost because the unit has been hit in a fight or decayed, false if the 
         /// followers from the unit went to another unit or a settlement.</param>
-        public void LoseStrength(int amount, bool isDamaged = true) 
+        public void LoseStrength(int amount, bool isDamaged) 
         { 
             m_Strength -= amount;
 

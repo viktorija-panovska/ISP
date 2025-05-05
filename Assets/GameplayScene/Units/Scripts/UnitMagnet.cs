@@ -41,7 +41,7 @@ namespace Populous
             unit.SetUnitMagnetReached();
 
             // if we don't have a leader, set the first unit that reached the unit magnet to be the leader.
-            if (GameController.Instance.HasLeader(m_Faction)) return;
+            if (GameController.Instance.GetLeader(m_Faction) != null) return;
             GameController.Instance.SetLeader(m_Faction, unit);
         }
 

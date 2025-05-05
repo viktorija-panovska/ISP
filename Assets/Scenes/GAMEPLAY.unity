@@ -7362,7 +7362,7 @@ MonoBehaviour:
             m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
             m_IntArgument: 0
             m_FloatArgument: 0
-            m_StringArgument: 'Show: Knights'
+            m_StringArgument: 'Snap To: Knight'
             m_BoolArgument: 0
           m_CallState: 2
         - m_Target: {fileID: 579478889}
@@ -7927,7 +7927,7 @@ MonoBehaviour:
             m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
             m_IntArgument: 0
             m_FloatArgument: 0
-            m_StringArgument: 'Power: Move Team Symbol'
+            m_StringArgument: 'Power: Place Unit Magnet'
             m_BoolArgument: 0
           m_CallState: 2
         - m_Target: {fileID: 579478889}
@@ -8426,7 +8426,7 @@ MonoBehaviour:
             m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
             m_IntArgument: 0
             m_FloatArgument: 0
-            m_StringArgument: Inspect unit/settlement
+            m_StringArgument: Query Mode
             m_BoolArgument: 0
           m_CallState: 2
         - m_Target: {fileID: 579478889}
@@ -8515,7 +8515,7 @@ MonoBehaviour:
       m_Calls:
       - m_Target: {fileID: 579478889}
         m_TargetAssemblyTypeName: Populous.GameUI, Assembly-CSharp
-        m_MethodName: OnInspectClicked
+        m_MethodName: OnQueryClicked
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -9454,7 +9454,7 @@ MonoBehaviour:
             m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
             m_IntArgument: 0
             m_FloatArgument: 0
-            m_StringArgument: 'Show: Fights'
+            m_StringArgument: 'Snap To: Fight'
             m_BoolArgument: 0
           m_CallState: 2
         - m_Target: {fileID: 579478889}
@@ -10744,7 +10744,7 @@ MonoBehaviour:
             m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
             m_IntArgument: 0
             m_FloatArgument: 0
-            m_StringArgument: 'Show: Focused Object'
+            m_StringArgument: 'Snap To: Inspected Object'
             m_BoolArgument: 0
           m_CallState: 2
         - m_Target: {fileID: 579478889}
@@ -10833,7 +10833,7 @@ MonoBehaviour:
       m_Calls:
       - m_Target: {fileID: 579478889}
         m_TargetAssemblyTypeName: Populous.GameUI, Assembly-CSharp
-        m_MethodName: OnShowFocusedObjectClicked
+        m_MethodName: OnShowInspectedObjectClicked
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -11217,7 +11217,7 @@ MonoBehaviour:
             m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
             m_IntArgument: 0
             m_FloatArgument: 0
-            m_StringArgument: 'Show: Team Symbol'
+            m_StringArgument: 'Snap To: Unit Magnet'
             m_BoolArgument: 0
           m_CallState: 2
         - m_Target: {fileID: 579478889}
@@ -11420,7 +11420,7 @@ MonoBehaviour:
             m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
             m_IntArgument: 0
             m_FloatArgument: 0
-            m_StringArgument: 'Show: Settlements'
+            m_StringArgument: 'Snap To: Settlement'
             m_BoolArgument: 0
           m_CallState: 2
         - m_Target: {fileID: 579478889}
@@ -12376,7 +12376,7 @@ GameObject:
   - component: {fileID: 1656594223}
   - component: {fileID: 1656594222}
   m_Layer: 5
-  m_Name: ZoomToObject
+  m_Name: SnapToObject
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -12692,7 +12692,7 @@ MonoBehaviour:
             m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
             m_IntArgument: 0
             m_FloatArgument: 0
-            m_StringArgument: Show:Team Leader
+            m_StringArgument: 'Snap To: Faction Leader'
             m_BoolArgument: 0
           m_CallState: 2
         - m_Target: {fileID: 579478889}
@@ -13465,7 +13465,7 @@ MonoBehaviour:
       m_Calls:
       - m_Target: {fileID: 579478889}
         m_TargetAssemblyTypeName: Populous.GameUI, Assembly-CSharp
-        m_MethodName: OnMoldTerrainButtonClicked
+        m_MethodName: OnMoldTerrainClicked
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -13825,7 +13825,7 @@ MonoBehaviour:
             m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
             m_IntArgument: 0
             m_FloatArgument: 0
-            m_StringArgument: 'Unit Behavior: Go To Team Symbol'
+            m_StringArgument: 'Unit Behavior: Go To Unit Magnet'
             m_BoolArgument: 0
           m_CallState: 2
         - m_Target: {fileID: 579478889}
@@ -13914,7 +13914,7 @@ MonoBehaviour:
       m_Calls:
       - m_Target: {fileID: 579478889}
         m_TargetAssemblyTypeName: Populous.GameUI, Assembly-CSharp
-        m_MethodName: OnGoToFlagClicked
+        m_MethodName: OnGoToMagnetClicked
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}

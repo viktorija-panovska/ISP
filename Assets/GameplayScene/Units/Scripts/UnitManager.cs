@@ -250,6 +250,10 @@ namespace Populous
         {
             if (!IsHost || unit == null) return;
 
+            UnitType type = unit.Type;
+            Faction faction = unit.Faction;
+            TerrainPoint closestTerrainPoint = unit.ClosestTerrainPoint;
+
             unit.Cleanup();
             OnRemoveReferencesToUnit?.Invoke(unit);
 
@@ -261,18 +265,6 @@ namespace Populous
             if (unit.IsInspected)
                 QueryModeController.Instance.RemoveInspectedObject(unit);
 
-            if (unit.Type == UnitType.LEADER)
-            {
-                GameController.Instance.SetLeader(unit.Faction, null);
-
-                if (hasDied && !DivineInterventionController.Instance.IsArmageddon)
-                {
-                    DivineInterventionController.Instance.RemoveManna(unit.Faction, m_LeaderDeathMannaLoss);
-                    DivineInterventionController.Instance.AddManna(unit.Faction == Faction.RED ? Faction.BLUE : Faction.RED, m_LeaderDeathMannaLoss);
-                    GameController.Instance.PlaceUnitMagnetAtPoint(unit.Faction, unit.ClosestTerrainPoint);
-                }
-            }
-
             if (unit.Type == UnitType.KNIGHT)
                 RemoveKnight(unit.Faction, unit);
 
@@ -280,6 +272,18 @@ namespace Populous
 
             unit.GetComponent<NetworkObject>().Despawn();
             Destroy(unit.gameObject);
+
+            if (type == UnitType.LEADER)
+            {
+                if (hasDied && !DivineInterventionController.Instance.IsArmageddon)
+                {
+                    DivineInterventionController.Instance.RemoveManna(faction, m_LeaderDeathMannaLoss);
+                    DivineInterventionController.Instance.AddManna(faction == Faction.RED ? Faction.BLUE : Faction.RED, m_LeaderDeathMannaLoss);
+                    GameController.Instance.PlaceUnitMagnetAtPoint(faction, closestTerrainPoint);
+                }
+
+                GameController.Instance.SetLeader(faction, null);
+            }
         }
 
         #endregion
@@ -623,8 +627,8 @@ namespace Populous
                 if (!red || !blue) break;
 
                 // simulate a strike
-                red.LoseStrength(1);
-                blue.LoseStrength(1);
+                red.LoseStrength(1, isDamaged: true);
+                blue.LoseStrength(1, isDamaged: true);
 
                 if (!red || !blue || red.Strength == 0 || blue.Strength == 0) break;
 

@@ -209,6 +209,8 @@ namespace Populous
         /// <param name="leader">The <c>ILeader</c> that should be set as the leader.</param>
         public void SetLeader(Faction faction, ILeader leader)
         {
+            if (leader == GetLeader(faction)) return;
+
             if (HasLeader(faction))
             {
                 m_Leaders[(int)faction].SetLeader(false);
