@@ -308,7 +308,7 @@ namespace Populous
             RemoveSettlementPosition(settlement.transform.position, settlement.Faction);
 
             GameController.Instance.RemoveVisibleObject_ClientRpc(
-                GetComponent<NetworkObject>().NetworkObjectId,
+                settlement.GetComponent<NetworkObject>().NetworkObjectId,
                 GameUtils.GetClientParams(GameData.Instance.GetNetworkIdByFaction(settlement.Faction))
             );
 
@@ -361,7 +361,7 @@ namespace Populous
             }
 
             GameController.Instance.RemoveVisibleObject_ClientRpc(
-                GetComponent<NetworkObject>().NetworkObjectId,
+                settlement.GetComponent<NetworkObject>().NetworkObjectId,
                 GameUtils.GetClientParams(GameData.Instance.GetNetworkIdByFaction(settlement.Faction))
             );
 

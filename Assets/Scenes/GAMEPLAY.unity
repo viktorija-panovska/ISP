@@ -2639,7 +2639,7 @@ MonoBehaviour:
   m_SwampPrefab: {fileID: 2078980801612766481, guid: 1b6608c92976575459e954002fd6d823, type: 3}
   m_TreePercentage: 0.2
   m_BlackRockPercentage: 0.2
-  m_WhiteRockPercentage: 0.1
+  m_WhiteRockPercentage: 0.05
   m_VolcanoRockPercentage: 0.4
   m_MinimapIconScale: 30
   m_MinimapSettlementColors:

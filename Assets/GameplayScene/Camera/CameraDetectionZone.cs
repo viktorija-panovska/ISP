@@ -46,10 +46,15 @@ namespace Populous
 
         private void OnTriggerEnter(Collider other)
         {
-            if (!other.GetComponent<Renderer>() || other.gameObject.layer == LayerData.MinimapLayer)
-                return;
+            if (other.gameObject.layer == LayerData.MinimapLayer) return;
 
-            other.GetComponent<Renderer>().enabled = true;
+            if (other.GetComponent<Renderer>()) 
+                other.GetComponent<Renderer>().enabled = true;
+            else
+            {
+                Settlement settlement = other.GetComponent<Settlement>();
+                if (settlement) settlement.ToggleActiveSettlementObject(isOn: true);
+            }
 
             if (!other.GetComponent<NetworkObject>()) return;
 
@@ -61,17 +66,20 @@ namespace Populous
 
             if (faction == Faction.RED && other.gameObject.layer == LayerData.FactionLayers[(int)Faction.RED] ||
                 faction == Faction.BLUE && other.gameObject.layer == LayerData.FactionLayers[(int)Faction.BLUE])
-            {
                 m_VisibleFactionObjectIds.Add(other.GetComponent<NetworkObject>().NetworkObjectId);
-            }
         }
 
         private void OnTriggerExit(Collider other)
         {
-            if (!other.GetComponent<Renderer>() || other.gameObject.layer == LayerData.MinimapLayer)
-                return;
+            if (other.gameObject.layer == LayerData.MinimapLayer) return;
 
-            other.GetComponent<Renderer>().enabled = false;
+            if (other.GetComponent<Renderer>())
+                other.GetComponent<Renderer>().enabled = false;
+            else
+            {
+                Settlement settlement = other.GetComponent<Settlement>();
+                if (settlement) settlement.ToggleActiveSettlementObject(isOn: false);
+            }
 
             if (!other.GetComponent<NetworkObject>()) return;
 
@@ -79,9 +87,7 @@ namespace Populous
 
             if (faction == Faction.RED && other.gameObject.layer == LayerData.FactionLayers[(int)Faction.RED] ||
                 faction == Faction.BLUE && other.gameObject.layer == LayerData.FactionLayers[(int)Faction.BLUE])
-            {
                 m_VisibleFactionObjectIds.Remove(other.GetComponent<NetworkObject>().NetworkObjectId);
-            }
         }
 
         #endregion
@@ -110,10 +116,8 @@ namespace Populous
         /// <param name="objectId">The Network Object ID of the object that should be removed.</param>
         public void RemoveVisibleObject(ulong objectId)
         {
-            if (!m_VisibleFactionObjectIds.Contains(objectId))
-                return;
-
-            m_VisibleFactionObjectIds.Remove(objectId);
+            if (m_VisibleFactionObjectIds.Contains(objectId))
+                m_VisibleFactionObjectIds.Remove(objectId);
         }
     }
 }

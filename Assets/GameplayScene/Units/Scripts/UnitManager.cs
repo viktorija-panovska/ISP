@@ -254,7 +254,7 @@ namespace Populous
             OnRemoveReferencesToUnit?.Invoke(unit);
 
             GameController.Instance.RemoveVisibleObject_ClientRpc(
-                GetComponent<NetworkObject>().NetworkObjectId,
+                unit.GetComponent<NetworkObject>().NetworkObjectId,
                 GameUtils.GetClientParams(GameData.Instance.GetNetworkIdByFaction(unit.Faction))
             );
 
