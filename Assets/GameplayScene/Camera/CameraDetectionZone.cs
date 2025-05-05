@@ -61,7 +61,9 @@ namespace Populous
 
             if (faction == Faction.RED && other.gameObject.layer == LayerData.FactionLayers[(int)Faction.RED] ||
                 faction == Faction.BLUE && other.gameObject.layer == LayerData.FactionLayers[(int)Faction.BLUE])
+            {
                 m_VisibleFactionObjectIds.Add(other.GetComponent<NetworkObject>().NetworkObjectId);
+            }
         }
 
         private void OnTriggerExit(Collider other)
@@ -77,7 +79,9 @@ namespace Populous
 
             if (faction == Faction.RED && other.gameObject.layer == LayerData.FactionLayers[(int)Faction.RED] ||
                 faction == Faction.BLUE && other.gameObject.layer == LayerData.FactionLayers[(int)Faction.BLUE])
+            {
                 m_VisibleFactionObjectIds.Remove(other.GetComponent<NetworkObject>().NetworkObjectId);
+            }
         }
 
         #endregion
