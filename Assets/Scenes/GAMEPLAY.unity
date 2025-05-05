@@ -2322,7 +2322,7 @@ MonoBehaviour:
   m_MaxUnits: 50
   m_UnitDecayRate: 20
   m_FightWaitDuration: 0.5
-  m_UnitMannaGain: 0.2
+  m_UnitMannaGain: 0.1
   m_LeaderDeathMannaLoss: 10
   m_StartingUnits: 5
   m_StartingUnitStrength: 2
