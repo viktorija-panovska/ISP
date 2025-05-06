@@ -2326,7 +2326,7 @@ MonoBehaviour:
   m_LeaderDeathMannaLoss: 5
   m_StartingUnits: 5
   m_StartingUnitStrength: 2
-  m_MinimapIconScale: 30
+  m_MinimapIconScale: 50
   m_MinimapUnitColors:
   - {r: 1, g: 0, b: 0, a: 1}
   - {r: 0, g: 0, b: 1, a: 1}
@@ -2641,7 +2641,7 @@ MonoBehaviour:
   m_BlackRockPercentage: 0.2
   m_WhiteRockPercentage: 0.05
   m_VolcanoRockPercentage: 0.4
-  m_MinimapIconScale: 30
+  m_MinimapIconScale: 100
   m_MinimapSettlementColors:
   - {r: 1, g: 1, b: 1, a: 1}
   - {r: 0.5283019, g: 0.5283019, b: 0.5283019, a: 1}
