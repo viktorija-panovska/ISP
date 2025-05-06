@@ -2324,7 +2324,7 @@ MonoBehaviour:
   m_FightWaitDuration: 0.5
   m_UnitMannaGain: 0.1
   m_LeaderDeathMannaLoss: 10
-  m_StartingUnits: 5
+  m_StartingUnits: 50
   m_StartingUnitStrength: 2
   m_MinimapIconScale: 30
   m_MinimapUnitColors:

@@ -50,7 +50,7 @@ namespace Populous
 
         [SerializeField] private float m_MoveSpeed = 40f;
         [Tooltip("How far away from a point can the unit be for it to register as having reached that point.")]
-        [SerializeField] private float m_PositionLeeway = 0.1f;
+        [SerializeField] private float m_PositionLeeway = 0.5f;
 
         [Header("Roaming")]
         [Tooltip("How many tiles in front of itself in the direction the unit is going can it see.")]
@@ -227,7 +227,7 @@ namespace Populous
 
             StructureManager.Instance.OnStructureCreated += CheckTargetFreeTile;
 
-            SetFreeRoam();
+            SwitchMoveState(MoveState.FREE_MOVE);
         }
 
         /// <summary>
@@ -258,6 +258,11 @@ namespace Populous
         {
             if (state == m_CurrentMoveState) return;
 
+            ClearPath();
+            m_TargetTile = null;
+            m_TargetUnit = null;
+            m_TargetSettlement = null;
+
             m_LastMoveState = m_CurrentMoveState;
             m_CurrentMoveState = state;
         }
@@ -280,8 +285,16 @@ namespace Populous
         {
             if (m_CurrentMoveState == MoveState.STOP) return;
 
+            // if we have reached the unit magnet, roam around it
+            if (m_CurrentMoveState == MoveState.GO_TO_MAGNET && m_IsUnitMagnetReached)
+                WanderAroundMagnet();
+
+            // if we haven't reached the unit magnet, keep going towards it
+            else if (m_CurrentMoveState == MoveState.GO_TO_MAGNET)
+                SetGoToMagnetBehavior();
+
             // if we are going to a flat space that still exists and is still free, we have reached the tile
-            if (m_CurrentMoveState == MoveState.GO_TO_FREE_TILE && m_TargetTile.HasValue && m_TargetTile.Value.IsFree())
+            else if (m_CurrentMoveState == MoveState.GO_TO_FREE_TILE && m_TargetTile.HasValue && m_TargetTile.Value.IsFree())
                 OnFreeTileReached();
 
             // if we are following a unit, take the next step towards it
@@ -291,15 +304,7 @@ namespace Populous
             // if we have a settlement (that still exists) and we have reached the end of the path, we have reached the settlement
             // the activities in the settlement will be handled in the settlement by the collider
             else if (m_CurrentMoveState == MoveState.GO_TO_SETTLEMENT && m_TargetSettlement)
-                SetFreeRoam();
-
-            // if we have reached the unit magnet, roam around it
-            else if (m_CurrentMoveState == MoveState.GO_TO_MAGNET && m_IsUnitMagnetReached)
-                WanderAroundCurrentPoint();
-
-            // if we haven't reached the unit magnet, keep going towards it
-            else if (m_CurrentMoveState == MoveState.GO_TO_MAGNET)
-                SetGoToMagnetBehavior();
+                SwitchMoveState(MoveState.FREE_MOVE);
 
             else
             {
@@ -371,7 +376,6 @@ namespace Populous
                 {
                     SwitchMoveState(MoveState.GO_TO_FREE_TILE);
                     m_TargetTile = targetTile.Value;
-                    ClearPath();
                     return;
                 }
             }
@@ -461,13 +465,8 @@ namespace Populous
             if (x < 0 || z < 0) return false;
 
             TerrainTile tile = new(x, z);
-            if (!tile.IsInBounds() || tile.IsUnderwater()) return false;
 
-            Structure structure = tile.GetStructure();
-            if (!structure || structure.GetType() == typeof(Field) || structure.GetType() == typeof(Swamp))
-                return true;
-
-            return false;
+            return tile.IsInBounds() && !tile.IsUnderwater() && !tile.HasSettlement();
         }
 
         #endregion
@@ -476,16 +475,9 @@ namespace Populous
         #region Free Roam
 
         /// <summary>
-        /// Tells the unit to roam freely.
+        /// Sets the movement to free move.
         /// </summary>
-        public void SetFreeRoam()
-        {
-            ClearPath();
-            m_TargetTile = null;
-            m_TargetUnit = null;
-            m_TargetSettlement = null;
-            SwitchMoveState(MoveState.FREE_MOVE);
-        }
+        public void SetFreeRoam() => SwitchMoveState(MoveState.FREE_MOVE);
 
         /// <summary>
         /// Controls the unit's roaming.
@@ -642,7 +634,7 @@ namespace Populous
                 if (m_Unit.Behavior == UnitBehavior.GO_TO_MAGNET)
                     m_CannotFindMagnet = true;
 
-                SetFreeRoam();
+                SwitchMoveState(MoveState.FREE_MOVE);
                 return;
             }
 
@@ -659,7 +651,7 @@ namespace Populous
         public void LoseTargetUnit(Unit targetUnit)
         {
             if (m_TargetUnit != targetUnit) return;
-            SetFreeRoam();
+            SwitchMoveState(MoveState.FREE_MOVE);
         }
 
         #endregion
@@ -701,7 +693,7 @@ namespace Populous
         public void LoseTargetSettlement(Settlement targetSettlement)
         {
             if (m_TargetUnit != targetSettlement) return;
-            SetFreeRoam();
+            SwitchMoveState(MoveState.FREE_MOVE);
         }
 
         #endregion
@@ -831,12 +823,16 @@ namespace Populous
         /// </summary>
         private void OnFreeTileReached()
         {
-            SwitchMoveState(MoveState.STOP);
+            Pause(true);
             
             if (m_TargetTile.HasValue && m_TargetTile.Value.IsFree())
-                StructureManager.Instance.CreateSettlement(m_TargetTile.Value, m_Unit.Faction);
+            {
+                Settlement settlement = StructureManager.Instance.CreateSettlement(m_TargetTile.Value, m_Unit.Faction);
+                GoToSettlement(settlement);
+                return;
+            }
 
-            //SetFreeRoam();
+            SwitchMoveState(MoveState.FREE_MOVE);
         }
 
         #endregion
@@ -926,11 +922,12 @@ namespace Populous
             }
 
             List<TerrainPoint> path = AStarPathfinder.FindPath(current, magnet);
+
             if (path == null || path.Count == 0)
             {
                 m_CannotFindMagnet = true;
                 m_Unit.SetCannotFindUnitMagnetSymbol_ClientRpc(true);
-                SetFreeRoam();
+                SwitchMoveState(MoveState.FREE_MOVE);
                 return;
             }
 
@@ -961,11 +958,11 @@ namespace Populous
         }
 
         /// <summary>
-        /// Sets the unit to wander around its current location.
+        /// Sets the unit to wander around the unit magnet.
         /// </summary>
-        private void WanderAroundCurrentPoint()
+        private void WanderAroundMagnet()
         {
-            TerrainPoint point = m_Unit.ClosestTerrainPoint;
+            TerrainPoint point = GameController.Instance.GetUnitMagnetLocation(m_Unit.Faction);
 
             List<TerrainPoint> reachableNeighbors = new();
             foreach (TerrainPoint neighbor in point.GetAllNeighbors())
@@ -982,11 +979,16 @@ namespace Populous
         #region React To Change
 
         /// <summary>
-        /// 
+        /// Updates everything to reflect the new heights of the terrain.
         /// </summary>
         public void ReactToTerrainChange()
             => ReactToTerrainChange(new(0, 0), new(Terrain.Instance.TilesPerSide, Terrain.Instance.TilesPerSide));
 
+        /// <summary>
+        /// Updates everything in the area between the provided points to reflect the new heights of the terrain.
+        /// </summary>
+        /// <param name="bottomLeft">The bottom-left corner of a rectangular area containing all modified terrain points.</param>
+        /// <param name="topRight">The top-right corner of a rectangular area containing all modified terrain points.</param>
         public void ReactToTerrainChange(TerrainPoint bottomLeft, TerrainPoint topRight)
         {
             UpdateTargetPointHeight(bottomLeft, topRight);
@@ -996,6 +998,11 @@ namespace Populous
                 SetGoToMagnetBehavior();
         }
 
+        /// <summary>
+        /// Updates the height of the target point (if there is one) to the new height of the terrain.
+        /// </summary>
+        /// <param name="bottomLeft">The bottom-left corner of a rectangular area containing all modified terrain points.</param>
+        /// <param name="topRight">The top-right corner of a rectangular area containing all modified terrain points.</param>
         private void UpdateTargetPointHeight(TerrainPoint bottomLeft, TerrainPoint topRight)
         {
             Vector3 bottomLeftPosition = bottomLeft.ToScenePosition();
@@ -1021,6 +1028,11 @@ namespace Populous
             );
         }
 
+        /// <summary>
+        /// Checks if the target tile (if there is one) is still free.
+        /// </summary>
+        /// <param name="bottomLeft">The bottom-left corner of a rectangular area containing all modified terrain points.</param>
+        /// <param name="topRight">The top-right corner of a rectangular area containing all modified terrain points.</param>
         private void CheckTargetFreeTile(TerrainPoint bottomLeft, TerrainPoint topRight)
         {
             // check if the tile is still free (if it was in the modified area)
@@ -1028,14 +1040,20 @@ namespace Populous
                 m_TargetTile.Value.Z < bottomLeft.Z - 1 || m_TargetTile.Value.Z > topRight.Z || m_TargetTile.Value.IsFree())
                 return;
 
-            SetFreeRoam();
+            SwitchMoveState(MoveState.FREE_MOVE);
         }
 
+        /// <summary>
+        /// Check if the target tile (if there is one) is still free after the given structure has been created.
+        /// </summary>
+        /// <param name="structure">The <c>Structure</c> that has been created.</param>
         private void CheckTargetFreeTile(Structure structure)
         {
             // check if the created structure is on the target tile
             if (!m_TargetTile.HasValue || structure.OccupiedTile != m_TargetTile.Value) return;
-            SetFreeRoam();
+
+            // if the target is occupied, free move
+            SwitchMoveState(MoveState.FREE_MOVE);
         }
 
         #endregion

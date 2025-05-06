@@ -133,7 +133,7 @@ namespace Populous
         public void Setup(Faction faction, int strength, Settlement origin)
         {
             m_Faction = faction;
-            m_Strength = faction == Faction.RED ? strength : 1;
+            m_Strength = strength;
             m_Origin = origin;
 
             SetObjectInfo_ClientRpc(

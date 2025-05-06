@@ -115,7 +115,11 @@ namespace Populous
         /// Checks whether there is a settlement on the tile.
         /// </summary>
         /// <returns>True if the tile is occupied by a settlement, false otherwise.</returns>
-        public readonly bool HasSettlement() => GetStructure().GetType() == typeof(Settlement);
+        public readonly bool HasSettlement()
+        {
+            Structure structure = GetStructure();
+            return (structure && structure.GetType() == typeof(Settlement));
+        }
 
         #endregion
 

@@ -208,11 +208,12 @@ namespace Populous
         /// </summary>
         /// <param name="location">The <c>TerrainPoint</c> at which the new unit should be spawned.</param>
         /// <param name="faction">The faction the new unit should belong to.</param>
+        /// <param name="gainManna">True if the unit adds manna to its faction, false otherwise.</param>
         /// <param name="type">The type of the unit, Walker by default.</param>
         /// <param name="strength">The initial number of followers in the unit, 1 by default.</param>
         /// <param name="origin">The settlement the unit was created by, null for the starting units.</param>
         /// <returns>The <c>GameObject</c> of the newly spawned unit.</returns>
-        public Unit SpawnUnit(TerrainPoint location, Faction faction, UnitType type = UnitType.WALKER, int strength = 1, Settlement origin = null)
+        public Unit SpawnUnit(TerrainPoint location, Faction faction, bool gainManna, UnitType type = UnitType.WALKER, int strength = 1, Settlement origin = null)
         {
             if (!IsHost || IsFactionFull(faction) || strength == 0) return null;
 
@@ -236,7 +237,7 @@ namespace Populous
             if (type == UnitType.KNIGHT)
                 SetKnight(faction, unit);
 
-            AddUnit(faction, gainManna: origin != null);
+            AddUnit(faction, gainManna: gainManna);
 
             return unit;
         }
@@ -328,6 +329,7 @@ namespace Populous
                         SpawnUnit(
                             location: spawnPoint,
                             faction: faction == 0 ? Faction.RED : Faction.BLUE,
+                            gainManna: false,
                             strength: m_StartingUnitStrength,
                             type: spawned == leader ? UnitType.LEADER : UnitType.WALKER,
                             origin: null
@@ -344,6 +346,7 @@ namespace Populous
                     SpawnUnit(
                         location: spawnPoints[random.Next(spawnPoints.Count)],
                         faction: faction == 0 ? Faction.RED : Faction.BLUE,
+                        gainManna: false,
                         strength: m_StartingUnitStrength,
                         type: spawned == leader ? UnitType.LEADER : UnitType.WALKER,
                         origin: null

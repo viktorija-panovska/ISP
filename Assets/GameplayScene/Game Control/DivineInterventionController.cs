@@ -433,6 +433,7 @@ namespace Populous
                 knight = UnitManager.Instance.SpawnUnit(
                     location: new(settlement.OccupiedTile.X, settlement.OccupiedTile.Z),
                     faction,
+                    gainManna: true,
                     type: UnitType.KNIGHT,
                     strength: settlement.FollowersInSettlement,
                     origin: settlement

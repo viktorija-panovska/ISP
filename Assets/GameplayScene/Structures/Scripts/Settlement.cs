@@ -132,8 +132,7 @@ namespace Populous
             if (unit.Faction != m_Faction && unit.Behavior != UnitBehavior.GO_TO_MAGNET)
                 UnitManager.Instance.AttackSettlement(unit, this);
 
-            if (unit.Type == UnitType.KNIGHT)
-                return;
+            if (unit.Type == UnitType.KNIGHT) return;
 
             if (unit.Faction == m_Faction && m_ContainsLeader)
             {
@@ -429,9 +428,10 @@ namespace Populous
             Unit unit = UnitManager.Instance.SpawnUnit(
                 location: location,
                 faction: m_Faction,
+                gainManna: newUnit,
                 type: m_ContainsLeader ? UnitType.LEADER : UnitType.WALKER,
                 strength: m_CurrentSettlementData.UnitStrength,
-                origin: newUnit ? this : null
+                origin: this
             );
 
             return unit;
@@ -465,8 +465,6 @@ namespace Populous
             while (true)
             {
                 yield return new WaitForSeconds(m_FillRate);
-
-                if (m_FollowersInSettlement == 0) break;
 
                 if (IsAttacked) continue;
 
