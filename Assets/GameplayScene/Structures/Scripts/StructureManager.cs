@@ -292,7 +292,12 @@ namespace Populous
         {
             if (!tile.IsFree()) return null;
 
-            Settlement settlement = (Settlement)SpawnStructure(m_SettlementPrefab, tile, faction);
+            Structure structure = SpawnStructure(m_SettlementPrefab, tile, faction);
+
+            if (structure == null) return null;
+
+            Settlement settlement = (Settlement)structure;
+
             AddSettlementPosition(settlement.transform.position, faction);
 
             return settlement;

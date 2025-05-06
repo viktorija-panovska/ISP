@@ -68,6 +68,8 @@ namespace Populous
             // a burned field, so it doesn't serve any settlement
             if (m_Faction == Faction.NONE)
                 RemoveAllSettlementsServed();
+            else
+                RemoveNonFactionSettlements();
         }
 
         /// <summary>
@@ -89,7 +91,7 @@ namespace Populous
         /// <param name="settlement">The <c>Settlement</c> that should be added.</param>
         public void AddSettlementServed(Settlement settlement) 
         {
-            if (m_SettlementsServed.Contains(settlement)) return;
+            if (settlement == null || m_SettlementsServed.Contains(settlement)) return;
 
             m_SettlementsServed.Add(settlement);
             settlement.OnSettlementDestroyed += RemoveSettlementServed;
@@ -103,12 +105,14 @@ namespace Populous
         /// <param name="settlement">The <c>Settlement</c> that should be removed.</param>
         public void RemoveSettlementServed(Settlement settlement)
         {
+            if (settlement == null || !m_SettlementsServed.Contains(settlement)) return;
+
             m_SettlementsServed.Remove(settlement);
             settlement.OnSettlementDestroyed -= RemoveSettlementServed;
             settlement.OnSettlementFactionChanged -= SwitchFaction;
 
             // if all the settlements that this field serves have been destroyed, also destroy this field
-            if (m_SettlementsServed.Count == 0 || m_Faction != Faction.NONE)
+            if (m_SettlementsServed.Count == 0)
                 StructureManager.Instance.DespawnStructure(this);
         }
 
@@ -119,11 +123,25 @@ namespace Populous
         {
             foreach (Settlement settlement in m_SettlementsServed)
             {
+                if (settlement == null) continue;
                 settlement.OnSettlementDestroyed -= RemoveSettlementServed;
                 settlement.OnSettlementFactionChanged -= SwitchFaction;
             }
 
             m_SettlementsServed = new();
+        }
+
+        private void RemoveNonFactionSettlements()
+        {
+            foreach (Settlement settlement in m_SettlementsServed)
+            {
+                if (settlement == null || settlement.Faction == m_Faction) continue;
+                settlement.OnSettlementDestroyed -= RemoveSettlementServed;
+                settlement.OnSettlementFactionChanged -= SwitchFaction;
+            }
+
+            if (m_SettlementsServed.Count == 0)
+                StructureManager.Instance.DespawnStructure(this);
         }
 
         #endregion

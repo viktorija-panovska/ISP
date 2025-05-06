@@ -108,6 +108,7 @@ namespace Populous
             }
 
             m_MannaBar.maxValue = DivineInterventionController.Instance.MaxManna;
+            m_UnitStrengthSlider.maxValue = 2 * UnitManager.Instance.MaxUnits;
 
             SetActiveDivineInterventionIcon(DivineIntervention.MOLD_TERRAIN, DivineIntervention.MOLD_TERRAIN);
             SetActiveBehaviorIcon(UnitBehavior.SETTLE, UnitBehavior.SETTLE);
@@ -369,8 +370,7 @@ namespace Populous
         /// Displays the given unit strength on the Inpsect Unit panel.
         /// </summary>
         /// <param name="strength">The amount of strength that should be shown.</param>
-        public void UpdateUnitStrength(int strength)
-            => m_UnitStrengthSlider.value = (float)strength / 100;
+        public void UpdateUnitStrength(int strength) => m_UnitStrengthSlider.value = strength;
 
 
         /// <summary>
@@ -393,7 +393,7 @@ namespace Populous
         /// <param name="settlementCapacity">The maximum number of followers that can be in the settlement of the given type.</param>
         public void UpdateSettlementType(SettlementType type, int settlementCapacity)
         {
-            m_SettlementTypeSlider.value = (float)type / Enum.GetValues(typeof(SettlementType)).Length;
+            m_SettlementTypeSlider.value = ((float)type + 1) / Enum.GetValues(typeof(SettlementType)).Length;
             m_InspectedSettlementCapacity = settlementCapacity;
         }
 

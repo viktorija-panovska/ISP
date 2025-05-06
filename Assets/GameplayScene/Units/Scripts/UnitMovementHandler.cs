@@ -279,6 +279,19 @@ namespace Populous
         }
 
         /// <summary>
+        /// Sets which state the unit should have when it comes out of pause.
+        /// </summary>
+        /// <param name="state">The <c>MoveState</c> which should be set.</param>
+        private void SetStateAfterPause(MoveState state)
+        {
+            ClearPath();
+            m_TargetTile = null;
+            m_TargetUnit = null;
+            m_TargetSettlement = null;
+            m_LastMoveState = state;
+        }
+
+        /// <summary>
         /// Chooses what the unit should do next once it has reached the end of the current path.
         /// </summary>
         private void ChooseNextAction()
@@ -293,10 +306,6 @@ namespace Populous
             else if (m_CurrentMoveState == MoveState.GO_TO_MAGNET)
                 SetGoToMagnetBehavior();
 
-            // if we are going to a flat space that still exists and is still free, we have reached the tile
-            else if (m_CurrentMoveState == MoveState.GO_TO_FREE_TILE && m_TargetTile.HasValue && m_TargetTile.Value.IsFree())
-                OnFreeTileReached();
-
             // if we are following a unit, take the next step towards it
             else if (m_CurrentMoveState == MoveState.FOLLOW && m_TargetUnit)
                 GetNextStepToFollowTarget();
@@ -305,6 +314,10 @@ namespace Populous
             // the activities in the settlement will be handled in the settlement by the collider
             else if (m_CurrentMoveState == MoveState.GO_TO_SETTLEMENT && m_TargetSettlement)
                 SwitchMoveState(MoveState.FREE_MOVE);
+
+            // if we are going to a flat space that still exists and is still free, we have reached the tile
+            else if (m_CurrentMoveState == MoveState.GO_TO_FREE_TILE && m_TargetTile.HasValue && m_TargetTile.Value.IsFree())
+                OnFreeTileReached();
 
             else
             {
@@ -374,8 +387,8 @@ namespace Populous
                 FindSurroundingFreeTile(current, ref targetTile);
                 if (targetTile.HasValue)
                 {
-                    SwitchMoveState(MoveState.GO_TO_FREE_TILE);
                     m_TargetTile = targetTile.Value;
+                    OnFreeTileReached();
                     return;
                 }
             }
@@ -618,6 +631,12 @@ namespace Populous
         /// <param name="unit">The <c>Unit</c> which we want to go after.</param>
         private void FollowUnit(Unit unit)
         {
+            if (unit == null)
+            {
+                SwitchMoveState(MoveState.FREE_MOVE);
+                return;
+            }
+
             SwitchMoveState(MoveState.FOLLOW);
             m_TargetUnit = unit;
         }
@@ -651,6 +670,13 @@ namespace Populous
         public void LoseTargetUnit(Unit targetUnit)
         {
             if (m_TargetUnit != targetUnit) return;
+
+            if (m_CurrentMoveState == MoveState.STOP)
+            {
+                SetStateAfterPause(MoveState.FREE_MOVE);
+                return;
+            }
+
             SwitchMoveState(MoveState.FREE_MOVE);
         }
 
@@ -666,6 +692,12 @@ namespace Populous
         /// <returns>True if a path is found, false otherwise.</returns>
         private bool GoToSettlement(Settlement settlement)
         {
+            if (settlement == null)
+            {
+                SwitchMoveState(MoveState.FREE_MOVE);
+                return false;
+            }
+
             SwitchMoveState(MoveState.GO_TO_SETTLEMENT);
 
             TerrainPoint current = m_Unit.ClosestTerrainPoint;
@@ -693,6 +725,13 @@ namespace Populous
         public void LoseTargetSettlement(Settlement targetSettlement)
         {
             if (m_TargetUnit != targetSettlement) return;
+
+            if (m_CurrentMoveState == MoveState.STOP)
+            {
+                SetStateAfterPause(MoveState.FREE_MOVE);
+                return;
+            }
+
             SwitchMoveState(MoveState.FREE_MOVE);
         }
 
@@ -712,6 +751,13 @@ namespace Populous
             List<TerrainPoint> pathToTile = null;
 
             FindSurroundingFreeTile(current, ref target);
+
+            if (target.HasValue)
+            {
+                m_TargetTile = target.Value;
+                OnFreeTileReached();
+                return true;
+            }
 
             if (!target.HasValue && m_CurrentRoamDirection != (0, 0) && (m_CurrentRoamDirection.x == 0 || m_CurrentRoamDirection.z == 0))
                 FindFreeTile_Parallel();
@@ -824,7 +870,7 @@ namespace Populous
         private void OnFreeTileReached()
         {
             Pause(true);
-            
+
             if (m_TargetTile.HasValue && m_TargetTile.Value.IsFree())
             {
                 Settlement settlement = StructureManager.Instance.CreateSettlement(m_TargetTile.Value, m_Unit.Faction);
@@ -892,6 +938,12 @@ namespace Populous
         public void SetGoToMagnetBehavior()
         {
             if (m_Unit.Behavior != UnitBehavior.GO_TO_MAGNET) return;
+
+            if (m_CurrentMoveState == MoveState.STOP)
+            {
+                SetStateAfterPause(MoveState.GO_TO_MAGNET);
+                return;
+            }
 
             m_IsUnitMagnetReached = false;
             SwitchMoveState(MoveState.GO_TO_MAGNET);
@@ -1040,6 +1092,12 @@ namespace Populous
                 m_TargetTile.Value.Z < bottomLeft.Z - 1 || m_TargetTile.Value.Z > topRight.Z || m_TargetTile.Value.IsFree())
                 return;
 
+            if (m_CurrentMoveState == MoveState.STOP)
+            {
+                SetStateAfterPause(MoveState.FREE_MOVE);
+                return;
+            }
+
             SwitchMoveState(MoveState.FREE_MOVE);
         }
 
@@ -1051,6 +1109,12 @@ namespace Populous
         {
             // check if the created structure is on the target tile
             if (!m_TargetTile.HasValue || structure.OccupiedTile != m_TargetTile.Value) return;
+
+            if (m_CurrentMoveState == MoveState.STOP)
+            {
+                SetStateAfterPause(MoveState.FREE_MOVE);
+                return;
+            }
 
             // if the target is occupied, free move
             SwitchMoveState(MoveState.FREE_MOVE);

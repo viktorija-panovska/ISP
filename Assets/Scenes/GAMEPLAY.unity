@@ -2641,10 +2641,10 @@ MonoBehaviour:
   m_BlackRockPercentage: 0.2
   m_WhiteRockPercentage: 0.05
   m_VolcanoRockPercentage: 0.4
-  m_MinimapIconScale: 30
+  m_MinimapIconScale: 10
   m_MinimapSettlementColors:
   - {r: 1, g: 1, b: 1, a: 1}
-  - {r: 0.3018868, g: 0.3018868, b: 0.3018868, a: 1}
+  - {r: 0.5283019, g: 0.5283019, b: 0.5283019, a: 1}
 --- !u!114 &364047003
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5887,7 +5887,7 @@ MonoBehaviour:
   m_HandleRect: {fileID: 0}
   m_Direction: 0
   m_MinValue: 0
-  m_MaxValue: 1
+  m_MaxValue: 50
   m_WholeNumbers: 0
   m_Value: 0
   m_OnValueChanged:

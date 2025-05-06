@@ -468,10 +468,10 @@ namespace Populous
 
                 if (IsAttacked) continue;
 
-                AddFollowers(1);
-
-                if (m_FollowersInSettlement > Capacity)
+                if (m_FollowersInSettlement == Capacity)
                     ReleaseUnit(m_UnitSpawnPoint, newUnit: true);
+
+                AddFollowers(1);
             }
         }
 

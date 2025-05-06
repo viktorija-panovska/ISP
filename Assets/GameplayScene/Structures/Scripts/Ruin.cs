@@ -5,12 +5,11 @@ namespace Populous
     /// </summary>
     public class Ruin : Structure
     {
-        private void Start() => m_DestroyMethod = DestroyMethod.DROWN;
-
-        public override void Setup(Faction faction, TerrainTile occupiedTile)
+        private void Start()
         {
-            base.Setup(faction, occupiedTile);
-            GameUtils.ResizeGameObject(gameObject, Terrain.Instance.UnitsPerTileSide);
+            GameUtils.ResizeGameObject(gameObject, Terrain.Instance.UnitsPerTileSide * 20);
+            m_DestroyMethod = DestroyMethod.DROWN;
         }
+
     }
 }
