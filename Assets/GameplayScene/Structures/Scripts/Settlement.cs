@@ -318,7 +318,7 @@ namespace Populous
             m_Faction = newFaction;
 
             SetObjectInfo_ClientRpc($"{m_Faction} Settlement", LayerData.FactionLayers[(int)m_Faction]);
-            SetupMinimapIcon();
+            SetupMinimapIcon_ClientRpc(StructureManager.Instance.MinimapSettlementColors[(int)m_Faction]);
             ToggleFlag_ClientRpc(m_Faction, true);
         }
 
@@ -355,7 +355,9 @@ namespace Populous
         /// <summary>
         /// Sets up the icon that represents the settlement on the minimap.
         /// </summary>
-        private void SetupMinimapIcon()
+        /// <param name="color">The color of the icon.</param>
+        [ClientRpc]
+        private void SetupMinimapIcon_ClientRpc(Color color)
         {
             if (m_Faction == Faction.NONE)
             {
@@ -363,9 +365,9 @@ namespace Populous
                 return;
             }
 
-            float scale = Terrain.Instance.UnitsPerSide / StructureManager.Instance.MinimapIconScale;
+            float scale = StructureManager.Instance.MinimapIconScale;
             m_MinimapIcon.transform.localScale = new(scale, m_MinimapIcon.transform.localScale.y, scale);
-            m_MinimapIcon.GetComponent<MeshRenderer>().material.color = StructureManager.Instance.MinimapSettlementColors[(int)m_Faction];
+            m_MinimapIcon.GetComponent<MeshRenderer>().material.color = color;
         }
 
         /// <summary>

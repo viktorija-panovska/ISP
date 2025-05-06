@@ -149,7 +149,7 @@ namespace Populous
             m_MovementHandler = GetComponent<UnitMovementHandler>();
             m_MovementHandler.InitializeMovement();
 
-            SetupMinimapIcon();
+            SetupMinimapIcon_ClientRpc(UnitManager.Instance.MinimapUnitColors[(int)m_Faction]);
 
             // subscribe to events
             if (m_Faction == Faction.RED)
@@ -183,12 +183,14 @@ namespace Populous
         /// <summary>
         /// Sets up the icon that represents the unit on the minimap.
         /// </summary>
-        private void SetupMinimapIcon()
+        /// <param name="color">The color of the icon.</param>
+        [ClientRpc]
+        private void SetupMinimapIcon_ClientRpc(Color color)
         {
             float scale = UnitManager.Instance.MinimapIconScale;
 
             m_MinimapIcon.transform.localScale = new(scale, m_MinimapIcon.transform.localScale.y, scale);
-            m_MinimapIcon.GetComponent<MeshRenderer>().material.color = UnitManager.Instance.MinimapUnitColors[(int)m_Faction];
+            m_MinimapIcon.GetComponent<MeshRenderer>().material.color = color;
         }
 
         #endregion
