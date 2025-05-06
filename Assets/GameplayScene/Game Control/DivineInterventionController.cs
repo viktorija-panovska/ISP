@@ -560,8 +560,8 @@ namespace Populous
             if (!IsHost) return;
 
             GameController.Instance.UpdateMagnetsInArea(modifiedAreaCorners.bottomLeft, modifiedAreaCorners.topRight);
-            StructureManager.Instance.UpdateStructuresInArea(modifiedAreaCorners.bottomLeft, modifiedAreaCorners.topRight);
             OnTerrainModified?.Invoke(modifiedAreaCorners.bottomLeft, modifiedAreaCorners.topRight); // for units
+            StructureManager.Instance.UpdateStructuresInArea(modifiedAreaCorners.bottomLeft, modifiedAreaCorners.topRight);
         }
     }
 }

@@ -46,8 +46,10 @@ namespace Populous
 
         private void OnTriggerEnter(Collider other)
         {
-            if (!other.GetComponent<Renderer>() || other.gameObject.layer == LayerData.MinimapLayer) return;
-            other.GetComponent<Renderer>().enabled = true;
+            if (other.gameObject.layer == LayerData.MinimapLayer) return;
+            
+            if (other.GetComponent<Renderer>())
+                other.GetComponent<Renderer>().enabled = true;
 
             if (!other.GetComponent<NetworkObject>()) return;
 
@@ -64,8 +66,10 @@ namespace Populous
 
         private void OnTriggerExit(Collider other)
         {
-            if (!other.GetComponent<Renderer>() || other.gameObject.layer == LayerData.MinimapLayer) return;
-            other.GetComponent<Renderer>().enabled = true;
+            if (other.gameObject.layer == LayerData.MinimapLayer) return;
+
+            if (other.GetComponent<Renderer>())
+                other.GetComponent<Renderer>().enabled = false;
 
             if (!other.GetComponent<NetworkObject>()) return;
 

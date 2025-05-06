@@ -438,7 +438,7 @@ namespace Populous
         /// </summary>
         /// <param name="height">The height the unit should stand at.</param>
         [ClientRpc]
-        private void SetHeight_ClientRpc(float height) 
+        private void SetHeight_ClientRpc(float height)
             => transform.position = new Vector3(transform.position.x, height, transform.position.z);
 
         #endregion
