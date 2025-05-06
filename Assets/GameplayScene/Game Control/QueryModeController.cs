@@ -92,7 +92,8 @@ namespace Populous
             // stop inspecting the last inspected object
             if (lastInspectedObject != null)
             {
-                DisableHighlight_ClientRpc(
+                SetHighlight_ClientRpc(
+                    isOn: false,
                     lastInspectedObject.GameObject.GetComponent<NetworkObject>(),
                     GameUtils.GetClientParams(GameData.Instance.GetNetworkIdByFaction(faction))
                 );
@@ -109,6 +110,12 @@ namespace Populous
 
             m_InspectedObjects[(int)faction] = inspectObject;
             inspectObject.IsInspected = true;
+
+            SetHighlight_ClientRpc(
+                isOn: true,
+                inspectObject.GameObject.GetComponent<NetworkObject>(),
+                GameUtils.GetClientParams(GameData.Instance.GetNetworkIdByFaction(faction))
+            );
 
             if (inspectObject.GetType() == typeof(Unit))
             {
@@ -150,17 +157,18 @@ namespace Populous
         }
 
         /// <summary>
-        /// Turns off the highlight indicating that the object is being inspected.
+        /// Turns on/off the highlight indicating that the object is being inspected.
         /// </summary>
+        /// <param name="isOn">True if the highlight should be turned on, false otherwise,</param>
         /// <param name="inspectedObject">A reference to the <c>IInspectedObject</c> that is inspected.</param>
         /// <param name="clientRpcParams">RPC parameters for the client RPC.</param>
         [ClientRpc]
-        private void DisableHighlight_ClientRpc(NetworkObjectReference inspectedObject, ClientRpcParams clientRpcParams)
+        private void SetHighlight_ClientRpc(bool isOn, NetworkObjectReference inspectedObject, ClientRpcParams clientRpcParams)
         {
             if (!inspectedObject.TryGet(out NetworkObject networkObject) || networkObject.GetComponent<IInspectableObject>() == null)
                 return;
 
-            networkObject.GetComponent<IInspectableObject>().SetHighlight(false);
+            networkObject.GetComponent<IInspectableObject>().SetHighlight(isOn);
         }
 
 

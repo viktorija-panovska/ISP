@@ -50,7 +50,7 @@ namespace Populous
 
         [SerializeField] private float m_MoveSpeed = 40f;
         [Tooltip("How far away from a point can the unit be for it to register as having reached that point.")]
-        [SerializeField] private float m_PositionLeeway = 0.5f;
+        [SerializeField] private float m_PositionLeeway = 0.1f;
 
         [Header("Roaming")]
         [Tooltip("How many tiles in front of itself in the direction the unit is going can it see.")]
@@ -836,7 +836,7 @@ namespace Populous
             if (m_TargetTile.HasValue && m_TargetTile.Value.IsFree())
                 StructureManager.Instance.CreateSettlement(m_TargetTile.Value, m_Unit.Faction);
 
-            SetFreeRoam();
+            //SetFreeRoam();
         }
 
         #endregion

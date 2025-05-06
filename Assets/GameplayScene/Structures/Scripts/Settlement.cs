@@ -49,11 +49,6 @@ namespace Populous
         public GameObject GameObject { get => gameObject; }
 
         /// <summary>
-        /// The index of the currently active settlement in the settlements array.
-        /// </summary>
-        private int m_SettlementTypeIndex;
-
-        /// <summary>
         /// The data of the type of settlement currently active.
         /// </summary>
         private SettlementData m_CurrentSettlementData;
